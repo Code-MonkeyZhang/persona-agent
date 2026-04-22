@@ -1,0 +1,5 @@
+extraResources:
+  - from: "../server/dist/nano-agent"
+    to: "bin/nano-agent"
+  - from: "../server/bin/cloudflared"
+    to: "bin/cloudflared"

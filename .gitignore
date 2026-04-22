@@ -1,0 +1,10 @@
+node_modules/
+dist/
+out/
+.DS_Store
+*.tsbuildinfo
+
+# Environment variables (may contain API keys)
+.env
+.env.local
+.env.*.local

@@ -1,0 +1,30 @@
+{
+  "name": "animate-claw",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "cd packages/desktop && npm run dev",
+    "build": "npm run build:server && npm run build:desktop && npm run dist",
+    "build:server": "cd packages/server && bun run build",
+    "build:desktop": "cd packages/desktop && npm run build",
+    "dist": "cd packages/desktop && npm run dist",
+    "typecheck": "cd packages/server && bun run typecheck && cd ../../packages/desktop && npm run typecheck",
+    "lint": "oxlint packages/server/src packages/desktop/src",
+    "format": "prettier --write \"packages/*/src/**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"packages/*/src/**/*.{ts,tsx}\"",
+    "check": "npm run lint && npm run format:check && npm run typecheck",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "oxlint": "^1.61.0",
+    "prettier": "^3.8.3"
+  },
+  "lint-staged": {
+    "packages/*/src/**/*.{ts,tsx}": [
+      "prettier --write",
+      "oxlint"
+    ]
+  }
+}

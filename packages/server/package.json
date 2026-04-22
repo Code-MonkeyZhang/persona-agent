@@ -1,0 +1,58 @@
+{
+  "name": "nano-agent",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": {
+    "nano-agent": "dist/src/index.js"
+  },
+  "private": true,
+  "scripts": {
+    "build": "bun build ./src/index.ts --compile --outfile ./dist/nano-agent",
+    "build:bundle": "bun build ./src/index.ts --outdir ./dist --target bun",
+    "start": "bun run dist/index.js",
+    "dev": "bun run src/index.ts",
+    "test": "bun test",
+    "test:vitest": "vitest",
+    "typecheck": "tsc --noEmit",
+    "preflight": "bun run build && bun test",
+    "server": "bun run src/server/standalone.ts"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.1.0",
+    "@types/node": "^24.10.2",
+    "@types/open": "^6.1.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@types/ws": "^8.18.1",
+    "react-devtools-core": "^7.0.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.15"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.28.0",
+    "@anthropic-ai/sdk": "^0.71.2",
+    "@mariozechner/pi-ai": "0.62.0",
+    "chalk": "^5.6.2",
+    "cloudflared": "^0.7.1",
+    "commander": "^14.0.2",
+    "cors": "^2.8.6",
+    "date-fns": "^4.1.0",
+    "express": "^5.2.1",
+    "highlight.js": "^11.11.1",
+    "ink": "npm:@jrichman/ink@^6.4.10",
+    "jimp": "^1.6.0",
+    "lowlight": "^3.3.0",
+    "multer": "^2.1.1",
+    "open": "^11.0.0",
+    "openai": "^6.10.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "string-width": "^8.2.0",
+    "uuid": "^13.0.0",
+    "ws": "^8.19.0",
+    "yaml": "^2.8.2",
+    "zod": "^4.3.5"
+  }
+}

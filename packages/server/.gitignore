@@ -1,0 +1,35 @@
+# Dependency
+node_modules
+
+# Editors
+.vscode
+
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# build related
+*.tsbuildinfo
+dist
+
+#agent 
+data/
+
+
+# Config
+config/config.yaml
+config/mcp.json
+skills/*
+.nano-agent
+
+# log
+logs
+
+# Test python scripts
+test_python_script/
+
+# Environment variables (may contain API keys)
+.env
+.env.local
+.env.*.local
