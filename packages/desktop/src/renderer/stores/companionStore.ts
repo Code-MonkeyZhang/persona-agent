@@ -28,7 +28,7 @@ export const useCompanionStore = create<CompanionStore>()(
       },
     }),
     {
-      name: 'nano-agent-companion-store',
+      name: 'animateclaw-companion-store',
       partialize: (state) => ({ visible: state.visible }),
     }
   )

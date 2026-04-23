@@ -139,7 +139,7 @@ export const useVoiceStore = create<VoiceStore>()(
       },
     }),
     {
-      name: 'nano-agent-voice-store',
+      name: 'animateclaw-voice-store',
       partialize: (state) => ({
         voiceEnabled: state.voiceEnabled,
         summaryThreshold: state.summaryThreshold,

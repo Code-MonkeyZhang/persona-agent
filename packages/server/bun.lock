@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "nano-agent",
+      "name": "animateclaw",
       "dependencies": {
         "@anthropic-ai/sdk": "^0.71.2",
         "@mariozechner/pi-ai": "0.62.0",

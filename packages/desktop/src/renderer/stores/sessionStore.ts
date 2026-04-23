@@ -15,7 +15,7 @@ import {
 import type { Message } from '../types/chat';
 import { deleteScrollPosition } from './scrollPositionCache';
 
-const LAST_SESSION_KEY = 'nano-agent-last-session-id';
+const LAST_SESSION_KEY = 'animateclaw-last-session-id';
 
 interface SessionStore {
   sessions: SessionMeta[];

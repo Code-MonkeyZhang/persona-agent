@@ -14,7 +14,7 @@ import {
 } from '../lib/api';
 import { logger } from '../lib/logger';
 
-const LAST_AGENT_KEY = 'nano-agent-last-agent-id';
+const LAST_AGENT_KEY = 'animateclaw-last-agent-id';
 interface AgentStore {
   agents: Agent[];
   currentAgent: Agent | null;

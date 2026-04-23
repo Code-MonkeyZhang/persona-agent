@@ -34,8 +34,8 @@ const api = {
   }): Promise<string | null> => ipcRenderer.invoke('select-folder', options),
 
   /**
-   * 获取后端 nano-agent 服务的 URL 地址
-   * 后端是动态启动的，前端不知道具体端口，需要向主进程查询
+   * Get the backend AnimateClaw server URL.
+   * The backend starts dynamically, so the renderer queries the main process for the address.
    * @returns 服务地址，未启动则返回 null
    */
   getServerUrl: (): Promise<string | null> =>

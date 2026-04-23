@@ -1,9 +1,9 @@
 {
-  "name": "nano-agent",
+  "name": "animateclaw",
   "version": "1.0.0",
   "type": "module",
   "bin": {
-    "nano-agent": "dist/src/index.js"
+    "animateclaw": "dist/src/index.js"
   },
   "private": true,
   "scripts": {
