@@ -27,7 +27,7 @@ const DEFAULT_PORT = 3847;
 let cachedBaseUrl: string | null = null;
 
 /**
- * 获取 API 请求的基础 URL。通过 Electron IPC 读取 server.json 并缓存结果。
+ * 获取 API 请求的基础 URL。通过 Electron IPC 查询主进程并缓存结果。
  */
 export async function getBaseUrl(): Promise<string> {
   if (cachedBaseUrl) {

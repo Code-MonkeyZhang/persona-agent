@@ -50,20 +50,6 @@ const api = {
     ipcRenderer.invoke('log', level, ...args),
 
   /**
-   * 获取桌面端配置（如退出时是否关闭服务器）。
-   * @returns 桌面端配置对象
-   */
-  getDesktopConfig: (): Promise<{ killServerOnExit: boolean }> =>
-    ipcRenderer.invoke('get-desktop-config'),
-
-  /**
-   * 保存桌面端配置。
-   * @param config - 要保存的配置对象
-   */
-  setDesktopConfig: (config: { killServerOnExit: boolean }): Promise<void> =>
-    ipcRenderer.invoke('set-desktop-config', config),
-
-  /**
    * 通过主进程代理发起 HTTP 请求，绕过渲染进程的 CORS 限制
    * @param url - 请求目标 URL
    * @param options - 请求参数（方法、请求头、请求体）

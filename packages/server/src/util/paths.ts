@@ -5,7 +5,6 @@
  * ~/.nano-agent/
  * ├── config/
  * │   ├── config.yaml
- * │   ├── server.json
  * │   └── auth.json
  * ├── agents/
  * │   └── {agentId}/
@@ -49,7 +48,6 @@ export const getBinDir = () => path.join(APP_DIR, 'bin');
 // --- Config files ---
 
 export const getConfigPath = () => path.join(getConfigDir(), 'config.yaml');
-export const getServerJsonPath = () => path.join(getConfigDir(), 'server.json');
 export const getAuthPath = () => path.join(getConfigDir(), 'auth.json');
 export const getMcpConfigPath = () => path.join(getMcpDir(), 'mcp.json');
 export const getCloudflaredBinPath = () =>

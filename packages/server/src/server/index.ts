@@ -1,5 +1,5 @@
 /**
- * @fileoverview Server entry point for nano-agent.
+ * @fileoverview Server entry point for AnimateClaw.
  */
 
 import { httpServer } from './http-server.js';
@@ -12,10 +12,12 @@ export function startServer(port: number): Promise<void> {
   return new Promise((resolve, reject) => {
     httpServer.once('error', reject);
     httpServer.listen(port, () => {
-      console.log(`Nano Agent Server running at http://localhost:${port}`);
+      console.log(`AnimateClaw Server running at http://localhost:${port}`);
       console.log(`Health check: http://localhost:${port}/health`);
       console.log(`Status: http://localhost:${port}/api/status`);
       resolve();
     });
   });
 }
+
+export { httpServer };

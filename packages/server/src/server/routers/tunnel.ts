@@ -13,26 +13,9 @@ import {
   startTunnel,
   stopTunnel,
   getTunnelStatus,
-  onStatusChange,
 } from '../tunnel-service.js';
-import {
-  updateTunnelUrl,
-  clearTunnelUrl,
-  readServerInfo,
-} from '../../util/server-info.js';
+import { httpServer } from '../index.js';
 import { Logger } from '../../util/logger.js';
-
-/**
- * Wire up tunnel status changes to server.json updates.
- */
-onStatusChange((state) => {
-  if (state.status === 'running' && state.url) {
-    updateTunnelUrl(state.url);
-  }
-  if (state.status === 'stopped') {
-    clearTunnelUrl();
-  }
-});
 
 export function createTunnelRouter(): Router {
   const router = Router();
@@ -43,16 +26,6 @@ export function createTunnelRouter(): Router {
    */
   router.post('/start', async (_req: Request, res: Response) => {
     try {
-      const info = readServerInfo();
-      if (!info) {
-        res.status(400).json({
-          success: false,
-          error: 'SERVER_NOT_FOUND',
-          message: 'Server info not found. Is the server running?',
-        });
-        return;
-      }
-
       const current = getTunnelStatus();
 
       if (current.status === 'running') {
@@ -65,8 +38,18 @@ export function createTunnelRouter(): Router {
         return;
       }
 
+      const addr = httpServer.address();
+      if (!addr || typeof addr === 'string') {
+        res.status(500).json({
+          success: false,
+          error: 'SERVER_NOT_READY',
+          message: 'Server is not listening',
+        });
+        return;
+      }
+
       // Fire-and-forget: startTunnel runs async, client polls /status
-      void startTunnel(info.port).catch((err: unknown) => {
+      void startTunnel(addr.port).catch((err: unknown) => {
         Logger.log('TUNNEL', 'Background start failed', err);
       });
 

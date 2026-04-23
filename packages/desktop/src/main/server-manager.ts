@@ -1,91 +1,26 @@
 /**
  * @file main/server-manager.ts
- * @description 后端服务进程管理 - 负责服务信息读写、进程存活检测、服务启动等待与终止
+ * @description 后端服务进程管理 - 负责服务启动等待、URL 管理和孤儿进程清理
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
+import { execSync } from 'child_process';
 import log from 'electron-log';
 
-const CONFIG_DIR = path.join(os.homedir(), '.nano-agent', 'config');
+let serverUrl: string | null = null;
 
-export interface ServerInfo {
-  port: number;
-  pid: number;
-  url: string;
+/**
+ * 设置当前 server 的 URL，供前端 IPC 查询
+ */
+export function setServerUrl(url: string | null): void {
+  serverUrl = url;
 }
 
 /**
- * 获取 server.json 文件的绝对路径
- * @returns ~/.nano-agent/config/server.json 的完整路径
+ * 获取当前 server 的 URL
+ * @returns 服务 URL，未启动则返回 null
  */
-export function getServerJsonPath(): string {
-  return path.join(CONFIG_DIR, 'server.json');
-}
-
-/**
- * 从 server.json 读取服务信息
- * @returns 解析成功返回 ServerInfo，文件不存在或解析失败返回 null
- */
-export function readServerInfo(): ServerInfo | null {
-  const filePath = getServerJsonPath();
-  try {
-    if (!fs.existsSync(filePath)) return null;
-    const content = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(content) as ServerInfo;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * 检测指定进程是否仍在运行（通过发送信号 0 探测）
- * @param pid - 目标进程 ID
- * @returns 进程存活返回 true，否则返回 false
- */
-export function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * 删除残留的 server.json 文件，通常在服务进程已不存在时调用
- */
-export function cleanupStaleServerInfo(): void {
-  const filePath = getServerJsonPath();
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-    log.info(`Cleaned up stale server.json`);
-  }
-}
-
-/**
- * 查找当前是否有正在运行的后端服务
- * 读取 server.json 获取进程信息，验证进程是否存活，存活则复用
- * @returns 可用的服务 URL，无可用服务时返回 null
- */
-export function findExistingServer(): string | null {
-  const info = readServerInfo();
-  if (!info) {
-    log.info('No server.json found');
-    return null;
-  }
-
-  log.info(`Found server.json: pid=${info.pid}, url=${info.url}`);
-
-  if (isProcessAlive(info.pid)) {
-    log.info(`Server process ${info.pid} is alive, reusing`);
-    return info.url;
-  }
-
-  log.info(`Server process ${info.pid} is dead, cleaning up`);
-  cleanupStaleServerInfo();
-  return null;
+export function getServerUrl(): string | null {
+  return serverUrl;
 }
 
 /**
@@ -114,29 +49,21 @@ export async function waitForServer(
 }
 
 /**
- * 从 server.json 读取当前服务的 URL
- * @returns 服务 URL，无记录时返回 null
+ * 清理上次桌面端异常退出后可能残留的 server 进程。
+ * 仅在 production 模式下执行，开发模式下跳过避免误杀。
+ * macOS/Linux 使用 killall，Windows 使用 taskkill。
+ * 命令失败时静默忽略（没有残留进程时命令会返回非零退出码）。
  */
-export function getServerUrl(): string | null {
-  const info = readServerInfo();
-  return info?.url ?? null;
-}
-
-/**
- * 向后端服务进程发送 SIGTERM 信号终止运行，并清理 server.json
- * @returns 成功终止返回 true，无服务信息或终止失败返回 false
- */
-export function killServer(): boolean {
-  const info = readServerInfo();
-  if (!info) return false;
+export function killOrphanProcesses(): void {
+  if (process.env.NODE_ENV === 'development') return;
 
   try {
-    process.kill(info.pid, 'SIGTERM');
-    cleanupStaleServerInfo();
-    log.info(`Server process ${info.pid} killed`);
-    return true;
+    if (process.platform === 'win32') {
+      execSync('taskkill /F /IM animateclaw.exe', { stdio: 'ignore' });
+    } else {
+      execSync('killall animateclaw', { stdio: 'ignore' });
+    }
   } catch {
-    cleanupStaleServerInfo();
-    return false;
+    // 没有残留进程，正常
   }
 }

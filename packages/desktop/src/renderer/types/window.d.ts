@@ -16,10 +16,6 @@ declare global {
       }) => Promise<string | null>;
       getServerUrl: () => Promise<string | null>;
       log: (level: string, ...args: unknown[]) => Promise<void>;
-      getDesktopConfig: () => Promise<{ killServerOnExit: boolean }>;
-      setDesktopConfig: (config: {
-        killServerOnExit: boolean;
-      }) => Promise<void>;
       proxyFetch: (
         url: string,
         options: {

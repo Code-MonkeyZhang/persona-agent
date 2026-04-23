@@ -1,10 +1,9 @@
 /**
  * @fileoverview Tests for Cloudflare Tunnel integration.
  *
- * Covers three layers:
- * 1. Server-info helpers (readServerInfo, updateTunnelUrl, clearTunnelUrl)
- * 2. Tunnel-service core (state machine, spawn, URL parsing)
- * 3. Tunnel REST API router (POST /start, POST /stop, GET /status)
+ * Covers two layers:
+ * 1. Tunnel-service core (state machine, spawn, URL parsing)
+ * 2. Tunnel REST API router (POST /start, POST /stop, GET /status)
  */
 
 import {
@@ -28,12 +27,11 @@ import type { ChildProcess } from 'node:child_process';
 // --- Mocks (paths are relative from tests/ to src/) ---
 
 let tempDir: string;
-let serverJsonPath: string;
 let cloudflaredBinPath: string;
+let PORT: number;
 
 vi.mock('../src/util/paths.js', () => ({
-  getServerJsonPath: () => serverJsonPath,
-  getConfigDir: () => path.dirname(serverJsonPath),
+  getConfigDir: () => path.dirname(cloudflaredBinPath),
   getBinDir: () => path.dirname(cloudflaredBinPath),
   getCloudflaredBinPath: () => cloudflaredBinPath,
 }));
@@ -44,6 +42,13 @@ vi.mock('../src/util/logger.js', () => ({
     initialize: vi.fn(),
     setEnabled: vi.fn(),
     setSessionManagers: vi.fn(),
+  },
+}));
+
+vi.mock('../src/server/index.js', () => ({
+  startServer: vi.fn(),
+  httpServer: {
+    address: () => ({ port: PORT, family: 'IPv4', address: '127.0.0.1' }),
   },
 }));
 
@@ -110,12 +115,6 @@ import {
   offStatusChange,
   _resetState,
 } from '../src/server/tunnel-service.js';
-import {
-  writeServerInfo,
-  readServerInfo,
-  updateTunnelUrl,
-  clearTunnelUrl,
-} from '../src/util/server-info.js';
 import { createTunnelRouter } from '../src/server/routers/tunnel.js';
 
 function findAvailablePort(): Promise<number> {
@@ -133,12 +132,10 @@ function findAvailablePort(): Promise<number> {
 describe('Cloudflare Tunnel Integration', () => {
   let app: Express;
   let httpServer: Server;
-  let PORT: number;
   let BASE_URL: string;
 
   beforeAll(async () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tunnel-test-'));
-    serverJsonPath = path.join(tempDir, 'server.json');
     cloudflaredBinPath = path.join(tempDir, 'bin', 'cloudflared');
 
     fs.mkdirSync(path.dirname(cloudflaredBinPath), { recursive: true });
@@ -165,54 +162,10 @@ describe('Cloudflare Tunnel Integration', () => {
   beforeEach(() => {
     _resetState();
     mockSpawn = vi.fn();
-
-    if (fs.existsSync(serverJsonPath)) {
-      fs.unlinkSync(serverJsonPath);
-    }
   });
 
   // ================================================================
-  // 1. Server-info helpers
-  // ================================================================
-  describe('Server Info Helpers', () => {
-    it('readServerInfo returns null when file does not exist', () => {
-      expect(readServerInfo()).toBeNull();
-    });
-
-    it('readServerInfo returns parsed ServerInfo', () => {
-      writeServerInfo(3000);
-      const info = readServerInfo();
-      expect(info).not.toBeNull();
-      expect(info!.port).toBe(3000);
-      expect(info!.pid).toBe(process.pid);
-    });
-
-    it('updateTunnelUrl writes tunnelUrl into server.json', () => {
-      writeServerInfo(3000);
-      updateTunnelUrl('https://abc.trycloudflare.com');
-
-      const info = readServerInfo();
-      expect(info!.tunnelUrl).toBe('https://abc.trycloudflare.com');
-    });
-
-    it('clearTunnelUrl sets tunnelUrl to null', () => {
-      writeServerInfo(3000);
-      updateTunnelUrl('https://abc.trycloudflare.com');
-      clearTunnelUrl();
-
-      const info = readServerInfo();
-      expect(info!.tunnelUrl).toBeNull();
-    });
-
-    it('updateTunnelUrl is a no-op when server.json does not exist', () => {
-      expect(() =>
-        updateTunnelUrl('https://x.trycloudflare.com')
-      ).not.toThrow();
-    });
-  });
-
-  // ================================================================
-  // 2. Tunnel-service core logic
+  // 1. Tunnel-service core logic
   // ================================================================
   describe('Tunnel Service', () => {
     it('startTunnel throws if cloudflared binary is missing', async () => {
@@ -336,21 +289,10 @@ describe('Cloudflare Tunnel Integration', () => {
   });
 
   // ================================================================
-  // 3. Tunnel REST API
+  // 2. Tunnel REST API
   // ================================================================
   describe('Tunnel REST API', () => {
-    it('POST /start returns 400 when server.json is missing', async () => {
-      const res = await fetch(`${BASE_URL}/api/tunnel/start`, {
-        method: 'POST',
-      });
-      expect(res.status).toBe(400);
-      const data = (await res.json()) as { error: string };
-      expect(data.error).toBe('SERVER_NOT_FOUND');
-    });
-
     it('POST /start returns 202 and starts tunnel', async () => {
-      writeServerInfo(3000);
-
       const fakeUrl = 'https://api-test.trycloudflare.com';
       const fake = createFakeChildProcess(fakeUrl, 50);
       mockSpawn.mockReturnValue(fake);
@@ -374,8 +316,6 @@ describe('Cloudflare Tunnel Integration', () => {
     });
 
     it('POST /start returns running URL when already running', async () => {
-      writeServerInfo(3000);
-
       const fakeUrl = 'https://already-api.trycloudflare.com';
       const fake = createFakeChildProcess(fakeUrl, 50);
       mockSpawn.mockReturnValue(fake);
@@ -406,30 +346,6 @@ describe('Cloudflare Tunnel Integration', () => {
       const data = (await res.json()) as { status: string; url: null };
       expect(data.status).toBe('stopped');
       expect(data.url).toBeNull();
-    });
-
-    it('tunnel URL is persisted to server.json', async () => {
-      // Re-register the router's callback (cleared by _resetState in beforeEach)
-      onStatusChange((s) => {
-        if (s.status === 'running' && s.url) {
-          updateTunnelUrl(s.url);
-        }
-        if (s.status === 'stopped') {
-          clearTunnelUrl();
-        }
-      });
-
-      writeServerInfo(3000);
-
-      const fakeUrl = 'https://persist-test.trycloudflare.com';
-      const fake = createFakeChildProcess(fakeUrl, 50);
-      mockSpawn.mockReturnValue(fake);
-
-      await startTunnel(3000);
-      await new Promise((r) => setTimeout(r, 100));
-
-      const info = readServerInfo();
-      expect(info!.tunnelUrl).toBe(fakeUrl);
     });
   });
 });

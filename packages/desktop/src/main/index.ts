@@ -6,27 +6,26 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import { join } from 'path';
 import { spawn } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import log from 'electron-log';
 import net from 'net';
 import * as fs from 'fs';
-import * as os from 'os';
-import { initStore, getStore } from './store';
+import { initStore } from './store';
 import {
-  findExistingServer,
   waitForServer,
+  setServerUrl,
   getServerUrl,
-  killServer,
+  killOrphanProcesses,
 } from './server-manager';
 
 const isMac = process.platform === 'darwin';
 const isWin = process.platform === 'win32';
 
-let settingsWindow: BrowserWindow | null = null; // 判断设置窗口是否存在的全局变量
+const BINARY_NAME = isWin ? 'animateclaw.exe' : 'animateclaw';
 
-const APP_NAME = '.nano-agent';
-const BINARY_NAME = isWin ? 'nano-agent.exe' : 'nano-agent';
-const CLOUDFLARED_NAME = isWin ? 'cloudflared.exe' : 'cloudflared';
+let serverProcess: ChildProcess | null = null;
+let settingsWindow: BrowserWindow | null = null;
 
 // 日志配置：开发环境写文件，生产环境不写
 if (is.dev) {
@@ -43,111 +42,12 @@ if (is.dev) {
 
 log.info('App starting...');
 
-/** 获取用户级别的二进制文件存放目录 */
-function getUserBinDir(): string {
-  return join(os.homedir(), APP_NAME, 'bin');
-}
-
-/** 获取已安装到用户目录的 nano-agent 二进制路径 */
-function getInstalledBinaryPath(): string {
-  return join(getUserBinDir(), BINARY_NAME);
-}
-
-/** 获取 nano-agent 源二进制路径：开发环境从项目构建产物取，生产环境从打包资源目录取 */
-function getSourceBinaryPath(): string {
+/** 获取后端二进制路径：开发环境从项目构建产物取，生产环境从 app 包内取 */
+function getBinaryPath(): string {
   if (is.dev) {
     return join(__dirname, '../../../server/dist', BINARY_NAME);
-  } else {
-    return join(process.resourcesPath, 'bin', BINARY_NAME);
   }
-}
-
-/** 获取已安装到用户目录的 cloudflared 二进制路径 */
-function getCloudflaredInstalledPath(): string {
-  return join(getUserBinDir(), CLOUDFLARED_NAME);
-}
-
-/** 获取 cloudflared 源二进制路径：开发环境从项目 bin 目录取，生产环境从打包资源目录取 */
-function getCloudflaredSourcePath(): string {
-  if (is.dev) {
-    return join(__dirname, '../../../server/bin', CLOUDFLARED_NAME);
-  } else {
-    return join(process.resourcesPath, 'bin', CLOUDFLARED_NAME);
-  }
-}
-
-/**
- * 确保 nano-agent 二进制文件已安装到用户目录
- * 首次启动时将二进制从包内复制到 ~/.nano-agent/bin/，后续启动直接复用
- */
-async function ensureBinaryInstalled(): Promise<void> {
-  const installedPath = getInstalledBinaryPath();
-  const sourcePath = getSourceBinaryPath();
-
-  // 非开发环境且已安装则跳过
-  if (!is.dev && fs.existsSync(installedPath)) {
-    log.info(`Binary already installed at: ${installedPath}`);
-    return;
-  }
-
-  log.info(`Installing binary from ${sourcePath} to ${installedPath}`);
-
-  // 确保用户 bin 目录存在
-  const binDir = getUserBinDir();
-  if (!fs.existsSync(binDir)) {
-    fs.mkdirSync(binDir, { recursive: true });
-    log.info(`Created directory: ${binDir}`);
-  }
-
-  // 源文件不存在则报错
-  if (!fs.existsSync(sourcePath)) {
-    throw new Error(`Source binary not found at: ${sourcePath}`);
-  }
-
-  // 复制二进制到用户目录
-  fs.copyFileSync(sourcePath, installedPath);
-  log.info(`Copied binary to: ${installedPath}`);
-
-  // macOS/Linux 需要赋予可执行权限
-  if (!isWin) {
-    fs.chmodSync(installedPath, 0o755);
-    log.info(`Set executable permission for: ${installedPath}`);
-  }
-}
-
-/**
- * 确保 cloudflared 二进制文件已安装到用户目录
- * 逻辑与 ensureBinaryInstalled 相同，区别在于源文件缺失时仅警告跳过（cloudflared 是可选的隧道工具）
- */
-async function ensureCloudflaredInstalled(): Promise<void> {
-  const installedPath = getCloudflaredInstalledPath();
-  const sourcePath = getCloudflaredSourcePath();
-
-  if (!is.dev && fs.existsSync(installedPath)) {
-    log.info(`Cloudflared already installed at: ${installedPath}`);
-    return;
-  }
-
-  log.info(`Installing cloudflared from ${sourcePath} to ${installedPath}`);
-
-  const binDir = getUserBinDir();
-  if (!fs.existsSync(binDir)) {
-    fs.mkdirSync(binDir, { recursive: true });
-    log.info(`Created directory: ${binDir}`);
-  }
-
-  if (!fs.existsSync(sourcePath)) {
-    log.warn(`Cloudflared source binary not found at: ${sourcePath}, skipping`);
-    return;
-  }
-
-  fs.copyFileSync(sourcePath, installedPath);
-  log.info(`Copied cloudflared to: ${installedPath}`);
-
-  if (!isWin) {
-    fs.chmodSync(installedPath, 0o755);
-    log.info(`Set executable permission for: ${installedPath}`);
-  }
+  return join(process.resourcesPath, 'bin', BINARY_NAME);
 }
 
 /**
@@ -178,32 +78,11 @@ async function findAvailablePort(): Promise<number> {
 }
 
 /**
- * 启动 Nano Agent 服务器
- * 首先检测已有服务器，如果没有则启动新的独立进程
- * @returns {Promise<void>} 启动完成后的异步操作
+ * 启动后端服务器
+ * 先清理孤儿进程，再从 app 包内直接启动二进制
  */
 async function startNanoAgent(): Promise<void> {
-  if (is.dev) {
-    const existingUrl = findExistingServer();
-    if (existingUrl) {
-      log.info('Dev mode: killing existing server to use latest binary');
-      killServer();
-    }
-  } else {
-    const existingUrl = findExistingServer();
-    if (existingUrl) {
-      log.info(`Reusing existing server at ${existingUrl}`);
-      return;
-    }
-  }
-
-  try {
-    await ensureBinaryInstalled();
-    await ensureCloudflaredInstalled();
-  } catch (err: unknown) {
-    log.error('Failed to ensure binary installed:', err);
-    return;
-  }
+  killOrphanProcesses();
 
   let port: number;
   try {
@@ -214,25 +93,22 @@ async function startNanoAgent(): Promise<void> {
     return;
   }
 
-  const serverUrl = `http://localhost:${port}`;
+  const url = `http://localhost:${port}`;
+  const binaryPath = getBinaryPath();
+  log.info(`Starting server from: ${binaryPath} on port ${port}`);
 
-  const binaryPath = getInstalledBinaryPath();
-  log.info(`Starting nano-agent from: ${binaryPath}`);
-
-  const proc = spawn(binaryPath, [String(port)], {
+  serverProcess = spawn(binaryPath, [String(port)], {
     stdio: 'inherit',
-    detached: true,
   });
 
-  proc.unref();
-
-  proc.on('error', (err) => {
-    log.error('Failed to start nano-agent:', err);
+  serverProcess.on('error', (err) => {
+    log.error('Failed to start server:', err);
   });
 
   try {
-    await waitForServer(serverUrl);
-    log.info(`Server started at ${serverUrl}`);
+    await waitForServer(url);
+    setServerUrl(url);
+    log.info(`Server started at ${url}`);
   } catch (err) {
     log.error('Server failed to start:', err);
   }
@@ -360,18 +236,12 @@ app.whenReady().then(async () => {
   initStore();
 
   process.on('SIGINT', () => {
-    const s = getStore();
-    if (s?.get('killServerOnExit', false)) {
-      killServer();
-    }
+    serverProcess?.kill();
     app.quit();
   });
 
   process.on('SIGTERM', () => {
-    const s = getStore();
-    if (s?.get('killServerOnExit', false)) {
-      killServer();
-    }
+    serverProcess?.kill();
     app.quit();
   });
 
@@ -454,27 +324,6 @@ app.whenReady().then(async () => {
   });
 
   /**
-   * IPC 处理器：读取桌面端配置（如是否退出时关闭服务器）
-   */
-  ipcMain.handle('get-desktop-config', () => {
-    const s = getStore();
-    if (!s) return { killServerOnExit: false };
-    return { killServerOnExit: s.get('killServerOnExit', false) };
-  });
-
-  /**
-   * IPC 处理器：写入桌面端配置
-   */
-  ipcMain.handle(
-    'set-desktop-config',
-    (_event, config: { killServerOnExit: boolean }) => {
-      const s = getStore();
-      if (!s) return;
-      s.set('killServerOnExit', config.killServerOnExit);
-    }
-  );
-
-  /**
    * IPC 处理器：代理 HTTP 请求，绕过渲染进程的 CORS 限制
    * 主进程运行在 Node.js 环境，可直接使用全局 fetch，不受浏览器 CORS 策略约束
    */
@@ -536,13 +385,16 @@ app.on('window-all-closed', () => {
 });
 
 /**
- * 应用退出前检查配置，若 killServerOnExit 为 true 则终止后端服务器进程
+ * 应用退出前终止后端服务器进程，同生同死
  */
 app.on('before-quit', () => {
-  const s = getStore();
-  if (!s) return;
-  const killOnExit = s.get('killServerOnExit', false);
-  if (killOnExit) {
-    killServer();
+  if (serverProcess) {
+    try {
+      serverProcess.kill();
+      log.info('Server process killed on app quit');
+    } catch {
+      // Process may have already exited
+    }
+    serverProcess = null;
   }
 });
