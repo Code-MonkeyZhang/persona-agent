@@ -32,7 +32,6 @@ let PORT: number;
 
 vi.mock('../src/util/paths.js', () => ({
   getConfigDir: () => path.dirname(cloudflaredBinPath),
-  getBinDir: () => path.dirname(cloudflaredBinPath),
   getCloudflaredBinPath: () => cloudflaredBinPath,
 }));
 

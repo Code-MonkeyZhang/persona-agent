@@ -245,7 +245,7 @@ app.whenReady().then(async () => {
     app.quit();
   });
 
-  electronApp.setAppUserModelId('com.nano-agent.desktop');
+  electronApp.setAppUserModelId('com.animateclaw.desktop');
 
   /**
    * 监听窗口创建事件

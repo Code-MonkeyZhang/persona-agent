@@ -1,5 +1,5 @@
 /**
- * @fileoverview HTTP server setup for nano-agent server.
+ * @fileoverview HTTP server setup for animateclaw server.
  *
  */
 

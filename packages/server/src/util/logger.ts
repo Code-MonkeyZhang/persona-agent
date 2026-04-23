@@ -1,5 +1,5 @@
 /**
- * @fileoverview Logger utility for nano-agent.
+ * @fileoverview Logger utility for animateclaw.
  *
  * Provides file-based logging with category, message, and optional data support.
  * Automatically enriches logs with human-readable names when agentId/sessionId

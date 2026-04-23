@@ -177,7 +177,7 @@ export class MCPServerConnection {
     try {
       const transport = this.createTransport();
       const client = new Client({
-        name: 'nano-agent',
+        name: 'animateclaw',
         version: '1.0.0',
       }) as unknown as McpClient;
 

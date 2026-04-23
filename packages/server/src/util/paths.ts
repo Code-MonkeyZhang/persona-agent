@@ -1,8 +1,7 @@
 /**
- * @fileoverview Application path utilities for nano-agent.
+ * @fileoverview Application path utilities for animateclaw.
  *
- * Directory structure:
- * ~/.nano-agent/
+ * Directory structure (macOS: ~/.local/share/animateclaw/, Windows: %APPDATA%/animateclaw/):
  * ├── config/
  * │   ├── config.yaml
  * │   └── auth.json
@@ -28,11 +27,14 @@
  * └── logs/
  */
 
-import * as os from 'node:os';
 import * as path from 'node:path';
+import { xdgData } from 'xdg-basedir';
 
-const APP_NAME = '.nano-agent';
-const APP_DIR = path.join(os.homedir(), APP_NAME);
+if (!xdgData) {
+  throw new Error('Unable to determine XDG data directory');
+}
+
+const APP_DIR = path.join(xdgData, 'animateclaw');
 
 // --- Top-level directories ---
 
@@ -43,15 +45,19 @@ export const getMcpDir = () => path.join(APP_DIR, 'mcp');
 export const getMcpServersDir = () => path.join(getMcpDir(), 'servers');
 export const getWorkspaceDir = () => path.join(APP_DIR, 'workspace');
 export const getLogsDir = () => path.join(APP_DIR, 'logs');
-export const getBinDir = () => path.join(APP_DIR, 'bin');
 
 // --- Config files ---
 
 export const getConfigPath = () => path.join(getConfigDir(), 'config.yaml');
 export const getAuthPath = () => path.join(getConfigDir(), 'auth.json');
 export const getMcpConfigPath = () => path.join(getMcpDir(), 'mcp.json');
+
+/**
+ * Returns the path to the cloudflared binary.
+ * Located in the same directory as the running server executable (via process.execPath).
+ */
 export const getCloudflaredBinPath = () =>
-  path.join(getBinDir(), 'cloudflared');
+  path.join(path.dirname(process.execPath), 'cloudflared');
 
 // --- Per-agent paths ---
 

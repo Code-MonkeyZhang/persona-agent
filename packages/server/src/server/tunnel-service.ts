@@ -4,7 +4,7 @@
  * State machine: stopped → starting → running → stopped
  *                                   ↘ error  → stopped
  *
- * The binary is expected at ~/.nano-agent/bin/cloudflared (no download logic in MVP).
+ * The binary is expected alongside the server executable (via process.execPath).
  */
 
 import { spawn } from 'node:child_process';
