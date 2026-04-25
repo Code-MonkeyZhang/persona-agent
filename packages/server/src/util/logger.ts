@@ -84,6 +84,8 @@ export class Logger {
           .split('\n')
           .map((line) => `  ${line}`)
           .join('\n')}`;
+      } else if (enrichedData instanceof Error) {
+        formattedData = `\n  message: ${enrichedData.message}\n  stack: ${enrichedData.stack}`;
       } else {
         formattedData = `\n${JSON.stringify(enrichedData, null, 2)}`;
       }

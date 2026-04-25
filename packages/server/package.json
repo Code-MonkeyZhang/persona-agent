@@ -32,8 +32,8 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.28.0",
-    "@anthropic-ai/sdk": "^0.71.2",
-    "@mariozechner/pi-ai": "0.62.0",
+    "@anthropic-ai/sdk": "^0.90.0",
+    "@mariozechner/pi-ai": "0.70.2",
     "chalk": "^5.6.2",
     "cloudflared": "^0.7.1",
     "commander": "^14.0.2",
