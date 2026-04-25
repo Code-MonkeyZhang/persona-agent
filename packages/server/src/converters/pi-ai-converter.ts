@@ -171,9 +171,7 @@ function jsonSchemaToTypeBox(schema: Record<string, unknown>): TSchema {
  * @param toolCall - pi-ai ToolCall对象
  * @returns 带有function包装的内部ToolCall
  */
-export function convertPiAiToolCallToNanoAgent(
-  toolCall: PiAiToolCall
-): ToolCall {
+export function convertPiAiToolCall(toolCall: PiAiToolCall): ToolCall {
   return {
     id: toolCall.id,
     type: 'function',

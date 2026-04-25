@@ -40,7 +40,7 @@ app.get('/api/status', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     timestamp: Date.now(),
-    message: 'Nano Agent Server is running',
+    message: 'AnimateClaw Server is running',
   });
 });
 

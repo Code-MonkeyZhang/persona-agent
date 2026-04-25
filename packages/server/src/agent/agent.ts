@@ -7,10 +7,7 @@ import { stream } from '@mariozechner/pi-ai';
 import type { Message, AgentEvent, ToolCall } from '../schema/index.js';
 import type { AgentRunConfig } from './types.js';
 import type { Tool, ToolResult } from '../tools/index.js';
-import {
-  convertContext,
-  convertPiAiToolCallToNanoAgent,
-} from '../converters/index.js';
+import { convertContext, convertPiAiToolCall } from '../converters/index.js';
 
 export class AgentCore {
   public runConfig: AgentRunConfig;
@@ -116,8 +113,8 @@ export class AgentCore {
           fullContent += event.delta;
         }
         if (event.type === 'toolcall_end') {
-          const nanoToolCall = convertPiAiToolCallToNanoAgent(event.toolCall);
-          toolCalls.push(nanoToolCall);
+          const convertedToolCall = convertPiAiToolCall(event.toolCall);
+          toolCalls.push(convertedToolCall);
         }
         if (event.type === 'error') {
           const errorMsg =

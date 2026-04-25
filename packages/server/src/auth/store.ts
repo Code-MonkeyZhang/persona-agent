@@ -16,7 +16,11 @@ export interface ProviderStatus {
   hasAuth: boolean;
 }
 
-/** Supported providers whitelist */
+/**
+ * Supported providers whitelist.
+ * Only simple API key auth providers are included.
+ * Azure, AWS Bedrock, Google Vertex and other OAuth-based providers are excluded.
+ */
 const SUPPORTED_PROVIDERS: KnownProvider[] = [
   'anthropic',
   'google',
@@ -30,6 +34,13 @@ const SUPPORTED_PROVIDERS: KnownProvider[] = [
   'opencode',
   'opencode-go',
   'kimi-coding',
+  'deepseek',
+  'mistral',
+  'fireworks',
+  'cerebras',
+  'huggingface',
+  'openai-codex',
+  'vercel-ai-gateway',
 ];
 
 /** Mapping of provider IDs to display names */
@@ -46,6 +57,13 @@ const PROVIDER_NAMES: Record<string, string> = {
   opencode: 'OpenCode',
   'opencode-go': 'OpenCode Go',
   'kimi-coding': 'Kimi Coding',
+  deepseek: 'DeepSeek',
+  mistral: 'Mistral',
+  fireworks: 'Fireworks',
+  cerebras: 'Cerebras',
+  huggingface: 'HuggingFace',
+  'openai-codex': 'OpenAI Codex',
+  'vercel-ai-gateway': 'Vercel AI Gateway',
 };
 
 /** Read auth store from file */

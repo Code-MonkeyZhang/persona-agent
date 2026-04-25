@@ -187,7 +187,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       addMessage(
         createMessage(
           'error',
-          'Cannot connect to server. Please ensure Nano-Agent server is running.'
+          'Cannot connect to server. Please ensure AnimateClaw server is running.'
         )
       );
       toast.error('Cannot connect to server');

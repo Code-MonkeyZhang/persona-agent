@@ -81,7 +81,7 @@ async function findAvailablePort(): Promise<number> {
  * 启动后端服务器
  * 先清理孤儿进程，再从 app 包内直接启动二进制
  */
-async function startNanoAgent(): Promise<void> {
+async function startServer(): Promise<void> {
   killOrphanProcesses();
 
   let port: number;
@@ -361,7 +361,7 @@ app.whenReady().then(async () => {
     }
   );
 
-  await startNanoAgent();
+  await startServer();
 
   createWindow();
 
