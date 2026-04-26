@@ -114,6 +114,7 @@ export function CompanionPanel({
   /** Enter 发送，Shift+Enter 换行 */
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (e.nativeEvent.isComposing) return;
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         handleSend();

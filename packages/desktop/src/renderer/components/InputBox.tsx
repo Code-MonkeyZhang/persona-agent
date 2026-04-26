@@ -87,6 +87,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
    * @param e - 键盘事件对象
    */
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
