@@ -18,6 +18,7 @@
     "server": "bun run src/server/standalone.ts"
   },
   "devDependencies": {
+    "@types/bun": "^1.2.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/multer": "^2.1.0",
