@@ -3,3 +3,9 @@ extraResources:
     to: "bin/animateclaw"
   - from: "../server/bin/cloudflared"
     to: "bin/cloudflared"
+
+mac:
+  icon: "build/icon-mac.png"
+
+win:
+  icon: "build/icon-win.png"
