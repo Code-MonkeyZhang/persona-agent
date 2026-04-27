@@ -237,31 +237,31 @@ export function CompanionPanel({
           key={lastAgentMessage.id}
           className="z-10 shrink-0 px-5 pb-3 animate-companion-bubble-in"
         >
-          {/**
-           * 回复气泡采用三层结构：
-           * - 外层：视觉容器（圆角、毛玻璃背景、overflow-hidden 裁剪箭头）
-           * - 内层：滚动区域（隐藏滚动条，pt-7/pb-7 为箭头预留空间）
-           * - 箭头：纯视觉指示器（pointer-events-none），根据滚动状态显示/隐藏
-           */}
-          <div className="relative overflow-hidden rounded-[24px] bg-white/15 backdrop-blur-sm border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
-            <div
-              ref={bubbleRef}
-              onScroll={updateScrollState}
-              className="companion-scroll-hidden px-4 pt-7 pb-7 max-h-[160px] overflow-y-auto text-[14px] text-[#333] leading-relaxed"
-            >
-              <Markdown content={lastAgentMessage.content} />
+          {lastAgentMessage.content.trim().length > 0 ? (
+            <div className="relative overflow-hidden rounded-[24px] bg-white/15 backdrop-blur-sm border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
+              <div
+                ref={bubbleRef}
+                onScroll={updateScrollState}
+                className="companion-scroll-hidden px-4 pt-7 pb-7 max-h-[160px] overflow-y-auto text-[14px] text-[#333] leading-relaxed"
+              >
+                <Markdown content={lastAgentMessage.content} />
+              </div>
+              {canScrollUp && (
+                <div className="absolute top-1 left-1/2 -translate-x-1/2 pointer-events-none">
+                  <ChevronUp className="w-5 h-5 text-[#333] drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]" />
+                </div>
+              )}
+              {canScrollDown && (
+                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 pointer-events-none">
+                  <ChevronDown className="w-5 h-5 text-[#333] drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]" />
+                </div>
+              )}
             </div>
-            {canScrollUp && (
-              <div className="absolute top-1 left-1/2 -translate-x-1/2 pointer-events-none">
-                <ChevronUp className="w-5 h-5 text-[#333] drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]" />
-              </div>
-            )}
-            {canScrollDown && (
-              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 pointer-events-none">
-                <ChevronDown className="w-5 h-5 text-[#333] drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]" />
-              </div>
-            )}
-          </div>
+          ) : (
+            <div className="rounded-[24px] bg-white/15 backdrop-blur-sm border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)] px-4 py-2 text-[13px] text-[#999] animate-pulse text-center">
+              思考中...
+            </div>
+          )}
         </div>
       )}
 
