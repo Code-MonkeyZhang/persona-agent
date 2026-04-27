@@ -1,6 +1,6 @@
 {
   "name": "persona-agent",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "dev": "cd packages/desktop && npm run dev",

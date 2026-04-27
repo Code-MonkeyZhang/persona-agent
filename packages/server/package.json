@@ -1,6 +1,6 @@
 {
   "name": "persona-agent-server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "bin": {
     "persona-agent-server": "dist/src/index.js"

@@ -1,6 +1,6 @@
 {
   "name": "persona-agent-desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Persona Desktop - Electron GUI for Persona",
   "type": "module",
   "main": "./out/main/index.js",
@@ -43,7 +43,6 @@
     "rehype-highlight": "^7.0.0",
     "remark-gfm": "^4.0.0",
     "tailwind-merge": "^2.2.0",
-
     "zustand": "^4.5.0"
   },
   "devDependencies": {
