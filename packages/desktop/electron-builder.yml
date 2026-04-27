@@ -5,9 +5,24 @@ extraResources:
     to: "bin/persona-agent-server"
   - from: "../server/bin/cloudflared"
     to: "bin/cloudflared"
+    filter:
+      - "**/*"
 
 mac:
   icon: "build/icon-mac.png"
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
 
 win:
   icon: "build/icon-win.png"
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

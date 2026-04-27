@@ -12,7 +12,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
   },
   "keywords": [
     "electron",
