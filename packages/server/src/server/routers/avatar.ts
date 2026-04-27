@@ -84,7 +84,7 @@ export function createAvatarRouter(): Router {
    * 接收 multipart/form-data 中的图片文件（5MB 上限），
    * 用 jimp 裁剪缩放为 256x256 PNG 后写入 assets/avatar.png。
    *
-   * @returns JSON: `{ success: true, avatar: "uploaded" }`
+   * @returns JSON: `{ success: true }`
    */
   router.post(
     '/',
@@ -111,7 +111,7 @@ export function createAvatarRouter(): Router {
         fs.writeFileSync(getAvatarPath(agentId), processed);
 
         Logger.log('AVATAR', `Uploaded avatar for agent: ${agentId}`);
-        res.json({ success: true, avatar: 'uploaded' });
+        res.json({ success: true });
       } catch (error) {
         Logger.log('AVATAR', 'Error uploading avatar', error);
         res.status(500).json({

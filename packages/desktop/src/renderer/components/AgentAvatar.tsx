@@ -1,81 +1,74 @@
 /**
  * @file src/renderer/components/AgentAvatar.tsx
- * @description Agent 头像组件，优先展示自定义头像图片，不可用时显示基于名称的彩色首字母
+ * @description Agent 头像组件，展示自定义头像图片，不可用时显示灰色人物图标占位符
  */
 
 import React, { useState, useEffect } from 'react';
+import { User } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { getAgentAvatarUrl } from '../lib/api';
+import { useAgentStore } from '../stores/agentStore';
 import type { Agent } from '../types/agent';
 
-/**
- * 根据名称哈希值选取一组预设的背景/文字颜色
- * @param name Agent 名称
- * @returns Tailwind 颜色类名字符串
- */
-const getAvatarColor = (name: string) => {
-  const colors = [
-    'bg-green-100 text-green-700',
-    'bg-purple-100 text-purple-700',
-    'bg-blue-100 text-blue-700',
-    'bg-orange-100 text-orange-700',
-    'bg-pink-100 text-pink-700',
-    'bg-cyan-100 text-cyan-700',
-  ];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
+const sizeMap = {
+  sm: 'w-8 h-8',
+  md: 'w-10 h-10',
+  lg: 'w-16 h-16',
 };
 
-const sizeMap = {
-  sm: 'w-8 h-8 text-xs',
-  md: 'w-10 h-10 text-sm',
-  lg: 'w-16 h-16 text-2xl',
+const iconSizeMap = {
+  sm: 14,
+  md: 18,
+  lg: 28,
 };
 
 interface AgentAvatarProps {
   agent: Agent;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  /** 编辑器中的 base64 预览 URL（如 "data:image/..."），传入时优先使用 */
+  editingPreviewUrl?: string;
 }
 
 /**
- * Agent 头像组件，支持自定义头像图片加载和首字母回退显示
+ * Agent 头像组件，支持自定义头像图片加载和灰色人物图标占位符
+ *
+ * 渲染优先级：
+ * 1. editingPreviewUrl — 编辑器中选了新图片时的即时预览
+ * 2. store 中的 agentAvatarPreviews[agentId] — 新建 Agent 上传期间的本地预览
+ * 3. 服务器头像 URL（GET /api/agents/:id/avatar），加载失败时显示灰色人物图标
  */
 export const AgentAvatar: React.FC<AgentAvatarProps> = ({
   agent,
   size = 'md',
   className,
+  editingPreviewUrl,
 }) => {
   const [hasError, setHasError] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const localPreview = useAgentStore((s) => s.agentAvatarPreviews[agent.id]);
 
   useEffect(() => {
     setHasError(false);
-    if (agent.avatar) {
-      if (agent.avatar.startsWith('data:image')) {
-        setAvatarUrl(agent.avatar);
-      } else {
-        setAvatarUrl(getAgentAvatarUrl(agent.id));
-      }
+    if (editingPreviewUrl) {
+      setAvatarUrl(editingPreviewUrl);
+    } else if (localPreview) {
+      setAvatarUrl(localPreview);
     } else {
-      setAvatarUrl(null);
+      setAvatarUrl(getAgentAvatarUrl(agent.id));
     }
-  }, [agent.id, agent.avatar, agent.updatedAt]);
+  }, [agent.id, agent.updatedAt, editingPreviewUrl, localPreview]);
 
-  if (!agent.avatar || hasError) {
+  if (hasError) {
     return (
       <div
         className={cn(
-          'rounded-full flex items-center justify-center font-medium',
+          'rounded-full flex items-center justify-center bg-gray-100 text-gray-400',
           sizeMap[size],
-          getAvatarColor(agent.name),
           className
         )}
       >
-        {agent.name.charAt(0).toUpperCase()}
+        <User size={iconSizeMap[size]} />
       </div>
     );
   }

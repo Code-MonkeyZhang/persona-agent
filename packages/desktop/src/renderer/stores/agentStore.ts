@@ -20,6 +20,12 @@ interface AgentStore {
   currentAgent: Agent | null;
   isLoading: boolean;
   error: string | null;
+  /**
+   * 头像本地临时预览缓存（agentId → base64 data URL）。
+   * 创建新 Agent 时先写入 base64 预览，上传完成后清除，
+   * 使侧栏头像组件在上传期间也能立即显示用户选定的图片。
+   */
+  agentAvatarPreviews: Record<string, string>;
 
   /**
    * 从后端加载完整Agent列表并缓存到本地。
@@ -64,6 +70,19 @@ interface AgentStore {
    * @param agent - 要设为当前的Agent
    */
   setCurrentAgent: (agent: Agent) => void;
+
+  /**
+   * 设置指定 Agent 的头像本地预览（base64），用于上传完成前的即时展示。
+   * @param id - Agent id
+   * @param base64 - 图片的 data URL（如 "data:image/png;base64,..."）
+   */
+  setAvatarPreview: (id: string, base64: string) => void;
+
+  /**
+   * 移除指定 Agent 的头像本地预览，通常在服务器上传完成后调用。
+   * @param id - Agent id
+   */
+  removeAvatarPreview: (id: string) => void;
 }
 
 export const useAgentStore = create<AgentStore>((set, get) => ({
@@ -71,6 +90,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
   currentAgent: null,
   isLoading: false,
   error: null,
+  agentAvatarPreviews: {},
 
   loadAgents: async () => {
     set({ isLoading: true, error: null });
@@ -208,5 +228,16 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
 
   setCurrentAgent: (agent: Agent) => {
     set({ currentAgent: agent });
+  },
+
+  setAvatarPreview: (id: string, base64: string) => {
+    const { agentAvatarPreviews } = get();
+    set({ agentAvatarPreviews: { ...agentAvatarPreviews, [id]: base64 } });
+  },
+
+  removeAvatarPreview: (id: string) => {
+    const { agentAvatarPreviews } = get();
+    const { [id]: _, ...rest } = agentAvatarPreviews;
+    set({ agentAvatarPreviews: rest });
   },
 }));

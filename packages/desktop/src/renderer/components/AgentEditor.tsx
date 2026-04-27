@@ -63,7 +63,13 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   onClose,
   onDelete,
 }) => {
-  const { agents, createNewAgent, updateAgentById } = useAgentStore();
+  const {
+    agents,
+    createNewAgent,
+    updateAgentById,
+    setAvatarPreview,
+    removeAvatarPreview,
+  } = useAgentStore();
   const editingAgent = editingAgentId
     ? agents.find((a) => a.id === editingAgentId)
     : null;
@@ -72,7 +78,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   const [skills, setSkills] = useState<Skill[]>([]);
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
 
-  const [avatar, setAvatar] = useState<string | undefined>();
+  const [previewDataUrl, setPreviewDataUrl] = useState<string | undefined>();
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -109,7 +115,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
       setSelectedSkillIds(editingAgent.skillNames);
       setMaxSteps(editingAgent.maxSteps);
       setDefaultWorkspacePath(editingAgent.defaultWorkspacePath);
-      setAvatar(editingAgent.avatar);
+      setPreviewDataUrl(undefined);
       setVoiceId(editingAgent.voiceId || '');
     } else {
       resetForm();
@@ -153,7 +159,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     setSelectedSkillIds([]);
     setMaxSteps(10);
     setDefaultWorkspacePath(undefined);
-    setAvatar(undefined);
+    setPreviewDataUrl(undefined);
     setPendingAvatarFile(null);
     setVoiceId('');
   };
@@ -202,7 +208,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     const reader = new FileReader();
     reader.onload = (event) => {
       const base64 = event.target?.result as string;
-      setAvatar(base64);
+      setPreviewDataUrl(base64);
       setPendingAvatarFile(file);
     };
     reader.readAsDataURL(file);
@@ -235,20 +241,15 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     }
   };
 
-  /** 保存 Agent 配置：编辑模式下上传头像并更新，新建模式下创建后再上传头像 */
+  /** 保存 Agent 配置：编辑模式下上传头像并更新，新建模式下创建后用本地预览立即显示再上传 */
   const handleSave = async () => {
     if (!name.trim()) return;
 
     setIsLoading(true);
     try {
-      let finalAvatar = avatar;
-
       if (editingAgentId) {
         if (pendingAvatarFile) {
-          const result = await uploadAvatar(editingAgentId, pendingAvatarFile);
-          if (result.success && result.avatar) {
-            finalAvatar = result.avatar;
-          }
+          await uploadAvatar(editingAgentId, pendingAvatarFile);
         }
 
         const input: UpdateAgentInput = {
@@ -260,7 +261,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           skillNames: selectedSkillIds,
           maxSteps,
           defaultWorkspacePath,
-          avatar: finalAvatar,
           voiceId: voiceId || undefined,
         };
         await updateAgentById(editingAgentId, input);
@@ -278,11 +278,10 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
         };
         const newAgent = await createNewAgent(input);
 
-        if (newAgent && pendingAvatarFile) {
-          const result = await uploadAvatar(newAgent.id, pendingAvatarFile);
-          if (result.success && result.avatar) {
-            await updateAgentById(newAgent.id, { avatar: result.avatar });
-          }
+        if (newAgent && pendingAvatarFile && previewDataUrl) {
+          setAvatarPreview(newAgent.id, previewDataUrl);
+          await uploadAvatar(newAgent.id, pendingAvatarFile);
+          removeAvatarPreview(newAgent.id);
         }
       }
 
@@ -312,7 +311,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     mcpNames: selectedMcpIds,
     skillNames: selectedSkillIds,
     defaultWorkspacePath,
-    avatar,
     voiceId: voiceId || undefined,
   };
 
@@ -343,7 +341,11 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
               <div className="mb-4">
                 <label className="text-xs text-gray-500 block mb-2">头像</label>
                 <div className="flex items-start gap-4">
-                  <AgentAvatar agent={previewAgent} size="lg" />
+                  <AgentAvatar
+                    agent={previewAgent}
+                    size="lg"
+                    editingPreviewUrl={previewDataUrl}
+                  />
                   <div className="flex-1">
                     <label className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-md text-sm text-gray-600 cursor-pointer hover:bg-gray-50 w-fit">
                       <Upload className="w-4 h-4" />

@@ -26,7 +26,6 @@ export const AgentConfigSchema = z.object({
   defaultWorkspacePath: z.string().optional(),
   skillNames: z.array(z.string()).default([]),
   mcpNames: z.array(z.string()).default([]),
-  avatar: z.string().optional(),
   voiceId: z.string().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),

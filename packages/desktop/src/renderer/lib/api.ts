@@ -786,7 +786,6 @@ export async function getTunnelStatus(): Promise<TunnelStatusResponse> {
 
 interface AvatarResponse {
   success: boolean;
-  avatar?: string;
 }
 
 /**
