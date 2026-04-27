@@ -1,6 +1,6 @@
 /**
  * @fileoverview API key storage module for managing LLM provider credentials.
- * Credentials are stored in ~/.local/share/animus-agent/config/auth.json, shared globally.
+ * Credentials are stored in ~/.local/share/persona-agent/config/auth.json, shared globally.
  */
 
 import * as fs from 'node:fs';

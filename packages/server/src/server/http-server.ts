@@ -1,5 +1,5 @@
 /**
- * @fileoverview HTTP server setup for animus-agent server.
+ * @fileoverview HTTP server setup for persona-agent server.
  *
  */
 

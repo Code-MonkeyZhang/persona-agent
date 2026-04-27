@@ -1,13 +1,13 @@
 {
-  "name": "animus-agent-server",
+  "name": "persona-agent-server",
   "version": "1.0.0",
   "type": "module",
   "bin": {
-    "animus-agent-server": "dist/src/index.js"
+    "persona-agent-server": "dist/src/index.js"
   },
   "private": true,
   "scripts": {
-    "build": "VERSION=$(node -p \"require('./package.json').version\") && bun build ./src/index.ts --compile --outfile ./dist/animus-agent-server --define \"globalThis.SERVER_VERSION=\\\"$VERSION\\\"\" && ./dist/animus-agent-server --version",
+    "build": "VERSION=$(node -p \"require('./package.json').version\") && bun build ./src/index.ts --compile --outfile ./dist/persona-agent-server --define \"globalThis.SERVER_VERSION=\\\"$VERSION\\\"\" && ./dist/persona-agent-server --version",
     "build:bundle": "bun build ./src/index.ts --outdir ./dist --target bun",
     "start": "bun run dist/index.js",
     "dev": "bun run src/index.ts",

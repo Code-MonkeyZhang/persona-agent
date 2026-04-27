@@ -102,7 +102,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     return { success: false, error: errorMsg };
   }
 
-  //TODO: 这里不应该使用当前目录作为兜底, 应该在 animus-agent data directory 中有一个空的 workspace 作为默认工作目录
+  //TODO: 这里不应该使用当前目录作为兜底, 应该在 persona-agent data directory 中有一个空的 workspace 作为默认工作目录
   const workspaceDir =
     session.workspacePath || agentConfig.defaultWorkspacePath || process.cwd();
 

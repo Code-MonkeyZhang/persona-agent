@@ -1,6 +1,8 @@
+productName: "Persona"
+
 extraResources:
-  - from: "../server/dist/animus-agent-server"
-    to: "bin/animus-agent-server"
+  - from: "../server/dist/persona-agent-server"
+    to: "bin/persona-agent-server"
   - from: "../server/bin/cloudflared"
     to: "bin/cloudflared"
 

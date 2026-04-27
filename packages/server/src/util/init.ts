@@ -2,8 +2,8 @@
  * @fileoverview Application initialization utilities.
  * Creates required directories and config files on first run.
  *
- * Initialized directory structure (~/.local/share/animus-agent/ on macOS):
- * ~/.local/share/animus-agent/
+ * Initialized directory structure (~/.local/share/persona-agent/ on macOS):
+ * ~/.local/share/persona-agent/
  * ├── config/
  * │   ├── config.yaml
  * │   └── auth.json
@@ -35,18 +35,26 @@ import { getDefaultConfigYaml } from '../config/index.js';
 
 /**
  * @deprecated Temporary migration function. Remove in next major version after all users have upgraded.
- * Migrates data directories from legacy names to the current `animus-agent` directory.
- * Migration chain: .nano-agent → animateclaw → animus-agent
+ * Migrates data directories from legacy names to the current `persona-agent` directory.
+ * Migration chain: .nano-agent → animateclaw → animus-agent → persona-agent
  */
 function migrateDataDir(): void {
   if (!xdgData) return;
-  const newDir = path.join(xdgData, 'animus-agent');
+  const newDir = path.join(xdgData, 'persona-agent');
 
-  const oldDir = path.join(xdgData, 'animateclaw');
+  // animus-agent → persona-agent
+  const oldDir = path.join(xdgData, 'animus-agent');
   if (fs.existsSync(oldDir) && !fs.existsSync(newDir)) {
     fs.renameSync(oldDir, newDir);
   }
 
+  // animateclaw → persona-agent (legacy chain)
+  const ancientDir = path.join(xdgData, 'animateclaw');
+  if (fs.existsSync(ancientDir) && !fs.existsSync(newDir)) {
+    fs.renameSync(ancientDir, newDir);
+  }
+
+  // .nano-agent → persona-agent (legacy chain)
   const legacyDir = path.join(os.homedir(), '.nano-agent');
   if (fs.existsSync(legacyDir) && !fs.existsSync(newDir)) {
     fs.renameSync(legacyDir, newDir);

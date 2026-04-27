@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "animus-agent",
+      "name": "persona-agent",
       "devDependencies": {
         "husky": "^9.1.7",
         "lint-staged": "^16.4.0",

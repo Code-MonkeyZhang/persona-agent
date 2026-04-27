@@ -1,7 +1,7 @@
 /**
- * @fileoverview Application path utilities for animus-agent.
+ * @fileoverview Application path utilities for persona-agent.
  *
- * Directory structure (macOS: ~/.local/share/animus-agent/, Windows: %APPDATA%/animus-agent/):
+ * Directory structure (macOS: ~/.local/share/persona-agent/, Windows: %APPDATA%/persona-agent/):
  * ├── config/
  * │   ├── config.yaml
  * │   └── auth.json
@@ -34,7 +34,7 @@ if (!xdgData) {
   throw new Error('Unable to determine XDG data directory');
 }
 
-const APP_DIR = path.join(xdgData, 'animus-agent');
+const APP_DIR = path.join(xdgData, 'persona-agent');
 
 // --- Top-level directories ---
 

@@ -1,6 +1,6 @@
-# AnimateClaw
+# Persona
 
-AnimateClaw 是一个 AI Agent 桌面应用。用户可以在本地创建和管理多个 AI Agent，通过聊天界面与 Agent 交互，Agent 能够调用工具（执行命令、读写文件）来完成任务。应用内置 Cloudflare Tunnel 支持，可以将本地 Agent 暴露到公网，方便从手机或其他设备远程访问。
+Persona 是一个 AI Agent 桌面应用。用户可以在本地创建和管理多个 AI Agent，通过聊天界面与 Agent 交互，Agent 能够调用工具（执行命令、读写文件）来完成任务。应用内置 Cloudflare Tunnel 支持，可以将本地 Agent 暴露到公网，方便从手机或其他设备远程访问。
 
 项目由两个核心部分组成：server 负责对话管理、工具执行、MCP 连接等后端逻辑；desktop 是 Electron 桌面客户端，提供图形界面。
 
@@ -80,7 +80,7 @@ cd packages/desktop && npm run test
 ## 项目结构
 
 ```
-AnimateClaw/
+persona-agent/
 ├── package.json              # 根编排脚本
 ├── packages/
 │   ├── server/               # 后端服务（Bun 项目）
@@ -109,16 +109,16 @@ AnimateClaw/
 
 ## 用户数据目录
 
-应用运行时会在系统标准数据目录下创建 `animateclaw/`，存放配置、Agent、会话和日志等数据。
+应用运行时会在系统标准数据目录下创建 `persona-agent/`，存放配置、Agent、会话和日志等数据。
 
 | 平台 | 路径 |
 |------|------|
-| macOS | `~/.local/share/animateclaw/` |
-| Windows | `%APPDATA%/animateclaw/` |
-| Linux | `~/.local/share/animateclaw/` |
+| macOS | `~/.local/share/persona-agent/` |
+| Windows | `%APPDATA%/persona-agent/` |
+| Linux | `~/.local/share/persona-agent/` |
 
 ```
-animateclaw/
+persona-agent/
 ├── config/
 │   ├── config.yaml          # 全局配置
 │   └── auth.json            # LLM 供应商 API Key
