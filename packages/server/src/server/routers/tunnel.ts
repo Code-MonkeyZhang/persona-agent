@@ -9,11 +9,7 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import {
-  startTunnel,
-  stopTunnel,
-  getTunnelStatus,
-} from '../tunnel-service.js';
+import { startTunnel, stopTunnel, getTunnelStatus } from '../tunnel-service.js';
 import { httpServer } from '../index.js';
 import { Logger } from '../../util/logger.js';
 
