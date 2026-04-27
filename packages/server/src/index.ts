@@ -17,7 +17,7 @@ const version = globalThis.SERVER_VERSION ?? 'dev';
 
 const program = new Command();
 program
-  .name('animateclaw')
+  .name('animus-agent-server')
   .version(version)
   .argument('<port>', 'Port to listen on')
   .action(async (portStr: string) => {

@@ -34,7 +34,7 @@ const api = {
   }): Promise<string | null> => ipcRenderer.invoke('select-folder', options),
 
   /**
-   * Get the backend AnimateClaw server URL.
+   * Get the backend Agent Server URL.
    * The backend starts dynamically, so the renderer queries the main process for the address.
    * @returns 服务地址，未启动则返回 null
    */

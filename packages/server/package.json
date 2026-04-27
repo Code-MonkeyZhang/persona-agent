@@ -1,13 +1,13 @@
 {
-  "name": "animateclaw",
+  "name": "animus-agent-server",
   "version": "1.0.0",
   "type": "module",
   "bin": {
-    "animateclaw": "dist/src/index.js"
+    "animus-agent-server": "dist/src/index.js"
   },
   "private": true,
   "scripts": {
-    "build": "VERSION=$(node -p \"require('./package.json').version\") && bun build ./src/index.ts --compile --outfile ./dist/animateclaw --define \"globalThis.SERVER_VERSION=\\\"$VERSION\\\"\" && ./dist/animateclaw --version",
+    "build": "VERSION=$(node -p \"require('./package.json').version\") && bun build ./src/index.ts --compile --outfile ./dist/animus-agent-server --define \"globalThis.SERVER_VERSION=\\\"$VERSION\\\"\" && ./dist/animus-agent-server --version",
     "build:bundle": "bun build ./src/index.ts --outdir ./dist --target bun",
     "start": "bun run dist/index.js",
     "dev": "bun run src/index.ts",

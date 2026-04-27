@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "animateclaw",
+      "name": "animus-agent-server",
       "dependencies": {
         "@anthropic-ai/sdk": "^0.90.0",
         "@mariozechner/pi-ai": "0.70.2",

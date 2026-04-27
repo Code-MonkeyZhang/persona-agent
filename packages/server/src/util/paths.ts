@@ -1,7 +1,7 @@
 /**
- * @fileoverview Application path utilities for animateclaw.
+ * @fileoverview Application path utilities for animus-agent.
  *
- * Directory structure (macOS: ~/.local/share/animateclaw/, Windows: %APPDATA%/animateclaw/):
+ * Directory structure (macOS: ~/.local/share/animus-agent/, Windows: %APPDATA%/animus-agent/):
  * ├── config/
  * │   ├── config.yaml
  * │   └── auth.json
@@ -34,7 +34,7 @@ if (!xdgData) {
   throw new Error('Unable to determine XDG data directory');
 }
 
-const APP_DIR = path.join(xdgData, 'animateclaw');
+const APP_DIR = path.join(xdgData, 'animus-agent');
 
 // --- Top-level directories ---
 

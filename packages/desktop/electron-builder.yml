@@ -1,6 +1,6 @@
 extraResources:
-  - from: "../server/dist/animateclaw"
-    to: "bin/animateclaw"
+  - from: "../server/dist/animus-agent-server"
+    to: "bin/animus-agent-server"
   - from: "../server/bin/cloudflared"
     to: "bin/cloudflared"
 

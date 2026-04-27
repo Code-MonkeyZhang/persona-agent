@@ -21,7 +21,7 @@ data/
 config/config.yaml
 config/mcp.json
 skills/*
-.animateclaw
+.animus-agent
 
 # log
 logs

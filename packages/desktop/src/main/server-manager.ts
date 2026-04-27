@@ -59,9 +59,9 @@ export function killOrphanProcesses(): void {
 
   try {
     if (process.platform === 'win32') {
-      execSync('taskkill /F /IM animateclaw.exe', { stdio: 'ignore' });
+      execSync('taskkill /F /IM animus-agent-server.exe', { stdio: 'ignore' });
     } else {
-      execSync('killall animateclaw', { stdio: 'ignore' });
+      execSync('killall animus-agent-server', { stdio: 'ignore' });
     }
   } catch {
     // 没有残留进程，正常

@@ -1,5 +1,5 @@
 /**
- * @fileoverview HTTP server setup for animateclaw server.
+ * @fileoverview HTTP server setup for animus-agent server.
  *
  */
 
@@ -40,7 +40,7 @@ app.get('/api/status', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     timestamp: Date.now(),
-    message: 'AnimateClaw Server is running',
+    message: 'Agent Server is running',
   });
 });
 

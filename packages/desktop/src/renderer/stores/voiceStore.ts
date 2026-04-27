@@ -139,7 +139,7 @@ export const useVoiceStore = create<VoiceStore>()(
       },
     }),
     {
-      name: 'animateclaw-voice-store',
+      name: 'voice-store',
       partialize: (state) => ({
         voiceEnabled: state.voiceEnabled,
         summaryThreshold: state.summaryThreshold,

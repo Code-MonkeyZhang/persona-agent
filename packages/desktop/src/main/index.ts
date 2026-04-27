@@ -22,7 +22,7 @@ import {
 const isMac = process.platform === 'darwin';
 const isWin = process.platform === 'win32';
 
-const BINARY_NAME = isWin ? 'animateclaw.exe' : 'animateclaw';
+const BINARY_NAME = isWin ? 'animus-agent-server.exe' : 'animus-agent-server';
 
 let serverProcess: ChildProcess | null = null;
 let settingsWindow: BrowserWindow | null = null;
@@ -245,7 +245,7 @@ app.whenReady().then(async () => {
     app.quit();
   });
 
-  electronApp.setAppUserModelId('com.animateclaw.desktop');
+  electronApp.setAppUserModelId('com.animus.desktop');
 
   /**
    * 监听窗口创建事件

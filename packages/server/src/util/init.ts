@@ -2,8 +2,8 @@
  * @fileoverview Application initialization utilities.
  * Creates required directories and config files on first run.
  *
- * Initialized directory structure (~/.local/share/animateclaw/ on macOS):
- * ~/.local/share/animateclaw/
+ * Initialized directory structure (~/.local/share/animus-agent/ on macOS):
+ * ~/.local/share/animus-agent/
  * ├── config/
  * │   ├── config.yaml
  * │   └── auth.json
@@ -16,6 +16,9 @@
  */
 
 import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { xdgData } from 'xdg-basedir';
 import {
   getAgentsDir,
   getConfigDir,
@@ -29,6 +32,26 @@ import {
   getWorkspaceDir,
 } from './paths.js';
 import { getDefaultConfigYaml } from '../config/index.js';
+
+/**
+ * @deprecated Temporary migration function. Remove in next major version after all users have upgraded.
+ * Migrates data directories from legacy names to the current `animus-agent` directory.
+ * Migration chain: .nano-agent → animateclaw → animus-agent
+ */
+function migrateDataDir(): void {
+  if (!xdgData) return;
+  const newDir = path.join(xdgData, 'animus-agent');
+
+  const oldDir = path.join(xdgData, 'animateclaw');
+  if (fs.existsSync(oldDir) && !fs.existsSync(newDir)) {
+    fs.renameSync(oldDir, newDir);
+  }
+
+  const legacyDir = path.join(os.homedir(), '.nano-agent');
+  if (fs.existsSync(legacyDir) && !fs.existsSync(newDir)) {
+    fs.renameSync(legacyDir, newDir);
+  }
+}
 
 const REQUIRED_DIRS = [
   getConfigDir,
@@ -52,8 +75,11 @@ const REQUIRED_FILES: Array<{
 /**
  * Initialize all required directories and config files.
  * Idempotent: existing items won't be overwritten.
+ * Runs data directory migration before initialization.
  */
 export function initAllDirsAndFiles(): void {
+  migrateDataDir();
+
   for (const getDir of REQUIRED_DIRS) {
     const dir = getDir();
     if (!fs.existsSync(dir)) {

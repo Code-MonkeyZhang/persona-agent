@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Cloudflare Tunnel connectivity & API tester for Nano Agent Server.
+Cloudflare Tunnel connectivity & API tester for Agent Server.
 
 Usage:
   python tunnel_check.py
@@ -192,7 +192,7 @@ def ws_test(ws_url: str) -> list[Result]:
 
 
 def main() -> None:
-    print("Nano Agent Tunnel Check")
+    print("Agent Server Tunnel Check")
     print("-" * 60)
     base = (
         input("Enter tunnel URL (e.g. https://xxx.trycloudflare.com): ")

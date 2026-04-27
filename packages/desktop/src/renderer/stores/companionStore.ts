@@ -28,7 +28,7 @@ export const useCompanionStore = create<CompanionStore>()(
       },
     }),
     {
-      name: 'animateclaw-companion-store',
+      name: 'companion-store',
       partialize: (state) => ({ visible: state.visible }),
     }
   )

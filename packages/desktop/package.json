@@ -1,7 +1,7 @@
 {
-  "name": "animateclaw-desktop",
+  "name": "animus-agent-desktop",
   "version": "1.0.0",
-  "description": "AnimateClaw Desktop - Electron GUI for AnimateClaw",
+  "description": "Animus Desktop - Electron GUI for Animus",
   "type": "module",
   "main": "./out/main/index.js",
   "scripts": {
@@ -19,7 +19,7 @@
     "react",
     "ai",
     "chat",
-    "animateclaw"
+    "animus"
   ],
   "author": "",
   "license": "MIT",

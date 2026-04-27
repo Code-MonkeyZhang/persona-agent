@@ -1,6 +1,6 @@
-# AnimateClaw Desktop
+# Animus Desktop
 
-A modern Electron desktop application for AnimateClaw.
+A modern Electron desktop application for Animus.
 
 ## Tech Stack
 
@@ -56,7 +56,7 @@ desktop/
 - ✅ Basic Electron app setup
 - ✅ React + TypeScript configuration
 - ✅ Tailwind CSS integration
-- ✅ Connection to AnimateClaw server
+- ✅ Connection to Animus server
 - ✅ Real-time streaming chat (SSE)
 - ✅ Message display (user/assistant/thinking/tooluse)
 - ✅ Auto-scroll to latest messages
@@ -64,7 +64,7 @@ desktop/
 
 ## Connection
 
-The app connects to the AnimateClaw server at `http://localhost:3847`.
+The app connects to the Animus server at `http://localhost:3847`.
 
 ## License
 
