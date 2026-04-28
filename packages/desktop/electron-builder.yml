@@ -1,5 +1,7 @@
 productName: "Persona"
 
+artifactName: "Persona-${os}-${arch}-${version}.${ext}"
+
 extraResources:
   - from: "../server/dist/persona-agent-server"
     to: "bin/persona-agent-server"
