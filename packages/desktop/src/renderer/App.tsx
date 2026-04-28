@@ -2,9 +2,9 @@
  * @file App.tsx
  * @description Electron前端渲染进程根组件
  *
- * 根据 URL hash 决定渲染哪个窗口：
- * - #settings → 设置窗口（SettingsWindow）
- * - 其他     → 主界面（WebSocketProvider + AppContent）
+ * 根据 viewStore.currentView 决定渲染哪个视图：
+ * - 'settings' → 设置页面（SettingsPage）
+ * - 'chat'     → 主界面（WebSocketProvider + AppContent）
  *
  * AppContent 是主界面的核心，包含：
  * - AgentSidebar：左侧 Agent 列表
@@ -20,7 +20,7 @@ import { InputBox } from './components/InputBox';
 import { AgentSidebar } from './components/AgentSidebar';
 import { SessionSidebar } from './components/SessionSidebar';
 import { SessionSidebarToggle } from './components/SessionSidebarToggle';
-import { SettingsWindow } from './components/SettingsWindow';
+import { SettingsPage } from './components/SettingsPage';
 import { AgentEditor } from './components/AgentEditor';
 import { CompanionPanel } from './components/CompanionPanel';
 import { ToastContainer } from './components/Toast';
@@ -30,7 +30,7 @@ import { useSessionStore } from './stores/sessionStore';
 import { useAgentStore } from './stores/agentStore';
 import { useProviderStore } from './stores/providerStore';
 import { useCompanionStore } from './stores/companionStore';
-import { useVoiceStore } from './stores/voiceStore';
+import { useViewStore } from './stores/viewStore';
 import { logger } from './lib/logger';
 
 /**
@@ -67,7 +67,7 @@ function AppContent() {
   const { loadAgents, currentAgent, deleteAgentById } = useAgentStore();
   const { providers, loadProviders } = useProviderStore();
   const companionVisible = useCompanionStore((s) => s.visible);
-  const loadVoiceApiKey = useVoiceStore((s) => s.loadVoiceApiKey); // 获取TTS API key
+  const currentView = useViewStore((s) => s.currentView);
 
   /* 定义Agent弹窗的操作 */
   /**
@@ -109,10 +109,6 @@ function AppContent() {
       loadProviders();
     }
   }, [connectionStatus, loadProviders]);
-
-  useEffect(() => {
-    loadVoiceApiKey();
-  }, [loadVoiceApiKey]);
 
   useEffect(() => {
     if (connectionStatus === 'connected' && currentAgent) {
@@ -232,47 +228,55 @@ function AppContent() {
         connectionStatus={connectionStatus}
         onOpenAgentEditor={handleOpenAgentEditor}
       />
-      <SessionSidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(true)}
-      />
-      <div className="flex-1 flex flex-col min-h-0 min-w-0 relative">
-        {sidebarCollapsed && (
-          <SessionSidebarToggle
-            isOpen={false}
-            onToggle={() => setSidebarCollapsed(false)}
+      {currentView === 'settings' ? (
+        <div className="flex-1 flex flex-col min-h-0 min-w-0">
+          <SettingsPage />
+        </div>
+      ) : (
+        <>
+          <SessionSidebar
+            collapsed={sidebarCollapsed}
+            onToggle={() => setSidebarCollapsed(true)}
           />
-        )}
-        <Header onNewChat={handleNewChat} />
-        <MessageList
-          ref={messageListRef}
-          key={currentSession?.id ?? 'no-session'}
-          messages={messages}
-          isLoading={isLoading}
-          sessionId={currentSession?.id ?? null}
-          hasAgent={!!currentAgent}
-          agent={currentAgent}
-        />
-        <InputBox
-          onSend={handleSend}
-          isLoading={isLoading}
-          disabled={!currentAgent} // 如果当前没有选中的Agent, 禁用输入框
-          providers={providers}
-          currentModelId={currentModelId}
-          currentProviderId={currentProviderId}
-          onModelChange={handleModelChange}
-          onProviderChange={handleProviderChange}
-          workspacePath={currentWorkspacePath}
-          onWorkspaceChange={handleWorkspaceChange}
-        />
-        {companionVisible && (
-          <CompanionPanel
-            agentId={currentAgent?.id ?? null}
-            onSend={handleSend}
-            isLoading={isLoading}
-          />
-        )}
-      </div>
+          <div className="flex-1 flex flex-col min-h-0 min-w-0 relative">
+            {sidebarCollapsed && (
+              <SessionSidebarToggle
+                isOpen={false}
+                onToggle={() => setSidebarCollapsed(false)}
+              />
+            )}
+            <Header onNewChat={handleNewChat} />
+            <MessageList
+              ref={messageListRef}
+              key={currentSession?.id ?? 'no-session'}
+              messages={messages}
+              isLoading={isLoading}
+              sessionId={currentSession?.id ?? null}
+              hasAgent={!!currentAgent}
+              agent={currentAgent}
+            />
+            <InputBox
+              onSend={handleSend}
+              isLoading={isLoading}
+              disabled={!currentAgent}
+              providers={providers}
+              currentModelId={currentModelId}
+              currentProviderId={currentProviderId}
+              onModelChange={handleModelChange}
+              onProviderChange={handleProviderChange}
+              workspacePath={currentWorkspacePath}
+              onWorkspaceChange={handleWorkspaceChange}
+            />
+            {companionVisible && (
+              <CompanionPanel
+                agentId={currentAgent?.id ?? null}
+                onSend={handleSend}
+                isLoading={isLoading}
+              />
+            )}
+          </div>
+        </>
+      )}
       <AgentEditor
         isOpen={agentEditorOpen}
         editingAgentId={editingAgentId}
@@ -285,19 +289,9 @@ function AppContent() {
 }
 
 /**
- * 应用根组件，根据 URL hash 决定渲染设置窗口或主聊天界面
+ * 应用根组件，渲染主聊天界面（设置页面通过视图切换在 AppContent 内部处理）
  */
 function App() {
-  // 读取当前窗口 URL 中 # 后面的内容，例如 "#settings"
-  // 主进程创建设置窗口时会拼接 #settings，据此判断当前是否为设置窗口
-  const hash = window.location.hash;
-  const isSettingsWindow = hash === '#settings';
-
-  // 设置窗口只渲染设置界面，不加载聊天相关的逻辑
-  if (isSettingsWindow) {
-    return <SettingsWindow />;
-  }
-
   return (
     <WebSocketProvider>
       <AppContent />

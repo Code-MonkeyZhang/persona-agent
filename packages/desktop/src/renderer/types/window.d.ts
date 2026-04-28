@@ -9,7 +9,6 @@ declare global {
       };
     };
     api?: {
-      openSettingsWindow: () => Promise<void>;
       selectFolder: (options?: {
         title?: string;
         defaultPath?: string;

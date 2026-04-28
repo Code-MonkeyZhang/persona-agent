@@ -6,10 +6,10 @@ import React, { useState } from 'react';
 import { Settings, Plus, Loader2, Server } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAgentStore } from '../stores/agentStore';
+import { useViewStore } from '../stores/viewStore';
 import { AgentAvatar } from './AgentAvatar';
 import { ServerManagerModal } from './ServerManagerModal';
 import { isMac } from '../lib/platform';
-import { logger } from '../lib/logger';
 
 interface AgentSidebarProps {
   connectionStatus: 'connected' | 'connecting' | 'disconnected';
@@ -26,10 +26,15 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = ({
   onOpenAgentEditor,
 }) => {
   const { agents, currentAgent, switchAgent } = useAgentStore();
+  const currentView = useViewStore((s) => s.currentView);
+  const setView = useViewStore((s) => s.setView);
   const [serverModalOpen, setServerModalOpen] = useState(false);
 
-  /** 点击 Agent 头像切换到对应 Agent */
+  /** 点击 Agent 头像切换到对应 Agent，如果在设置视图则同时切回聊天 */
   const handleAgentClick = async (id: string) => {
+    if (currentView === 'settings') {
+      setView('chat');
+    }
     await switchAgent(id);
   };
 
@@ -44,13 +49,9 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = ({
     onOpenAgentEditor?.(null);
   };
 
-  /** 通过 IPC 打开独立的设置窗口 */
-  const handleOpenSettings = async () => {
-    try {
-      await window.api?.openSettingsWindow();
-    } catch (error) {
-      logger.error('Failed to open settings window:', error);
-    }
+  /** 切换到设置视图 */
+  const handleOpenSettings = () => {
+    setView('settings');
   };
 
   return (
@@ -116,7 +117,12 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = ({
         />
         <button
           onClick={handleOpenSettings}
-          className="w-full flex flex-col items-center py-2 text-gray-500 hover:bg-gray-100 rounded transition-colors"
+          className={cn(
+            'w-full flex flex-col items-center py-2 rounded transition-colors',
+            currentView === 'settings'
+              ? 'text-blue-500 bg-blue-50'
+              : 'text-gray-500 hover:bg-gray-100'
+          )}
         >
           <Settings className="w-5 h-5" />
         </button>

@@ -25,7 +25,6 @@ const isWin = process.platform === 'win32';
 const BINARY_NAME = isWin ? 'persona-agent-server.exe' : 'persona-agent-server';
 
 let serverProcess: ChildProcess | null = null;
-let settingsWindow: BrowserWindow | null = null;
 
 // 日志配置：开发环境写文件，生产环境不写
 if (is.dev) {
@@ -167,68 +166,6 @@ function createWindow(): void {
 }
 
 /**
- * 创建设置窗口
- * 用于显示应用程序设置界面
- * @returns {void}
- */
-function createSettingsWindow(): void {
-  log.info('Creating settings window');
-
-  // 如果设置窗口已经存在，直接聚焦到已有窗口，避免重复创建
-  if (settingsWindow) {
-    log.info('Settings window already exists, focusing');
-    settingsWindow.focus();
-    return;
-  }
-
-  // 创建一个新的浏览器窗口作为设置界面
-  settingsWindow = new BrowserWindow({
-    width: 720,
-    height: 600,
-    minWidth: 600,
-    minHeight: 400,
-    show: false, // 先不显示，等 ready-to-show 事件再显示，避免白屏闪烁
-    autoHideMenuBar: true,
-    title: '设置中心',
-    resizable: true,
-    maximizable: false, // 禁止最大化，设置窗口不需要那么大
-    fullscreenable: false, // 禁止全屏
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.cjs'),
-      sandbox: false,
-      nodeIntegration: false,
-      contextIsolation: true,
-    },
-  });
-
-  // 窗口内容加载完成后才显示，用户体验更好
-  settingsWindow.on('ready-to-show', () => {
-    settingsWindow?.show();
-  });
-
-  // 窗口关闭时清空引用，允许下次重新创建
-  settingsWindow.on('closed', () => {
-    settingsWindow = null;
-  });
-
-  // 拦截页面内的新窗口打开请求（如 <a target="_blank">），用系统浏览器打开
-  settingsWindow.webContents.setWindowOpenHandler((details) => {
-    require('electron').shell.openExternal(details.url);
-    return { action: 'deny' };
-  });
-
-  // 加载同一个 index.html，但 URL 末尾拼接 #settings
-  // 渲染进程的 App 组件会读取这个 hash 值，据此渲染 <SettingsWindow /> 而非聊天界面
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    settingsWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#settings`);
-  } else {
-    settingsWindow.loadFile(join(__dirname, '../renderer/index.html'), {
-      hash: 'settings',
-    });
-  }
-}
-
-/**
  * 应用的主要入口
  * @returns {Promise<void>}
  */
@@ -253,14 +190,6 @@ app.whenReady().then(async () => {
    */
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window);
-  });
-
-  /**
-   * IPC 处理器：接受前端发来的消息 打开设置窗口
-   */
-  ipcMain.handle('open-settings-window', () => {
-    log.info('IPC: open-settings-window received');
-    createSettingsWindow();
   });
 
   /**
