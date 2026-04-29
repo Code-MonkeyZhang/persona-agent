@@ -21,13 +21,8 @@ interface Feedback {
  * 保存前会先调用 TTS 接口验证 Key 的有效性，验证通过才保存
  */
 export const VoiceConfigPanel: React.FC = () => {
-  const {
-    voiceApiKey,
-    setVoiceApiKey,
-    loadVoiceApiKey,
-    summaryThreshold,
-    setSummaryThreshold,
-  } = useVoiceStore();
+  const { voiceApiKey, setVoiceApiKey, summaryThreshold, setSummaryThreshold } =
+    useVoiceStore();
   const [inputKey, setInputKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -35,10 +30,6 @@ export const VoiceConfigPanel: React.FC = () => {
   const [thresholdInput, setThresholdInput] = useState(
     String(summaryThreshold)
   );
-
-  useEffect(() => {
-    loadVoiceApiKey();
-  }, [loadVoiceApiKey]);
 
   useEffect(() => {
     if (voiceApiKey) {
