@@ -47,8 +47,14 @@ export async function getBaseUrl(): Promise<string> {
 
 export interface McpServer {
   name: string;
-  status: 'connected' | 'disconnected' | 'error';
+  status: 'connected' | 'disconnected' | 'connecting' | 'needs_auth';
   toolCount?: number;
+  error?: string;
+}
+
+export interface McpOAuthStatus {
+  status: McpServer['status'];
+  oauthUrl?: string;
   error?: string;
 }
 
@@ -625,6 +631,50 @@ export async function listMcpServers(): Promise<McpServer[]> {
 
   const data: ListMcpsResponse = await response.json();
   return data.servers;
+}
+
+/**
+ * 启动指定 MCP 服务器的 OAuth 授权流程。
+ * 返回授权 URL，前端应使用 shell.openExternal 打开浏览器。
+ * @param name - MCP 服务器名称
+ * @returns 包含授权 URL 的对象
+ */
+export async function startMcpOAuth(
+  name: string
+): Promise<{ authorizationUrl: string }> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/mcp/${encodeURIComponent(name)}/oauth/authorize`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+  );
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to start OAuth: ${response.status}`
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * 查询指定 MCP 服务器的 OAuth 授权状态，用于前端轮询。
+ * @param name - MCP 服务器名称
+ */
+export async function getMcpOAuthStatus(name: string): Promise<McpOAuthStatus> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/mcp/${encodeURIComponent(name)}/oauth/status`,
+    { method: 'GET', headers: { Accept: 'application/json' } }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to get OAuth status: ${response.status}`);
+  }
+
+  return response.json();
 }
 
 /**

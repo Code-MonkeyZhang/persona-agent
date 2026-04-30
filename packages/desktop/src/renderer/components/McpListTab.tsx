@@ -1,75 +1,75 @@
 /**
  * @file src/renderer/components/McpListTab.tsx
- * @description MCP 服务列表标签页，展示已配置的 MCP 服务器状态和工具数量
+ * @description MCP 服务列表标签页，展示已配置的 MCP 服务器状态、工具数量和 OAuth 授权
  */
 
-import React, { useEffect, useState } from 'react';
-import { Loader2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
-import { listMcpServers, type McpServer } from '../lib/api';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Loader2, CheckCircle, XCircle, KeyRound } from 'lucide-react';
+import {
+  listMcpServers,
+  startMcpOAuth,
+  getMcpOAuthStatus,
+  type McpServer,
+} from '../lib/api';
+import { logger } from '../lib/logger';
 
-/**
- * 根据服务器连接状态返回对应的图标组件
- * @param status MCP 服务器状态
- * @returns 带颜色的 Lucide 图标
- */
+const POLL_INTERVAL_MS = 2000;
+const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+
 function getStatusIcon(status: McpServer['status']) {
   switch (status) {
     case 'connected':
       return <CheckCircle className="w-4 h-4 text-green-500" />;
-    case 'error':
-      return <XCircle className="w-4 h-4 text-red-500" />;
+    case 'needs_auth':
+      return <KeyRound className="w-4 h-4 text-amber-500" />;
+    case 'connecting':
+      return <Loader2 className="w-4 h-4 animate-spin text-blue-400" />;
     default:
-      return <AlertCircle className="w-4 h-4 text-gray-400" />;
+      return <XCircle className="w-4 h-4 text-red-500" />;
   }
 }
 
-/**
- * 根据服务器连接状态返回中文描述文本
- * @param status MCP 服务器状态
- * @returns 状态对应的中文文本
- */
 function getStatusText(status: McpServer['status']) {
   switch (status) {
     case 'connected':
       return '已连接';
-    case 'error':
-      return '错误';
+    case 'needs_auth':
+      return '需要授权';
+    case 'connecting':
+      return '连接中';
+    case 'disconnected':
+      return '未连接';
     default:
       return '未连接';
   }
 }
 
-/**
- * 根据服务器连接状态返回对应的 Tailwind 背景和文字颜色类名
- * @param status MCP 服务器状态
- * @returns Tailwind 类名字符串
- */
 function getStatusClass(status: McpServer['status']) {
   switch (status) {
     case 'connected':
       return 'bg-green-100 text-green-700';
-    case 'error':
-      return 'bg-red-100 text-red-700';
+    case 'needs_auth':
+      return 'bg-amber-100 text-amber-700';
+    case 'connecting':
+      return 'bg-blue-100 text-blue-700';
     default:
       return 'bg-gray-100 text-gray-600';
   }
 }
 
-/**
- * MCP 服务列表标签页组件，从后端加载 MCP 服务器列表并按状态分组展示
- */
 export const McpListTab: React.FC = () => {
   const [mcps, setMcps] = useState<McpServer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [authorizing, setAuthorizing] = useState<string | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollingStartRef = useRef<number>(0);
 
   useEffect(() => {
     loadMcps();
+    return () => stopPolling();
   }, []);
 
-  /**
-   * 从后端拉取 MCP 服务器列表并更新本地状态
-   */
   const loadMcps = async () => {
     setIsLoading(true);
     setError(null);
@@ -82,6 +82,81 @@ export const McpListTab: React.FC = () => {
       );
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
+
+  /**
+   * 轮询 OAuth 授权状态，连接成功或失败时停止。
+   * 超时 5 分钟后自动停止并提示用户。
+   */
+  const startPolling = useCallback(
+    (name: string) => {
+      stopPolling();
+      pollingStartRef.current = Date.now();
+
+      pollingRef.current = setInterval(async () => {
+        try {
+          const status = await getMcpOAuthStatus(name);
+
+          if (status.status === 'connected') {
+            stopPolling();
+            setAuthorizing(null);
+            logger.info('[MCP] OAuth connected for', name);
+            loadMcps();
+            return;
+          }
+
+          if (status.status === 'needs_auth' && status.error) {
+            stopPolling();
+            setAuthorizing(null);
+            logger.error('[MCP] OAuth failed for', name, status.error);
+            loadMcps();
+            return;
+          }
+
+          if (Date.now() - pollingStartRef.current > POLL_TIMEOUT_MS) {
+            stopPolling();
+            setAuthorizing(null);
+          }
+        } catch {
+          stopPolling();
+          setAuthorizing(null);
+        }
+      }, POLL_INTERVAL_MS);
+    },
+    [stopPolling]
+  );
+
+  /**
+   * 触发 OAuth 授权流程：启动后端流程 → 打开浏览器 → 开始轮询状态
+   */
+  const handleAuthorize = async (name: string) => {
+    try {
+      setAuthorizing(name);
+      logger.info('[MCP] Starting OAuth for', name);
+      const result = await startMcpOAuth(name);
+
+      if (result.authorizationUrl) {
+        await window.api?.openExternal(result.authorizationUrl);
+        logger.info('[MCP] Opened authorization URL in browser for', name);
+        startPolling(name);
+      } else {
+        setAuthorizing(null);
+        loadMcps();
+      }
+    } catch (err) {
+      setAuthorizing(null);
+      const msg =
+        err instanceof Error ? err.message : 'OAuth authorization failed';
+      logger.error('[MCP] OAuth failed for', name, msg);
+      setError(msg);
     }
   };
 
@@ -142,12 +217,31 @@ export const McpListTab: React.FC = () => {
                 {mcp.error && (
                   <p className="text-sm text-red-500 mt-0.5">{mcp.error}</p>
                 )}
-                {mcp.toolCount !== undefined && mcp.toolCount > 0 && (
-                  <p className="text-sm text-gray-500 mt-0.5">
-                    {mcp.toolCount} 个工具可用
-                  </p>
-                )}
+                {mcp.status === 'connected' &&
+                  mcp.toolCount !== undefined &&
+                  mcp.toolCount > 0 && (
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      {mcp.toolCount} 个工具可用
+                    </p>
+                  )}
               </div>
+
+              {mcp.status === 'needs_auth' && (
+                <button
+                  onClick={() => handleAuthorize(mcp.name)}
+                  disabled={authorizing === mcp.name}
+                  className="flex-shrink-0 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {authorizing === mcp.name ? (
+                    <span className="flex items-center gap-1.5">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      授权中...
+                    </span>
+                  ) : (
+                    '去授权'
+                  )}
+                </button>
+              )}
             </div>
           ))}
         </div>

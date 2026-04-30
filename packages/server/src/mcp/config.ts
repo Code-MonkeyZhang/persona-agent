@@ -15,7 +15,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Load and parse the MCP configuration file.
+ * Load and parse the MCP config file.
  *
  * @param configPath - Optional custom path to mcp.json (default: ~/.local/share/persona-agent/mcp/mcp.json)
  * @returns A map of server name -> server config, or an empty map if file doesn't exist

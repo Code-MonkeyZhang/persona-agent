@@ -51,6 +51,8 @@ export const getLogsDir = () => path.join(APP_DIR, 'logs');
 export const getConfigPath = () => path.join(getConfigDir(), 'config.yaml');
 export const getAuthPath = () => path.join(getConfigDir(), 'auth.json');
 export const getMcpConfigPath = () => path.join(getMcpDir(), 'mcp.json');
+export const getOAuthTokensPath = () =>
+  path.join(getMcpDir(), 'oauth-tokens.json');
 
 /**
  * Returns the path to the cloudflared binary.

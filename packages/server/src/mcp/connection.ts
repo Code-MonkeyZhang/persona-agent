@@ -1,29 +1,28 @@
 /**
  * @fileoverview MCP server connection and tool wrapper.
  *
- * MCPServerConnection manages a single MCP server connection (stdio/sse/streamable_http).
- * MCPTool wraps a remote MCP tool into the local Tool interface.
  */
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
 import { Logger } from '../util/logger.js';
+import { APP_NAME, APP_VERSION } from '../util/app.js';
 import type { Tool, ToolInput, ToolResult, JsonSchema } from '../tools/base.js';
-import type {
-  Closable,
-  ConnectionType,
-  McpClient,
-  McpServerConfig,
-} from './types.js';
+import type { ConnectionType, McpClient, McpServerConfig } from './types.js';
+import type { McpOAuthProvider } from './oauth/provider.js';
 
+//TODO: 这个是写死的配置, 以后要考虑放到前端的服务器设置里面给用户自行配置
 const DEFAULT_TIMEOUTS = {
   connectTimeout: 60,
   executeTimeout: 120,
-  sseReadTimeout: 120,
 };
 
+/**
+ * Adapts a remote MCP tool into the local {@link Tool} interface.
+ * Handles execution timeout and error/result normalization.
+ */
 export class MCPTool implements Tool {
   public name: string;
   public description: string;
@@ -46,6 +45,12 @@ export class MCPTool implements Tool {
     this.executeTimeoutMs = options.executeTimeoutSec * 1000;
   }
 
+  /**
+   * Execute the tool with the given parameters.
+   *
+   * @param params - Tool input arguments
+   * @returns Normalized result with success/error status
+   */
   async execute(params: ToolInput): Promise<ToolResult> {
     try {
       const result = await withTimeout(
@@ -62,8 +67,8 @@ export class MCPTool implements Tool {
 
       return {
         success: !isError,
-        content,
-        error: isError ? 'Tool returned error' : null,
+        content: isError ? '' : content,
+        error: isError ? content || 'Tool returned error' : null,
       };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
@@ -76,6 +81,10 @@ export class MCPTool implements Tool {
   }
 }
 
+/**
+ * Manages a single MCP server connection
+ * Handles connection lifecycle, tool discovery, and OAuth authentication for remote servers.
+ */
 export class MCPServerConnection {
   public name: string;
   public connectionType: ConnectionType;
@@ -87,12 +96,15 @@ export class MCPServerConnection {
   public headers: Record<string, string>;
   public connectTimeoutSec?: number;
   public executeTimeoutSec?: number;
-  public sseReadTimeoutSec?: number;
 
   public tools: MCPTool[] = [];
 
   private session: McpClient | null = null;
-  private transport: Closable | null = null;
+  private transport:
+    | StdioClientTransport
+    | StreamableHTTPClientTransport
+    | null = null;
+  private authProvider?: McpOAuthProvider;
 
   constructor(options: {
     name: string;
@@ -105,7 +117,7 @@ export class MCPServerConnection {
     headers?: Record<string, string>;
     connectTimeoutSec?: number;
     executeTimeoutSec?: number;
-    sseReadTimeoutSec?: number;
+    authProvider?: McpOAuthProvider;
   }) {
     this.name = options.name;
     this.connectionType = options.connectionType;
@@ -117,7 +129,7 @@ export class MCPServerConnection {
     this.headers = options.headers ?? {};
     this.connectTimeoutSec = options.connectTimeoutSec;
     this.executeTimeoutSec = options.executeTimeoutSec;
-    this.sseReadTimeoutSec = options.sseReadTimeoutSec;
+    this.authProvider = options.authProvider;
   }
 
   private getConnectTimeoutSec(): number {
@@ -130,9 +142,12 @@ export class MCPServerConnection {
 
   /**
    * Create the appropriate transport based on connection type.
-   * Supports stdio, sse, and streamable_http transports.
+   *
+   * @throws {Error} If required config (command for stdio, url for remote) is missing
    */
-  private createTransport(): Closable {
+  private createTransport():
+    | StdioClientTransport
+    | StreamableHTTPClientTransport {
     if (this.connectionType === 'stdio') {
       if (!this.command) {
         throw new Error('Missing command for stdio transport');
@@ -150,17 +165,8 @@ export class MCPServerConnection {
       throw new Error('Missing url for remote transport');
     }
 
-    if (this.connectionType === 'sse') {
-      return new SSEClientTransport(new URL(this.url), {
-        requestInit: {
-          headers:
-            Object.keys(this.headers).length > 0 ? this.headers : undefined,
-        },
-      });
-    }
-
-    // streamable_http (default for URL-based connections)
     return new StreamableHTTPClientTransport(new URL(this.url), {
+      authProvider: this.authProvider,
       requestInit: {
         headers:
           Object.keys(this.headers).length > 0 ? this.headers : undefined,
@@ -169,18 +175,21 @@ export class MCPServerConnection {
   }
 
   /**
-   * Connect to the MCP server, discover available tools, and populate this.tools.
-   * Returns true on success, false on failure. On failure, resources are cleaned up.
+   * Connect to the MCP server and discover available tools.
+   *
+   * For remote servers requiring OAuth, returns `{ needsAuth: true }`. Read {@link authorizationUrl} to get the URL, then complete the OAuth flow before calling {@link connect} again.
+   *
+   * @returns Connection result with success status and optional auth requirement
    */
-  async connect(): Promise<boolean> {
+  async connect(): Promise<{ success: boolean; needsAuth?: boolean }> {
     const connectTimeoutMs = this.getConnectTimeoutSec() * 1000;
-    try {
-      const transport = this.createTransport();
-      const client = new Client({
-        name: 'persona-agent',
-        version: '1.0.0',
-      }) as unknown as McpClient;
+    const transport = this.createTransport();
+    const client = new Client({
+      name: APP_NAME,
+      version: APP_VERSION,
+    }) as unknown as McpClient;
 
+    try {
       const toolsList = await withTimeout(
         (async () => {
           await client.connect(transport);
@@ -216,18 +225,31 @@ export class MCPServerConnection {
         'MCP',
         `Connected to '${this.name}' (${this.connectionType}) - loaded ${this.tools.length} tools`
       );
-      return true;
+      return { success: true };
     } catch (error: unknown) {
+      if (error instanceof UnauthorizedError) {
+        this.transport = transport;
+        Logger.log(
+          'MCP',
+          `Server '${this.name}' requires OAuth authentication`
+        );
+        if (client?.close) {
+          await client.close().catch(() => {});
+        }
+        return { success: false, needsAuth: true };
+      }
+
       const message = error instanceof Error ? error.message : String(error);
       Logger.log(
         'ERROR',
         `Failed to connect MCP server '${this.name}': ${message}`
       );
       await this.disconnect();
-      return false;
+      return { success: false };
     }
   }
 
+  /** Close the session and transport, releasing all resources. */
   async disconnect(): Promise<void> {
     const session = this.session;
     const transport = this.transport;
@@ -241,12 +263,40 @@ export class MCPServerConnection {
       await transport.close();
     }
   }
+
+  /**
+   * Exchange an OAuth authorization code for access tokens.
+   *
+   * @param code - Authorization code from the OAuth callback
+   * @throws {Error} If no active transport or transport doesn't support OAuth
+   */
+  async finishAuth(code: string): Promise<void> {
+    if (!this.transport) {
+      throw new Error('No active transport to finish auth');
+    }
+
+    if (this.transport instanceof StreamableHTTPClientTransport) {
+      Logger.log(
+        'MCP-OAuth',
+        `Finishing OAuth for '${this.name}' with authorization code`
+      );
+      await this.transport.finishAuth(code);
+    } else {
+      throw new Error('Transport does not support OAuth finishAuth');
+    }
+  }
+
+  /** Authorization URL for the current OAuth flow. Available after {@link connect} returns `{ needsAuth: true }`. */
+  get authorizationUrl(): string | undefined {
+    return this.authProvider?.getAuthorizationUrl();
+  }
 }
 
 /**
  * Determine the connection type from server config.
- * Normalizes 'http' to 'streamable_http' since both use the same transport.
- * Defaults to 'streamable_http' for URL-based configs, 'stdio' otherwise.
+ *
+ * @param config - MCP server configuration
+ * @returns 'stdio' for command-based configs, 'streamable_http' for URL-based
  */
 export function determineConnectionType(
   config: McpServerConfig
@@ -256,8 +306,6 @@ export function determineConnectionType(
   switch (explicitType) {
     case 'stdio':
       return 'stdio';
-    case 'sse':
-      return 'sse';
     case 'http':
     case 'streamable_http':
       return 'streamable_http';
