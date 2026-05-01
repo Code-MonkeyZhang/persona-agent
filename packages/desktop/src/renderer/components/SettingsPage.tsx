@@ -2,10 +2,11 @@
  * @file src/renderer/components/SettingsPage.tsx
  * @description 设置中心页面组件，嵌入主窗口右侧内容区域
  * 包含通用设置、模型供应商、MCP 服务、Skills 和语音服务五个标签页
+ * 使用浅灰背景 + 白色卡片 + 左侧圆角 Tab 的 Demo 视觉风格
  */
 
 import React, { useEffect, useState } from 'react';
-import { Key, Mic, Server, Settings, Zap } from 'lucide-react';
+import { ArrowLeft, Key, Mic, Server, Settings, Zap } from 'lucide-react';
 import { ProviderConfigPanel } from './ProviderConfigPanel';
 import { ConfigForm } from './ConfigForm';
 import { McpListTab } from './McpListTab';
@@ -14,7 +15,7 @@ import { VoiceConfigPanel } from './VoiceConfigPanel';
 import { useConfigStore } from '../stores/configStore';
 import { useProviderStore } from '../stores/providerStore';
 import { useViewStore } from '../stores/viewStore';
-import { toast } from '../stores/toastStore';
+import { cn } from '../lib/utils';
 
 type TabKey = 'general' | 'providers' | 'mcp' | 'skills' | 'voice';
 
@@ -31,8 +32,7 @@ const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
  * 提供通用设置、模型供应商、MCP 服务、Skills 和语音服务五个标签页的切换和内容展示
  */
 export const SettingsPage: React.FC = () => {
-  const { config, loading, saving, error, loadConfig, saveConfig } =
-    useConfigStore();
+  const { loading, error, loadConfig } = useConfigStore();
   const { saveAllPending } = useProviderStore();
   const setView = useViewStore((s) => s.setView);
   const [activeTab, setActiveTab] = useState<TabKey>('general');
@@ -40,21 +40,6 @@ export const SettingsPage: React.FC = () => {
   useEffect(() => {
     loadConfig();
   }, [loadConfig]);
-
-  /**
-   * 保存当前通用配置到后端
-   */
-  const handleSave = async () => {
-    if (!config) return;
-
-    try {
-      await saveConfig(config);
-      toast.success('配置已保存');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '保存失败';
-      toast.error(`保存失败：${message}`);
-    }
-  };
 
   /**
    * 保存所有待写入的 Provider 配置后切回聊天视图
@@ -66,37 +51,44 @@ export const SettingsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-50">
-        <div className="text-gray-600">加载中...</div>
+      <div className="h-full flex items-center justify-center bg-[#f7f7f7]">
+        <div className="text-[#999]">加载中...</div>
       </div>
     );
   }
 
-  if (error && !config) {
+  if (error) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-50">
-        <div className="text-red-600">加载配置失败：{error}</div>
+      <div className="h-full flex items-center justify-center bg-[#f7f7f7]">
+        <div className="text-red-500">加载配置失败：{error}</div>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex bg-white">
-      <div className="w-56 border-r border-gray-200 bg-gray-50 flex flex-col">
-        <div className="px-4 py-4 border-b border-gray-200">
-          <h1 className="text-lg font-bold text-gray-900">设置中心</h1>
+    <div className="h-full w-full flex bg-[#f7f7f7]">
+      <div className="w-52 border-r border-[#e8e8e8] bg-white flex flex-col shrink-0">
+        <div className="px-4 py-4 flex items-center gap-2">
+          <button
+            onClick={handleClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <h1 className="text-[16px] font-bold text-[#333]">设置中心</h1>
         </div>
 
-        <nav className="flex-1 py-2">
+        <nav className="flex-1 py-1 px-2">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+              className={cn(
+                'w-full flex items-center gap-2.5 px-3 py-2 text-[13px] rounded-lg transition-colors',
                 activeTab === tab.key
-                  ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-500'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+                  ? 'bg-[#f0f0f0] text-[#333] font-medium'
+                  : 'text-[#666] hover:bg-[#f9f9f9]'
+              )}
             >
               {tab.icon}
               {tab.label}
@@ -105,34 +97,12 @@ export const SettingsPage: React.FC = () => {
         </nav>
       </div>
 
-      <div className="flex-1 flex flex-col">
-        <div className="flex-1 overflow-y-auto p-6">
-          {activeTab === 'providers' && <ProviderConfigPanel />}
-          {activeTab === 'mcp' && <McpListTab />}
-          {activeTab === 'skills' && <SkillListTab />}
-          {activeTab === 'general' && <ConfigForm />}
-          {activeTab === 'voice' && <VoiceConfigPanel />}
-        </div>
-
-        <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
-          <div className="flex justify-end gap-3">
-            <button
-              onClick={handleClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              关闭
-            </button>
-            {activeTab === 'general' && (
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? '保存中...' : '保存'}
-              </button>
-            )}
-          </div>
-        </div>
+      <div className="flex-1 min-w-0 overflow-y-auto">
+        {activeTab === 'providers' && <ProviderConfigPanel />}
+        {activeTab === 'mcp' && <McpListTab />}
+        {activeTab === 'skills' && <SkillListTab />}
+        {activeTab === 'general' && <ConfigForm />}
+        {activeTab === 'voice' && <VoiceConfigPanel />}
       </div>
     </div>
   );

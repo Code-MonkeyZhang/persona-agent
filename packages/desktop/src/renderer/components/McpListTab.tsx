@@ -1,6 +1,7 @@
 /**
  * @file src/renderer/components/McpListTab.tsx
  * @description MCP 服务列表标签页，展示已配置的 MCP 服务器状态、工具数量和 OAuth 授权
+ * 使用外层白色卡片 + 列表项浅灰背景的 Demo 视觉风格
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -170,82 +171,90 @@ export const McpListTab: React.FC = () => {
 
   if (error) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-600">加载失败: {error}</p>
-        <button
-          onClick={loadMcps}
-          className="mt-2 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700"
-        >
-          重试
-        </button>
+      <div className="p-5">
+        <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4 text-center">
+          <p className="text-red-500">加载失败: {error}</p>
+          <button
+            onClick={loadMcps}
+            className="mt-2 text-[13px] text-[#666] hover:text-[#333]"
+          >
+            重试
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="mb-4">
-        <h2 className="text-lg font-medium text-gray-900">MCP 服务</h2>
-        <p className="text-sm text-gray-500 mt-1">
+    <div className="p-5">
+      <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
+        <h3 className="text-[14px] font-bold text-[#333] mb-1">MCP 服务</h3>
+        <p className="text-[12px] text-[#999] mb-4">
           查看已配置的 MCP 服务器状态
         </p>
-      </div>
 
-      {mcps.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          <p>暂无 MCP 服务</p>
-          <p className="text-sm mt-1">请在后端配置文件中添加 MCP 服务器</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {mcps.map((mcp) => (
-            <div
-              key={mcp.name}
-              className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg"
-            >
-              <div className="flex-shrink-0">{getStatusIcon(mcp.status)}</div>
+        {mcps.length === 0 ? (
+          <div className="text-center py-8 text-[#999]">
+            <p className="text-[13px]">暂无 MCP 服务</p>
+            <p className="text-[12px] mt-1">
+              请在后端配置文件中添加 MCP 服务器
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {mcps.map((mcp) => (
+              <div
+                key={mcp.name}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[#eee] bg-[#fafafa]"
+              >
+                <div className="shrink-0">{getStatusIcon(mcp.status)}</div>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-gray-900">{mcp.name}</h3>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs ${getStatusClass(mcp.status)}`}
-                  >
-                    {getStatusText(mcp.status)}
-                  </span>
-                </div>
-                {mcp.error && (
-                  <p className="text-sm text-red-500 mt-0.5">{mcp.error}</p>
-                )}
-                {mcp.status === 'connected' &&
-                  mcp.toolCount !== undefined &&
-                  mcp.toolCount > 0 && (
-                    <p className="text-sm text-gray-500 mt-0.5">
-                      {mcp.toolCount} 个工具可用
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] font-medium text-[#333]">
+                      {mcp.name}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[11px] ${getStatusClass(mcp.status)}`}
+                    >
+                      {getStatusText(mcp.status)}
+                    </span>
+                  </div>
+                  {mcp.error && (
+                    <p className="text-[12px] text-red-500 mt-0.5">
+                      {mcp.error}
                     </p>
                   )}
-              </div>
+                  {mcp.status === 'connected' &&
+                    mcp.toolCount !== undefined &&
+                    mcp.toolCount > 0 && (
+                      <p className="text-[12px] text-[#999] mt-0.5">
+                        {mcp.toolCount} 个工具可用
+                      </p>
+                    )}
+                </div>
 
-              {mcp.status === 'needs_auth' && (
-                <button
-                  onClick={() => handleAuthorize(mcp.name)}
-                  disabled={authorizing === mcp.name}
-                  className="flex-shrink-0 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {authorizing === mcp.name ? (
-                    <span className="flex items-center gap-1.5">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      授权中...
-                    </span>
-                  ) : (
-                    '去授权'
-                  )}
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+                {mcp.status === 'needs_auth' && (
+                  <button
+                    onClick={() => handleAuthorize(mcp.name)}
+                    disabled={authorizing === mcp.name}
+                    className="shrink-0 h-7 px-3 text-[11px] rounded-full border border-[#d0d0d0] text-[#666] hover:text-[#333] hover:border-[#999] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {authorizing === mcp.name ? (
+                      <span className="flex items-center gap-1">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        授权中...
+                      </span>
+                    ) : (
+                      '去授权'
+                    )}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

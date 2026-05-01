@@ -1,6 +1,7 @@
 /**
  * @file src/renderer/components/SkillListTab.tsx
  * @description Skills 列表标签页，展示后端已注册的技能模块名称和描述
+ * 使用外层白色卡片 + 列表项浅灰背景的 Demo 视觉风格
  */
 
 import React, { useEffect, useState } from 'react';
@@ -45,47 +46,51 @@ export const SkillListTab: React.FC = () => {
 
   if (error) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-600">加载失败: {error}</p>
-        <button
-          onClick={loadSkills}
-          className="mt-2 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700"
-        >
-          重试
-        </button>
+      <div className="p-5">
+        <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4 text-center">
+          <p className="text-red-500">加载失败: {error}</p>
+          <button
+            onClick={loadSkills}
+            className="mt-2 text-[13px] text-[#666] hover:text-[#333]"
+          >
+            重试
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="mb-4">
-        <h2 className="text-lg font-medium text-gray-900">Skills</h2>
-        <p className="text-sm text-gray-500 mt-1">查看可用的技能模块</p>
-      </div>
+    <div className="p-5">
+      <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
+        <h3 className="text-[14px] font-bold text-[#333] mb-1">Skills</h3>
+        <p className="text-[12px] text-[#999] mb-4">查看可用的技能模块</p>
 
-      {skills.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          <p>暂无 Skills</p>
-          <p className="text-sm mt-1">请在后端配置文件中添加 Skills</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {skills.map((skill) => (
-            <div
-              key={skill.name}
-              className="p-4 border border-gray-200 rounded-lg"
-            >
-              <h3 className="font-medium text-gray-900">{skill.name}</h3>
-              {skill.description && (
-                <p className="text-sm text-gray-500 mt-0.5">
-                  {skill.description}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+        {skills.length === 0 ? (
+          <div className="text-center py-8 text-[#999]">
+            <p className="text-[13px]">暂无 Skills</p>
+            <p className="text-[12px] mt-1">请在后端配置文件中添加 Skills</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {skills.map((skill) => (
+              <div
+                key={skill.name}
+                className="px-3 py-2.5 rounded-lg border border-[#eee] bg-[#fafafa]"
+              >
+                <span className="text-[13px] font-medium text-[#333]">
+                  {skill.name}
+                </span>
+                {skill.description && (
+                  <p className="text-[12px] text-[#999] mt-0.5">
+                    {skill.description}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -13,40 +13,36 @@ import { isMac } from '../lib/platform';
 
 interface AgentSidebarProps {
   connectionStatus: 'connected' | 'connecting' | 'disconnected';
-  onOpenAgentEditor?: (agentId: string | null) => void;
 }
 
 /**
  * Agent 列表侧边栏组件，渲染 Agent 头像列表并提供切换、编辑、添加操作
  * @param props.connectionStatus - 当前后端服务连接状态
- * @param props.onOpenAgentEditor - 打开 Agent 编辑面板的回调，传入 null 表示新建
  */
 export const AgentSidebar: React.FC<AgentSidebarProps> = ({
   connectionStatus,
-  onOpenAgentEditor,
 }) => {
   const { agents, currentAgent, switchAgent } = useAgentStore();
-  const currentView = useViewStore((s) => s.currentView);
-  const setView = useViewStore((s) => s.setView);
+  const { currentView, setView, openAgentEditor } = useViewStore();
   const [serverModalOpen, setServerModalOpen] = useState(false);
 
-  /** 点击 Agent 头像切换到对应 Agent，如果在设置视图则同时切回聊天 */
+  /** 点击 Agent 头像切换到对应 Agent，如果在非聊天视图则同时切回聊天 */
   const handleAgentClick = async (id: string) => {
-    if (currentView === 'settings') {
+    if (currentView === 'settings' || currentView === 'agent-editor') {
       setView('chat');
     }
     await switchAgent(id);
   };
 
-  /** 点击 Agent 编辑图标，阻止事件冒泡后打开编辑面板 */
+  /** 点击 Agent 编辑图标，阻止事件冒泡后打开编辑页面 */
   const handleEditClick = (e: React.MouseEvent, agentId: string) => {
     e.stopPropagation();
-    onOpenAgentEditor?.(agentId);
+    openAgentEditor(agentId);
   };
 
-  /** 点击添加按钮，打开空白 Agent 编辑面板 */
+  /** 点击添加按钮，打开空白 Agent 编辑页面 */
   const handleAddClick = () => {
-    onOpenAgentEditor?.(null);
+    openAgentEditor(null);
   };
 
   /** 切换到设置视图 */
