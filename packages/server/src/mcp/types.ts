@@ -5,9 +5,13 @@
 import type { JsonSchema } from '../tools/base.js';
 import type { Tool } from '../tools/base.js';
 
-export type ConnectionType = 'stdio' | 'sse' | 'streamable_http';
+export type ConnectionType = 'stdio' | 'streamable_http';
 
-export type McpServerStatus = 'disconnected' | 'connecting' | 'connected';
+export type McpServerStatus =
+  | 'disconnected'
+  | 'connecting'
+  | 'connected'
+  | 'needs_auth';
 
 export interface McpCallToolResult {
   content?: unknown;
@@ -61,7 +65,6 @@ export interface McpServerConfig {
   disabled?: boolean;
   connect_timeout?: number;
   execute_timeout?: number;
-  sse_read_timeout?: number;
 }
 
 export interface McpConfigFile {
@@ -80,6 +83,7 @@ export interface McpServerEntry {
   status: McpServerStatus;
   tools: McpToolMeta[];
   error?: string;
+  oauthUrl?: string;
 }
 
 export interface McpConnection {

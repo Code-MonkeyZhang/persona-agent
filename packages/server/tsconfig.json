@@ -29,6 +29,6 @@
     "jsx": "react-jsx",
     "types": ["bun-types"]
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "package.json"],
   "exclude": ["node_modules", "dist", "tests"]
 }

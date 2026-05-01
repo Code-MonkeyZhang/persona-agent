@@ -1,7 +1,7 @@
 /**
  * @file stores/voiceStore.ts
  * @description 语音状态管理，负责 API Key 持久化、语音开关、TTS 合成和摘要
- * 语音开关状态通过 zustand persist 中间件持久化到 localStorage，重启后自动恢复
+ * 所有语音相关状态（包括 API Key、开关、阈值）统一通过 zustand persist 中间件持久化到 localStorage，重启后自动恢复
  */
 
 import { create } from 'zustand';
@@ -13,13 +13,11 @@ import { audioPlayer } from '../lib/audio-player';
 import { toast } from './toastStore';
 import { logger } from '../lib/logger';
 
-const VOICE_API_KEY_STORAGE_KEY = 'minimax-voice-api-key';
 const DEFAULT_SUMMARY_THRESHOLD = 200;
 
 interface VoiceStore {
   voiceApiKey: string | null;
   setVoiceApiKey: (key: string) => void;
-  loadVoiceApiKey: () => void;
 
   isSpeaking: boolean;
   voiceEnabled: boolean;
@@ -47,19 +45,10 @@ export const useVoiceStore = create<VoiceStore>()(
       summaryThreshold: DEFAULT_SUMMARY_THRESHOLD,
 
       /**
-       * 从 localStorage 加载 MiniMax API Key 到内存
-       */
-      loadVoiceApiKey: () => {
-        const key = localStorage.getItem(VOICE_API_KEY_STORAGE_KEY);
-        set({ voiceApiKey: key });
-      },
-
-      /**
-       * 保存 API Key 到内存和 localStorage
+       * 保存 API Key 到内存（zustand persist 中间件会自动持久化到 localStorage）
        * @param key - MiniMax API Key
        */
       setVoiceApiKey: (key: string) => {
-        localStorage.setItem(VOICE_API_KEY_STORAGE_KEY, key);
         set({ voiceApiKey: key });
       },
 
@@ -141,6 +130,7 @@ export const useVoiceStore = create<VoiceStore>()(
     {
       name: 'voice-store',
       partialize: (state) => ({
+        voiceApiKey: state.voiceApiKey,
         voiceEnabled: state.voiceEnabled,
         summaryThreshold: state.summaryThreshold,
       }),

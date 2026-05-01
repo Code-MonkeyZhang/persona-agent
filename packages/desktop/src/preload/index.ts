@@ -3,7 +3,6 @@
  *
  * preload 运行在有 Node.js 权限的特殊环境中，
  * 通过 contextBridge 将以下操作暴露到 window.api：
- * - 打开设置窗口
  * - 系统文件夹选择器
  * - 后端服务地址查询
  * - 日志代理写入
@@ -18,11 +17,6 @@ import { electronAPI } from '@electron-toolkit/preload';
  * 每个方法底层通过 ipcRenderer.invoke 向主进程发送 IPC 消息
  */
 const api = {
-  /**
-   * 打开设置窗口，通过 IPC 通知主进程。
-   */
-  openSettingsWindow: () => ipcRenderer.invoke('open-settings-window'),
-
   /**
    * 弹出系统原生的文件夹选择对话框
    * @param options - 对话框配置，可指定标题和默认打开路径
@@ -68,6 +62,13 @@ const api = {
     headers: Record<string, string>;
     body: ArrayBuffer;
   }> => ipcRenderer.invoke('proxy-fetch', url, options),
+
+  /**
+   * 使用系统默认浏览器打开指定 URL
+   * @param url - 要打开的 URL
+   */
+  openExternal: (url: string): Promise<void> =>
+    ipcRenderer.invoke('open-external', url),
 
   /** 窗口控制方法集合，每个方法通过 IPC 转发到主进程执行。 */
   windowControls: {

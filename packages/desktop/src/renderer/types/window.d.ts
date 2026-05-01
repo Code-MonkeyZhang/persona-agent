@@ -9,13 +9,13 @@ declare global {
       };
     };
     api?: {
-      openSettingsWindow: () => Promise<void>;
       selectFolder: (options?: {
         title?: string;
         defaultPath?: string;
       }) => Promise<string | null>;
       getServerUrl: () => Promise<string | null>;
       log: (level: string, ...args: unknown[]) => Promise<void>;
+      openExternal: (url: string) => Promise<void>;
       proxyFetch: (
         url: string,
         options: {

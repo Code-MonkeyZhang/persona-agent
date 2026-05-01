@@ -1,6 +1,7 @@
 /**
- * @file src/renderer/components/SettingsWindow.tsx
- * @description 设置中心主窗口，包含通用设置、模型供应商、MCP 服务、Skills 和语音服务五个标签页
+ * @file src/renderer/components/SettingsPage.tsx
+ * @description 设置中心页面组件，嵌入主窗口右侧内容区域
+ * 包含通用设置、模型供应商、MCP 服务、Skills 和语音服务五个标签页
  */
 
 import React, { useEffect, useState } from 'react';
@@ -9,10 +10,11 @@ import { ProviderConfigPanel } from './ProviderConfigPanel';
 import { ConfigForm } from './ConfigForm';
 import { McpListTab } from './McpListTab';
 import { SkillListTab } from './SkillListTab';
+import { VoiceConfigPanel } from './VoiceConfigPanel';
 import { useConfigStore } from '../stores/configStore';
 import { useProviderStore } from '../stores/providerStore';
+import { useViewStore } from '../stores/viewStore';
 import { toast } from '../stores/toastStore';
-import { VoiceConfigPanel } from './VoiceConfigPanel';
 
 type TabKey = 'general' | 'providers' | 'mcp' | 'skills' | 'voice';
 
@@ -25,12 +27,14 @@ const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
 ];
 
 /**
- * 设置中心窗口组件，提供通用设置、模型供应商、MCP 服务、Skills 和语音服务五个标签页的切换和内容展示
+ * 设置中心页面组件，嵌入主窗口右侧内容区域
+ * 提供通用设置、模型供应商、MCP 服务、Skills 和语音服务五个标签页的切换和内容展示
  */
-export const SettingsWindow: React.FC = () => {
+export const SettingsPage: React.FC = () => {
   const { config, loading, saving, error, loadConfig, saveConfig } =
     useConfigStore();
   const { saveAllPending } = useProviderStore();
+  const setView = useViewStore((s) => s.setView);
   const [activeTab, setActiveTab] = useState<TabKey>('general');
 
   useEffect(() => {
@@ -53,16 +57,16 @@ export const SettingsWindow: React.FC = () => {
   };
 
   /**
-   * 保存所有待写入的 Provider 配置后关闭窗口
+   * 保存所有待写入的 Provider 配置后切回聊天视图
    */
   const handleClose = async () => {
     await saveAllPending();
-    window.close();
+    setView('chat');
   };
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-50">
+      <div className="h-full flex items-center justify-center bg-gray-50">
         <div className="text-gray-600">加载中...</div>
       </div>
     );
@@ -70,14 +74,14 @@ export const SettingsWindow: React.FC = () => {
 
   if (error && !config) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-50">
+      <div className="h-full flex items-center justify-center bg-gray-50">
         <div className="text-red-600">加载配置失败：{error}</div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex bg-white">
+    <div className="h-full flex bg-white">
       <div className="w-56 border-r border-gray-200 bg-gray-50 flex flex-col">
         <div className="px-4 py-4 border-b border-gray-200">
           <h1 className="text-lg font-bold text-gray-900">设置中心</h1>

@@ -3,26 +3,42 @@
  *
  * Connects to all configured MCP servers concurrently at startup.
  * Each connection is independent - a single failure does not affect others.
+ * For remote servers with URLs, creates OAuth providers for authentication support.
  */
 
 import { Logger } from '../util/logger.js';
 import { MCPServerConnection, determineConnectionType } from './connection.js';
+import { McpOAuthProvider } from './oauth/provider.js';
+import { getOAuthTokensPath } from '../util/paths.js';
 import type { McpServerConfig } from './types.js';
 import type { McpConnection, McpToolMeta } from './types.js';
 
-/**
- * Connect to a single MCP server and return its connection result.
- */
-async function connectOne(
-  name: string,
-  config: McpServerConfig
-): Promise<{
+export interface ConnectResult {
   name: string;
   connection?: McpConnection;
   tools: McpToolMeta[];
   error?: string;
-}> {
+  needsAuth?: boolean;
+  oauthUrl?: string;
+  serverConn?: MCPServerConnection;
+}
+
+/**
+ * Connect to a single MCP server and return its connection result.
+ * For remote servers (URL-based), creates an OAuth provider for authentication.
+ */
+async function connectOne(
+  name: string,
+  config: McpServerConfig
+): Promise<ConnectResult> {
   const connectionType = determineConnectionType(config);
+
+  Logger.log('MCP', `Connecting to '${name}' (${connectionType})...`);
+
+  const authProvider = config.url
+    ? new McpOAuthProvider(name, getOAuthTokensPath())
+    : undefined;
+
   const serverConn = new MCPServerConnection({
     name,
     connectionType,
@@ -34,12 +50,23 @@ async function connectOne(
     headers: config.headers,
     connectTimeoutSec: config.connect_timeout,
     executeTimeoutSec: config.execute_timeout,
-    sseReadTimeoutSec: config.sse_read_timeout,
+    authProvider,
   });
 
   try {
-    const success = await serverConn.connect();
-    if (!success) {
+    const result = await serverConn.connect();
+
+    if (result.needsAuth) {
+      return {
+        name,
+        tools: [],
+        needsAuth: true,
+        oauthUrl: serverConn.authorizationUrl,
+        serverConn,
+      };
+    }
+
+    if (!result.success) {
       return { name, tools: [], error: 'Connection failed' };
     }
 
@@ -55,7 +82,7 @@ async function connectOne(
       disconnect: () => serverConn.disconnect(),
     };
 
-    return { name, connection, tools };
+    return { name, connection, tools, serverConn };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     Logger.log('ERROR', `Failed to connect MCP server '${name}': ${message}`);
@@ -67,22 +94,11 @@ async function connectOne(
  * Connect to all configured MCP servers in parallel.
  *
  * @param serverConfigs - Map of server name -> config
- * @returns Array of connection results (one per server)
+ * @returns Array of connection results
  */
 export async function connectAllServers(
   serverConfigs: Map<string, McpServerConfig>
-): Promise<
-  Array<{
-    name: string;
-    connection?: McpConnection;
-    tools: McpToolMeta[];
-    error?: string;
-  }>
-> {
-  if (serverConfigs.size === 0) {
-    return [];
-  }
-
+): Promise<ConnectResult[]> {
   Logger.log('MCP', `Connecting to ${serverConfigs.size} MCP servers...`);
 
   const entries = Array.from(serverConfigs.entries());
@@ -91,11 +107,12 @@ export async function connectAllServers(
   );
 
   const connectedCount = results.filter((r) => r.connection).length;
-  const failedCount = results.length - connectedCount;
+  const needsAuthCount = results.filter((r) => r.needsAuth).length;
+  const failedCount = results.length - connectedCount - needsAuthCount;
 
   Logger.log(
     'MCP',
-    `MCP connection complete: ${connectedCount} connected, ${failedCount} failed`
+    `MCP connection complete: ${connectedCount} connected, ${needsAuthCount} needs auth, ${failedCount} failed`
   );
 
   return results;
