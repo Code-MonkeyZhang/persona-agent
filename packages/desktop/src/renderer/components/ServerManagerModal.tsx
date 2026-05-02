@@ -4,9 +4,10 @@
  */
 
 import React from 'react';
-import { X, Server, Loader2, Copy, Check, Globe } from 'lucide-react';
+import { X, Server, Loader2, Copy, Check, Globe, Cloud } from 'lucide-react';
 import { useTunnelStore } from '../stores/tunnelStore';
 import { getBaseUrl } from '../lib/api';
+import { InfoRow } from './InfoRow';
 
 type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
@@ -38,7 +39,7 @@ const serverStatusConfig: Record<
 };
 
 /**
- * 服务器管理弹窗组件，展示本地服务器连接状态和远程隧道控制
+ * 服务器管理弹窗组件，展示本地服务器连接状态和 Cloudflare 隧道控制
  */
 export const ServerManagerModal: React.FC<ServerManagerModalProps> = ({
   isOpen,
@@ -54,25 +55,32 @@ export const ServerManagerModal: React.FC<ServerManagerModalProps> = ({
       <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center">
         <div
-          className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden"
+          className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-5 py-4 border-b flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Server className="w-5 h-5" />
-              <h3 className="font-medium">服务器管理</h3>
+          <div className="px-6 pt-6 pb-0">
+            <div className="flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-[#333]">
+                <Server className="w-5 h-5" />
+                服务器管理
+              </h3>
+              <button
+                onClick={onClose}
+                className="p-1 hover:bg-[#f0f0f0] rounded text-[#999]"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
-              <X className="w-5 h-5" />
-            </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+          <div className="mt-4 overflow-y-auto px-6 pb-6 space-y-5">
             <ServerSection
               connectionStatus={connectionStatus}
               config={config}
             />
-            <div className="border-t" />
+
+            <div className="border-t border-[#f0f0f0]" />
+
             <TunnelSection connectionStatus={connectionStatus} />
           </div>
         </div>
@@ -82,7 +90,7 @@ export const ServerManagerModal: React.FC<ServerManagerModalProps> = ({
 };
 
 /**
- * 服务器信息展示区，显示本地服务器连接状态和地址
+ * 服务器信息展示区，显示本地服务器连接状态和地址信息
  */
 function ServerSection({
   connectionStatus,
@@ -102,33 +110,43 @@ function ServerSection({
   }, [connectionStatus]);
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border p-4">
-      <div className="relative">
-        {connectionStatus === 'connecting' ? (
-          <Loader2 className="w-7 h-7 animate-spin text-yellow-500" />
-        ) : (
-          <Server
-            className={`w-7 h-7 ${
-              connectionStatus === 'connected'
-                ? 'text-green-500'
-                : 'text-red-500'
-            }`}
-          />
-        )}
-      </div>
-      <div>
-        <div className="font-medium text-sm">本地服务器</div>
-        <div className="flex items-center gap-1.5 text-sm text-gray-500">
-          <span className={`w-2 h-2 rounded-full ${config.dotColor}`} />
-          <span className={config.color}>{config.label}</span>
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 rounded-[16px] border border-[#f0f0f0] p-4 bg-white">
+        <div className="relative">
+          {connectionStatus === 'connecting' ? (
+            <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
+          ) : (
+            <Server
+              className={`w-8 h-8 ${
+                connectionStatus === 'connected'
+                  ? 'text-green-500'
+                  : 'text-red-500'
+              }`}
+            />
+          )}
+        </div>
+        <div>
+          <div className="font-medium text-[15px] text-[#333]">
+            Agent 服务器
+          </div>
+          <div className="flex items-center gap-1.5 text-[14px] text-[#666]">
+            <span className={`w-2 h-2 rounded-full ${config.dotColor}`} />
+            <span className={config.color}>{config.label}</span>
+          </div>
         </div>
       </div>
+
       {connectionStatus === 'connected' && serverUrl && (
-        <div className="ml-auto flex items-center gap-2">
-          <code className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">
-            {serverUrl}
-          </code>
-          <CopyButton text={serverUrl} />
+        <div className="rounded-[16px] border border-[#f0f0f0] p-4 space-y-3 bg-white">
+          <div className="text-[13px] font-medium text-[#999] mb-2">
+            服务器信息
+          </div>
+          <InfoRow
+            icon={<Globe className="w-4 h-4 text-blue-500" />}
+            label="地址"
+            value={serverUrl}
+            copyable
+          />
         </div>
       )}
     </div>
@@ -136,7 +154,7 @@ function ServerSection({
 }
 
 /**
- * 远程隧道控制区，提供 Cloudflare 隧道的启动、停止和状态展示
+ * Cloudflare 隧道控制区，提供隧道的启动、停止和状态展示
  */
 function TunnelSection({
   connectionStatus,
@@ -163,22 +181,35 @@ function TunnelSection({
     }
   };
 
+  if (isDisabled) {
+    return (
+      <div>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-medium text-[14px] text-[#333]">互联网访问</p>
+            <p className="text-[13px] text-[#999]">请先连接服务器</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="font-medium text-sm">远程访问</p>
-          <p className="text-xs text-gray-500">
+          <p className="font-medium text-[14px] text-[#333]">互联网访问</p>
+          <p className="text-[13px] text-[#999]">
             通过 Cloudflare 隧道获取公网地址
           </p>
         </div>
         <button
           onClick={handleToggle}
-          disabled={status === 'starting' || isDisabled}
-          className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
-            isEnabled
-              ? 'bg-red-500/10 text-red-600 hover:bg-red-500/20'
-              : 'bg-blue-500/10 text-blue-600 hover:bg-blue-500/20'
+          disabled={status === 'starting'}
+          className={`px-3 py-1.5 rounded-xl text-[13px] transition-colors ${
+            status === 'running'
+              ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30'
+              : 'bg-[#222]/10 text-[#333] hover:bg-[#222]/20'
           } disabled:opacity-50`}
         >
           {status === 'starting'
@@ -190,23 +221,23 @@ function TunnelSection({
       </div>
 
       {status === 'starting' && (
-        <div className="rounded-lg border p-3 flex items-center gap-2">
+        <div className="rounded-[16px] border border-[#f0f0f0] p-3 flex items-center gap-2">
           <Loader2 className="w-4 h-4 animate-spin text-yellow-500" />
-          <span className="text-sm text-gray-500">
+          <span className="text-[14px] text-[#666]">
             正在建立隧道连接，请稍候...
           </span>
         </div>
       )}
 
       {status === 'running' && url && (
-        <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+        <div className="bg-green-500/10 border border-green-500/30 rounded-[16px] p-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-green-600" />
-              <span className="text-sm text-green-700">公网地址</span>
+              <Cloud className="w-4 h-4 text-green-500" />
+              <span className="text-[14px] text-green-500">公网地址</span>
             </div>
             <div className="flex items-center gap-2">
-              <code className="text-xs bg-white px-2 py-1 rounded text-green-700">
+              <code className="text-[13px] bg-white px-2 py-1 rounded-[12px] text-green-500">
                 {url}
               </code>
               <CopyButton text={url} />
@@ -216,13 +247,9 @@ function TunnelSection({
       )}
 
       {status === 'error' && error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-          <p className="text-sm text-red-600">隧道连接失败: {error}</p>
+        <div className="bg-red-500/10 border border-red-500/30 rounded-[16px] p-3">
+          <p className="text-[14px] text-red-500">隧道连接失败: {error}</p>
         </div>
-      )}
-
-      {isDisabled && (
-        <p className="text-xs text-gray-400">请先确保本地服务器已连接</p>
       )}
     </div>
   );
@@ -245,10 +272,7 @@ function CopyButton({ text }: { text: string }) {
   };
 
   return (
-    <button
-      onClick={handleCopy}
-      className="text-gray-400 hover:text-gray-600 transition-colors"
-    >
+    <button onClick={handleCopy} className="text-[#999] hover:text-[#333]">
       {copied ? (
         <Check className="w-3.5 h-3.5 text-green-500" />
       ) : (
