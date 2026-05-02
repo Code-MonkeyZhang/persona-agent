@@ -3,15 +3,15 @@
  * @description Electron前端渲染进程根组件
  *
  * 根据 viewStore.currentView 决定渲染哪个视图：
- * - 'settings' → 设置页面（SettingsPage）
- * - 'chat'     → 主界面（WebSocketProvider + AppContent）
+ * - 'settings'     → 设置页面（SettingsPage）
+ * - 'agent-editor' → Agent 编辑页面（AgentEditor）
+ * - 'chat'         → 主界面（WebSocketProvider + AppContent）
  *
  * AppContent 是主界面的核心，包含：
  * - AgentSidebar：左侧 Agent 列表
  * - SessionSidebar：会话列表
  * - MessageList：消息展示
  * - InputBox：输入框
- * - AgentEditor：Agent 编辑弹窗
  */
 import { useEffect, useRef, useState } from 'react';
 import { Header } from './components/Header';
@@ -39,8 +39,6 @@ import { logger } from './lib/logger';
 function AppContent() {
   /* 状态定义 */
 
-  const [agentEditorOpen, setAgentEditorOpen] = useState(false); // Agent编辑弹窗是否打开 TODO: 如果要修改Agent编辑页面, 这个地方要改
-  const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const pendingProviderRef = useRef<string | undefined>();
   const messageListRef = useRef<MessageListRef>(null);
@@ -68,22 +66,7 @@ function AppContent() {
   const { providers, loadProviders } = useProviderStore();
   const companionVisible = useCompanionStore((s) => s.visible);
   const currentView = useViewStore((s) => s.currentView);
-
-  /* 定义Agent弹窗的操作 */
-  /**
-   * 打开 Agent 编辑弹窗，传入 null 表示新建，传入 id 表示编辑已有 Agent
-   * @param agentId - 要编辑的 Agent ID，null 时为新建模式
-   */
-  const handleOpenAgentEditor = (agentId: string | null) => {
-    setEditingAgentId(agentId);
-    setAgentEditorOpen(true);
-  };
-
-  /** 关闭 Agent 编辑弹窗并清空编辑状态 */
-  const handleCloseAgentEditor = () => {
-    setAgentEditorOpen(false);
-    setEditingAgentId(null);
-  };
+  const editingAgentId = useViewStore((s) => s.editingAgentId);
 
   /**
    * 删除指定 Agent
@@ -224,13 +207,17 @@ function AppContent() {
 
   return (
     <div className="h-full flex bg-white">
-      <AgentSidebar
-        connectionStatus={connectionStatus}
-        onOpenAgentEditor={handleOpenAgentEditor}
-      />
+      <AgentSidebar connectionStatus={connectionStatus} />
       {currentView === 'settings' ? (
         <div className="flex-1 flex flex-col min-h-0 min-w-0">
           <SettingsPage />
+        </div>
+      ) : currentView === 'agent-editor' ? (
+        <div className="flex-1 flex flex-col min-h-0 min-w-0">
+          <AgentEditor
+            editingAgentId={editingAgentId}
+            onDelete={handleDeleteAgent}
+          />
         </div>
       ) : (
         <>
@@ -277,12 +264,6 @@ function AppContent() {
           </div>
         </>
       )}
-      <AgentEditor
-        isOpen={agentEditorOpen}
-        editingAgentId={editingAgentId}
-        onClose={handleCloseAgentEditor}
-        onDelete={handleDeleteAgent}
-      />
       <ToastContainer />
     </div>
   );

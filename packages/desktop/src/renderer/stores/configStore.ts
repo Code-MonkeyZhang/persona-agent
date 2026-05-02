@@ -14,7 +14,6 @@ interface RetryConfig {
 interface MCPConfig {
   connectTimeout: number;
   executeTimeout: number;
-  sseReadTimeout: number;
 }
 
 interface ToolsConfig {

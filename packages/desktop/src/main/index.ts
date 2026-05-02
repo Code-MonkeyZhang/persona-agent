@@ -3,7 +3,7 @@
  * @description Electron 主进程入口文件 - 负责应用程序生命周期管理、窗口创建、进程管理和 IPC 通信
  */
 
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import { join } from 'path';
 import { spawn } from 'child_process';
 import type { ChildProcess } from 'child_process';
@@ -289,6 +289,13 @@ app.whenReady().then(async () => {
       }
     }
   );
+
+  /**
+   * IPC 处理器：使用系统默认浏览器打开指定 URL
+   */
+  ipcMain.handle('open-external', (_event, url: string) => {
+    return shell.openExternal(url);
+  });
 
   await startServer();
 

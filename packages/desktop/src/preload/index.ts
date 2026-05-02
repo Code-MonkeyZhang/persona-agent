@@ -63,6 +63,13 @@ const api = {
     body: ArrayBuffer;
   }> => ipcRenderer.invoke('proxy-fetch', url, options),
 
+  /**
+   * 使用系统默认浏览器打开指定 URL
+   * @param url - 要打开的 URL
+   */
+  openExternal: (url: string): Promise<void> =>
+    ipcRenderer.invoke('open-external', url),
+
   /** 窗口控制方法集合，每个方法通过 IPC 转发到主进程执行。 */
   windowControls: {
     minimize: () => ipcRenderer.invoke('window:minimize'),

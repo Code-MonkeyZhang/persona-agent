@@ -15,6 +15,7 @@ declare global {
       }) => Promise<string | null>;
       getServerUrl: () => Promise<string | null>;
       log: (level: string, ...args: unknown[]) => Promise<void>;
+      openExternal: (url: string) => Promise<void>;
       proxyFetch: (
         url: string,
         options: {
