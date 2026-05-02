@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/logo-rounded.png" width="150" height="150" alt="Persona Agent" />
+
 # Persona Agent
 
 **你的本地 AI Agent 工作站**
@@ -7,22 +9,30 @@
 创建和管理多个 AI Agent，赋予它们工具、技能和性格，让它们帮你完成任务。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-informational)
+[![Release](https://img.shields.io/github/v/release/Code-MonkeyZhang/persona-agent?include_prereleases)](https://github.com/Code-MonkeyZhang/persona-agent/releases)
 
 </div>
 
-<!-- ![Persona Agent 主界面](./docs/screenshot-main.png) -->
+## 截图
 
-## 它能做什么
+![主界面](assets/screenshot-main.jpg)
 
-Persona Agent 让你在本地创建多个 AI Agent，每个有独立的角色设定、模型配置和会话历史。你可以用一个 Agent 做编程助手，另一个做写作顾问，互不干扰。Agent 可以调用内置工具来执行命令、读写文件，也可以通过 MCP 协议连接外部工具服务器扩展能力，还可以加载 Skill 来获得专业知识。
+![Agent 形象](assets/screenshot-companion.jpg)
 
-对话支持流式输出和完整的 Markdown 渲染，代码块一键复制，Agent 的推理过程和工具调用细节都可以展开查看。如果你想换一种氛围，可以打开伴侣模式：全屏展示角色立绘，Agent 会根据对话自动切换表情，配合语音合成朗读回复。
+<!-- ![Agent 设置](assets/screenshot-agent-settings.jpg) -->
 
-内置 Cloudflare Tunnel，一键把本地服务暴露到公网，从手机或其它设备远程访问你的 Agent。
+<!-- ![模型配置](assets/screenshot-model-config.jpg) -->
 
-**支持的模型供应商：** OpenAI、Anthropic、Google、DeepSeek、MiniMax、xAI、Groq、Mistral、OpenRouter、Cerebras、Fireworks 等 17+ 家。每个 Agent 独立配置默认模型，每个会话可以临时切换。
+## 核心功能
 
-**跨平台：** macOS（Apple Silicon / Intel）、Windows x64。下载安装包即可使用，无需安装任何运行时。
+- **多 Agent 管理** — 创建多个独立 Agent，每个有自己的角色设定、模型配置和会话历史，互不干扰
+- **17+ 模型供应商** — OpenAI、Anthropic、Google、DeepSeek、MiniMax、xAI、Groq、Mistral、OpenRouter、Cerebras、Fireworks 等，每个 Agent 独立配置默认模型，每个会话可以临时切换
+- **工具调用** — 内置工具（执行命令、读写文件），MCP 协议连接外部工具服务器，Skill 加载获得专业知识
+- **流式对话** — 完整 Markdown 渲染，代码块一键复制，推理过程和工具调用细节可展开查看
+- **Agent 形象** — 全屏展示角色立绘，Agent 根据对话自动切换表情，配合语音合成朗读回复
+- **远程访问** — 内置 Cloudflare Tunnel，一键把本地服务暴露到公网，从手机或其它设备远程访问
+- **跨平台** — macOS（Apple Silicon / Intel）、Windows x64，下载即用，无需安装运行时
 
 ## 下载安装
 
