@@ -9,7 +9,7 @@
 创建和管理多个 AI Agent，赋予它们形象和性格, 工具、技能，让成为你生活的帮手!
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-informational)
+![Platform](https://img.shields.io/badge/Platform-macOS-informational)
 [![Release](https://img.shields.io/github/v/release/Code-MonkeyZhang/persona-agent?include_prereleases)](https://github.com/Code-MonkeyZhang/persona-agent/releases)
 
 </div>
@@ -33,30 +33,26 @@
 - **多 Agent 管理** — 创建多个独立 Agent，每个有自己的角色设定、模型配置MCP、Agent Skill以及会话历史
 - **17+ 模型供应商支持** — DeepSeek、MiniMax、智谱、Kimi、OpenAI、Anthropic、Google、OpenRouter等多供应商支持
 - **MCP与Skill支持** — 支持自定义给每个Agent自定义MCP工具和Agent Skill
-- **远程访问** — 内置 Cloudflare Tunnel，从通过手机App远程调用智能体
-- **跨平台** — macOS（Apple Silicon / Intel）、Windows x64，下载即用，无需安装运行时
+- **远程访问** — 内置 Cloudflare Tunnel，从通过手机App远程调用!
 
 ## 下载安装
 
-前往 [GitHub Releases](https://github.com/Code-MonkeyZhang/persona-agent/releases) 下载对应平台的安装包：
+本项目支持macOS平台, Windows 版本正在开发中. 前往 [GitHub Releases](https://github.com/Code-MonkeyZhang/persona-agent/releases) 下载对应平台的安装包：
 
 | 平台                | 文件                              |
 | ------------------- | --------------------------------- |
 | macOS Apple Silicon | `Persona-mac-arm64-{version}.dmg` |
 | macOS Intel         | `Persona-mac-x64-{version}.dmg`   |
-| Windows x64         | `Persona-win-x64-{version}.exe`   |
 
-macOS 打开 DMG 拖入 Applications，Windows 运行 exe 安装即可。
-
+macOS 打开 DMG 拖入 Applications 即可。
 
 ## 自定义 Agent
 
 ### 资源目录
 
-| 平台    | 路径                            |
-| ------- | ------------------------------- |
-| macOS   | `~/.local/share/persona-agent/` |
-| Windows | `%APPDATA%/persona-agent/`      |
+| 平台  | 路径                            |
+| ----- | ------------------------------- |
+| macOS | `~/.local/share/persona-agent/` |
 
 ```
 persona-agent/

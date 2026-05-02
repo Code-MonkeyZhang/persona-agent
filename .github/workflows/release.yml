@@ -40,42 +40,42 @@ jobs:
           name: mac-build
           path: packages/desktop/dist/*.dmg
 
-  build-win:
-    runs-on: windows-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: oven-sh/setup-bun@v2
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - run: bun run scripts/prepare-cloudflared.ts
-
-      - run: bun install
-        working-directory: packages/server
-
-      - run: bun run build
-        working-directory: packages/server
-
-      - run: npm install
-        working-directory: packages/desktop
-
-      - run: npm run build
-        working-directory: packages/desktop
-
-      - run: npm run dist:win
-        working-directory: packages/desktop
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: win-build
-          path: packages/desktop/dist/*.exe
+  # build-win:
+  #   runs-on: windows-latest
+  #
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - uses: oven-sh/setup-bun@v2
+  #
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 20
+  #
+  #     - run: bun run scripts/prepare-cloudflared.ts
+  #
+  #     - run: bun install
+  #       working-directory: packages/server
+  #
+  #     - run: bun run build
+  #       working-directory: packages/server
+  #
+  #     - run: npm install
+  #       working-directory: packages/desktop
+  #
+  #     - run: npm run build
+  #       working-directory: packages/desktop
+  #
+  #     - run: npm run dist:win
+  #       working-directory: packages/desktop
+  #
+  #     - uses: actions/upload-artifact@v4
+  #       with:
+  #         name: win-build
+  #         path: packages/desktop/dist/*.exe
 
   release:
-    needs: [build-mac, build-win]
+    needs: [build-mac]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -88,10 +88,10 @@ jobs:
           name: mac-build
           path: ./artifacts/mac
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: win-build
-          path: ./artifacts/win
+      # - uses: actions/download-artifact@v4
+      #   with:
+      #     name: win-build
+      #     path: ./artifacts/win
 
       - name: Create Draft Release
         env:
@@ -100,7 +100,6 @@ jobs:
           TAG=${GITHUB_REF#refs/tags/}
           gh release create "$TAG" \
             ./artifacts/mac/*.dmg \
-            ./artifacts/win/*.exe \
             --draft \
             --title "$TAG" \
             --generate-notes
