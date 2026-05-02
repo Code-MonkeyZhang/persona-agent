@@ -1,21 +1,11 @@
 /**
  * @file src/renderer/components/AgentEditor.tsx
- * @description Agent 编辑面板，支持创建和编辑 Agent，包括基本信息、模型配置、工作空间、MCP、Skills 分配和语音配置
+ * @description Agent 编辑全页面组件，支持创建和编辑 Agent，包括基本信息、模型配置、工作空间、MCP、Skills 分配和语音配置
  */
 import React, { useState, useEffect } from 'react';
-import {
-  X,
-  User,
-  Settings,
-  Zap,
-  Plus,
-  Wrench,
-  Trash2,
-  FolderOpen,
-  Upload,
-  Volume2,
-} from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Upload, Volume2, X } from 'lucide-react';
 import { useAgentStore } from '../stores/agentStore';
+import { useViewStore } from '../stores/viewStore';
 import {
   listMcpServers,
   listSkills,
@@ -28,6 +18,7 @@ import {
 import { ModelSelector } from './ModelSelector';
 import { WorkspaceSelector } from './WorkspaceSelector';
 import { AgentAvatar } from './AgentAvatar';
+import { SettingRow, SettingDivider } from './SettingRow';
 import type { CreateAgentInput, UpdateAgentInput, Agent } from '../types/agent';
 import { logger } from '../lib/logger';
 import { PRESET_VOICES, synthesize } from '../lib/tts';
@@ -43,24 +34,17 @@ const PREVIEW_TEXTS = [
 ];
 
 interface AgentEditorProps {
-  isOpen: boolean;
   editingAgentId: string | null;
-  onClose: () => void;
   onDelete?: (id: string) => void;
 }
 
 /**
- * Agent 编辑面板组件，以右侧抽屉形式展示，支持创建新 Agent 或编辑已有 Agent
- * @param props.isOpen - 面板是否打开
+ * Agent 编辑全页面组件，以独立页面形式展示（与 SettingsPage 同级），支持创建新 Agent 或编辑已有 Agent
  * @param props.editingAgentId - 正在编辑的 Agent ID，为 null 时进入新建模式
- * //TODO: 这个面板以后要换成单独的界面
- * @param props.onClose - 关闭面板回调
  * @param props.onDelete - 删除 Agent 回调
  */
 export const AgentEditor: React.FC<AgentEditorProps> = ({
-  isOpen,
   editingAgentId,
-  onClose,
   onDelete,
 }) => {
   const {
@@ -70,6 +54,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     setAvatarPreview,
     removeAvatarPreview,
   } = useAgentStore();
+  const closeAgentEditor = useViewStore((s) => s.closeAgentEditor);
   const editingAgent = editingAgentId
     ? agents.find((a) => a.id === editingAgentId)
     : null;
@@ -99,10 +84,8 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      loadOptions();
-    }
-  }, [isOpen]);
+    loadOptions();
+  }, []);
 
   useEffect(() => {
     if (editingAgent) {
@@ -285,7 +268,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
         }
       }
 
-      onClose();
+      closeAgentEditor();
     } catch (error) {
       logger.error('Failed to save agent:', error);
     } finally {
@@ -293,11 +276,11 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     }
   };
 
-  /** 删除当前编辑的 Agent 并关闭面板 */
+  /** 删除当前编辑的 Agent 并返回聊天页面 */
   const handleDelete = () => {
     if (editingAgentId && onDelete) {
       onDelete(editingAgentId);
-      onClose();
+      closeAgentEditor();
     }
   };
 
@@ -314,129 +297,75 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     voiceId: voiceId || undefined,
   };
 
-  if (!isOpen) return null;
-
   return (
-    <>
-      <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
+    <div className="h-full w-full flex flex-col bg-[#f7f7f7]">
+      <div className="flex-1 overflow-y-auto">
+        <div className="px-5 py-5">
+          <div className="flex items-center gap-2 mb-5">
+            <button
+              onClick={closeAgentEditor}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <h1 className="text-[16px] font-bold text-[#333]">
+              {editingAgentId ? '编辑 Agent' : '添加 Agent'}
+            </h1>
+          </div>
 
-      <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-xl z-50 flex flex-col">
-        <div className="px-4 py-3 border-b flex items-center justify-between">
-          <h3 className="font-medium">
-            {editingAgentId ? '编辑 Agent' : '添加 Agent'}
-          </h3>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="space-y-4">
-            <div>
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
-                <User className="w-4 h-4" />
+          <div className="flex flex-col gap-4">
+            {/* 基本信息 */}
+            <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
+              <h3 className="text-[14px] font-bold text-[#333] mb-3">
                 基本信息
-              </div>
-
-              <div className="mb-4">
-                <label className="text-xs text-gray-500 block mb-2">头像</label>
-                <div className="flex items-start gap-4">
-                  <AgentAvatar
-                    agent={previewAgent}
-                    size="lg"
-                    editingPreviewUrl={previewDataUrl}
-                  />
-                  <div className="flex-1">
-                    <label className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-md text-sm text-gray-600 cursor-pointer hover:bg-gray-50 w-fit">
-                      <Upload className="w-4 h-4" />
-                      上传头像
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/gif"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-3">
-                <label className="text-xs text-gray-500 block mb-1">
-                  名称 *
-                </label>
+              </h3>
+              <SettingRow label="名称">
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="给 Agent 起个名字"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="rounded-lg border border-[#e0e0e0] h-8 w-64 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">
-                  角色描述
-                </label>
+              </SettingRow>
+              <SettingDivider />
+              <SettingRow label="角色描述" desc="一句话描述这个 Agent 的职责">
                 <input
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="一句话描述这个 Agent 的职责"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="一句话描述"
+                  className="rounded-lg border border-[#e0e0e0] h-8 w-64 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-              </div>
+              </SettingRow>
+              <SettingDivider />
+              <SettingRow label="头像">
+                <div className="flex items-center gap-3">
+                  <AgentAvatar
+                    agent={previewAgent}
+                    size="lg"
+                    editingPreviewUrl={previewDataUrl}
+                  />
+                  <label className="flex items-center gap-2 px-3 py-1.5 border border-[#e0e0e0] rounded-lg text-[13px] text-[#666] cursor-pointer hover:bg-gray-50">
+                    <Upload className="w-4 h-4" />
+                    上传头像
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </SettingRow>
             </div>
 
-            <div>
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
-                <Volume2 className="w-4 h-4" />
-                语音配置
-              </div>
-
-              <div className="mb-3">
-                <label className="text-xs text-gray-500 block mb-1">
-                  朗读音色
-                </label>
-                <select
-                  value={voiceId}
-                  onChange={(e) => setVoiceId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                >
-                  <option value="">不启用语音</option>
-                  {PRESET_VOICES.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-400 mt-1">
-                  选择后，Agent 回复时将使用该音色朗读
-                </p>
-              </div>
-
-              {voiceId && (
-                <button
-                  onClick={handlePreviewVoice}
-                  disabled={isPreviewPlaying}
-                  className="px-3 py-1.5 border border-gray-200 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-                >
-                  <Volume2 className="w-4 h-4" />
-                  {isPreviewPlaying ? '试听中...' : '试听音色'}
-                </button>
-              )}
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
-                <Settings className="w-4 h-4" />
+            {/* 模型配置 */}
+            <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
+              <h3 className="text-[14px] font-bold text-[#333] mb-3">
                 模型配置
-              </div>
-
-              <div className="mb-3">
-                <label className="text-xs text-gray-500 block mb-1">
-                  默认模型
-                </label>
+              </h3>
+              <SettingRow label="默认模型">
                 <ModelSelector
                   providers={providers}
                   value={modelId}
@@ -445,72 +374,101 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                   onProviderChange={handleProviderChange}
                   showOnlyVerified={true}
                 />
-              </div>
-
-              <div className="mb-3">
-                <label className="text-xs text-gray-500 block mb-1">
+              </SettingRow>
+              <SettingDivider />
+              <div>
+                <div className="text-[14px] text-[#333] leading-[18px] mb-2">
                   System Prompt
-                </label>
+                </div>
                 <textarea
                   value={systemPrompt}
                   onChange={(e) => setSystemPrompt(e.target.value)}
                   placeholder="定义 Agent 的角色和行为规范..."
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  rows={5}
+                  className="w-full rounded-lg border border-[#e0e0e0] px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
               </div>
-
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">
-                  最大步数
-                </label>
+              <SettingDivider />
+              <SettingRow label="最大步数">
                 <input
                   type="number"
                   value={maxSteps}
                   onChange={(e) => setMaxSteps(parseInt(e.target.value) || 10)}
                   min={1}
                   max={50}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="rounded-lg border border-[#e0e0e0] h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-              </div>
+              </SettingRow>
             </div>
 
-            <div>
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
-                <FolderOpen className="w-4 h-4" />
-                工作空间
-              </div>
+            {/* 语音配置 */}
+            <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
+              <h3 className="text-[14px] font-bold text-[#333] mb-3">
+                语音配置
+              </h3>
+              <SettingRow
+                label="朗读音色"
+                desc="选择后，Agent 回复时将使用该音色朗读"
+              >
+                <select
+                  value={voiceId}
+                  onChange={(e) => setVoiceId(e.target.value)}
+                  className="rounded-lg border border-[#e0e0e0] h-8 w-48 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">不启用语音</option>
+                  {PRESET_VOICES.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name}
+                    </option>
+                  ))}
+                </select>
+              </SettingRow>
+              {voiceId && (
+                <div className="mt-2">
+                  <button
+                    onClick={handlePreviewVoice}
+                    disabled={isPreviewPlaying}
+                    className="flex items-center gap-1.5 px-3 py-1.5 border border-[#e0e0e0] rounded-lg text-[13px] text-[#666] hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Volume2 className="w-4 h-4" />
+                    {isPreviewPlaying ? '试听中...' : '试听音色'}
+                  </button>
+                </div>
+              )}
+            </div>
 
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">
-                  默认工作空间
-                </label>
+            {/* 工作空间 */}
+            <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
+              <h3 className="text-[14px] font-bold text-[#333] mb-3">
+                工作空间
+              </h3>
+              <SettingRow
+                label="默认工作空间"
+                desc="创建新会话时将使用此工作空间"
+              >
                 <WorkspaceSelector
                   value={defaultWorkspacePath}
                   onChange={setDefaultWorkspacePath}
                   placeholder="选择默认工作空间文件夹"
                 />
-                <p className="text-xs text-gray-400 mt-1">
-                  创建新会话时将使用此工作空间
-                </p>
-              </div>
+              </SettingRow>
             </div>
 
-            <div>
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
-                <Wrench className="w-4 h-4" />
+            {/* MCP 分配 */}
+            <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
+              <h3 className="text-[14px] font-bold text-[#333] mb-3">
                 MCP 分配
-              </div>
+              </h3>
 
-              <div className="border rounded-lg p-3 mb-3">
-                <div className="text-xs text-gray-500 mb-2">
+              <div className="border border-[#e8e8e8] rounded-lg p-3 mb-3">
+                <div className="text-[12px] text-[#999] mb-2">
                   已选择{' '}
                   <span className="bg-blue-100 text-blue-700 px-1.5 rounded">
                     {selectedMcpIds.length}
                   </span>
                 </div>
                 {selectedMcpIds.length === 0 ? (
-                  <div className="text-gray-400 text-xs py-4 text-center">
+                  <div className="text-[#ccc] text-[12px] py-4 text-center">
                     点击下方按钮添加 MCP
                   </div>
                 ) : (
@@ -520,7 +478,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                       return (
                         <div
                           key={mcpId}
-                          className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-lg text-sm"
+                          className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-lg text-[13px]"
                         >
                           <span
                             className={`w-2 h-2 rounded-full ${mcp?.status === 'connected' ? 'bg-green-500' : 'bg-gray-300'}`}
@@ -542,15 +500,15 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
               <div className="relative">
                 <button
                   onClick={() => setShowMcpDropdown(!showMcpDropdown)}
-                  className="w-full px-3 py-2 border border-dashed border-gray-300 rounded-md text-sm text-gray-500 hover:bg-gray-50 flex items-center justify-center gap-2"
+                  className="w-full px-3 py-2 border border-dashed border-[#d0d0d0] rounded-lg text-[13px] text-[#999] hover:bg-gray-50 flex items-center justify-center gap-2"
                 >
                   <Plus className="w-4 h-4" />
                   添加 MCP
                 </button>
                 {showMcpDropdown && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#e8e8e8] rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
                     {availableMcps.length === 0 ? (
-                      <div className="px-3 py-2 text-gray-400 text-xs">
+                      <div className="px-3 py-2 text-[#ccc] text-[12px]">
                         没有可添加的 MCP
                       </div>
                     ) : (
@@ -564,8 +522,8 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                             className={`w-2 h-2 rounded-full ${mcp.status === 'connected' ? 'bg-green-500' : 'bg-gray-300'}`}
                           />
                           <div>
-                            <div className="text-sm">{mcp.name}</div>
-                            <div className="text-xs text-gray-400">
+                            <div className="text-[13px]">{mcp.name}</div>
+                            <div className="text-[12px] text-[#999]">
                               {mcp.status}{' '}
                               {mcp.toolCount ? `· ${mcp.toolCount} tools` : ''}
                             </div>
@@ -578,21 +536,21 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
-                <Zap className="w-4 h-4" />
+            {/* Skills 分配 */}
+            <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
+              <h3 className="text-[14px] font-bold text-[#333] mb-3">
                 Skills 分配
-              </div>
+              </h3>
 
-              <div className="border rounded-lg p-3 mb-3">
-                <div className="text-xs text-gray-500 mb-2">
+              <div className="border border-[#e8e8e8] rounded-lg p-3 mb-3">
+                <div className="text-[12px] text-[#999] mb-2">
                   已选择{' '}
                   <span className="bg-blue-100 text-blue-700 px-1.5 rounded">
                     {selectedSkillIds.length}
                   </span>
                 </div>
                 {selectedSkillIds.length === 0 ? (
-                  <div className="text-gray-400 text-xs py-4 text-center">
+                  <div className="text-[#ccc] text-[12px] py-4 text-center">
                     点击下方按钮添加 Skill
                   </div>
                 ) : (
@@ -602,7 +560,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                       return (
                         <div
                           key={skillId}
-                          className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-lg text-sm"
+                          className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-lg text-[13px]"
                         >
                           <span>{skill?.name || skillId}</span>
                           <button
@@ -621,15 +579,15 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
               <div className="relative">
                 <button
                   onClick={() => setShowSkillDropdown(!showSkillDropdown)}
-                  className="w-full px-3 py-2 border border-dashed border-gray-300 rounded-md text-sm text-gray-500 hover:bg-gray-50 flex items-center justify-center gap-2"
+                  className="w-full px-3 py-2 border border-dashed border-[#d0d0d0] rounded-lg text-[13px] text-[#999] hover:bg-gray-50 flex items-center justify-center gap-2"
                 >
                   <Plus className="w-4 h-4" />
                   添加 Skill
                 </button>
                 {showSkillDropdown && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#e8e8e8] rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
                     {availableSkills.length === 0 ? (
-                      <div className="px-3 py-2 text-gray-400 text-xs">
+                      <div className="px-3 py-2 text-[#ccc] text-[12px]">
                         没有可添加的 Skill
                       </div>
                     ) : (
@@ -639,9 +597,9 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                           onClick={() => addSkill(skill.name)}
                           className="w-full px-3 py-2 text-left hover:bg-gray-50"
                         >
-                          <div className="text-sm">{skill.name}</div>
+                          <div className="text-[13px]">{skill.name}</div>
                           {skill.description && (
-                            <div className="text-xs text-gray-400">
+                            <div className="text-[12px] text-[#999]">
                               {skill.description}
                             </div>
                           )}
@@ -652,38 +610,39 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                 )}
               </div>
             </div>
-          </div>
-        </div>
 
-        <div className="px-4 py-3 border-t flex justify-between">
-          <div>
-            {editingAgentId && (
-              <button
-                onClick={handleDelete}
-                className="px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-md text-sm flex items-center gap-1"
-              >
-                <Trash2 className="w-4 h-4" />
-                删除
-              </button>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-1.5 border border-gray-200 rounded-md text-sm hover:bg-gray-50"
-            >
-              取消
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!name.trim() || isLoading}
-              className="px-4 py-1.5 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? '保存中...' : editingAgentId ? '保存' : '添加'}
-            </button>
+            {/* 底部操作 */}
+            <div className="flex justify-between items-center pt-1 pb-6">
+              <div>
+                {editingAgentId && (
+                  <button
+                    onClick={handleDelete}
+                    className="text-[12px] text-[#ccc] hover:text-red-400 transition-colors flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    删除此 Agent
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={closeAgentEditor}
+                  className="rounded-lg border border-[#e0e0e0] h-8 px-5 text-[13px] hover:bg-gray-50"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={!name.trim() || isLoading}
+                  className="bg-[#222] text-white hover:bg-[#333] rounded-lg h-8 px-5 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? '保存中...' : editingAgentId ? '保存' : '添加'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };

@@ -23,24 +23,6 @@ interface MenuPosition {
 }
 
 /**
- * Formats a timestamp to a human-readable relative time.
- */
-function formatRelativeTime(timestamp: number): string {
-  const now = Date.now();
-  const diff = now - timestamp;
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-
-  if (minutes < 1) return '刚刚';
-  if (minutes < 60) return `${minutes} 分钟前`;
-  if (hours < 24) return `${hours} 小时前`;
-  if (days < 7) return `${days} 天前`;
-
-  return new Date(timestamp).toLocaleDateString('zh-CN');
-}
-
-/**
  * 会话列表项组件，支持选中、删除、重命名及右键菜单操作
  */
 export const SessionItem: React.FC<SessionItemProps> = ({
@@ -194,9 +176,6 @@ export const SessionItem: React.FC<SessionItemProps> = ({
             ) : (
               <>
                 <p className="text-sm font-medium truncate">{session.title}</p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {formatRelativeTime(session.updatedAt)}
-                </p>
               </>
             )}
           </div>
