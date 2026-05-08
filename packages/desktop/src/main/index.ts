@@ -152,7 +152,7 @@ function createWindow(): void {
 
   // 处理窗口内打开新链接的行为, 调用系统默认浏览器打开
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    require('electron').shell.openExternal(details.url);
+    shell.openExternal(details.url);
     return { action: 'deny' };
   });
 

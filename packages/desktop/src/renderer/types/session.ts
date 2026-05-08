@@ -47,24 +47,3 @@ export interface SessionMessage {
     };
   }[];
 }
-
-/**
- * API response for listing sessions.
- */
-export interface ListSessionsResponse {
-  sessions: SessionMeta[];
-}
-
-/**
- * API response for getting/creating a session.
- */
-export interface SessionResponse {
-  session: Session;
-}
-
-/**
- * API response for deleting a session.
- */
-export interface DeleteSessionResponse {
-  success: boolean;
-}

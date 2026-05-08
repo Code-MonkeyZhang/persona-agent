@@ -5,7 +5,7 @@
 
 import { logger } from './logger';
 
-export { PRESET_VOICES, type VoiceOption } from './voices';
+export { PRESET_VOICES } from './voices';
 
 const TTS_API_URL = 'https://api.minimaxi.com/v1/t2a_v2';
 const TTS_MODEL = 'speech-2.8-hd';

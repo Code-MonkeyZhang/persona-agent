@@ -8,8 +8,7 @@ import { X, Server, Loader2, Copy, Check, Globe, Cloud } from 'lucide-react';
 import { useTunnelStore } from '../stores/tunnelStore';
 import { getBaseUrl } from '../lib/api';
 import { InfoRow } from './InfoRow';
-
-type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
+import type { ConnectionStatus } from '../types/chat';
 
 interface ServerManagerModalProps {
   isOpen: boolean;

@@ -11,33 +11,13 @@ import type {
   ServerMessage,
   StepCompleteMessage,
 } from '../types/chat';
-import {
-  checkServerStatus,
-  createMessage,
-  sendChatMessage,
-  WebSocketClient,
-} from '../lib/api';
+import { createMessage, sendChatMessage, WebSocketClient } from '../lib/api';
 import { toast } from './toastStore';
 import { logger } from '../lib/logger';
 import { useSessionStore } from './sessionStore';
 import { useCompanionStore } from './companionStore';
 import { useVoiceStore } from './voiceStore';
 import { useAgentStore } from './agentStore';
-
-/**
- * 从数组末尾向前查找最后一个满足条件的元素索引。
- * @param arr - 目标数组
- * @param predicate - 判断条件
- * @returns 找到的索引，未找到返回 -1
- */
-function findLastIndex<T>(arr: T[], predicate: (item: T) => boolean): number {
-  for (let i = arr.length - 1; i >= 0; i--) {
-    if (predicate(arr[i])) {
-      return i;
-    }
-  }
-  return -1;
-}
 
 /**
  * 将 step_complete 消息中的思考过程和工具调用转换为 Thought 数组。
@@ -87,16 +67,13 @@ interface ChatStore {
   lastUserMessage: string | null;
   wsClient: WebSocketClient | null;
 
-  checkConnection: () => Promise<void>;
   setConnectionStatus: (status: ConnectionStatus) => void;
   sendMessage: (content: string, sessionId?: string) => Promise<void>;
-  retryLastMessage: () => Promise<void>;
   addMessage: (message: Message) => void;
   setMessages: (messages: Message[]) => void;
   setSessionId: (id: string | null) => void;
   setAgentId: (id: string | null) => void;
   clearMessages: () => void;
-  removeLastError: () => void;
   handleWsMessage: (msg: ServerMessage) => void;
   setWsClient: (client: WebSocketClient | null) => void;
 }
@@ -110,67 +87,36 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   lastUserMessage: null,
   wsClient: null,
 
-  /** 检查与服务器的连接状态，更新 connectionStatus。 */
-  checkConnection: async () => {
-    set({ connectionStatus: 'connecting' });
-    const isConnected = await checkServerStatus();
-    set({ connectionStatus: isConnected ? 'connected' : 'disconnected' });
-  },
-
-  /** 设置连接状态。 */
   setConnectionStatus: (status: ConnectionStatus) => {
     set({ connectionStatus: status });
   },
 
-  /** 向消息列表末尾追加一条消息。 */
   addMessage: (message: Message) => {
     set((state) => ({
       messages: [...state.messages, message],
     }));
   },
 
-  /** 整体替换消息列表。 */
   setMessages: (messages: Message[]) => {
     set({ messages });
   },
 
-  /** 清空消息列表和上次发送的消息记录。 */
   clearMessages: () => {
     set({ messages: [], lastUserMessage: null });
   },
 
-  /** 设置当前会话 ID。 */
   setSessionId: (id: string | null) => {
     set({ sessionId: id });
   },
 
-  /** 设置当前 Agent ID。 */
   setAgentId: (id: string | null) => {
     set({ agentId: id });
   },
 
-  /** 移除消息列表中最后一条 error 类型的消息。 */
-  removeLastError: () => {
-    set((state) => {
-      const messages = [...state.messages];
-      const lastErrorIndex = findLastIndex(messages, (m) => m.type === 'error');
-      if (lastErrorIndex >= 0) {
-        messages.splice(lastErrorIndex, 1);
-      }
-      return { messages };
-    });
-  },
-
-  /** 设置 WebSocket 客户端实例。 */
   setWsClient: (client: WebSocketClient | null) => {
     set({ wsClient: client });
   },
 
-  /**
-   * 通过 HTTP POST 发送聊天消息，同时通过 WebSocket 订阅会话事件以接收响应。
-   * @param content - 消息文本内容
-   * @param explicitSessionId - 可选的会话 ID，不传则使用 store 中当前的 sessionId
-   */
   sendMessage: async (content: string, explicitSessionId?: string) => {
     const state = get();
     const sessionId = explicitSessionId || state.sessionId;
@@ -209,46 +155,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
-  /** 重新发送上次的消息，先移除最后的错误消息和原用户消息再调用 sendMessage。 */
-  retryLastMessage: async () => {
-    const state = get();
-    const { lastUserMessage, sessionId, connectionStatus } = state;
-
-    if (!lastUserMessage) {
-      toast.warning('No message to retry');
-      return;
-    }
-
-    if (connectionStatus !== 'connected') {
-      toast.error('Cannot connect to server');
-      return;
-    }
-
-    get().removeLastError();
-
-    const lastUserIndex = findLastIndex(
-      state.messages,
-      (m) => m.type === 'user'
-    );
-    if (lastUserIndex >= 0) {
-      set((state) => {
-        const messages = [...state.messages];
-        messages.splice(lastUserIndex, 1);
-        return { messages };
-      });
-    }
-
-    await get().sendMessage(lastUserMessage, sessionId || undefined);
-  },
-
-  /**
-   * 处理 WebSocket 推送的服务端消息，根据消息类型分别处理：
-   * - step_complete：转换为带 thoughts 的 assistant 消息并追加
-   * - complete：结束加载状态
-   * - error：追加错误消息并结束加载
-   * - title_updated：更新本地会话标题
-   * @param msg - 服务端推送的消息
-   */
   handleWsMessage: (msg: ServerMessage) => {
     const { addMessage } = get();
 

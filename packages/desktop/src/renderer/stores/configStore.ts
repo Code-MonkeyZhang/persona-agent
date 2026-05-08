@@ -46,7 +46,6 @@ interface ConfigState {
     field: K,
     value: AgentConfig[K]
   ) => void;
-  updateNestedField: (path: string, value: unknown) => void;
 }
 
 export const useConfigStore = create<ConfigState>((set, get) => ({
@@ -103,34 +102,5 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
         },
       });
     }
-  },
-
-  /**
-   * 更新配置中的嵌套字段，通过点分隔路径定位，仅修改本地状态不触发后端保存
-   * @param path - 点分隔的属性路径，如 "mcp.connectTimeout"
-   * @param value - 新值
-   */
-  updateNestedField: (path, value) => {
-    const { config } = get();
-    if (!config) return;
-
-    const newConfig = { ...config };
-    const keys = path.split('.');
-    let current: Record<string, unknown> = newConfig;
-
-    for (let i = 0; i < keys.length - 1; i++) {
-      const key = keys[i];
-      if (key) {
-        current[key] = { ...(current[key] as Record<string, unknown>) };
-        current = current[key] as Record<string, unknown>;
-      }
-    }
-
-    const lastKey = keys[keys.length - 1];
-    if (lastKey) {
-      current[lastKey] = value;
-    }
-
-    set({ config: newConfig });
   },
 }));

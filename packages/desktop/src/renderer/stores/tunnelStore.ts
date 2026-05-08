@@ -6,7 +6,7 @@ import { create } from 'zustand';
 import { startTunnel, stopTunnel, getTunnelStatus } from '../lib/api';
 import { logger } from '../lib/logger';
 
-export type TunnelStatus = 'stopped' | 'starting' | 'running' | 'error';
+type TunnelStatus = 'stopped' | 'starting' | 'running' | 'error';
 
 interface TunnelStore {
   status: TunnelStatus;

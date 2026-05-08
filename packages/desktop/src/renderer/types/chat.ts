@@ -5,7 +5,7 @@
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
-export type MessageType = 'user' | 'assistant' | 'error';
+type MessageType = 'user' | 'assistant' | 'error';
 
 /**
  * Thought type for representing agent's reasoning process
@@ -18,7 +18,7 @@ export type ThoughtType = 'thinking' | 'tool_use' | 'error';
 /**
  * Tool result from execution
  */
-export interface ToolResult {
+interface ToolResult {
   output: string;
   isError?: boolean;
 }
@@ -51,33 +51,23 @@ export interface Message {
  * WebSocket message types
  */
 
-export interface SubscribeRequest {
-  type: 'subscribe';
-  payload: { sessionId: string };
-}
-
-export interface UnsubscribeRequest {
-  type: 'unsubscribe';
-  payload: { sessionId: string };
-}
-
-export interface ConnectedMessage {
+interface ConnectedMessage {
   type: 'connected';
   clientId: string;
 }
 
-export interface SubscribedMessage {
+interface SubscribedMessage {
   type: 'subscribed';
   sessionId: string;
 }
 
-export interface WsToolCall {
+interface WsToolCall {
   id: string;
   name: string;
   arguments: Record<string, unknown>;
 }
 
-export interface WsToolResult {
+interface WsToolResult {
   toolCallId: string;
   toolName: string;
   result: string;
@@ -94,17 +84,17 @@ export interface StepCompleteMessage {
   toolResults?: WsToolResult[];
 }
 
-export interface CompleteMessage {
+interface CompleteMessage {
   type: 'complete';
   sessionId: string;
 }
 
-export interface ErrorMessage {
+interface ErrorMessage {
   type: 'error';
   message: string;
 }
 
-export interface TitleUpdatedMessage {
+interface TitleUpdatedMessage {
   type: 'title_updated';
   sessionId: string;
   title: string;

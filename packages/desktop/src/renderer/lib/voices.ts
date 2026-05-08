@@ -3,7 +3,7 @@
  * @description MiniMax TTS 预设音色列表（中文普通话），数据来源：https://platform.minimaxi.com/docs/faq/system-voice-id
  */
 
-export interface VoiceOption {
+interface VoiceOption {
   id: string;
   name: string;
   gender: 'male' | 'female' | 'neutral';

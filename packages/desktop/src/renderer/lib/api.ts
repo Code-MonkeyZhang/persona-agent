@@ -5,22 +5,30 @@
 
 import type { Message } from '../types/chat';
 import type { ServerMessage } from '../types/chat';
-import type {
-  SessionMeta,
-  Session,
-  ListSessionsResponse,
-  SessionResponse,
-  DeleteSessionResponse,
-} from '../types/session';
-import type {
-  Agent,
-  CreateAgentInput,
-  UpdateAgentInput,
-  ListAgentsResponse,
-  AgentResponse,
-} from '../types/agent';
+import type { SessionMeta, Session } from '../types/session';
+import type { Agent, CreateAgentInput, UpdateAgentInput } from '../types/agent';
 import type { AgentConfig } from '../stores/configStore';
 import { logger } from './logger';
+
+interface ListAgentsResponse {
+  agents: Agent[];
+}
+
+interface AgentResponse {
+  agent: Agent;
+}
+
+interface ListSessionsResponse {
+  sessions: SessionMeta[];
+}
+
+interface SessionResponse {
+  session: Session;
+}
+
+interface DeleteSessionResponse {
+  success: boolean;
+}
 
 const DEFAULT_PORT = 3847;
 
@@ -52,13 +60,13 @@ export interface McpServer {
   error?: string;
 }
 
-export interface McpOAuthStatus {
+interface McpOAuthStatus {
   status: McpServer['status'];
   oauthUrl?: string;
   error?: string;
 }
 
-export interface ListMcpsResponse {
+interface ListMcpsResponse {
   servers: McpServer[];
 }
 
@@ -67,7 +75,7 @@ export interface Skill {
   description?: string;
 }
 
-export interface ListSkillsResponse {
+interface ListSkillsResponse {
   skills: Skill[];
 }
 
@@ -78,28 +86,8 @@ export interface ProviderInfo {
   models: string[];
 }
 
-export interface ListProvidersResponse {
+interface ListProvidersResponse {
   providers: ProviderInfo[];
-}
-
-/**
- * 检查后端服务器是否可达，请求 /api/status 端点。
- * @returns 服务器是否正常响应
- */
-export async function checkServerStatus(): Promise<boolean> {
-  try {
-    const baseUrl = await getBaseUrl();
-    const response = await fetch(`${baseUrl}/api/status`, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    });
-    return response.ok;
-  } catch (error) {
-    logger.error('[API] Failed to check server status:', error);
-    return false;
-  }
 }
 
 /**
@@ -393,7 +381,7 @@ export async function deleteSession(
   return data.success;
 }
 
-export interface UpdateSessionInput {
+interface UpdateSessionInput {
   title?: string;
   workspacePath?: string;
   model?: { provider: string; model: string };
@@ -721,7 +709,7 @@ export interface VerifyResult {
   error?: string;
 }
 
-export interface CredentialResponse {
+interface CredentialResponse {
   provider: string;
   apiKey: string;
 }
@@ -774,7 +762,7 @@ export async function verifyCredential(
   return response.json();
 }
 
-export interface TunnelStatusResponse {
+interface TunnelStatusResponse {
   status: 'stopped' | 'starting' | 'running' | 'error';
   url: string | null;
   error: string | null;

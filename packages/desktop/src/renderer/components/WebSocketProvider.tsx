@@ -3,15 +3,9 @@
  * @description WebSocket 连接生命周期管理组件 - 负责建立、维护和断开与服务端的 WebSocket 连接
  */
 
-import { useEffect, createContext, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { WebSocketClient, getBaseUrl } from '../lib/api';
 import { useChatStore } from '../stores/chatStore';
-
-interface WebSocketContextValue {
-  client: WebSocketClient | null;
-}
-
-const WebSocketContext = createContext<WebSocketContextValue>({ client: null });
 
 interface WebSocketProviderProps {
   children: React.ReactNode;
@@ -53,9 +47,5 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     };
   }, [handleWsMessage, setConnectionStatus, setWsClient]);
 
-  return (
-    <WebSocketContext.Provider value={{ client: clientRef.current }}>
-      {children}
-    </WebSocketContext.Provider>
-  );
+  return <>{children}</>;
 }

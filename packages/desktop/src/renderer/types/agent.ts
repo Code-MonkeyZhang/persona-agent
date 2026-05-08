@@ -28,11 +28,3 @@ export type CreateAgentInput = Omit<Agent, 'id' | 'createdAt' | 'updatedAt'> & {
 export type UpdateAgentInput = Partial<
   Omit<Agent, 'id' | 'createdAt' | 'updatedAt'>
 >;
-
-export interface ListAgentsResponse {
-  agents: Agent[];
-}
-
-export interface AgentResponse {
-  agent: Agent;
-}

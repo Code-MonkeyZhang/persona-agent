@@ -33,7 +33,6 @@ interface VoiceStore {
     sessionId: string
   ) => Promise<void>;
   stopSpeaking: () => void;
-  disableVoice: () => void;
 }
 
 export const useVoiceStore = create<VoiceStore>()(
@@ -117,14 +116,6 @@ export const useVoiceStore = create<VoiceStore>()(
       stopSpeaking: () => {
         audioPlayer.stop();
         set({ isSpeaking: false });
-      },
-
-      /**
-       * 面板关闭时一次性停止播放、关闭语音开关、重置播报状态
-       */
-      disableVoice: () => {
-        audioPlayer.stop();
-        set({ voiceEnabled: false, isSpeaking: false });
       },
     }),
     {

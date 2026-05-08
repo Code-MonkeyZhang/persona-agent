@@ -20,68 +20,17 @@ interface AgentStore {
   currentAgent: Agent | null;
   isLoading: boolean;
   error: string | null;
-  /**
-   * 头像本地临时预览缓存（agentId → base64 data URL）。
-   * 创建新 Agent 时先写入 base64 预览，上传完成后清除，
-   * 使侧栏头像组件在上传期间也能立即显示用户选定的图片。
-   */
   agentAvatarPreviews: Record<string, string>;
 
-  /**
-   * 从后端加载完整Agent列表并缓存到本地。
-   * 同时从localStorage恢复上次选中的Agent，如果不存在则默认选中第一个。
-   */
   loadAgents: () => Promise<void>;
-
-  /**
-   * 切换当前Agent到指定id，选择结果会持久化到localStorage。
-   * @param id - 要切换到的Agent id
-   * @returns 切换后的Agent对象，失败时返回null
-   */
   switchAgent: (id: string) => Promise<Agent | null>;
-
-  /**
-   * 创建新Agent并添加到本地缓存，同时自动选中新创建的Agent。
-   * @param input - 新Agent的数据
-   * @returns 创建的Agent对象，失败时返回null
-   */
   createNewAgent: (input: CreateAgentInput) => Promise<Agent | null>;
-
-  /**
-   * 更新指定Agent，同步更新本地缓存。如果更新的是当前Agent，也会刷新currentAgent。
-   * @param id - 要更新的Agent id
-   * @param input - 要更新的字段
-   * @returns 更新后的Agent对象，失败时返回null
-   */
   updateAgentById: (
     id: string,
     input: UpdateAgentInput
   ) => Promise<Agent | null>;
-
-  /**
-   * 删除指定Agent并从本地缓存移除。如果删除的是当前Agent，自动切换到第一个剩余Agent；没有剩余时currentAgent设为null。
-   * @param id - 要删除的Agent id
-   * @returns 删除成功返回true，失败返回false
-   */
   deleteAgentById: (id: string) => Promise<boolean>;
-
-  /**
-   * 直接设置当前Agent，不调用后端。适用于数据已就绪时直接更新状态。
-   * @param agent - 要设为当前的Agent
-   */
-  setCurrentAgent: (agent: Agent) => void;
-
-  /**
-   * 设置指定 Agent 的头像本地预览（base64），用于上传完成前的即时展示。
-   * @param id - Agent id
-   * @param base64 - 图片的 data URL（如 "data:image/png;base64,..."）
-   */
   setAvatarPreview: (id: string, base64: string) => void;
-
-  /**
-   * 移除指定 Agent 的头像本地预览，通常在服务器上传完成后调用。
-   * @param id - Agent id
-   */
   removeAvatarPreview: (id: string) => void;
 }
 
@@ -224,10 +173,6 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
       });
       return false;
     }
-  },
-
-  setCurrentAgent: (agent: Agent) => {
-    set({ currentAgent: agent });
   },
 
   setAvatarPreview: (id: string, base64: string) => {

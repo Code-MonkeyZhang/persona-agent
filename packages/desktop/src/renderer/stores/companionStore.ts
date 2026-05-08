@@ -5,14 +5,12 @@
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { useVoiceStore } from './voiceStore';
 
 interface CompanionStore {
   visible: boolean;
   currentPose: string;
   toggleVisible: () => void;
   setPose: (pose: string) => void;
-  reset: () => void;
 }
 
 export const useCompanionStore = create<CompanionStore>()(
@@ -22,10 +20,6 @@ export const useCompanionStore = create<CompanionStore>()(
       currentPose: 'default',
       toggleVisible: () => set((s) => ({ visible: !s.visible })),
       setPose: (pose: string) => set({ currentPose: pose }),
-      reset: () => {
-        useVoiceStore.getState().disableVoice();
-        set({ currentPose: 'default' });
-      },
     }),
     {
       name: 'companion-store',
