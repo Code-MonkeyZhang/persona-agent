@@ -24,7 +24,13 @@ export function createMcpRouter(): Router {
 
   router.get('/', (_req: Request, res: Response) => {
     try {
-      const servers = listMcpServers();
+      const servers = listMcpServers().map((s) => ({
+        name: s.name,
+        status: s.status,
+        toolCount: s.tools.length,
+        error: s.error,
+        oauthUrl: s.oauthUrl,
+      }));
       res.json({ servers });
     } catch (error) {
       Logger.log('MCP', 'Error listing MCP servers', error);
@@ -42,12 +48,19 @@ export function createMcpRouter(): Router {
         return;
       }
 
-      const server = getMcpServer(name);
-      if (!server) {
+      const entry = getMcpServer(name);
+      if (!entry) {
         res.status(404).json({ error: 'MCP server not found' });
         return;
       }
 
+      const server = {
+        name: entry.name,
+        status: entry.status,
+        toolCount: entry.tools.length,
+        error: entry.error,
+        oauthUrl: entry.oauthUrl,
+      };
       res.json({ server });
     } catch (error) {
       Logger.log('MCP', 'Error getting MCP server', error);
