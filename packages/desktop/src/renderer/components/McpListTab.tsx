@@ -1,11 +1,11 @@
 /**
  * @file src/renderer/components/McpListTab.tsx
  * @description MCP 服务列表标签页，展示已配置的 MCP 服务器状态、工具数量和 OAuth 授权
- * 使用外层白色卡片 + 列表项浅灰背景的 Demo 视觉风格
+ * 使用 2 列网格卡片 + 状态圆点的 Demo 视觉风格
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, CheckCircle, XCircle, KeyRound } from 'lucide-react';
+import { Loader2, ExternalLink } from 'lucide-react';
 import {
   listMcpServers,
   startMcpOAuth,
@@ -17,44 +17,16 @@ import { logger } from '../lib/logger';
 const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
-function getStatusIcon(status: McpServer['status']) {
+function getStatusColor(status: McpServer['status']) {
   switch (status) {
     case 'connected':
-      return <CheckCircle className="w-4 h-4 text-green-500" />;
-    case 'needs_auth':
-      return <KeyRound className="w-4 h-4 text-amber-500" />;
+      return 'bg-green-500';
     case 'connecting':
-      return <Loader2 className="w-4 h-4 animate-spin text-blue-400" />;
-    default:
-      return <XCircle className="w-4 h-4 text-red-500" />;
-  }
-}
-
-function getStatusText(status: McpServer['status']) {
-  switch (status) {
-    case 'connected':
-      return '已连接';
+      return 'bg-blue-400';
     case 'needs_auth':
-      return '需要授权';
-    case 'connecting':
-      return '连接中';
-    case 'disconnected':
-      return '未连接';
+      return 'bg-amber-500';
     default:
-      return '未连接';
-  }
-}
-
-function getStatusClass(status: McpServer['status']) {
-  switch (status) {
-    case 'connected':
-      return 'bg-green-100 text-green-700';
-    case 'needs_auth':
-      return 'bg-amber-100 text-amber-700';
-    case 'connecting':
-      return 'bg-blue-100 text-blue-700';
-    default:
-      return 'bg-gray-100 text-gray-600';
+      return 'bg-gray-300';
   }
 }
 
@@ -194,64 +166,59 @@ export const McpListTab: React.FC = () => {
         </p>
 
         {mcps.length === 0 ? (
-          <div className="text-center py-8 text-[#999]">
-            <p className="text-[13px]">暂无 MCP 服务</p>
-            <p className="text-[12px] mt-1">
-              请在后端配置文件中添加 MCP 服务器
-            </p>
+          <div className="text-[#ccc] text-[13px] py-4 text-center">
+            暂无已加载的 MCP 服务
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
-            {mcps.map((mcp) => (
-              <div
-                key={mcp.name}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[#eee] bg-[#fafafa]"
-              >
-                <div className="shrink-0">{getStatusIcon(mcp.status)}</div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {mcps.map((mcp) => {
+              const statusText =
+                mcp.status === 'connected' && mcp.toolCount
+                  ? `${mcp.toolCount} tools`
+                  : mcp.status === 'needs_auth'
+                    ? '需要授权'
+                    : mcp.status === 'connecting'
+                      ? '连接中'
+                      : '未连接';
+              const isLoading = authorizing === mcp.name;
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[13px] font-medium text-[#333]">
+              return (
+                <div
+                  key={mcp.name}
+                  className="group flex items-center gap-2 px-3 py-3 rounded-xl border border-[#eee] bg-[#fafafa] text-left"
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full shrink-0 ${getStatusColor(mcp.status)}`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-medium text-[#333] truncate">
                       {mcp.name}
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[11px] ${getStatusClass(mcp.status)}`}
-                    >
-                      {getStatusText(mcp.status)}
-                    </span>
+                    </div>
+                    <div className="text-[11px] text-[#999] truncate">
+                      {mcp.error || statusText}
+                    </div>
                   </div>
-                  {mcp.error && (
-                    <p className="text-[12px] text-red-500 mt-0.5">
-                      {mcp.error}
-                    </p>
+                  {mcp.status === 'needs_auth' && (
+                    <div className="shrink-0">
+                      <button
+                        onClick={() => handleAuthorize(mcp.name)}
+                        disabled={isLoading}
+                        className="h-7 px-2.5 text-[11px] rounded-full border border-[#d0d0d0] text-[#666] hover:text-[#333] hover:border-[#999] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {isLoading ? (
+                          <span className="w-2.5 h-2.5 border-2 border-[#999] border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            <ExternalLink className="w-3 h-3" />
+                            OAuth
+                          </span>
+                        )}
+                      </button>
+                    </div>
                   )}
-                  {mcp.status === 'connected' &&
-                    mcp.toolCount !== undefined &&
-                    mcp.toolCount > 0 && (
-                      <p className="text-[12px] text-[#999] mt-0.5">
-                        {mcp.toolCount} 个工具可用
-                      </p>
-                    )}
                 </div>
-
-                {mcp.status === 'needs_auth' && (
-                  <button
-                    onClick={() => handleAuthorize(mcp.name)}
-                    disabled={authorizing === mcp.name}
-                    className="shrink-0 h-7 px-3 text-[11px] rounded-full border border-[#d0d0d0] text-[#666] hover:text-[#333] hover:border-[#999] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {authorizing === mcp.name ? (
-                      <span className="flex items-center gap-1">
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        授权中...
-                      </span>
-                    ) : (
-                      '去授权'
-                    )}
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

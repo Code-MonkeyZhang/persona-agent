@@ -1,7 +1,7 @@
 /**
  * @file src/renderer/components/SkillListTab.tsx
  * @description Skills 列表标签页，展示后端已注册的技能模块名称和描述
- * 使用外层白色卡片 + 列表项浅灰背景的 Demo 视觉风格
+ * 使用 2 列网格卡片的 Demo 视觉风格
  */
 
 import React, { useEffect, useState } from 'react';
@@ -67,24 +67,23 @@ export const SkillListTab: React.FC = () => {
         <p className="text-[12px] text-[#999] mb-4">查看可用的技能模块</p>
 
         {skills.length === 0 ? (
-          <div className="text-center py-8 text-[#999]">
-            <p className="text-[13px]">暂无 Skills</p>
-            <p className="text-[12px] mt-1">请在后端配置文件中添加 Skills</p>
+          <div className="text-[#ccc] text-[13px] py-4 text-center">
+            暂无已加载的 Skill
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-2.5">
             {skills.map((skill) => (
               <div
                 key={skill.name}
-                className="px-3 py-2.5 rounded-lg border border-[#eee] bg-[#fafafa]"
+                className="px-3 py-3 rounded-xl border border-[#eee] bg-[#fafafa] text-left"
               >
-                <span className="text-[13px] font-medium text-[#333]">
+                <div className="text-[13px] font-medium text-[#333] truncate">
                   {skill.name}
-                </span>
+                </div>
                 {skill.description && (
-                  <p className="text-[12px] text-[#999] mt-0.5">
+                  <div className="text-[11px] text-[#999] truncate mt-0.5">
                     {skill.description}
-                  </p>
+                  </div>
                 )}
               </div>
             ))}
