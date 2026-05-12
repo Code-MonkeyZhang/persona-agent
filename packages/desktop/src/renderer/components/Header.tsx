@@ -29,7 +29,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewChat }) => {
         className="header-no-drag flex items-center gap-4 px-6"
         style={{ paddingLeft: isMac ? '70px' : undefined }}
       >
-        <h1 className="text-lg font-semibold text-gray-900">
+        <h1 className="font-medium text-[15px] text-[#333]">
           {currentSession?.title || 'New Chat'}
         </h1>
       </div>

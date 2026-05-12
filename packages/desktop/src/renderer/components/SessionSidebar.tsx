@@ -128,10 +128,10 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
               </div>
             )}
             <div className="min-w-0">
-              <div className="font-medium text-sm text-gray-900 truncate">
+              <div className="font-medium text-[15px] text-[#333] truncate">
                 {currentAgent?.name || '未选择 Agent'}
               </div>
-              <div className="text-xs text-gray-500 truncate">
+              <div className="text-[13px] text-[#999] truncate">
                 {currentAgent?.description || ''}
               </div>
             </div>
@@ -159,7 +159,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
           <GroupedVirtuoso
             groupCounts={groupedSessions.map((g) => g.sessions.length)}
             groupContent={(index) => (
-              <div className="px-2 py-1.5 text-xs font-medium text-gray-400 uppercase bg-white">
+              <div className="px-2 py-1.5 text-[12px] text-[#999] bg-white">
                 {groupedSessions[index].label}
               </div>
             )}

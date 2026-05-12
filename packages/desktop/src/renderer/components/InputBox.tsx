@@ -116,8 +116,8 @@ export const InputBox: React.FC<InputBoxProps> = ({
         className={cn(
           'relative flex flex-col rounded-2xl transition-all duration-200',
           isFocused
-            ? 'ring-1 ring-primary/30 bg-card shadow-sm'
-            : 'bg-muted/50 hover:bg-muted/70'
+            ? 'ring-1 ring-[#222]/20 bg-white'
+            : 'bg-[#f5f5f5] hover:bg-[#f0f0f0]'
         )}
       >
         {/* 文本输入区域 */}
@@ -131,7 +131,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
             onBlur={() => setIsFocused(false)}
             placeholder="输入消息..."
             rows={1}
-            className="w-full bg-transparent resize-none focus:outline-none text-sm text-foreground placeholder:text-muted-foreground/50 min-h-[24px]"
+            className="w-full bg-transparent resize-none focus:outline-none text-[15px] text-[#333] placeholder:text-[#b0b0b0] min-h-[24px]"
             style={{ maxHeight: '200px' }}
           />
         </div>
