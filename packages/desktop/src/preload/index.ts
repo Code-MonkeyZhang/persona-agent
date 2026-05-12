@@ -70,6 +70,9 @@ const api = {
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke('open-external', url),
 
+  openPath: (filePath: string): Promise<string> =>
+    ipcRenderer.invoke('open-path', filePath),
+
   /** 窗口控制方法集合，每个方法通过 IPC 转发到主进程执行。 */
   windowControls: {
     minimize: () => ipcRenderer.invoke('window:minimize'),

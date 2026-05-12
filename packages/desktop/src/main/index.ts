@@ -5,6 +5,7 @@
 
 import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import { join } from 'path';
+import { homedir } from 'os';
 import { spawn } from 'child_process';
 import type { ChildProcess } from 'child_process';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
@@ -295,6 +296,11 @@ app.whenReady().then(async () => {
    */
   ipcMain.handle('open-external', (_event, url: string) => {
     return shell.openExternal(url);
+  });
+
+  ipcMain.handle('open-path', (_event, filePath: string) => {
+    const resolved = filePath.replace(/^~/, homedir());
+    return shell.openPath(resolved);
   });
 
   await startServer();

@@ -5,7 +5,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, ExternalLink } from 'lucide-react';
+import { Loader2, ExternalLink, FolderOpen } from 'lucide-react';
 import {
   listMcpServers,
   startMcpOAuth,
@@ -160,7 +160,18 @@ export const McpListTab: React.FC = () => {
   return (
     <div className="p-5">
       <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
-        <h3 className="text-[14px] font-bold text-[#333] mb-1">MCP 服务</h3>
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-[14px] font-bold text-[#333]">MCP 服务</h3>
+          <button
+            onClick={() =>
+              window.api?.openPath('~/.local/share/persona-agent/mcp/')
+            }
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] text-[#555] border border-[#ddd] bg-white hover:bg-[#f0f0f0] hover:border-[#bbb] transition-colors shadow-sm"
+          >
+            <FolderOpen className="w-4 h-4" />
+            打开目录
+          </button>
+        </div>
         <p className="text-[12px] text-[#999] mb-4">
           查看已配置的 MCP 服务器状态
         </p>

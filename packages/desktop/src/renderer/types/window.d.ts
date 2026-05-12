@@ -16,6 +16,7 @@ declare global {
       getServerUrl: () => Promise<string | null>;
       log: (level: string, ...args: unknown[]) => Promise<void>;
       openExternal: (url: string) => Promise<void>;
+      openPath: (filePath: string) => Promise<string>;
       proxyFetch: (
         url: string,
         options: {
