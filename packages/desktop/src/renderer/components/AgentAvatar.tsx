@@ -1,10 +1,10 @@
 /**
  * @file src/renderer/components/AgentAvatar.tsx
- * @description Agent 头像组件，展示自定义头像图片，不可用时显示灰色人物图标占位符
+ * @description Agent 头像组件，展示自定义头像图片，不可用时显示 VenetianMask 图标占位符
  */
 
 import React, { useState, useEffect } from 'react';
-import { User } from 'lucide-react';
+import { VenetianMask } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { getAgentAvatarUrl } from '../lib/api';
 import { useAgentStore } from '../stores/agentStore';
@@ -31,12 +31,12 @@ interface AgentAvatarProps {
 }
 
 /**
- * Agent 头像组件，支持自定义头像图片加载和灰色人物图标占位符
+ * Agent 头像组件，支持自定义头像图片加载和 VenetianMask 图标占位符
  *
  * 渲染优先级：
  * 1. editingPreviewUrl — 编辑器中选了新图片时的即时预览
  * 2. store 中的 agentAvatarPreviews[agentId] — 新建 Agent 上传期间的本地预览
- * 3. 服务器头像 URL（GET /api/agents/:id/avatar），加载失败时显示灰色人物图标
+ * 3. 服务器头像 URL（GET /api/agents/:id/avatar），加载失败时显示 VenetianMask 图标
  */
 export const AgentAvatar: React.FC<AgentAvatarProps> = ({
   agent,
@@ -68,7 +68,7 @@ export const AgentAvatar: React.FC<AgentAvatarProps> = ({
           className
         )}
       >
-        <User size={iconSizeMap[size]} />
+        <VenetianMask size={iconSizeMap[size]} />
       </div>
     );
   }

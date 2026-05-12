@@ -4,7 +4,16 @@
  */
 
 import React from 'react';
-import { X, Server, Loader2, Copy, Check, Globe, Cloud } from 'lucide-react';
+import {
+  X,
+  Server,
+  Bot,
+  Loader2,
+  Copy,
+  Check,
+  Globe,
+  Cloud,
+} from 'lucide-react';
 import { useTunnelStore } from '../stores/tunnelStore';
 import { getBaseUrl } from '../lib/api';
 import { InfoRow } from './InfoRow';
@@ -115,7 +124,7 @@ function ServerSection({
           {connectionStatus === 'connecting' ? (
             <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
           ) : (
-            <Server
+            <Bot
               className={`w-8 h-8 ${
                 connectionStatus === 'connected'
                   ? 'text-green-500'

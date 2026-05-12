@@ -11,7 +11,7 @@ import {
   ChevronUp,
   ChevronDown,
   Braces,
-  CheckCircle2,
+  CheckCircle,
   AlertTriangle,
 } from 'lucide-react';
 import {
@@ -60,7 +60,7 @@ const ThoughtItem = memo(function ThoughtItem({
           thought.toolResult!.isError ? (
             <AlertTriangle size={14} className="text-amber-500 shrink-0" />
           ) : (
-            <CheckCircle2 size={14} className="text-green-400 shrink-0" />
+            <CheckCircle size={14} className="text-green-400 shrink-0" />
           )
         ) : (
           <Icon size={14} className={`${color} shrink-0`} />

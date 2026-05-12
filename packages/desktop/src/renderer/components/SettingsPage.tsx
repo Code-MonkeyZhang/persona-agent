@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Key, Mic, Server, Settings, Zap } from 'lucide-react';
+import { ArrowLeft, Key, Speech, Plug, Settings, Sparkles } from 'lucide-react';
 import { ProviderConfigPanel } from './ProviderConfigPanel';
 import { ConfigForm } from './ConfigForm';
 import { McpListTab } from './McpListTab';
@@ -22,9 +22,9 @@ type TabKey = 'general' | 'providers' | 'mcp' | 'skills' | 'voice';
 const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'general', label: '通用设置', icon: <Settings className="w-4 h-4" /> },
   { key: 'providers', label: '模型供应商', icon: <Key className="w-4 h-4" /> },
-  { key: 'voice', label: '语音服务', icon: <Mic className="w-4 h-4" /> },
-  { key: 'mcp', label: 'MCP 服务', icon: <Server className="w-4 h-4" /> },
-  { key: 'skills', label: 'Skills', icon: <Zap className="w-4 h-4" /> },
+  { key: 'voice', label: '语音服务', icon: <Speech className="w-4 h-4" /> },
+  { key: 'mcp', label: 'MCP 服务', icon: <Plug className="w-4 h-4" /> },
+  { key: 'skills', label: 'Skills', icon: <Sparkles className="w-4 h-4" /> },
 ];
 
 /**

@@ -3,7 +3,7 @@
  * @description 左侧 Agent 列表侧边栏，展示所有 Agent 头像、添加按钮、服务管理和设置入口
  */
 import React, { useState } from 'react';
-import { Settings, Plus, Loader2, Server } from 'lucide-react';
+import { Settings, Plus, Loader2, Bot } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAgentStore } from '../stores/agentStore';
 import { useViewStore } from '../stores/viewStore';
@@ -103,7 +103,7 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = ({
           {connectionStatus === 'connecting' ? (
             <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
-            <Server className="w-5 h-5" />
+            <Bot className="w-5 h-5" />
           )}
         </button>
         <ServerManagerModal

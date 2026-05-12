@@ -9,7 +9,7 @@
  * - 底部输入框 + 发送按钮（毛玻璃风格，直接调用主聊天发送逻辑）
  */
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
-import { Send, X, ChevronUp, ChevronDown, Mic, MicOff } from 'lucide-react';
+import { Send, X, ChevronUp, ChevronDown, Speech } from 'lucide-react';
 import { useCompanionStore } from '../stores/companionStore';
 import { useChatStore } from '../stores/chatStore';
 import { useVoiceStore } from '../stores/voiceStore';
@@ -223,9 +223,9 @@ export function CompanionPanel({
           }`}
         >
           {voiceEnabled && voiceConfigured ? (
-            <Mic className="w-4 h-4" />
+            <Speech className="w-4 h-4" />
           ) : (
-            <MicOff className="w-4 h-4" />
+            <Speech className="w-4 h-4 opacity-40" />
           )}
         </button>
       </div>

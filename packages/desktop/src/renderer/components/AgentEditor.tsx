@@ -3,7 +3,7 @@
  * @description Agent 编辑全页面组件，支持创建和编辑 Agent，包括基本信息、模型配置、工作空间、MCP、Skills 分配和语音配置
  */
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trash2, Upload, Volume2, X } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Camera, Volume2, X } from 'lucide-react';
 import { useAgentStore } from '../stores/agentStore';
 import { useViewStore } from '../stores/viewStore';
 import {
@@ -347,7 +347,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                     editingPreviewUrl={previewDataUrl}
                   />
                   <label className="flex items-center gap-2 px-3 py-1.5 border border-[#e0e0e0] rounded-lg text-[13px] text-[#666] cursor-pointer hover:bg-gray-50">
-                    <Upload className="w-4 h-4" />
+                    <Camera className="w-4 h-4" />
                     上传头像
                     <input
                       type="file"

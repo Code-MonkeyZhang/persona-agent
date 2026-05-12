@@ -3,7 +3,7 @@
  * @description 顶部标题栏，显示当前会话标题、陪伴面板切换和新对话按钮
  */
 import React from 'react';
-import { Plus, Bot } from 'lucide-react';
+import { Plus, VenetianMask } from 'lucide-react';
 import { useSessionStore } from '../stores/sessionStore';
 import { useAgentStore } from '../stores/agentStore';
 import { useCompanionStore } from '../stores/companionStore';
@@ -45,8 +45,8 @@ export const Header: React.FC<HeaderProps> = ({ onNewChat }) => {
               }`}
               title={visible ? '隐藏陪伴面板' : '显示陪伴面板'}
             >
-              <Bot className="w-4 h-4 mr-1" />
-              <span>陪伴</span>
+              <VenetianMask className="w-4 h-4 mr-1" />
+              <span>形象</span>
             </button>
             <button
               onClick={onNewChat}
