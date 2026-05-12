@@ -12,3 +12,4 @@ export type {
 
 export { ReadTool, WriteTool, EditTool } from './file-tools.js';
 export { BashTool, BashOutputTool, BashKillTool } from './bash-tool.js';
+export { WebFetchTool } from './webfetch/index.js';
