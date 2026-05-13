@@ -6,7 +6,8 @@
  * ~/.local/share/persona-agent/
  * ├── config/
  * │   ├── config.yaml
- * │   └── auth.json
+ * │   ├── auth.json
+ * │   └── minimax-tts.json
  * ├── agents/
  * ├── skills/
  * ├── mcp/
@@ -30,6 +31,7 @@ import {
   getMcpServersDir,
   getSkillsDir,
   getWorkspaceDir,
+  getTtsConfigPath,
 } from './paths.js';
 import { getDefaultConfigYaml } from '../config/index.js';
 
@@ -78,6 +80,11 @@ const REQUIRED_FILES: Array<{
   { getPath: getConfigPath, getContent: getDefaultConfigYaml },
   { getPath: getAuthPath, getContent: () => '{}\n' },
   { getPath: getMcpConfigPath, getContent: () => '{\n  "mcpServers": {}\n}\n' },
+  {
+    getPath: getTtsConfigPath,
+    getContent: () =>
+      '{\n  "model": "speech-2.8-hd",\n  "clonedVoices": []\n}\n',
+  },
 ];
 
 /**
