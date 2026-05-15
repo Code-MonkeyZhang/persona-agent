@@ -163,7 +163,7 @@ export function CompanionPanel({
         <div className="relative z-10 flex items-center justify-between px-4 pt-4 pb-2">
           <button
             onClick={toggleVisible}
-            className="w-9 h-9 rounded-full bg-white/15 backdrop-blur-sm border border-white/50 flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.08)] text-[#333] hover:bg-white/80 transition-colors"
+            className="w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm border border-white/50 flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.08)] text-[#333] hover:bg-white/90 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -207,7 +207,7 @@ export function CompanionPanel({
       <div className="relative z-10 flex items-center justify-between px-4 pt-4 pb-2">
         <button
           onClick={toggleVisible}
-          className="w-9 h-9 rounded-full bg-white/15 backdrop-blur-sm border border-white/50 flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.08)] text-[#333] hover:bg-white/80 transition-colors"
+          className="w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm border border-white/50 flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.08)] text-[#333] hover:bg-white/90 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -216,7 +216,7 @@ export function CompanionPanel({
           disabled={!voiceConfigured}
           className={`w-9 h-9 rounded-full backdrop-blur-2xl border flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.08)] transition-colors ${
             !voiceConfigured
-              ? 'bg-white/15 border-white/30 text-[#999] cursor-not-allowed opacity-60'
+              ? 'bg-white/80 border-white/30 text-[#999] cursor-not-allowed opacity-60'
               : voiceEnabled
                 ? 'bg-white/80 border-white/60 text-[#333]'
                 : 'bg-white/40 border-white/50 text-[#333] hover:bg-white/80'
@@ -238,7 +238,7 @@ export function CompanionPanel({
           className="z-10 shrink-0 px-5 pb-3 animate-companion-bubble-in"
         >
           {lastAgentMessage.content.trim().length > 0 ? (
-            <div className="relative overflow-hidden rounded-[24px] bg-white/15 backdrop-blur-sm border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
+            <div className="relative overflow-hidden rounded-[24px] bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
               <div
                 ref={bubbleRef}
                 onScroll={updateScrollState}
@@ -248,17 +248,17 @@ export function CompanionPanel({
               </div>
               {canScrollUp && (
                 <div className="absolute top-1 left-1/2 -translate-x-1/2 pointer-events-none">
-                  <ChevronUp className="w-5 h-5 text-[#333] drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]" />
+                  <ChevronUp className="w-5 h-5 text-[#333] drop-shadow-[0_1px_2px_rgba(0,0,0,0.1)]" />
                 </div>
               )}
               {canScrollDown && (
                 <div className="absolute bottom-1 left-1/2 -translate-x-1/2 pointer-events-none">
-                  <ChevronDown className="w-5 h-5 text-[#333] drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]" />
+                  <ChevronDown className="w-5 h-5 text-[#333] drop-shadow-[0_1px_2px_rgba(0,0,0,0.1)]" />
                 </div>
               )}
             </div>
           ) : (
-            <div className="rounded-[24px] bg-white/15 backdrop-blur-sm border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)] px-4 py-2 text-[13px] text-[#999] animate-pulse text-center">
+            <div className="rounded-[24px] bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)] px-4 py-2 text-[13px] text-[#999] animate-pulse text-center">
               思考中...
             </div>
           )}
@@ -266,7 +266,7 @@ export function CompanionPanel({
       )}
 
       <div className="relative z-10 shrink-0 px-5 pb-5">
-        <div className="rounded-[24px] p-4 bg-white/15 backdrop-blur-sm border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
+        <div className="rounded-[24px] p-4 bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
           <textarea
             ref={textareaRef}
             value={inputText}

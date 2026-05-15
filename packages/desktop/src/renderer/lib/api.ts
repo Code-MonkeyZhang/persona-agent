@@ -427,7 +427,8 @@ export async function updateSession(
 export async function sendChatMessage(
   agentId: string,
   sessionId: string,
-  content: string
+  content: string,
+  voiceEnabled?: boolean
 ): Promise<{ success: boolean; error?: string }> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(
@@ -435,7 +436,7 @@ export async function sendChatMessage(
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, voiceEnabled }),
     }
   );
 
@@ -919,4 +920,133 @@ export async function uploadAvatar(
   }
 
   return response.json();
+}
+
+export interface ClonedVoice {
+  voice_id: string;
+  name: string;
+}
+
+export interface TtsConfig {
+  apiKey: string;
+  model: string;
+  clonedVoices: ClonedVoice[];
+  summaryThreshold: number;
+}
+
+export async function getTtsConfig(): Promise<TtsConfig> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/tts/config`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get TTS config: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.config;
+}
+
+export async function updateTtsConfig(
+  updates: Partial<Pick<TtsConfig, 'apiKey' | 'model' | 'summaryThreshold'>>
+): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/tts/config`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to update TTS config: ${response.status}`
+    );
+  }
+}
+
+export interface TtsModel {
+  id: string;
+  name: string;
+}
+
+export async function getTtsModels(): Promise<TtsModel[]> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/tts/models`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get TTS models: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.models;
+}
+
+export interface VoiceOption {
+  id: string;
+  name: string;
+  gender: 'male' | 'female' | 'neutral';
+  group: 'preset' | 'cloned';
+}
+
+export async function getVoices(): Promise<VoiceOption[]> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/voices`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get voices: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.voices;
+}
+
+export async function cloneVoice(
+  file: File,
+  voiceId: string,
+  name: string
+): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('voice_id', voiceId);
+  formData.append('name', name);
+
+  const response = await fetch(`${baseUrl}/api/voices/clone`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to clone voice: ${response.status}`
+    );
+  }
+}
+
+export async function deleteClonedVoice(voiceId: string): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/voices/clone/${encodeURIComponent(voiceId)}`,
+    { method: 'DELETE' }
+  );
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to delete cloned voice: ${response.status}`
+    );
+  }
 }

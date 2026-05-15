@@ -1,14 +1,12 @@
 /**
  * @file lib/tts.ts
- * @description 语音播放的主要逻辑, MiniMax TTS API 封装，通过 Electron proxyFetch 调用语音合成接口
+ * @description MiniMax TTS API 封装，通过 Electron proxyFetch 调用语音合成接口
  */
 
 import { logger } from './logger';
 
-export { PRESET_VOICES } from './voices';
-
 const TTS_API_URL = 'https://api.minimaxi.com/v1/t2a_v2';
-const TTS_MODEL = 'speech-2.8-hd';
+const DEFAULT_MODEL = 'speech-2.8-hd';
 
 /**
  * 将 MiniMax 返回的 hex 编码音频解码为 ArrayBuffer
@@ -28,16 +26,20 @@ function hexToArrayBuffer(hex: string): ArrayBuffer {
  * @param text - 要合成的文本（不超过 10000 字符）
  * @param voiceId - 音色 ID
  * @param apiKey - MiniMax API Key
+ * @param model - TTS 模型 ID，默认 speech-2.8-hd
+ * @param languageBoost - 语言增强参数（如 "Chinese"、"English"、"Japanese"），可选
  * @returns MP3 格式的音频 ArrayBuffer
  */
 export async function synthesize(
   text: string,
   voiceId: string,
-  apiKey: string
+  apiKey: string,
+  model: string = DEFAULT_MODEL,
+  languageBoost?: string
 ): Promise<ArrayBuffer> {
-  // 构造请求体：使用 speech-2.8-hd 模型，非流式一次性返回完整音频
+  // 构造请求体：使用指定模型，非流式一次性返回完整音频
   const body = JSON.stringify({
-    model: TTS_MODEL,
+    model,
     text,
     stream: false,
     voice_setting: {
@@ -50,6 +52,7 @@ export async function synthesize(
       sample_rate: 32000,
       format: 'mp3',
     },
+    ...(languageBoost ? { language_boost: languageBoost } : {}),
   });
 
   logger.info('[TTS] Request:', JSON.stringify(JSON.parse(body), null, 2));

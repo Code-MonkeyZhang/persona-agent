@@ -17,6 +17,7 @@ export interface Agent {
   skillNames: string[];
   defaultWorkspacePath?: string;
   voiceId?: string;
+  voiceLanguage?: string;
   createdAt?: number;
   updatedAt?: number;
 }

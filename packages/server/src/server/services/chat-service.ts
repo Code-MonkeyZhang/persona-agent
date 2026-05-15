@@ -13,6 +13,10 @@ import type { ToolResult } from '../../tools/index.js';
 import { Logger } from '../../util/logger.js';
 import { broadcastToSession } from '../websocket-server.js';
 import { generateTitle } from '../../session/title-generator.js';
+import { loadTtsConfig } from '../../tts/store.js';
+import { getAllVoices } from '../../tts/voices.js';
+import { getLanguageBoost } from '../../tts/types.js';
+import { processTextForTTS } from '../../tts/text-processor.js';
 
 const MAX_RESULT_LENGTH = 1000;
 
@@ -28,6 +32,7 @@ interface ChatRequest {
   agentId: string;
   sessionId: string;
   content: string;
+  voiceEnabled?: boolean;
   sessionManager: SessionManager;
 }
 
@@ -75,7 +80,7 @@ function saveStepMessages(
  * 实时内容通过 WebSocket step_complete 事件推送
  */
 export async function processChat(request: ChatRequest): Promise<ChatResponse> {
-  const { agentId, sessionId, content, sessionManager } = request;
+  const { agentId, sessionId, content, voiceEnabled, sessionManager } = request;
 
   const session = sessionManager.getSession(sessionId);
   // TODO: 这个已经在外面查过了, 是不是不用再查一遍了? 或者这个本来就应该放在这里check?
@@ -150,6 +155,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     }
 
     // 创建一个临时容器, 收集当前step的所有内容 方便广播
+    let lastContentText: string | null = null;
     let currentStep: {
       stepIndex: number;
       thinking: string;
@@ -195,6 +201,9 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
      */
     const flushCurrentStep = () => {
       if (!currentStep) return;
+      if (currentStep.content) {
+        lastContentText = currentStep.content;
+      }
       saveStepMessages(sessionManager, sessionId, agent, historyLength);
       Logger.log('CHAT', 'Step complete', {
         sessionId,
@@ -284,6 +293,14 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
 
     // 发送完成信号
     broadcastToSession(sessionId, { type: 'complete', sessionId });
+
+    // Fire-and-forget: TTS voice processing
+    if (voiceEnabled) {
+      handleTtsAsync(sessionId, session, agentConfig, lastContentText).catch(
+        () => {}
+      );
+    }
+
     return { success: true };
   } catch (error) {
     const err = error as Error;
@@ -296,4 +313,101 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     broadcastToSession(sessionId, { type: 'complete', sessionId });
     return { success: false, error: err.message };
   }
+}
+
+/**
+ * Async TTS pipeline after chat completes.
+ *
+ * Checks preconditions (apiKey, voiceId, content, voice existence),
+ * processes text via cleanText + optional LLM, then broadcasts
+ * speak_ready or speak_error via WebSocket.
+ */
+async function handleTtsAsync(
+  sessionId: string,
+  session: { model: { provider: string; model: string } },
+  agentConfig: { voiceId?: string; voiceLanguage?: string },
+  lastContentText: string | null
+): Promise<void> {
+  Logger.log('TTS', 'Starting async pipeline', {
+    sessionId,
+    voiceId: agentConfig.voiceId ?? '(none)',
+    voiceLanguage: agentConfig.voiceLanguage ?? 'default',
+    hasContent: !!lastContentText,
+    contentLength: lastContentText?.length ?? 0,
+  });
+
+  const ttsConfig = loadTtsConfig();
+
+  if (!ttsConfig.apiKey) {
+    Logger.log('TTS', 'Precondition failed: no API key', { sessionId });
+    broadcastToSession(sessionId, {
+      type: 'speak_error',
+      sessionId,
+      reason: 'no_api_key',
+      message: '未配置 MiniMax API Key',
+    });
+    return;
+  }
+
+  if (!agentConfig.voiceId) {
+    Logger.log('TTS', 'Precondition failed: no voice ID', { sessionId });
+    broadcastToSession(sessionId, {
+      type: 'speak_error',
+      sessionId,
+      reason: 'no_voice_id',
+      message: '未设置语音音色',
+    });
+    return;
+  }
+
+  if (!lastContentText) {
+    Logger.log('TTS', 'Precondition failed: no content', { sessionId });
+    broadcastToSession(sessionId, {
+      type: 'speak_error',
+      sessionId,
+      reason: 'no_content',
+      message: '无语音内容',
+    });
+    return;
+  }
+
+  const allVoices = getAllVoices();
+  if (!allVoices.some((v) => v.id === agentConfig.voiceId)) {
+    Logger.log('TTS', 'Precondition failed: voice not found', {
+      sessionId,
+      voiceId: agentConfig.voiceId,
+    });
+    broadcastToSession(sessionId, {
+      type: 'speak_error',
+      sessionId,
+      reason: 'voice_not_found',
+      message: '音色不存在或已被删除',
+    });
+    return;
+  }
+
+  const speakText = await processTextForTTS(lastContentText, {
+    language: agentConfig.voiceLanguage,
+    provider: session.model.provider,
+    modelId: session.model.model,
+  });
+
+  Logger.log('TTS', 'speak_ready sent', {
+    sessionId,
+    speakText,
+    speakTextLength: speakText.length,
+    voiceId: agentConfig.voiceId,
+    ttsModel: ttsConfig.model,
+    languageBoost: getLanguageBoost(agentConfig.voiceLanguage) ?? 'none',
+  });
+
+  broadcastToSession(sessionId, {
+    type: 'speak_ready',
+    sessionId,
+    speakText,
+    voiceId: agentConfig.voiceId,
+    apiKey: ttsConfig.apiKey,
+    model: ttsConfig.model,
+    languageBoost: getLanguageBoost(agentConfig.voiceLanguage),
+  });
 }
