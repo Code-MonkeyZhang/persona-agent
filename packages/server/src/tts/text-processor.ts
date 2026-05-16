@@ -253,7 +253,7 @@ function buildJapanesePrompt(
   opts: { threshold: number; needCompress: boolean }
 ): string {
   const parts: string[] = [
-    'You are a text-to-speech processing assistant. Translate and adapt the following text into natural Japanese for spoken narration.',
+    'You are a text-to-speech processing assistant. Translate and adapt the following text into natural Japanese for spoken narration. your prompt will directly send to TTS engine, so do not generate text that is hard to process or repeat it self',
   ];
 
   if (opts.needCompress) {
@@ -265,7 +265,7 @@ function buildJapanesePrompt(
   parts.push(
     'Rules:',
     '- Output plain text only, no explanations',
-    '- Convert difficult kanji compounds to hiragana/katakana where appropriate (e.g. 複雑→ふくざつ, 携帯→けいたい)',
+    '- Convert difficult kanji compounds to hiragana/katakana where appropriate do not use () to repeat those words',
     '- Transliterate ALL English and foreign words into katakana (e.g. computer→コンピュータ, AI→エーアイ, API→エーピーアイ)',
     '- Transliterate foreign proper nouns into katakana (e.g. New York→ニューヨーク)',
     '- Use natural, conversational Japanese suitable for spoken narration',
