@@ -1,7 +1,7 @@
 /**
  * @fileoverview MiniMax API wrapper for voice clone operations.
  *
- * Provides four functions: uploadAudio, cloneVoice, verifyVoice, deleteVoice.
+ * Provides three functions: uploadAudio, cloneVoice, verifyVoice.
  * All functions read apiKey from store.ts at call time.
  */
 
@@ -112,27 +112,6 @@ export async function verifyVoice(voiceId: string): Promise<void> {
   if (data.base_resp.status_code !== 0) {
     throw new Error(
       `Voice verification failed: ${data.base_resp.status_msg ?? JSON.stringify(data)}`
-    );
-  }
-}
-
-/**
- * Delete a cloned voice from MiniMax.
- */
-export async function deleteVoice(voiceId: string): Promise<void> {
-  const resp = await fetch(`${BASE_URL}/v1/delete_voice`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({ voice_id: voiceId }),
-  });
-
-  const data = (await resp.json()) as {
-    base_resp: { status_code: number; status_msg?: string };
-  };
-
-  if (data.base_resp.status_code !== 0) {
-    throw new Error(
-      `MiniMax delete failed: ${data.base_resp.status_msg ?? JSON.stringify(data)}`
     );
   }
 }

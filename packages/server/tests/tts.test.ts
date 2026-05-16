@@ -57,7 +57,6 @@ mock.module('../src/tts/minimax-api.js', () => ({
   uploadAudio: () => Promise.resolve(12345),
   cloneVoice: () => Promise.resolve(),
   verifyVoice: () => Promise.resolve(),
-  deleteVoice: () => Promise.resolve(),
 }));
 
 mock.module('../src/auth/index.js', () => ({

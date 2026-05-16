@@ -1,16 +1,11 @@
 /**
- * @fileoverview Voice management: list all voices, clone, and delete.
+ * @fileoverview Voice management: list all voices and clone.
  *
  * Orchestrates minimax-api.ts and store.ts so route handlers stay thin.
  */
 
 import { loadTtsConfig, saveTtsConfig } from './store.js';
-import {
-  uploadAudio,
-  cloneVoice,
-  verifyVoice,
-  deleteVoice,
-} from './minimax-api.js';
+import { uploadAudio, cloneVoice, verifyVoice } from './minimax-api.js';
 import { PRESET_VOICES } from './types.js';
 import type { VoiceOption, ClonedVoice } from './types.js';
 
@@ -48,17 +43,10 @@ export async function addClonedVoice(
 }
 
 /**
- * Remove a cloned voice. Deletes from MiniMax first, then removes from config.
- * Uses lazy-forget: if MiniMax delete fails, still removes from local config
- * so the user doesn't see a stuck entry.
+ * Remove a cloned voice from local config only.
+ * Does NOT call MiniMax delete API to avoid the ¥9.9/clone cost.
  */
 export async function removeClonedVoice(voiceId: string): Promise<void> {
-  try {
-    await deleteVoice(voiceId);
-  } catch {
-    // lazy forget: MiniMax deletion failure doesn't block local removal
-  }
-
   const config = loadTtsConfig();
   config.clonedVoices = config.clonedVoices.filter(
     (v) => v.voice_id !== voiceId
