@@ -12,7 +12,8 @@ import { createProviderRouter, createAuthRouter } from './routers/auth.js';
 import { createAgentRouter, type SessionManagersMap } from './routers/agent.js';
 import { createSessionRouter } from './routers/session.js';
 import { createChatRouter } from './routers/chat.js';
-import { createSummarizeRouter } from './routers/summarize.js';
+import { createTtsRouter } from './routers/tts.js';
+import { createVoiceRouter } from './routers/voice.js';
 import { createConfigRouter } from './routers/config.js';
 import { createSkillRouter } from './routers/skill.js';
 import { createMcpRouter } from './routers/mcp.js';
@@ -88,10 +89,8 @@ app.use(
   '/api/agents/:agentId/sessions/:sessionId/chat',
   createChatRouter(sessionManagers)
 );
-app.use(
-  '/api/agents/:agentId/sessions/:sessionId/summarize',
-  createSummarizeRouter(sessionManagers)
-);
+app.use('/api/tts', createTtsRouter());
+app.use('/api/voices', createVoiceRouter());
 
 const httpServer = createHttpServer(app);
 

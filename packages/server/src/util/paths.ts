@@ -4,7 +4,8 @@
  * Directory structure (macOS: ~/.local/share/persona-agent/, Windows: %APPDATA%/persona-agent/):
  * ├── config/
  * │   ├── config.yaml
- * │   └── auth.json
+ * │   ├── auth.json
+ * │   └── minimax-tts.json
  * ├── agents/
  * │   └── {agentId}/
  * │       ├── config.json
@@ -50,6 +51,8 @@ export const getLogsDir = () => path.join(APP_DIR, 'logs');
 
 export const getConfigPath = () => path.join(getConfigDir(), 'config.yaml');
 export const getAuthPath = () => path.join(getConfigDir(), 'auth.json');
+export const getTtsConfigPath = () =>
+  path.join(getConfigDir(), 'minimax-tts.json');
 export const getMcpConfigPath = () => path.join(getMcpDir(), 'mcp.json');
 export const getOAuthTokensPath = () =>
   path.join(getMcpDir(), 'oauth-tokens.json');

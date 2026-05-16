@@ -44,7 +44,10 @@ export function createChatRouter(sessionManagers: SessionManagersMap): Router {
         return;
       }
 
-      const { content } = req.body as { content?: unknown };
+      const { content, voiceEnabled } = req.body as {
+        content?: unknown;
+        voiceEnabled?: unknown;
+      };
       // 验证接受的信息是字符串 TODO: 如果要支持多模态, 这个东西必须改掉
       if (!content || typeof content !== 'string') {
         res.status(400).json({ success: false, error: 'Content is required' });
@@ -64,6 +67,7 @@ export function createChatRouter(sessionManagers: SessionManagersMap): Router {
         agentId,
         sessionId,
         content,
+        voiceEnabled: voiceEnabled === true,
         sessionManager,
       });
 

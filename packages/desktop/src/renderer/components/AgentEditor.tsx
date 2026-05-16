@@ -15,6 +15,8 @@ import {
   Brain,
   Speech,
   Folder,
+  HelpCircle,
+  Loader2,
 } from 'lucide-react';
 import { useAgentStore } from '../stores/agentStore';
 import { useViewStore } from '../stores/viewStore';
@@ -23,9 +25,12 @@ import {
   listSkills,
   listProviders,
   uploadAvatar,
+  getVoices,
+  getTtsConfig,
   type McpServer,
   type Skill,
   type ProviderInfo,
+  type VoiceOption,
 } from '../lib/api';
 import { ModelSelector } from './ModelSelector';
 import { WorkspaceSelector } from './WorkspaceSelector';
@@ -33,19 +38,34 @@ import { AgentAvatar } from './AgentAvatar';
 import { SettingRow, SettingDivider } from './SettingRow';
 import { ScrollArea } from './ui/ScrollArea';
 import { Input } from './ui/Input';
+import {
+  Select,
+  SelectGroup,
+  SelectValue,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+} from './ui/Select';
 import type { CreateAgentInput, UpdateAgentInput, Agent } from '../types/agent';
 import { logger } from '../lib/logger';
-import { PRESET_VOICES, synthesize } from '../lib/tts';
+import { synthesize } from '../lib/tts';
 import { audioPlayer } from '../lib/audio-player';
-import { useVoiceStore } from '../stores/voiceStore';
 import { toast } from '../stores/toastStore';
 
 const PREVIEW_TEXTS = [
   '你好呀，很高兴见到你，今天有什么我可以帮忙的吗？',
-  '关于这个问题，我觉得可以从几个方面来看，让我慢慢给你说。',
-  '一切都会好起来的，我会一直在这里陪你。',
-  '早上好呀！新的一天开始了，希望你今天过得愉快。',
+  '今天天气真不错，适合出去走走呢。',
+  '嗨，我是你的语音助手，有什么想聊的吗？',
 ];
+
+const VOICE_LANGUAGES = [
+  { value: 'default', label: 'Default（跟随原文）' },
+  { value: 'zh', label: '中文' },
+  { value: 'en', label: '英语' },
+  { value: 'ja', label: '日语' },
+] as const;
 
 interface AgentEditorProps {
   editingAgentId: string | null;
@@ -76,6 +96,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   const [mcps, setMcps] = useState<McpServer[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [voices, setVoices] = useState<VoiceOption[]>([]);
 
   const [previewDataUrl, setPreviewDataUrl] = useState<string | undefined>();
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
@@ -86,11 +107,12 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   const [systemPrompt, setSystemPrompt] = useState('');
   const [selectedMcpIds, setSelectedMcpIds] = useState<string[]>([]);
   const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
-  const [maxSteps, setMaxSteps] = useState('10');
+  const [maxSteps, setMaxSteps] = useState('50');
   const [defaultWorkspacePath, setDefaultWorkspacePath] = useState<
     string | undefined
   >();
   const [voiceId, setVoiceId] = useState<string>('');
+  const [voiceLanguage, setVoiceLanguage] = useState('default');
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
 
   const [showMcpDropdown, setShowMcpDropdown] = useState(false);
@@ -115,6 +137,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
       setDefaultWorkspacePath(editingAgent.defaultWorkspacePath);
       setPreviewDataUrl(undefined);
       setVoiceId(editingAgent.voiceId || '');
+      setVoiceLanguage(editingAgent.voiceLanguage || 'default');
     } else {
       resetForm();
     }
@@ -133,14 +156,16 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   /** 并行加载 MCP 服务器列表、技能列表和 Provider 列表 */
   const loadOptions = async () => {
     try {
-      const [mcpData, skillData, providerData] = await Promise.all([
+      const [mcpData, skillData, providerData, voicesData] = await Promise.all([
         listMcpServers(),
         listSkills(),
         listProviders(),
+        getVoices(),
       ]);
       setMcps(mcpData);
       setSkills(skillData);
       setProviders(providerData);
+      setVoices(voicesData);
     } catch (error) {
       logger.error('Failed to load options:', error);
     }
@@ -155,11 +180,12 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     setSystemPrompt('');
     setSelectedMcpIds([]);
     setSelectedSkillIds([]);
-    setMaxSteps('10');
+    setMaxSteps('50');
     setDefaultWorkspacePath(undefined);
     setPreviewDataUrl(undefined);
     setPendingAvatarFile(null);
     setVoiceId('');
+    setVoiceLanguage('default');
   };
 
   /** 切换 Provider 时同步更新 modelId 为该 Provider 的第一个可用模型 */
@@ -214,21 +240,25 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   };
 
   /**
-   * 试听选中的音色：合成一段包含音色名称的试听文本并播放
-   * 使用 getState() 而非 hook 读取 API Key，避免不必要的 store 订阅
+   * 试听选中的音色：从服务端获取配置后合成试听文本并播放
    */
   const handlePreviewVoice = async () => {
-    const apiKey = useVoiceStore.getState().voiceApiKey;
-    if (!apiKey) {
-      toast.warning('请先在设置中配置 MiniMax API Key');
-      return;
-    }
-
     try {
+      const ttsConfig = await getTtsConfig();
+      if (!ttsConfig.apiKey) {
+        toast.warning('请先在设置中配置 MiniMax API Key');
+        return;
+      }
+
       setIsPreviewPlaying(true);
       const previewText =
         PREVIEW_TEXTS[Math.floor(Math.random() * PREVIEW_TEXTS.length)];
-      const audio = await synthesize(previewText, voiceId, apiKey);
+      const audio = await synthesize(
+        previewText,
+        voiceId,
+        ttsConfig.apiKey,
+        ttsConfig.model
+      );
       audioPlayer.play(audio);
     } catch (err) {
       const message = err instanceof Error ? err.message : '试听失败';
@@ -257,9 +287,10 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           systemPrompt,
           mcpNames: selectedMcpIds,
           skillNames: selectedSkillIds,
-          maxSteps: parseInt(maxSteps) || 10,
+          maxSteps: parseInt(maxSteps) || 50,
           defaultWorkspacePath,
           voiceId: voiceId || undefined,
+          voiceLanguage: voiceId ? voiceLanguage : undefined,
         };
         await updateAgentById(editingAgentId, input);
       } else {
@@ -270,9 +301,10 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           systemPrompt,
           mcpNames: selectedMcpIds,
           skillNames: selectedSkillIds,
-          maxSteps: parseInt(maxSteps) || 10,
+          maxSteps: parseInt(maxSteps) || 50,
           defaultWorkspacePath,
           voiceId: voiceId || undefined,
+          voiceLanguage: voiceId ? voiceLanguage : undefined,
         };
         const newAgent = await createNewAgent(input);
 
@@ -305,11 +337,12 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     description,
     systemPrompt,
     defaultModel: { provider, model: modelId },
-    maxSteps: parseInt(maxSteps) || 10,
+    maxSteps: parseInt(maxSteps) || 50,
     mcpNames: selectedMcpIds,
     skillNames: selectedSkillIds,
     defaultWorkspacePath,
     voiceId: voiceId || undefined,
+    voiceLanguage: voiceId ? voiceLanguage : undefined,
   };
 
   return (
@@ -414,7 +447,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                   />
                 </div>
                 <SettingDivider />
-                <SettingRow label="最大步数">
+                <SettingRow label="Agent最大步数">
                   <input
                     type="number"
                     value={maxSteps}
@@ -426,40 +459,113 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                 </SettingRow>
               </div>
 
-              {/* 语音配置 */}
+              {/* 音色 */}
               <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
                 <h3 className="text-[14px] font-bold text-[#333] mb-3">
                   <Speech className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-[#999]" />
-                  语音配置
+                  音色
                 </h3>
-                <SettingRow
-                  label="朗读音色"
-                  desc="选择后，Agent 回复时将使用该音色朗读"
-                >
-                  <select
-                    value={voiceId}
-                    onChange={(e) => setVoiceId(e.target.value)}
-                    className="rounded-lg border border-[#e0e0e0] h-8 w-48 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    <option value="">不启用语音</option>
-                    {PRESET_VOICES.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name}
-                      </option>
-                    ))}
-                  </select>
-                </SettingRow>
-                {voiceId && (
-                  <div className="mt-2">
+                <SettingRow label="选择音色" desc="选择 Agent 使用的语音音色">
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={voiceId || '__none__'}
+                      onValueChange={(v) => {
+                        if (v === '__none__') {
+                          setVoiceId('');
+                          setVoiceLanguage('default');
+                        } else {
+                          setVoiceId(v);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="rounded-lg border-[#e0e0e0] h-8 w-48 text-[13px]">
+                        <SelectValue placeholder="不启用语音" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">不启用语音</SelectItem>
+                        {voices.filter((v) => v.group === 'cloned').length >
+                          0 && (
+                          <SelectGroup>
+                            <SelectLabel className="text-[11px] text-[#999] font-medium uppercase tracking-wide">
+                              我的克隆音色
+                            </SelectLabel>
+                            {voices
+                              .filter((v) => v.group === 'cloned')
+                              .map((v) => (
+                                <SelectItem key={v.id} value={v.id}>
+                                  {v.name}
+                                </SelectItem>
+                              ))}
+                          </SelectGroup>
+                        )}
+                        <SelectSeparator />
+                        <SelectGroup>
+                          <SelectLabel className="text-[11px] text-[#999] font-medium uppercase tracking-wide">
+                            预设音色
+                          </SelectLabel>
+                          {voices
+                            .filter((v) => v.group === 'preset')
+                            .map((v) => (
+                              <SelectItem key={v.id} value={v.id}>
+                                {v.name} ·{' '}
+                                {v.gender === 'male'
+                                  ? '男'
+                                  : v.gender === 'female'
+                                    ? '女'
+                                    : ''}
+                              </SelectItem>
+                            ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
                     <button
                       onClick={handlePreviewVoice}
-                      disabled={isPreviewPlaying}
-                      className="flex items-center gap-1.5 px-3 py-1.5 border border-[#e0e0e0] rounded-lg text-[13px] text-[#666] hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={!voiceId || isPreviewPlaying}
+                      className="rounded-lg border border-[#e0e0e0] w-8 h-8 shrink-0 flex items-center justify-center text-[#999] hover:text-[#333] hover:bg-[#f0f0f0] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      <Volume2 className="w-4 h-4" />
-                      {isPreviewPlaying ? '试听中...' : '试听音色'}
+                      {isPreviewPlaying ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Volume2 className="w-3.5 h-3.5" />
+                      )}
                     </button>
                   </div>
+                </SettingRow>
+                {voiceId && (
+                  <>
+                    <SettingDivider />
+                    <div className="flex items-center justify-between min-h-[32px] gap-4">
+                      <div className="min-w-0 flex items-center gap-1.5">
+                        <div className="text-[14px] text-[#333] leading-[18px]">
+                          TTS 朗读语言
+                        </div>
+                        <span className="relative group">
+                          <HelpCircle className="w-3.5 h-3.5 text-[#999] cursor-help" />
+                          <span className="absolute left-5 top-1/2 -translate-y-1/2 w-56 px-3 py-2 text-[12px] text-[#666] bg-white border border-[#e0e0e0] rounded-lg shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10 pointer-events-none">
+                            设置语音播报使用的语言。Default
+                            表示跟随原文语言，不做翻译
+                          </span>
+                        </span>
+                      </div>
+                      <div className="shrink-0">
+                        <Select
+                          value={voiceLanguage}
+                          onValueChange={setVoiceLanguage}
+                        >
+                          <SelectTrigger className="rounded-lg border-[#e0e0e0] h-8 w-48 text-[13px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {VOICE_LANGUAGES.map((l) => (
+                              <SelectItem key={l.value} value={l.value}>
+                                {l.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
 

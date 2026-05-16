@@ -100,10 +100,29 @@ interface TitleUpdatedMessage {
   title: string;
 }
 
+export interface SpeakReadyMessage {
+  type: 'speak_ready';
+  sessionId: string;
+  speakText: string;
+  voiceId: string;
+  apiKey: string;
+  model: string;
+  languageBoost?: string;
+}
+
+export interface SpeakErrorMessage {
+  type: 'speak_error';
+  sessionId: string;
+  reason: 'no_api_key' | 'no_voice_id' | 'no_content' | 'voice_not_found';
+  message: string;
+}
+
 export type ServerMessage =
   | ConnectedMessage
   | SubscribedMessage
   | StepCompleteMessage
   | CompleteMessage
   | ErrorMessage
-  | TitleUpdatedMessage;
+  | TitleUpdatedMessage
+  | SpeakReadyMessage
+  | SpeakErrorMessage;

@@ -10,6 +10,8 @@ import type {
   Thought,
   ServerMessage,
   StepCompleteMessage,
+  SpeakReadyMessage,
+  SpeakErrorMessage,
 } from '../types/chat';
 import { createMessage, sendChatMessage, WebSocketClient } from '../lib/api';
 import { toast } from './toastStore';
@@ -17,7 +19,6 @@ import { logger } from '../lib/logger';
 import { useSessionStore } from './sessionStore';
 import { useCompanionStore } from './companionStore';
 import { useVoiceStore } from './voiceStore';
-import { useAgentStore } from './agentStore';
 
 /**
  * 将 step_complete 消息中的思考过程和工具调用转换为 Thought 数组。
@@ -146,7 +147,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     wsClient?.subscribe(sessionId);
 
     try {
-      const result = await sendChatMessage(agentId, sessionId, content);
+      const voiceEnabled = useVoiceStore.getState().voiceEnabled;
+      const result = await sendChatMessage(
+        agentId,
+        sessionId,
+        content,
+        voiceEnabled
+      );
       if (!result.success) {
         set({ isLoading: false });
       }
@@ -188,29 +195,28 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         break;
       }
 
-      case 'complete': {
+      case 'complete':
         set({ isLoading: false });
+        break;
 
-        const companionVisible = useCompanionStore.getState().visible;
+      case 'speak_ready': {
+        const speakMsg = msg as SpeakReadyMessage;
         const { voiceEnabled, speak } = useVoiceStore.getState();
-        const agent = useAgentStore.getState().currentAgent;
-
-        if (companionVisible && voiceEnabled && agent?.voiceId) {
-          const { messages, sessionId, agentId } = get();
-          if (sessionId && agentId) {
-            const lastAssistant = [...messages]
-              .reverse()
-              .find((m) => m.type === 'assistant');
-            if (lastAssistant?.content) {
-              void speak(
-                lastAssistant.content,
-                agent.voiceId,
-                agentId,
-                sessionId
-              );
-            }
-          }
+        if (voiceEnabled) {
+          void speak(
+            speakMsg.speakText,
+            speakMsg.voiceId,
+            speakMsg.apiKey,
+            speakMsg.model,
+            speakMsg.languageBoost
+          );
         }
+        break;
+      }
+
+      case 'speak_error': {
+        const errMsg = msg as SpeakErrorMessage;
+        toast.warning(errMsg.message);
         break;
       }
 

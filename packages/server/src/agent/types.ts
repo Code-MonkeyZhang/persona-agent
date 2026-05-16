@@ -27,6 +27,7 @@ export const AgentConfigSchema = z.object({
   skillNames: z.array(z.string()).default([]),
   mcpNames: z.array(z.string()).default([]),
   voiceId: z.string().optional(),
+  voiceLanguage: z.string().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });
