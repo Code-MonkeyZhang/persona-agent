@@ -922,6 +922,109 @@ export async function uploadAvatar(
   return response.json();
 }
 
+/**
+ * 上传立绘图片。以 poseName 作为文件名，扩展名取自上传文件。
+ */
+export async function uploadPoseImage(
+  agentId: string,
+  poseName: string,
+  file: File
+): Promise<{ success: boolean }> {
+  const baseUrl = await getBaseUrl();
+  const formData = new FormData();
+  formData.append('pose', file);
+
+  const response = await fetch(
+    `${baseUrl}/api/agents/${agentId}/assets/pose/${encodeURIComponent(poseName)}`,
+    { method: 'POST', body: formData }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to upload pose image: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * 删除指定名称的立绘图片。
+ */
+export async function deletePoseImage(
+  agentId: string,
+  poseName: string
+): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/agents/${agentId}/assets/pose/${encodeURIComponent(poseName)}`,
+    { method: 'DELETE' }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to delete pose image: ${response.status}`);
+  }
+}
+
+/**
+ * 重命名立绘图片。服务端执行 fs.rename，比重新上传更轻量。
+ */
+export async function renamePoseImage(
+  agentId: string,
+  oldName: string,
+  newName: string
+): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/agents/${agentId}/assets/pose/${encodeURIComponent(oldName)}/rename`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to rename pose image: ${response.status}`);
+  }
+}
+
+/**
+ * 上传背景图。背景图只保留一张，服务端上传前会自动清理已有图片。
+ */
+export async function uploadBackgroundImage(
+  agentId: string,
+  file: File
+): Promise<{ success: boolean }> {
+  const baseUrl = await getBaseUrl();
+  const formData = new FormData();
+  formData.append('background', file);
+
+  const response = await fetch(
+    `${baseUrl}/api/agents/${agentId}/assets/background`,
+    { method: 'POST', body: formData }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to upload background image: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * 删除背景图。
+ */
+export async function deleteBackgroundImage(agentId: string): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/agents/${agentId}/assets/background`,
+    { method: 'DELETE' }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to delete background image: ${response.status}`);
+  }
+}
+
 export interface ClonedVoice {
   voice_id: string;
   name: string;

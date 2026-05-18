@@ -174,7 +174,7 @@ export function CompanionPanel({
               该 Agent 还未配置陪伴形象
             </p>
             <p className="text-[14px] text-[#999] mt-3 leading-relaxed">
-              在 assets/pose/ 目录下添加表情图片即可启用
+              请在 Agent 编辑器的「形象」栏中上传立绘图片
             </p>
           </div>
         </div>
