@@ -158,24 +158,29 @@ export function CompanionPanel({
 
   if (hasAssets === false) {
     return (
-      <div className="absolute inset-0 flex flex-col animate-companion-slide-in z-30">
-        <div className="absolute inset-0 bg-gradient-to-b from-gray-100 to-gray-300" />
-        <div className="relative z-10 flex items-center justify-between px-4 pt-4 pb-2">
-          <button
-            onClick={toggleVisible}
-            className="w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm border border-white/50 flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.08)] text-[#333] hover:bg-white/90 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="relative z-10 flex-1 flex items-center justify-center px-8">
-          <div className="text-center">
-            <p className="text-[18px] font-medium text-[#555] leading-relaxed">
-              该 Agent 还未配置陪伴形象
-            </p>
-            <p className="text-[14px] text-[#999] mt-3 leading-relaxed">
-              请在 Agent 编辑器的「形象」栏中上传立绘图片
-            </p>
+      <div
+        className="absolute inset-0 z-30"
+        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+      >
+        <div className="flex flex-col h-full animate-companion-slide-in">
+          <div className="absolute inset-0 bg-gradient-to-b from-gray-100 to-gray-300" />
+          <div className="relative z-10 flex items-center justify-between px-4 pt-4 pb-2">
+            <button
+              onClick={toggleVisible}
+              className="w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm border border-white/50 flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.08)] text-[#333] hover:bg-white/90 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="relative z-10 flex-1 flex items-center justify-center px-8">
+            <div className="text-center">
+              <p className="text-[18px] font-medium text-[#555] leading-relaxed">
+                该 Agent 还未配置陪伴形象
+              </p>
+              <p className="text-[14px] text-[#999] mt-3 leading-relaxed">
+                请在 Agent 编辑器的「形象」栏中上传立绘图片
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -183,111 +188,116 @@ export function CompanionPanel({
   }
 
   return (
-    <div className="absolute inset-0 flex flex-col animate-companion-slide-in z-30">
-      {hasAssets === null || bgError ? (
-        <div className="absolute inset-0 bg-gradient-to-b from-gray-100 to-gray-300" />
-      ) : (
-        <img
-          src={getBackgroundImageUrl(agentId)}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover"
-          onError={() => setBgError(true)}
-        />
-      )}
-
-      {hasAssets === true && !poseError && (
-        <img
-          src={getPoseImageUrl(agentId, currentPose)}
-          alt=""
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[1] h-[85%] object-contain object-bottom translate-y-[-8%]"
-          onError={() => setPoseError(true)}
-        />
-      )}
-
-      <div className="relative z-10 flex items-center justify-between px-4 pt-4 pb-2">
-        <button
-          onClick={toggleVisible}
-          className="w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm border border-white/50 flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.08)] text-[#333] hover:bg-white/90 transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
-        <button
-          onClick={handleVoiceToggle}
-          disabled={!voiceConfigured}
-          className={`w-9 h-9 rounded-full backdrop-blur-2xl border flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.08)] transition-colors ${
-            !voiceConfigured
-              ? 'bg-white/80 border-white/30 text-[#999] cursor-not-allowed opacity-60'
-              : voiceEnabled
-                ? 'bg-white/80 border-white/60 text-[#333]'
-                : 'bg-white/40 border-white/50 text-[#333] hover:bg-white/80'
-          }`}
-        >
-          {voiceEnabled && voiceConfigured ? (
-            <Speech className="w-4 h-4" />
-          ) : (
-            <Speech className="w-4 h-4 opacity-40" />
-          )}
-        </button>
-      </div>
-
-      <div className="relative z-10 flex-1" />
-
-      {lastAgentMessage && (
-        <div
-          key={lastAgentMessage.id}
-          className="z-10 shrink-0 px-5 pb-3 animate-companion-bubble-in"
-        >
-          {lastAgentMessage.content.trim().length > 0 ? (
-            <div className="relative overflow-hidden rounded-[24px] bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
-              <div
-                ref={bubbleRef}
-                onScroll={updateScrollState}
-                className="companion-scroll-hidden px-4 pt-7 pb-7 max-h-[160px] overflow-y-auto text-[14px] text-[#333] leading-relaxed"
-              >
-                <Markdown content={lastAgentMessage.content} />
-              </div>
-              {canScrollUp && (
-                <div className="absolute top-1 left-1/2 -translate-x-1/2 pointer-events-none">
-                  <ChevronUp className="w-5 h-5 text-[#333] drop-shadow-[0_1px_2px_rgba(0,0,0,0.1)]" />
-                </div>
-              )}
-              {canScrollDown && (
-                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 pointer-events-none">
-                  <ChevronDown className="w-5 h-5 text-[#333] drop-shadow-[0_1px_2px_rgba(0,0,0,0.1)]" />
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="rounded-[24px] bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)] px-4 py-2 text-[13px] text-[#999] animate-pulse text-center">
-              思考中...
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="relative z-10 shrink-0 px-5 pb-5">
-        <div className="rounded-[24px] p-4 bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
-          <textarea
-            ref={textareaRef}
-            value={inputText}
-            onChange={handleInput}
-            onKeyDown={handleKeyDown}
-            placeholder="输入信息..."
-            rows={1}
-            className="w-full resize-none bg-transparent text-[15px] text-[#333] placeholder:text-[#999] focus-visible:outline-none max-h-[120px]"
+    <div
+      className="absolute inset-0 z-30"
+      style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+    >
+      <div className="flex flex-col h-full animate-companion-slide-in">
+        {hasAssets === null || bgError ? (
+          <div className="absolute inset-0 bg-gradient-to-b from-gray-100 to-gray-300" />
+        ) : (
+          <img
+            src={getBackgroundImageUrl(agentId)}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+            onError={() => setBgError(true)}
           />
-          <div className="flex items-center justify-end mt-3">
-            <button
-              onClick={handleSend}
-              disabled={!inputText.trim() || isLoading}
-              className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-                inputText.trim() && !isLoading
-                  ? 'bg-[#228be6] text-white hover:bg-[#1a7ad4]'
-                  : 'bg-[#d8d8d8] text-white'
-              }`}
-            >
-              <Send className="w-4 h-4" />
-            </button>
+        )}
+
+        {hasAssets === true && !poseError && (
+          <img
+            src={getPoseImageUrl(agentId, currentPose)}
+            alt=""
+            className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[1] h-[85%] object-contain object-bottom translate-y-[-8%]"
+            onError={() => setPoseError(true)}
+          />
+        )}
+
+        <div className="relative z-10 flex items-center justify-between px-4 pt-4 pb-2">
+          <button
+            onClick={toggleVisible}
+            className="w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm border border-white/50 flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.08)] text-[#333] hover:bg-white/90 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleVoiceToggle}
+            disabled={!voiceConfigured}
+            className={`w-9 h-9 rounded-full backdrop-blur-2xl border flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.08)] transition-colors ${
+              !voiceConfigured
+                ? 'bg-white/80 border-white/30 text-[#999] cursor-not-allowed opacity-60'
+                : voiceEnabled
+                  ? 'bg-white/80 border-white/60 text-[#333]'
+                  : 'bg-white/40 border-white/50 text-[#333] hover:bg-white/80'
+            }`}
+          >
+            {voiceEnabled && voiceConfigured ? (
+              <Speech className="w-4 h-4" />
+            ) : (
+              <Speech className="w-4 h-4 opacity-40" />
+            )}
+          </button>
+        </div>
+
+        <div className="relative z-10 flex-1" />
+
+        {lastAgentMessage && (
+          <div
+            key={lastAgentMessage.id}
+            className="z-10 shrink-0 px-5 pb-3 animate-companion-bubble-in"
+          >
+            {lastAgentMessage.content.trim().length > 0 ? (
+              <div className="relative overflow-hidden rounded-[24px] bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
+                <div
+                  ref={bubbleRef}
+                  onScroll={updateScrollState}
+                  className="companion-scroll-hidden px-4 pt-7 pb-7 max-h-[160px] overflow-y-auto text-[14px] text-[#333] leading-relaxed"
+                >
+                  <Markdown content={lastAgentMessage.content} />
+                </div>
+                {canScrollUp && (
+                  <div className="absolute top-1 left-1/2 -translate-x-1/2 pointer-events-none">
+                    <ChevronUp className="w-5 h-5 text-[#333] drop-shadow-[0_1px_2px_rgba(0,0,0,0.1)]" />
+                  </div>
+                )}
+                {canScrollDown && (
+                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2 pointer-events-none">
+                    <ChevronDown className="w-5 h-5 text-[#333] drop-shadow-[0_1px_2px_rgba(0,0,0,0.1)]" />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-[24px] bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)] px-4 py-2 text-[13px] text-[#999] animate-pulse text-center">
+                思考中...
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="relative z-10 shrink-0 px-5 pb-5">
+          <div className="rounded-[24px] p-4 bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
+            <textarea
+              ref={textareaRef}
+              value={inputText}
+              onChange={handleInput}
+              onKeyDown={handleKeyDown}
+              placeholder="输入信息..."
+              rows={1}
+              className="w-full resize-none bg-transparent text-[15px] text-[#333] placeholder:text-[#999] focus-visible:outline-none max-h-[120px]"
+            />
+            <div className="flex items-center justify-end mt-3">
+              <button
+                onClick={handleSend}
+                disabled={!inputText.trim() || isLoading}
+                className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                  inputText.trim() && !isLoading
+                    ? 'bg-[#228be6] text-white hover:bg-[#1a7ad4]'
+                    : 'bg-[#d8d8d8] text-white'
+                }`}
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
