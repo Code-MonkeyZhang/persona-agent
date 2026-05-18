@@ -761,7 +761,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
 
                 <LabelWithTooltip
                   label="立绘"
-                  tooltip="建议比例 3:4，推荐分辨率 900×1200px，支持 PNG 格式"
+                  tooltip="建议比例 3:4，支持 PNG 格式"
                 />
                 <PoseImageCardList
                   images={(() => {
@@ -800,7 +800,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
 
                 <LabelWithTooltip
                   label="背景图"
-                  tooltip="建议比例 9:16，推荐分辨率 1080×1920px，支持 PNG 格式"
+                  tooltip="建议比例 9:16，支持 PNG 格式"
                 />
                 {bgPreviewUrl ? (
                   <div className="relative group inline-block">
