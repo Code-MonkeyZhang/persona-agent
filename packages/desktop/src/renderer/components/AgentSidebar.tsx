@@ -51,10 +51,13 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = ({
   };
 
   return (
-    <aside
-      className="w-[72px] h-full bg-gray-50 border-r border-gray-200 flex flex-col"
-      style={{ paddingTop: isMac ? 'env(titlebar-area-height, 28px)' : 0 }}
-    >
+    <aside className="w-[72px] h-full bg-gray-50 border-r border-gray-200 flex flex-col">
+      {isMac && (
+        <div
+          className="header-drag shrink-0"
+          style={{ height: 'env(titlebar-area-height, 28px)' }}
+        />
+      )}
       <div className="flex-1 overflow-y-auto py-2">
         {agents.map((agent) => (
           <div key={agent.id} className="relative group">

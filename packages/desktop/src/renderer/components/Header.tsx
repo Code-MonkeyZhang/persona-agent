@@ -26,7 +26,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewChat }) => {
   return (
     <header className="header-drag h-14 border-b border-gray-200 flex items-center justify-between bg-white">
       <div
-        className="header-no-drag flex items-center gap-4 px-6"
+        className="flex items-center gap-4 px-6"
         style={{ paddingLeft: isMac ? '70px' : undefined }}
       >
         <h1 className="font-medium text-[15px] text-[#333]">

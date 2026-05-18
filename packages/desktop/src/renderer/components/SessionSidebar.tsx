@@ -117,7 +117,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
       className="h-full bg-white border-r border-gray-200 flex flex-col relative"
       style={{ width: 240 }} //TODO 迟早要变化这个东西
     >
-      <div className="p-4 border-b border-gray-200">
+      <div className="header-drag p-4 border-b border-gray-200">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3 min-w-0">
             {currentAgent ? (
@@ -136,7 +136,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="header-no-drag flex items-center gap-1 flex-shrink-0">
             {onToggle && (
               <button
                 onClick={onToggle}

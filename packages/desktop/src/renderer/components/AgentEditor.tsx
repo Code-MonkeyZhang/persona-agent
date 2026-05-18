@@ -683,21 +683,20 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
 
   return (
     <div className="h-full w-full flex flex-col bg-[#f7f7f7]">
+      <div className="header-drag shrink-0 flex items-center gap-2 px-5 h-14 border-b border-[#e8e8e8] bg-[#f7f7f7]">
+        <button
+          onClick={closeAgentEditor}
+          className="header-no-drag text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <h1 className="text-[16px] font-bold text-[#333]">
+          {editingAgentId ? '编辑 Agent' : '添加 Agent'}
+        </h1>
+      </div>
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full">
           <div className="px-5 py-5">
-            <div className="flex items-center gap-2 mb-5">
-              <button
-                onClick={closeAgentEditor}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-              <h1 className="text-[16px] font-bold text-[#333]">
-                {editingAgentId ? '编辑 Agent' : '添加 Agent'}
-              </h1>
-            </div>
-
             <div className="flex flex-col gap-4">
               {/* 基本信息 */}
               <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">

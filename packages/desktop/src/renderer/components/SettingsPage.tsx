@@ -68,10 +68,10 @@ export const SettingsPage: React.FC = () => {
   return (
     <div className="h-full w-full flex bg-[#f7f7f7]">
       <div className="w-52 border-r border-[#e8e8e8] bg-white flex flex-col shrink-0">
-        <div className="px-4 py-4 flex items-center gap-2">
+        <div className="header-drag px-4 py-4 flex items-center gap-2">
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="header-no-drag text-gray-400 hover:text-gray-600 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
@@ -97,7 +97,8 @@ export const SettingsPage: React.FC = () => {
         </nav>
       </div>
 
-      <div className="flex-1 min-w-0 overflow-y-auto">
+      <div className="flex-1 min-w-0 overflow-y-auto relative">
+        <div className="header-drag absolute top-0 left-0 right-0 h-14 z-10" />
         {activeTab === 'providers' && <ProviderConfigPanel />}
         {activeTab === 'mcp' && <McpListTab />}
         {activeTab === 'skills' && <SkillListTab />}
