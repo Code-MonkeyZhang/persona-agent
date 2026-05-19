@@ -13,7 +13,7 @@
  * - MessageList：消息展示
  * - InputBox：输入框
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Header } from './components/Header';
 import { MessageList, type MessageListRef } from './components/MessageList';
 import { InputBox } from './components/InputBox';
@@ -40,6 +40,26 @@ function AppContent() {
   /* 状态定义 */
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [companionClosing, setCompanionClosing] = useState(false);
+  const companionVisible = useCompanionStore((s) => s.visible);
+  const toggleCompanion = useCompanionStore((s) => s.toggleVisible);
+  const currentView = useViewStore((s) => s.currentView);
+  const editingAgentId = useViewStore((s) => s.editingAgentId);
+
+  const companionMounted = companionVisible || companionClosing;
+
+  const handleCompanionToggle = useCallback(() => {
+    if (companionVisible) {
+      setCompanionClosing(true);
+    } else {
+      toggleCompanion();
+    }
+  }, [companionVisible, toggleCompanion]);
+
+  const handleCompanionClosed = useCallback(() => {
+    toggleCompanion();
+    setCompanionClosing(false);
+  }, [toggleCompanion]);
   const pendingProviderRef = useRef<string | undefined>();
   const messageListRef = useRef<MessageListRef>(null);
 
@@ -64,9 +84,6 @@ function AppContent() {
 
   const { loadAgents, currentAgent, deleteAgentById } = useAgentStore();
   const { providers, loadProviders } = useProviderStore();
-  const companionVisible = useCompanionStore((s) => s.visible);
-  const currentView = useViewStore((s) => s.currentView);
-  const editingAgentId = useViewStore((s) => s.editingAgentId);
 
   /**
    * 删除指定 Agent
@@ -231,42 +248,51 @@ function AppContent() {
             collapsed={sidebarCollapsed}
             onToggle={() => setSidebarCollapsed(true)}
           />
-          <div className="flex-1 flex flex-col min-h-0 min-w-0 relative">
-            {sidebarCollapsed && (
-              <SessionSidebarToggle
-                isOpen={false}
-                onToggle={() => setSidebarCollapsed(false)}
+          <div className="flex-1 flex flex-col min-h-0 min-w-0">
+            <div className="header-drag relative">
+              {sidebarCollapsed && (
+                <SessionSidebarToggle
+                  isOpen={false}
+                  onToggle={() => setSidebarCollapsed(false)}
+                />
+              )}
+              <Header
+                onNewChat={handleNewChat}
+                onToggleCompanion={handleCompanionToggle}
               />
-            )}
-            <Header onNewChat={handleNewChat} />
-            <MessageList
-              ref={messageListRef}
-              key={currentSession?.id ?? 'no-session'}
-              messages={messages}
-              isLoading={isLoading}
-              sessionId={currentSession?.id ?? null}
-              hasAgent={!!currentAgent}
-              agent={currentAgent}
-            />
-            <InputBox
-              onSend={handleSend}
-              isLoading={isLoading}
-              disabled={!currentAgent}
-              providers={providers}
-              currentModelId={currentModelId}
-              currentProviderId={currentProviderId}
-              onModelChange={handleModelChange}
-              onProviderChange={handleProviderChange}
-              workspacePath={currentWorkspacePath}
-              onWorkspaceChange={handleWorkspaceChange}
-            />
-            {companionVisible && (
-              <CompanionPanel
-                agentId={currentAgent?.id ?? null}
+            </div>
+            <div className="flex-1 flex flex-col min-h-0 min-w-0 relative">
+              <MessageList
+                ref={messageListRef}
+                key={currentSession?.id ?? 'no-session'}
+                messages={messages}
+                isLoading={isLoading}
+                sessionId={currentSession?.id ?? null}
+                hasAgent={!!currentAgent}
+                agent={currentAgent}
+              />
+              <InputBox
                 onSend={handleSend}
                 isLoading={isLoading}
+                disabled={!currentAgent}
+                providers={providers}
+                currentModelId={currentModelId}
+                currentProviderId={currentProviderId}
+                onModelChange={handleModelChange}
+                onProviderChange={handleProviderChange}
+                workspacePath={currentWorkspacePath}
+                onWorkspaceChange={handleWorkspaceChange}
               />
-            )}
+              {companionMounted && (
+                <CompanionPanel
+                  agentId={currentAgent?.id ?? null}
+                  onSend={handleSend}
+                  isLoading={isLoading}
+                  isClosing={companionClosing}
+                  onClosed={handleCompanionClosed}
+                />
+              )}
+            </div>
           </div>
         </>
       )}

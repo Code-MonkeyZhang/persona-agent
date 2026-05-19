@@ -23,7 +23,7 @@ export const SessionSidebarToggle: React.FC<SessionSidebarToggleProps> = ({
     <button
       onClick={onToggle}
       className={`
-        absolute left-0 top-4 z-10
+        absolute left-0 top-4 z-10 header-no-drag
         flex items-center gap-1.5 p-1.5 rounded-r-lg transition-colors
         bg-white border border-l-0 border-gray-200 shadow-sm
         hover:bg-gray-100 text-gray-500 hover:text-gray-700

@@ -12,19 +12,26 @@ import { WindowControls } from './WindowControls';
 
 interface HeaderProps {
   onNewChat: () => void;
+  onToggleCompanion?: () => void;
 }
 
 /**
  * 顶部标题栏组件，显示当前会话标题，提供陪伴面板切换和新对话创建入口
  * @param props.onNewChat - 创建新对话的回调
+ * @param props.onToggleCompanion - 切换陪伴面板的回调，由 App.tsx 管理关闭动画时序
  */
-export const Header: React.FC<HeaderProps> = ({ onNewChat }) => {
+export const Header: React.FC<HeaderProps> = ({
+  onNewChat,
+  onToggleCompanion,
+}) => {
   const { currentSession } = useSessionStore();
   const { currentAgent } = useAgentStore();
-  const { visible, toggleVisible } = useCompanionStore();
+  const visible = useCompanionStore((s) => s.visible);
+  const handleToggle =
+    onToggleCompanion ?? useCompanionStore((s) => s.toggleVisible);
 
   return (
-    <header className="header-drag h-14 border-b border-gray-200 flex items-center justify-between bg-white">
+    <header className="h-14 border-b border-gray-200 flex items-center justify-between bg-white">
       <div
         className="flex items-center gap-4 px-6"
         style={{ paddingLeft: isMac ? '70px' : undefined }}
@@ -37,7 +44,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewChat }) => {
         {currentAgent && (
           <>
             <button
-              onClick={toggleVisible}
+              onClick={handleToggle}
               className={`inline-flex items-center justify-center h-8 px-3 text-xs rounded-xl border transition-colors ${
                 visible
                   ? 'bg-[#f0e6ff] text-purple-600 border-purple-200 hover:bg-[#e6d6ff]'

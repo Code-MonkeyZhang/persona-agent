@@ -4,12 +4,14 @@
  * 以全屏覆盖层的形式展示 AI 陪伴角色，叠加在聊天区域之上。
  * 面板包含：
  * - 背景图 + 角色立绘（支持表情切换）
- * - 顶部关闭按钮（毛玻璃风格）
+ * - 顶部语音开关按钮（毛玻璃风格）
  * - 底部 Agent 回复气泡（显示最后一条 assistant 消息，带入场动画，上下箭头指示溢出）
  * - 底部输入框 + 发送按钮（毛玻璃风格，直接调用主聊天发送逻辑）
+ *
+ * 关闭面板由 Header 中的「形象」按钮统一控制，面板内不再提供关闭按钮。
  */
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
-import { Send, X, ChevronUp, ChevronDown, Speech } from 'lucide-react';
+import { Send, ChevronUp, ChevronDown, Speech } from 'lucide-react';
 import { useCompanionStore } from '../stores/companionStore';
 import { useChatStore } from '../stores/chatStore';
 import { useVoiceStore } from '../stores/voiceStore';
@@ -22,11 +24,15 @@ import { Markdown } from './Markdown';
  * @property agentId - 当前 Agent ID，用于拼接资源 URL；为 null 时不渲染
  * @property onSend - 发送消息回调，复用主聊天区的发送逻辑
  * @property isLoading - 是否正在等待 Agent 回复
+ * @property isClosing - 是否正在播放退出动画
+ * @property onClosed - 退出动画播放完毕后的回调，父组件据此卸载面板
  */
 interface CompanionPanelProps {
   agentId: string | null;
   onSend: (content: string) => void;
   isLoading: boolean;
+  isClosing?: boolean;
+  onClosed?: () => void;
 }
 
 /**
@@ -39,9 +45,10 @@ export function CompanionPanel({
   agentId,
   onSend,
   isLoading,
+  isClosing,
+  onClosed,
 }: CompanionPanelProps) {
   const currentPose = useCompanionStore((s) => s.currentPose);
-  const toggleVisible = useCompanionStore((s) => s.toggleVisible);
   const messages = useChatStore((s) => s.messages);
   const voiceEnabled = useVoiceStore((s) => s.voiceEnabled);
   const toggleVoice = useVoiceStore((s) => s.toggleVoice);
@@ -165,16 +172,11 @@ export function CompanionPanel({
         className="absolute inset-0 z-30"
         style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
       >
-        <div className="flex flex-col h-full animate-companion-slide-in">
+        <div
+          className={`flex flex-col h-full ${isClosing ? 'animate-companion-slide-out' : 'animate-companion-slide-in'}`}
+          onAnimationEnd={isClosing ? onClosed : undefined}
+        >
           <div className="absolute inset-0 bg-gradient-to-b from-gray-100 to-gray-300" />
-          <div className="relative z-10 flex items-center justify-between px-4 pt-4 pb-2">
-            <button
-              onClick={toggleVisible}
-              className="w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm border border-white/50 flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.08)] text-[#333] hover:bg-white/90 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
           <div className="relative z-10 flex-1 flex items-center justify-center px-8">
             <div className="text-center">
               <p className="text-[18px] font-medium text-[#555] leading-relaxed">
@@ -195,7 +197,10 @@ export function CompanionPanel({
       className="absolute inset-0 z-30"
       style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
     >
-      <div className="flex flex-col h-full animate-companion-slide-in">
+      <div
+        className={`flex flex-col h-full ${isClosing ? 'animate-companion-slide-out' : 'animate-companion-slide-in'}`}
+        onAnimationEnd={isClosing ? onClosed : undefined}
+      >
         {hasAssets === null || bgError ? (
           <div className="absolute inset-0 bg-gradient-to-b from-gray-100 to-gray-300" />
         ) : (
@@ -216,13 +221,7 @@ export function CompanionPanel({
           />
         )}
 
-        <div className="relative z-10 flex items-center justify-between px-4 pt-4 pb-2">
-          <button
-            onClick={toggleVisible}
-            className="w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm border border-white/50 flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.08)] text-[#333] hover:bg-white/90 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
+        <div className="relative z-10 flex items-center justify-end px-4 pt-4 pb-2">
           <button
             onClick={handleVoiceToggle}
             disabled={!voiceConfigured}

@@ -81,6 +81,19 @@
   animation: companion-slide-in 0.3s ease-out forwards;
 }
 
+@keyframes companion-slide-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.animate-companion-slide-out {
+  animation: companion-slide-out 0.2s ease-in forwards;
+}
+
 /* ============================================
    Markdown Content Styles (.msg-content)
    ============================================ */
