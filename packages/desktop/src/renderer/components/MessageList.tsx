@@ -214,6 +214,9 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
                 initialTopMostItemIndex: messages.length - 1,
               })}
           increaseViewportBy={{ top: 2000, bottom: 2000 }}
+          components={{
+            Header: () => <div className="h-4" />,
+          }}
           itemContent={(_index, message) => (
             <MessageItem key={message.id} message={message} agent={agent} />
           )}

@@ -23,6 +23,7 @@ interface SessionStore {
   currentAgentId: string | null;
   isLoading: boolean;
   error: string | null;
+  isNewlyCreated: boolean;
 
   loadSessions: (agentId: string) => Promise<void>;
   createNewSession: (
@@ -58,6 +59,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   currentAgentId: null,
   isLoading: false,
   error: null,
+  isNewlyCreated: false,
 
   /**
    * 加载指定 agent 的所有会话，自动选中上次活跃的会话或第一个会话。
@@ -107,6 +109,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         currentSession: session,
         currentAgentId: agentId,
         isLoading: false,
+        isNewlyCreated: true,
       });
       return session;
     } catch (error) {

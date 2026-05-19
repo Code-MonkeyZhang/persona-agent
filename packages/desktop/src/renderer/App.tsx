@@ -99,20 +99,26 @@ function AppContent() {
     }
   }, [connectionStatus, currentAgent, loadSessions]);
 
-  // 切换会话时，同步会话状态（id、agentId、消息）到 UI；无会话则重置
+  const currentSessionId = currentSession?.id ?? null;
+
   useEffect(() => {
-    if (currentSession) {
-      setSessionId(currentSession.id);
-      setAgentId(currentSession.agentId);
-      const convertedMessages = convertSessionMessages(currentSession.messages);
-      setMessages(convertedMessages);
+    const session = useSessionStore.getState().currentSession;
+    if (session) {
+      setSessionId(session.id);
+      setAgentId(session.agentId);
+      if (useSessionStore.getState().isNewlyCreated) {
+        useSessionStore.setState({ isNewlyCreated: false });
+      } else {
+        const convertedMessages = convertSessionMessages(session.messages);
+        setMessages(convertedMessages);
+      }
     } else {
       setSessionId(null);
       setAgentId(currentAgent?.id ?? null);
       clearMessages();
     }
   }, [
-    currentSession,
+    currentSessionId,
     currentAgent,
     setSessionId,
     setAgentId,
