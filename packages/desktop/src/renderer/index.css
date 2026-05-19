@@ -370,3 +370,40 @@
 .companion-scroll-hidden::-webkit-scrollbar {
   display: none;
 }
+
+/* ============================================
+   SessionSidebar: scrollbar hidden by default,
+   visible on hover
+   ============================================ */
+
+.session-sidebar-scroll [data-testid="virtuoso-scroller"] {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.session-sidebar-scroll [data-testid="virtuoso-scroller"]::-webkit-scrollbar {
+  display: none;
+}
+
+.session-sidebar-scroll:hover [data-testid="virtuoso-scroller"] {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
+.session-sidebar-scroll:hover [data-testid="virtuoso-scroller"]::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+}
+
+.session-sidebar-scroll:hover [data-testid="virtuoso-scroller"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.session-sidebar-scroll:hover [data-testid="virtuoso-scroller"]::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+.session-sidebar-scroll:hover [data-testid="virtuoso-scroller"]::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}

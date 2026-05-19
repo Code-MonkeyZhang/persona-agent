@@ -114,7 +114,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
 
   return (
     <aside
-      className="h-full bg-white border-r border-gray-200 flex flex-col relative"
+      className="session-sidebar-scroll h-full bg-white border-r border-gray-200 flex flex-col relative"
       style={{ width: 240 }} //TODO 迟早要变化这个东西
     >
       <div className="header-drag p-4 border-b border-gray-200">
