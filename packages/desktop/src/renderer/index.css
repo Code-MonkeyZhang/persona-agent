@@ -41,7 +41,6 @@
     @apply bg-background text-foreground;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
     overflow: hidden;
   }
 
@@ -362,10 +361,6 @@
 /* ============================================
    Companion Panel: hidden scrollbar
    ============================================ */
-
-.companion-scroll-hidden {
-  scrollbar-width: none;
-}
 
 .companion-scroll-hidden::-webkit-scrollbar {
   display: none;
