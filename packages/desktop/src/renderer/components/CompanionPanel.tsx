@@ -65,6 +65,9 @@ export function CompanionPanel({
   useEffect(() => {
     if (!agentId) return;
     let cancelled = false;
+    useCompanionStore.getState().setPose('default');
+    setBgError(false);
+    setPoseError(false);
     setHasAssets(null);
     listPoses(agentId)
       .then((poses) => {
