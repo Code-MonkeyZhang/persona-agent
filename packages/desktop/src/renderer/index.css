@@ -376,18 +376,8 @@
    visible on hover
    ============================================ */
 
-.session-sidebar-scroll [data-testid="virtuoso-scroller"] {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
 .session-sidebar-scroll [data-testid="virtuoso-scroller"]::-webkit-scrollbar {
   display: none;
-}
-
-.session-sidebar-scroll:hover [data-testid="virtuoso-scroller"] {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
 }
 
 .session-sidebar-scroll:hover [data-testid="virtuoso-scroller"]::-webkit-scrollbar {
