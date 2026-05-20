@@ -4,9 +4,7 @@
 
 # Persona Agent
 
-**属于你自己的AI Agent**
-
-创建和管理多个 AI Agent，赋予它们形象和性格, 工具、技能，让成为你生活的帮手!
+persona-agent是个有用且有趣的个人AI Agent应用，你可以赋予它们立绘、声音和性格设定, 还支持配置MCP工具和AgentSkill！
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/Platform-macOS-informational)
@@ -41,6 +39,15 @@
 | macOS Intel         | `Persona-mac-x64-{version}.dmg`   |
 
 macOS 打开 DMG 拖入 Applications 即可。
+
+
+> [!NOTE]
+> 首次打开若弹出「"Persona.app"已损坏，无法打开」，请在mac终端执行以下命令即可解除限制：
+> 
+> ```bash
+> xattr -cr /Applications/Persona.app
+> ```
+> 执行后即可正常打开。
 
 
 
