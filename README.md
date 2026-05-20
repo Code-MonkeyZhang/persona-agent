@@ -53,7 +53,7 @@ macOS 打开 DMG 拖入 Applications 即可。
 
 ### Agent 形象自定义
 
-Persona 支持为每个 Agent 自定义角色立绘和对话背景图片。立绘会根据对话情绪自动切换对应表情。
+Persona 支持为每个 Agent 自定义角色立绘和对话背景图片。Agent会根据对话情绪自动切换对应表情。
 
 <table>
   <tr>
