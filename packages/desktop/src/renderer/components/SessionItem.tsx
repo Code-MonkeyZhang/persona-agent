@@ -6,6 +6,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Trash2, Pencil, Check, X, MoreVertical } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { SessionMeta } from '../types/session';
 import { cn } from '../lib/utils';
 
@@ -32,6 +33,7 @@ export const SessionItem: React.FC<SessionItemProps> = ({
   onDelete,
   onRename,
 }) => {
+  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(session.title);
@@ -184,7 +186,7 @@ export const SessionItem: React.FC<SessionItemProps> = ({
             <button
               onClick={handleMenuClick}
               className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
-              title="更多操作"
+              title={t('sessionItem.moreActions')}
             >
               <MoreVertical className="w-3.5 h-3.5" />
             </button>
@@ -209,14 +211,14 @@ export const SessionItem: React.FC<SessionItemProps> = ({
               className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
             >
               <Pencil className="w-3.5 h-3.5" />
-              <span>重命名</span>
+              <span>{t('sessionItem.rename')}</span>
             </button>
             <button
               onClick={handleMenuDelete}
               className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-red-500 hover:bg-red-50"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>删除</span>
+              <span>{t('sessionItem.delete')}</span>
             </button>
           </div>,
           document.body

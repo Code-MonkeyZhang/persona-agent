@@ -5,6 +5,7 @@
 
 import { useState, useCallback, useEffect, type ReactNode } from 'react';
 import { Check, Copy, ChevronDown, ChevronUp } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
 
 const COLLAPSE_THRESHOLD = 7;
@@ -38,6 +39,7 @@ interface CodeBlockProps {
  * 超过 COLLAPSE_THRESHOLD 行时默认折叠，折叠时显示渐变遮罩和"展开全部 N 行"按钮。
  */
 export function CodeBlock({ lang, code, highlightElement }: CodeBlockProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const lineCount = code.split('\n').filter((l) => l.trim() !== '').length;
@@ -68,27 +70,31 @@ export function CodeBlock({ lang, code, highlightElement }: CodeBlockProps) {
             <button
               onClick={() => setCollapsed(!collapsed)}
               className="code-block-action-btn"
-              title={collapsed ? '展开' : '折叠'}
+              title={
+                collapsed ? t('codeBlock.expand') : t('codeBlock.collapse')
+              }
             >
               {collapsed ? (
                 <ChevronDown className="w-3.5 h-3.5" />
               ) : (
                 <ChevronUp className="w-3.5 h-3.5" />
               )}
-              <span>{collapsed ? '展开' : '折叠'}</span>
+              <span>
+                {collapsed ? t('codeBlock.expand') : t('codeBlock.collapse')}
+              </span>
             </button>
           )}
           <button
             onClick={handleCopy}
             className="code-block-action-btn"
-            title="复制"
+            title={t('codeBlock.copy')}
           >
             {copied ? (
               <Check className="w-3.5 h-3.5 text-green-500" />
             ) : (
               <Copy className="w-3.5 h-3.5" />
             )}
-            <span>{copied ? '已复制' : '复制'}</span>
+            <span>{copied ? t('codeBlock.copied') : t('codeBlock.copy')}</span>
           </button>
         </div>
       </div>
@@ -103,7 +109,7 @@ export function CodeBlock({ lang, code, highlightElement }: CodeBlockProps) {
           className="code-block-expand-overlay"
         >
           <ChevronDown className="w-4 h-4" />
-          <span>展开全部 {lineCount} 行</span>
+          <span>{t('codeBlock.expandAllLines', { count: lineCount })}</span>
         </button>
       )}
     </div>

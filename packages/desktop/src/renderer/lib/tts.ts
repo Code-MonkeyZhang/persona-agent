@@ -4,6 +4,7 @@
  */
 
 import { logger } from './logger';
+import i18n from '../i18n';
 
 const TTS_API_URL = 'https://api.minimaxi.com/v1/t2a_v2';
 const DEFAULT_MODEL = 'speech-2.8-hd';
@@ -79,7 +80,7 @@ export async function synthesize(
       err instanceof Error ? err.message : String(err)
     );
     throw new Error(
-      `TTS 网络请求失败: ${err instanceof Error ? err.message : String(err)}`
+      `${i18n.t('tts.networkError')}: ${err instanceof Error ? err.message : String(err)}`
     );
   }
 
@@ -117,7 +118,7 @@ export async function synthesize(
       '[TTS] JSON parse failed, raw body:',
       jsonText.substring(0, 500)
     );
-    throw new Error('TTS API 返回了非法的 JSON');
+    throw new Error(i18n.t('tts.invalidJson'));
   }
 
   // 业务层错误：status_code 非 0 表示合成失败

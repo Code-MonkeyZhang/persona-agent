@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { FolderOpen, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { logger } from '../lib/logger';
 
 interface WorkspaceSelectorProps {
@@ -32,10 +33,12 @@ function getFolderName(path: string | undefined): string {
 export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
   value,
   onChange,
-  placeholder = '选择工作空间',
+  placeholder,
   disabled = false,
   compact = false,
 }) => {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder || t('workspace.selectWorkspace');
   /**
    * 打开系统文件夹选择对话框，用户确认后将路径回传给父组件
    */
@@ -44,7 +47,7 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
 
     try {
       const result = await window.api?.selectFolder?.({
-        title: '选择工作空间',
+        title: t('workspace.selectWorkspace'),
         defaultPath: value,
       });
 
@@ -71,11 +74,11 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
         onClick={handleSelectFolder}
         disabled={disabled}
         className="h-8 px-2 flex items-center gap-1 rounded-lg text-xs text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted/50 transition-colors duration-150 max-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed"
-        title={value || placeholder}
+        title={value || resolvedPlaceholder}
       >
         <FolderOpen className="h-4 w-4 shrink-0 text-blue-500" />
         <span className="truncate">
-          {value ? getFolderName(value) : placeholder}
+          {value ? getFolderName(value) : resolvedPlaceholder}
         </span>
       </button>
     );
@@ -93,14 +96,14 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
             {getFolderName(value)}
           </span>
         ) : (
-          <span className="text-sm text-gray-400">{placeholder}</span>
+          <span className="text-sm text-gray-400">{resolvedPlaceholder}</span>
         )}
       </div>
       {value && !disabled && (
         <button
           onClick={handleClear}
           className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
-          title="清除工作空间"
+          title={t('workspace.clearWorkspace')}
         >
           <X className="w-4 h-4" />
         </button>

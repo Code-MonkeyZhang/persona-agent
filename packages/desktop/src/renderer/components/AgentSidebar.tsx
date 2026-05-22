@@ -4,6 +4,7 @@
  */
 import React, { useState } from 'react';
 import { Settings, Plus, Loader2, Bot } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
 import { useAgentStore } from '../stores/agentStore';
 import { useViewStore } from '../stores/viewStore';
@@ -22,6 +23,7 @@ interface AgentSidebarProps {
 export const AgentSidebar: React.FC<AgentSidebarProps> = ({
   connectionStatus,
 }) => {
+  const { t } = useTranslation();
   const { agents, currentAgent, switchAgent } = useAgentStore();
   const { currentView, setView, openAgentEditor } = useViewStore();
   const [serverModalOpen, setServerModalOpen] = useState(false);
@@ -73,7 +75,7 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = ({
             <button
               onClick={(e) => handleEditClick(e, agent.id)}
               className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-200 rounded flex items-center justify-center hover:bg-gray-300"
-              title="编辑 Agent"
+              title={t('agentSidebar.editAgent')}
             >
               <Settings className="w-3 h-3" />
             </button>

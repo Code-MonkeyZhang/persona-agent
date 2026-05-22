@@ -14,6 +14,7 @@ import {
   CheckCircle,
   AlertTriangle,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   truncateText,
   getThoughtIcon,
@@ -36,6 +37,7 @@ const ThoughtItem = memo(function ThoughtItem({
 }: {
   thought: Thought;
 }) {
+  const { t } = useTranslation();
   const [showRawJson, setShowRawJson] = useState(false);
   const [showResult, setShowResult] = useState(true);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
@@ -88,7 +90,9 @@ const ThoughtItem = memo(function ThoughtItem({
                   onClick={() => setIsContentExpanded(!isContentExpanded)}
                   className="ml-1 text-blue-500 hover:text-blue-600"
                 >
-                  {isContentExpanded ? 'Collapse' : 'Expand'}
+                  {isContentExpanded
+                    ? t('thoughtProcess.collapse')
+                    : t('thoughtProcess.expand')}
                 </button>
               )}
             </div>
@@ -111,7 +115,11 @@ const ThoughtItem = memo(function ThoughtItem({
                       ? 'bg-blue-100 text-blue-600'
                       : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                   }`}
-                  title={showRawJson ? 'Hide raw JSON' : 'Show raw JSON'}
+                  title={
+                    showRawJson
+                      ? t('thoughtProcess.hideRawJson')
+                      : t('thoughtProcess.showRawJson')
+                  }
                 >
                   <Braces size={10} />
                 </button>
@@ -121,7 +129,9 @@ const ThoughtItem = memo(function ThoughtItem({
                 onClick={() => setShowResult(!showResult)}
                 className="px-1 py-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
               >
-                {showResult ? 'Hide' : 'Result'}
+                {showResult
+                  ? t('thoughtProcess.hide')
+                  : t('thoughtProcess.result')}
               </button>
             )}
           </div>
@@ -162,6 +172,7 @@ export function CollapsedThoughtProcess({
   thoughts,
   defaultExpanded = false,
 }: CollapsedThoughtProcessProps) {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [isMaximized, setIsMaximized] = useState(false);
 
@@ -193,7 +204,9 @@ export function CollapsedThoughtProcess({
           <Lightbulb size={14} className="text-blue-500" />
         )}
 
-        <span className="text-gray-500">Show Thinking</span>
+        <span className="text-gray-500">
+          {t('thoughtProcess.showThinking')}
+        </span>
       </button>
 
       {/* Expanded content */}
@@ -219,7 +232,9 @@ export function CollapsedThoughtProcess({
                 ) : (
                   <ChevronDown size={12} />
                 )}
-                {isMaximized ? 'Compact' : 'Full'}
+                {isMaximized
+                  ? t('thoughtProcess.compact')
+                  : t('thoughtProcess.full')}
               </button>
             </div>
           )}

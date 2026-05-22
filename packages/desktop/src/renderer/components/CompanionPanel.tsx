@@ -12,6 +12,7 @@
  */
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { Send, ChevronUp, ChevronDown, Speech } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useCompanionStore } from '../stores/companionStore';
 import { useChatStore } from '../stores/chatStore';
 import { useVoiceStore } from '../stores/voiceStore';
@@ -48,6 +49,7 @@ export function CompanionPanel({
   isClosing,
   onClosed,
 }: CompanionPanelProps) {
+  const { t } = useTranslation();
   const currentPose = useCompanionStore((s) => s.currentPose);
   const messages = useChatStore((s) => s.messages);
   const voiceEnabled = useVoiceStore((s) => s.voiceEnabled);
@@ -180,10 +182,10 @@ export function CompanionPanel({
           <div className="relative z-10 flex-1 flex items-center justify-center px-8">
             <div className="text-center">
               <p className="text-[18px] font-medium text-[#555] leading-relaxed">
-                该 Agent 还未配置陪伴形象
+                {t('companion.noAppearance')}
               </p>
               <p className="text-[14px] text-[#999] mt-3 leading-relaxed">
-                请在 Agent 编辑器的「形象」栏中上传立绘图片
+                {t('companion.uploadPoseHint')}
               </p>
             </div>
           </div>
@@ -270,7 +272,7 @@ export function CompanionPanel({
               </div>
             ) : (
               <div className="rounded-[24px] bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)] px-4 py-2 text-[13px] text-[#999] animate-pulse text-center">
-                思考中...
+                {t('companion.thinking')}
               </div>
             )}
           </div>
@@ -283,7 +285,7 @@ export function CompanionPanel({
               value={inputText}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
-              placeholder="输入信息..."
+              placeholder={t('companion.inputPlaceholder')}
               rows={1}
               className="w-full resize-none bg-transparent text-[15px] text-[#333] placeholder:text-[#999] focus-visible:outline-none max-h-[120px]"
             />
@@ -306,7 +308,7 @@ export function CompanionPanel({
 
       {showVoiceToast && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full bg-black/70 text-white text-[13px] whitespace-nowrap">
-          请先在 Agent 编辑器中配置音色
+          {t('companion.configureVoiceFirst')}
         </div>
       )}
     </div>

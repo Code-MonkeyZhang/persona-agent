@@ -12,6 +12,7 @@ import { synthesize } from '../lib/tts';
 import { audioPlayer } from '../lib/audio-player';
 import { toast } from './toastStore';
 import { logger } from '../lib/logger';
+import i18n from '../i18n';
 
 interface VoiceStore {
   isSpeaking: boolean;
@@ -65,7 +66,10 @@ export const useVoiceStore = create<VoiceStore>()(
             '[VoiceStore] speak failed:',
             err instanceof Error ? err.message : String(err)
           );
-          const message = err instanceof Error ? err.message : '语音播报失败';
+          const message =
+            err instanceof Error
+              ? err.message
+              : i18n.t('voice.broadcastFailed');
           toast.error(message);
         }
       },

@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Check, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useProviderStore } from '../stores/providerStore';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
@@ -20,6 +21,7 @@ import { cn } from '../lib/utils';
  * 左侧列出供应商、右侧展示 API Key 配置和模型列表，整体嵌套在单张圆角卡片内
  */
 export const ProviderConfigPanel: React.FC = () => {
+  const { t } = useTranslation();
   const {
     providers,
     isLoading,
@@ -71,7 +73,7 @@ export const ProviderConfigPanel: React.FC = () => {
     if (!currentProvider) return;
 
     if (!displayApiKey.trim()) {
-      setVerifyStatus({ valid: false, error: '请输入 API Key' });
+      setVerifyStatus({ valid: false, error: t('provider.enterApiKey') });
       return;
     }
 
@@ -82,11 +84,11 @@ export const ProviderConfigPanel: React.FC = () => {
     if (result.valid) {
       const success = await setCredential(currentProvider.id, displayApiKey);
       if (success) {
-        toast.success('保存成功');
+        toast.success(t('common.saveSuccess'));
         setApiKey('');
         clearPendingCredential(currentProvider.id);
       } else {
-        toast.error('保存失败');
+        toast.error(t('common.saveFailed'));
         logger.error('[ProviderConfig] Failed to save credential');
       }
     } else {
@@ -99,7 +101,9 @@ export const ProviderConfigPanel: React.FC = () => {
    */
   const handleDelete = async () => {
     if (!currentProvider) return;
-    if (confirm(`确定要删除 ${currentProvider.name} 的 API Key 吗？`)) {
+    if (
+      confirm(t('provider.confirmDeleteKey', { name: currentProvider.name }))
+    ) {
       const success = await deleteCredential(currentProvider.id);
       if (success) {
         setApiKey('');
@@ -128,7 +132,7 @@ export const ProviderConfigPanel: React.FC = () => {
           <div className="w-56 shrink-0 border-r border-[#f0f0f0] py-3 flex flex-col">
             <div className="px-4 pb-2 mb-1">
               <span className="text-[13px] font-medium text-[#999]">
-                选择供应商
+                {t('provider.selectProvider')}
               </span>
             </div>
             <div className="px-2 flex flex-col gap-0.5">
@@ -161,7 +165,7 @@ export const ProviderConfigPanel: React.FC = () => {
                     {currentProvider.name}
                   </h3>
                   <p className="text-[12px] text-[#999]">
-                    配置 {currentProvider.name} 的 API 密钥以启用相关模型
+                    {t('provider.configDesc', { name: currentProvider.name })}
                   </p>
                 </div>
 
@@ -199,7 +203,7 @@ export const ProviderConfigPanel: React.FC = () => {
                       {verifyingProvider === currentProvider.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
-                        '验证'
+                        t('provider.verify')
                       )}
                     </Button>
                   </div>
@@ -207,12 +211,12 @@ export const ProviderConfigPanel: React.FC = () => {
 
                 {currentProvider.hasAuth && !apiKey && !verifyStatus && (
                   <p className="text-[12px] text-green-600 mt-2 flex items-center gap-1">
-                    <Check className="w-3 h-3" /> 已配置
+                    <Check className="w-3 h-3" /> {t('provider.configured')}
                   </p>
                 )}
                 {verifyStatus?.valid && (
                   <p className="text-[12px] text-green-600 mt-2 flex items-center gap-1">
-                    <Check className="w-3 h-3" /> API Key 有效
+                    <Check className="w-3 h-3" /> {t('provider.apiKeyValid')}
                   </p>
                 )}
                 {verifyStatus?.error && (
@@ -224,7 +228,7 @@ export const ProviderConfigPanel: React.FC = () => {
                 {/* 模型列表: 内嵌分隔线而非独立卡片 */}
                 <div className="mt-4 pt-4 border-t border-[#f0f0f0]">
                   <h3 className="text-[14px] font-bold text-[#333] mb-3">
-                    可用模型
+                    {t('provider.availableModels')}
                   </h3>
                   <div className="flex flex-col divide-y divide-[#f0f0f0]">
                     {currentProvider.models.map((model) => (
@@ -248,13 +252,13 @@ export const ProviderConfigPanel: React.FC = () => {
                     onClick={handleDelete}
                     className="text-[12px] text-[#ccc] hover:text-red-400 transition-colors mt-4"
                   >
-                    删除 API Key
+                    {t('provider.deleteApiKey')}
                   </button>
                 )}
               </>
             ) : (
               <div className="flex items-center justify-center h-full text-[#999]">
-                选择一个供应商进行配置
+                {t('provider.selectToConfigure')}
               </div>
             )}
           </div>

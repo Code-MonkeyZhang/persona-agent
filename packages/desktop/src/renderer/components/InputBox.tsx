@@ -12,6 +12,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import type { KeyboardEvent } from 'react';
 import { Plus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
 import { ModelSelector } from './ModelSelector';
 import { WorkspaceSelector } from './WorkspaceSelector';
@@ -56,9 +57,9 @@ export const InputBox: React.FC<InputBoxProps> = ({
   onProviderChange,
   onWorkspaceChange,
 }) => {
-  /** 用户当前输入的文本内容 */
   const [input, setInput] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const { t } = useTranslation();
   /** textarea 元素的引用，用于手动重置高度 */
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -129,7 +130,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
             onKeyDown={handleKeyDown}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            placeholder="输入消息..."
+            placeholder={t('inputBox.placeholder')}
             rows={1}
             className="w-full bg-transparent resize-none focus:outline-none text-[15px] text-[#333] placeholder:text-[#b0b0b0] min-h-[24px]"
             style={{ maxHeight: '200px' }}
@@ -143,7 +144,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
             {/* 添加附件按钮（当前为占位，暂无实际功能） */}
             <button
               className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50 transition-colors duration-150"
-              title="添加附件"
+              title={t('inputBox.addAttachment')}
             >
               <Plus size={18} />
             </button>
@@ -176,7 +177,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
                 ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95'
                 : 'bg-muted/50 text-muted-foreground/40 cursor-not-allowed'
             )}
-            title="发送消息"
+            title={t('inputBox.sendMessage')}
           >
             <svg
               className="w-4 h-4"

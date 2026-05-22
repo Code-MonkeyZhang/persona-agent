@@ -19,6 +19,8 @@ import {
   Loader2,
   HelpCircle,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 import {
   getTtsConfig,
   updateTtsConfig,
@@ -64,7 +66,7 @@ function getAudioDuration(file: File): Promise<number> {
     };
     audio.onerror = () => {
       URL.revokeObjectURL(audio.src);
-      reject(new Error('无法读取音频文件'));
+      reject(new Error(i18n.t('voice.cannotReadAudio')));
     };
     audio.src = URL.createObjectURL(file);
   });
@@ -82,6 +84,7 @@ function generateVoiceId(): string {
  * TTS 模型选择，语音摘要阈值设置，以及克隆音色管理
  */
 export const VoiceConfigPanel: React.FC = () => {
+  const { t } = useTranslation();
   const [inputKey, setInputKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -137,7 +140,7 @@ export const VoiceConfigPanel: React.FC = () => {
   const handleSaveKey = async () => {
     const key = inputKey.trim();
     if (!key) {
-      setFeedback({ type: 'error', message: '请输入 API Key' });
+      setFeedback({ type: 'error', message: t('voice.enterApiKey') });
       return;
     }
 
@@ -151,9 +154,10 @@ export const VoiceConfigPanel: React.FC = () => {
         selectedModel || 'speech-2.8-hd'
       );
       await updateTtsConfig({ apiKey: key });
-      setFeedback({ type: 'success', message: 'API Key 验证通过，已保存' });
+      setFeedback({ type: 'success', message: t('voice.apiKeyVerified') });
     } catch (err) {
-      const message = err instanceof Error ? err.message : '验证失败';
+      const message =
+        err instanceof Error ? err.message : t('voice.verifyFailed');
       setFeedback({ type: 'error', message });
     } finally {
       setVerifying(false);
@@ -203,7 +207,7 @@ export const VoiceConfigPanel: React.FC = () => {
     try {
       const config = await getTtsConfig();
       if (!config.apiKey) {
-        toast.warning('请先配置 MiniMax API Key');
+        toast.warning(t('voice.configureApiKeyFirst'));
         return;
       }
       setPreviewingId(voiceId);
@@ -215,7 +219,8 @@ export const VoiceConfigPanel: React.FC = () => {
       );
       audioPlayer.play(audio);
     } catch (err) {
-      const message = err instanceof Error ? err.message : '试听失败';
+      const message =
+        err instanceof Error ? err.message : t('voice.previewFailed');
       toast.error(message);
     } finally {
       setTimeout(() => setPreviewingId(null), 3000);
@@ -228,7 +233,8 @@ export const VoiceConfigPanel: React.FC = () => {
       await deleteClonedVoice(voiceId);
       setClonedVoices((prev) => prev.filter((v) => v.id !== voiceId));
     } catch (err) {
-      const message = err instanceof Error ? err.message : '删除失败';
+      const message =
+        err instanceof Error ? err.message : t('common.deleteFailed');
       toast.error(message);
     }
   };
@@ -261,31 +267,31 @@ export const VoiceConfigPanel: React.FC = () => {
    */
   const handleClone = async () => {
     if (!cloneName.trim()) {
-      toast.warning('请输入音色名称');
+      toast.warning(t('voice.enterVoiceName'));
       return;
     }
     if (!cloneFile) {
-      toast.warning('请选择音频文件');
+      toast.warning(t('voice.selectAudioFile'));
       return;
     }
 
     if (!ALLOWED_AUDIO_TYPES.has(cloneFile.type)) {
-      toast.warning('仅支持 mp3、m4a、wav 格式');
+      toast.warning(t('voice.audioFormatUnsupported'));
       return;
     }
     if (cloneFile.size > 20 * 1024 * 1024) {
-      toast.warning('文件大小不能超过 20MB');
+      toast.warning(t('voice.fileSizeExceeded'));
       return;
     }
 
     try {
       const duration = await getAudioDuration(cloneFile);
       if (duration < 10 || duration > 300) {
-        toast.warning('音频时长需在 10 秒到 5 分钟之间');
+        toast.warning(t('voice.audioDurationInvalid'));
         return;
       }
     } catch {
-      toast.error('无法读取音频时长，请检查文件');
+      toast.error(t('voice.cannotReadAudioDuration'));
       return;
     }
 
@@ -296,9 +302,10 @@ export const VoiceConfigPanel: React.FC = () => {
       const voices = await getVoices();
       setClonedVoices(voices.filter((v) => v.group === 'cloned'));
       resetCloneForm();
-      toast.success('音色克隆成功');
+      toast.success(t('voice.cloneSuccess'));
     } catch (err) {
-      const message = err instanceof Error ? err.message : '克隆失败';
+      const message =
+        err instanceof Error ? err.message : t('voice.cloneFailed');
       toast.error(message);
     } finally {
       setCloning(false);
@@ -310,11 +317,9 @@ export const VoiceConfigPanel: React.FC = () => {
       {/* API Key 配置 */}
       <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
         <h3 className="text-[14px] font-bold text-[#333] mb-1">
-          MiniMax（语音合成）
+          {t('voice.minimaxTitle')}
         </h3>
-        <p className="text-[12px] text-[#999] mb-4">
-          配置 MiniMax API Key 以启用语音播报功能
-        </p>
+        <p className="text-[12px] text-[#999] mb-4">{t('voice.minimaxDesc')}</p>
 
         <SettingRow label="API Key">
           <div className="flex items-center gap-2">
@@ -323,7 +328,7 @@ export const VoiceConfigPanel: React.FC = () => {
                 type={showKey ? 'text' : 'password'}
                 value={inputKey}
                 onChange={(e) => setInputKey(e.target.value)}
-                placeholder="输入 MiniMax API Key"
+                placeholder={t('voice.enterMinimaxApiKey')}
                 className="w-64 h-8 px-3 text-[13px] border border-[#e0e0e0] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#999] pr-10"
               />
               <button
@@ -343,7 +348,7 @@ export const VoiceConfigPanel: React.FC = () => {
               disabled={!inputKey.trim() || verifying}
               className="h-8 px-3 text-[13px] rounded-lg border border-[#d0d0d0] text-[#666] hover:text-[#333] hover:border-[#999] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {verifying ? '验证中...' : '验证并保存'}
+              {verifying ? t('voice.verifying') : t('voice.verifyAndSave')}
             </button>
           </div>
         </SettingRow>
@@ -364,8 +369,10 @@ export const VoiceConfigPanel: React.FC = () => {
 
       {/* 语音参数 */}
       <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
-        <h3 className="text-[14px] font-bold text-[#333] mb-3">语音参数</h3>
-        <SettingRow label="TTS 模型">
+        <h3 className="text-[14px] font-bold text-[#333] mb-3">
+          {t('voice.params')}
+        </h3>
+        <SettingRow label={t('voice.ttsModel')}>
           <select
             value={selectedModel}
             onChange={(e) => handleModelChange(e.target.value)}
@@ -383,11 +390,11 @@ export const VoiceConfigPanel: React.FC = () => {
         <div className="flex items-center justify-between min-h-[32px] gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-1 text-[14px] text-[#333] leading-[18px]">
-              语音摘要阈值
+              {t('voice.summaryThreshold')}
               <span className="relative group">
                 <HelpCircle className="w-3.5 h-3.5 text-[#999] cursor-help" />
                 <span className="absolute left-5 top-1/2 -translate-y-1/2 w-60 px-2 py-1.5 text-[12px] text-[#666] bg-white border border-[#e0e0e0] rounded-lg shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10 pointer-events-none">
-                  当回复超过此字符数时，会自动将内容总结后再播放，避免播报过长
+                  {t('voice.summaryThresholdTooltip')}
                 </span>
               </span>
             </div>
@@ -402,7 +409,9 @@ export const VoiceConfigPanel: React.FC = () => {
               disabled={savingThreshold}
               className="w-20 h-8 px-3 text-[13px] text-right border border-[#e0e0e0] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#999]"
             />
-            <span className="text-[12px] text-[#999]">字符</span>
+            <span className="text-[12px] text-[#999]">
+              {t('voice.characters')}
+            </span>
           </div>
         </div>
       </div>
@@ -411,9 +420,11 @@ export const VoiceConfigPanel: React.FC = () => {
       <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="text-[14px] font-bold text-[#333]">克隆音色管理</h3>
+            <h3 className="text-[14px] font-bold text-[#333]">
+              {t('voice.cloneManagement')}
+            </h3>
             <p className="text-[12px] text-[#999] mt-0.5">
-              上传音频克隆自定义音色，可在 Agent 中选用
+              {t('voice.cloneDesc')}
             </p>
           </div>
           {!showCloneForm && (
@@ -422,7 +433,7 @@ export const VoiceConfigPanel: React.FC = () => {
               className="h-8 px-3 text-[13px] rounded-lg border border-[#d0d0d0] text-[#666] hover:text-[#333] hover:border-[#999] transition-colors flex items-center gap-1"
             >
               <Plus className="w-3.5 h-3.5" />
-              克隆新音色
+              {t('voice.cloneNew')}
             </button>
           )}
         </div>
@@ -431,7 +442,7 @@ export const VoiceConfigPanel: React.FC = () => {
           <div className="mb-4 p-4 rounded-lg border border-dashed border-[#d0d0d0] bg-[#fafafa]">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[13px] font-medium text-[#333]">
-                上传音频克隆
+                {t('voice.uploadClone')}
               </span>
               <button
                 onClick={resetCloneForm}
@@ -443,22 +454,28 @@ export const VoiceConfigPanel: React.FC = () => {
 
             <div className="flex flex-col gap-3">
               <div>
-                <div className="text-[12px] text-[#666] mb-1">音色名称</div>
+                <div className="text-[12px] text-[#666] mb-1">
+                  {t('voice.voiceName')}
+                </div>
                 <input
                   type="text"
                   value={cloneName}
                   onChange={(e) => setCloneName(e.target.value)}
-                  placeholder="给克隆的音色起个名字"
+                  placeholder={t('voice.voiceNamePlaceholder')}
                   className="w-full h-8 px-3 text-[13px] border border-[#e0e0e0] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#999]"
                 />
               </div>
 
               <div>
-                <div className="text-[12px] text-[#666] mb-1">音频文件</div>
+                <div className="text-[12px] text-[#666] mb-1">
+                  {t('voice.audioFile')}
+                </div>
                 <div className="flex items-center gap-2">
                   <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-dashed border-[#d0d0d0] hover:border-[#999] transition-colors cursor-pointer text-[12px] text-[#666]">
                     <Upload className="w-3.5 h-3.5" />
-                    <span>{cloneFileName || '选择音频文件'}</span>
+                    <span>
+                      {cloneFileName || t('voice.selectAudioFileBtn')}
+                    </span>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -468,7 +485,7 @@ export const VoiceConfigPanel: React.FC = () => {
                     />
                   </label>
                   <span className="text-[11px] text-[#999]">
-                    mp3/m4a/wav, 10秒~5分钟
+                    {t('voice.audioFileHint')}
                   </span>
                 </div>
               </div>
@@ -478,7 +495,7 @@ export const VoiceConfigPanel: React.FC = () => {
                   onClick={resetCloneForm}
                   className="h-8 px-3 text-[13px] rounded-lg border border-[#e0e0e0] text-[#666] hover:text-[#333] transition-colors"
                 >
-                  取消
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleClone}
@@ -488,10 +505,10 @@ export const VoiceConfigPanel: React.FC = () => {
                   {cloning ? (
                     <span className="flex items-center gap-1.5">
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      克隆中...
+                      {t('voice.cloning')}
                     </span>
                   ) : (
-                    '开始克隆'
+                    t('voice.startClone')
                   )}
                 </button>
               </div>
@@ -501,7 +518,7 @@ export const VoiceConfigPanel: React.FC = () => {
 
         {clonedVoices.length === 0 ? (
           <div className="text-[#ccc] text-[13px] py-6 text-center border border-dashed border-[#e8e8e8] rounded-lg">
-            暂无克隆音色，点击上方按钮开始克隆
+            {t('voice.noClonedVoices')}
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -521,7 +538,7 @@ export const VoiceConfigPanel: React.FC = () => {
                     onClick={() => handlePreviewVoice(v.id)}
                     disabled={previewingId === v.id}
                     className="h-7 w-7 flex items-center justify-center rounded-md text-[#999] hover:text-[#333] hover:bg-[#f0f0f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="试听"
+                    title={t('voice.preview')}
                   >
                     {previewingId === v.id ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -532,7 +549,7 @@ export const VoiceConfigPanel: React.FC = () => {
                   <button
                     onClick={() => handleDeleteVoice(v.id)}
                     className="h-7 w-7 flex items-center justify-center rounded-md text-[#999] hover:text-red-500 hover:bg-red-50 transition-colors"
-                    title="删除"
+                    title={t('common.delete')}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
