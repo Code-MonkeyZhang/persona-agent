@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { X, Bot, Loader2, Copy, Check, Globe, Cloud } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useTunnelStore } from '../stores/tunnelStore';
 import { getBaseUrl } from '../lib/api';
 import type { ConnectionStatus } from '../types/chat';
@@ -17,20 +18,20 @@ interface ServerManagerModalProps {
 
 const serverStatusConfig: Record<
   ConnectionStatus,
-  { label: string; color: string; dotColor: string }
+  { labelKey: string; color: string; dotColor: string }
 > = {
   connected: {
-    label: '已连接',
+    labelKey: 'server.connected',
     color: 'text-green-600',
     dotColor: 'bg-green-500',
   },
   disconnected: {
-    label: '未连接',
+    labelKey: 'server.disconnected',
     color: 'text-red-500',
     dotColor: 'bg-red-500',
   },
   connecting: {
-    label: '连接中',
+    labelKey: 'server.connecting',
     color: 'text-yellow-500',
     dotColor: 'bg-yellow-500 animate-pulse',
   },
@@ -44,6 +45,7 @@ export const ServerManagerModal: React.FC<ServerManagerModalProps> = ({
   onClose,
   connectionStatus,
 }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   const config = serverStatusConfig[connectionStatus];
@@ -58,7 +60,7 @@ export const ServerManagerModal: React.FC<ServerManagerModalProps> = ({
         >
           <div className="px-6 pt-6 pb-0">
             <div className="flex items-center justify-between">
-              <h3 className="text-[#333]">服务器管理</h3>
+              <h3 className="text-[#333]">{t('server.title')}</h3>
               <button
                 onClick={onClose}
                 className="p-1 hover:bg-[#f0f0f0] rounded text-[#999]"
@@ -94,6 +96,7 @@ function ServerSection({
   connectionStatus: ConnectionStatus;
   config: (typeof serverStatusConfig)[ConnectionStatus];
 }) {
+  const { t } = useTranslation();
   const [serverUrl, setServerUrl] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -120,10 +123,12 @@ function ServerSection({
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-[15px] text-[#333]">Agent 服务器</div>
+        <div className="font-medium text-[15px] text-[#333]">
+          {t('server.agentServer')}
+        </div>
         <div className="flex items-center gap-1.5 text-[14px] text-[#666]">
           <span className={`w-2 h-2 rounded-full ${config.dotColor}`} />
-          <span className={config.color}>{config.label}</span>
+          <span className={config.color}>{t(config.labelKey)}</span>
         </div>
       </div>
       {connectionStatus === 'connected' && serverUrl && (
@@ -147,6 +152,7 @@ function TunnelSection({
 }: {
   connectionStatus: ConnectionStatus;
 }) {
+  const { t } = useTranslation();
   const { status, url, error, start, stop, refreshStatus } = useTunnelStore();
 
   React.useEffect(() => {
@@ -172,14 +178,18 @@ function TunnelSection({
       <div>
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-medium text-[14px] text-[#333]">远程访问</p>
-            <p className="text-[13px] text-[#999]">请先连接服务器</p>
+            <p className="font-medium text-[14px] text-[#333]">
+              {t('server.remoteAccess')}
+            </p>
+            <p className="text-[13px] text-[#999]">
+              {t('server.connectFirst')}
+            </p>
           </div>
           <button
             disabled
             className="px-3 py-1.5 rounded-xl text-[13px] bg-[#222]/10 text-[#333] opacity-50 cursor-not-allowed"
           >
-            启动隧道
+            {t('server.startTunnel')}
           </button>
         </div>
       </div>
@@ -190,10 +200,10 @@ function TunnelSection({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="font-medium text-[14px] text-[#333]">远程访问</p>
-          <p className="text-[13px] text-[#999]">
-            通过 Cloudflare 隧道获取公网地址
+          <p className="font-medium text-[14px] text-[#333]">
+            {t('server.remoteAccess')}
           </p>
+          <p className="text-[13px] text-[#999]">{t('server.tunnelDesc')}</p>
         </div>
         <button
           onClick={handleToggle}
@@ -205,10 +215,10 @@ function TunnelSection({
           } disabled:opacity-50`}
         >
           {status === 'starting'
-            ? '连接中...'
+            ? t('server.tunnelConnecting')
             : isEnabled
-              ? '停止隧道'
-              : '启动隧道'}
+              ? t('server.stopTunnel')
+              : t('server.startTunnel')}
         </button>
       </div>
 
@@ -216,7 +226,7 @@ function TunnelSection({
         <div className="rounded-[16px] border border-[#f0f0f0] p-3 flex items-center gap-2">
           <Loader2 className="w-4 h-4 animate-spin text-yellow-500" />
           <span className="text-[14px] text-[#666]">
-            正在建立隧道连接，请稍候...
+            {t('server.tunnelConnectingMsg')}
           </span>
         </div>
       )}
@@ -226,7 +236,9 @@ function TunnelSection({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Cloud className="w-4 h-4 text-green-500" />
-              <span className="text-[14px] text-green-500">公网地址</span>
+              <span className="text-[14px] text-green-500">
+                {t('server.publicUrl')}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <code className="text-[13px] bg-white px-2 py-1 rounded-[12px] text-green-500">
@@ -243,7 +255,9 @@ function TunnelSection({
 
       {status === 'error' && error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-[16px] p-3">
-          <p className="text-[14px] text-red-500">隧道连接失败: {error}</p>
+          <p className="text-[14px] text-red-500">
+            {t('server.tunnelFailed')}: {error}
+          </p>
         </div>
       )}
     </div>

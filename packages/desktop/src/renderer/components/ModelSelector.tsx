@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ProviderInfo } from '../lib/api';
 import {
   Select,
@@ -46,6 +47,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   disabled = false,
   compact = false,
 }) => {
+  const { t } = useTranslation();
   const filteredProviders = showOnlyVerified
     ? providers.filter((p) => p.hasAuth)
     : providers;
@@ -85,14 +87,14 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
       <div
         className={`px-3 py-2 border border-gray-200 rounded-md text-sm text-gray-400 ${className}`}
       >
-        暂无可用模型
+        {t('model.noModels')}
       </div>
     );
   }
 
   const displayText = currentModel
     ? `${currentModel} (${currentProvider?.name || ''})`
-    : '选择模型';
+    : t('model.selectModel');
 
   if (compact) {
     return (
@@ -103,7 +105,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
           disabled={disabled}
         >
           <SelectTrigger className="h-8 w-auto min-w-[120px] max-w-[200px] border-0 bg-transparent hover:bg-muted/50 px-2.5 text-xs text-muted-foreground/60 hover:text-muted-foreground shadow-none focus:ring-0 focus:ring-offset-0">
-            <SelectValue placeholder="选择模型">
+            <SelectValue placeholder={t('model.selectModel')}>
               <span className="truncate">{displayText}</span>
             </SelectValue>
           </SelectTrigger>
@@ -137,7 +139,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
         disabled={disabled}
       >
         <SelectTrigger className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm hover:bg-gray-50 focus:ring-blue-500">
-          <SelectValue placeholder="选择模型">
+          <SelectValue placeholder={t('model.selectModel')}>
             {currentModel ? (
               <>
                 <span className="font-medium">{currentModel}</span>
@@ -146,7 +148,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                 </span>
               </>
             ) : (
-              <span className="text-gray-400">选择模型</span>
+              <span className="text-gray-400">{t('model.selectModel')}</span>
             )}
           </SelectValue>
         </SelectTrigger>

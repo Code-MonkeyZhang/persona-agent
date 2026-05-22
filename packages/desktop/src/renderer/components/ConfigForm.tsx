@@ -6,15 +6,16 @@
 
 import React from 'react';
 import { FolderOpen } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useConfigStore } from '../stores/configStore';
 import { Switch } from './ui/Switch';
 import { SettingRow, SettingDivider } from './SettingRow';
 
 const STORAGE_PATHS = [
-  { label: '智能体目录', path: '~/.local/share/persona-agent/agents/' },
-  { label: '技能目录', path: '~/.local/share/persona-agent/skills/' },
-  { label: 'MCP 配置', path: '~/.local/share/persona-agent/mcp/' },
-  { label: '日志目录', path: '~/.local/share/persona-agent/logs/' },
+  { labelKey: 'config.agentDir', path: '~/.local/share/persona-agent/agents/' },
+  { labelKey: 'config.skillDir', path: '~/.local/share/persona-agent/skills/' },
+  { labelKey: 'config.mcpDir', path: '~/.local/share/persona-agent/mcp/' },
+  { labelKey: 'config.logDir', path: '~/.local/share/persona-agent/logs/' },
 ] as const;
 
 function PathRow({ label, path }: { label: string; path: string }) {
@@ -42,6 +43,7 @@ function PathRow({ label, path }: { label: string; path: string }) {
  * 通用配置表单组件，提供日志启用开关和存储路径展示
  */
 export const ConfigForm: React.FC = () => {
+  const { t, i18n } = useTranslation();
   const { config, updateField, saveConfig } = useConfigStore();
 
   if (!config) return null;
@@ -62,8 +64,41 @@ export const ConfigForm: React.FC = () => {
   return (
     <div className="p-5 flex flex-col gap-4">
       <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
-        <h3 className="text-[14px] font-bold text-[#333] mb-3">基本</h3>
-        <SettingRow label="启用日志" desc="将运行日志记录到本地文件">
+        <h3 className="text-[14px] font-bold text-[#333] mb-3">
+          {t('config.basic')}
+        </h3>
+        <SettingRow
+          label={t('config.language')}
+          desc={t('config.languageDesc')}
+        >
+          <div className="flex rounded-lg border border-[#e8e8e8] overflow-hidden">
+            <button
+              onClick={() => i18n.changeLanguage('zh-CN')}
+              className={`px-3 py-1 text-[13px] leading-[18px] transition-colors ${
+                i18n.language === 'zh-CN'
+                  ? 'bg-[#333] text-white'
+                  : 'bg-white text-[#666] hover:bg-[#f5f5f5]'
+              }`}
+            >
+              中文
+            </button>
+            <button
+              onClick={() => i18n.changeLanguage('en')}
+              className={`px-3 py-1 text-[13px] leading-[18px] transition-colors border-l border-[#e8e8e8] ${
+                i18n.language === 'en'
+                  ? 'bg-[#333] text-white'
+                  : 'bg-white text-[#666] hover:bg-[#f5f5f5]'
+              }`}
+            >
+              English
+            </button>
+          </div>
+        </SettingRow>
+        <SettingDivider />
+        <SettingRow
+          label={t('config.enableLogging')}
+          desc={t('config.enableLoggingDesc')}
+        >
           <Switch
             checked={config.enableLogging}
             onCheckedChange={(checked) =>
@@ -74,11 +109,13 @@ export const ConfigForm: React.FC = () => {
       </div>
 
       <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
-        <h3 className="text-[14px] font-bold text-[#333] mb-3">存储路径</h3>
+        <h3 className="text-[14px] font-bold text-[#333] mb-3">
+          {t('config.storagePaths')}
+        </h3>
         {STORAGE_PATHS.map((item, i) => (
-          <React.Fragment key={item.label}>
+          <React.Fragment key={item.labelKey}>
             {i > 0 && <SettingDivider />}
-            <PathRow label={item.label} path={item.path} />
+            <PathRow label={t(item.labelKey)} path={item.path} />
           </React.Fragment>
         ))}
       </div>

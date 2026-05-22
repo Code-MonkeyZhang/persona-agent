@@ -16,6 +16,7 @@ import {
   type VirtuosoHandle,
   type StateSnapshot,
 } from 'react-virtuoso';
+import { useTranslation } from 'react-i18next';
 import type { Message } from '../types/chat';
 import type { Agent } from '../types/agent';
 import { cn } from '../lib/utils';
@@ -47,6 +48,7 @@ interface MessageItemProps {
  * hover 时显示复制按钮
  */
 const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const isUser = message.type === 'user';
   const isError = message.type === 'error';
@@ -59,10 +61,10 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
     try {
       await navigator.clipboard.writeText(message.content);
       setCopied(true);
-      toast.success('Copied to clipboard');
+      toast.success(t('messageList.copiedToClipboard'));
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Failed to copy');
+      toast.error(t('messageList.failedToCopy'));
     }
   };
 
@@ -125,7 +127,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
             <button
               onClick={handleCopy}
               className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors"
-              title="Copy content"
+              title={t('messageList.copyContent')}
             >
               {copied ? (
                 <Check className="w-3.5 h-3.5" />
@@ -154,6 +156,7 @@ interface MessageListProps {
  */
 export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
   ({ messages, isLoading, sessionId, hasAgent = true, agent }, ref) => {
+    const { t } = useTranslation();
     const virtuosoRef = useRef<VirtuosoHandle>(null);
 
     useImperativeHandle(ref, () => ({
@@ -190,7 +193,11 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
     if (messages.length === 0 && !isLoading) {
       return (
         <div className="flex-1 min-h-0 flex items-center justify-center text-gray-400">
-          <p>{hasAgent ? 'Start a conversation...' : '请先创建 Agent'}</p>
+          <p>
+            {hasAgent
+              ? t('messageList.startConversation')
+              : t('common.noAgent')}
+          </p>
         </div>
       );
     }

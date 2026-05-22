@@ -6,12 +6,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { Loader2, FolderOpen } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { listSkills, type Skill } from '../lib/api';
 
 /**
  * Skills 列表标签页组件，从后端加载可用技能列表并展示名称和描述
  */
 export const SkillListTab: React.FC = () => {
+  const { t } = useTranslation();
   const [skills, setSkills] = useState<Skill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +32,7 @@ export const SkillListTab: React.FC = () => {
       const data = await listSkills();
       setSkills(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load skills');
+      setError(err instanceof Error ? err.message : t('skills.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -48,12 +50,14 @@ export const SkillListTab: React.FC = () => {
     return (
       <div className="p-5">
         <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4 text-center">
-          <p className="text-red-500">加载失败: {error}</p>
+          <p className="text-red-500">
+            {t('common.loadFailed')}: {error}
+          </p>
           <button
             onClick={loadSkills}
             className="mt-2 text-[13px] text-[#666] hover:text-[#333]"
           >
-            重试
+            {t('common.retry')}
           </button>
         </div>
       </div>
@@ -72,14 +76,14 @@ export const SkillListTab: React.FC = () => {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] text-[#555] border border-[#ddd] bg-white hover:bg-[#f0f0f0] hover:border-[#bbb] transition-colors shadow-sm"
           >
             <FolderOpen className="w-4 h-4" />
-            打开目录
+            {t('common.openDirectory')}
           </button>
         </div>
-        <p className="text-[12px] text-[#999] mb-4">查看可用的技能模块</p>
+        <p className="text-[12px] text-[#999] mb-4">{t('skills.desc')}</p>
 
         {skills.length === 0 ? (
           <div className="text-[#ccc] text-[13px] py-4 text-center">
-            暂无已加载的 Skill
+            {t('skills.empty')}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2.5">

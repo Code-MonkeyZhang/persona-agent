@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import { Plus, VenetianMask } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '../stores/sessionStore';
 import { useAgentStore } from '../stores/agentStore';
 import { useCompanionStore } from '../stores/companionStore';
@@ -24,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   onNewChat,
   onToggleCompanion,
 }) => {
+  const { t } = useTranslation();
   const { currentSession } = useSessionStore();
   const { currentAgent } = useAgentStore();
   const visible = useCompanionStore((s) => s.visible);
@@ -37,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
         style={{ paddingLeft: isMac ? '70px' : undefined }}
       >
         <h1 className="font-medium text-[15px] text-[#333]">
-          {currentSession?.title || 'New Chat'}
+          {currentSession?.title || t('header.newChat')}
         </h1>
       </div>
       <div className="header-no-drag flex items-center gap-2 pr-4">
@@ -50,17 +52,19 @@ export const Header: React.FC<HeaderProps> = ({
                   ? 'bg-[#f0e6ff] text-purple-600 border-purple-200 hover:bg-[#e6d6ff]'
                   : 'border-[#e0e0e0] text-[#666] hover:bg-[#f5f5f5] hover:text-[#333]'
               }`}
-              title={visible ? '隐藏陪伴面板' : '显示陪伴面板'}
+              title={
+                visible ? t('header.hideCompanion') : t('header.showCompanion')
+              }
             >
               <VenetianMask className="w-4 h-4 mr-1" />
-              <span>形象</span>
+              <span>{t('header.avatar')}</span>
             </button>
             <button
               onClick={onNewChat}
               className="inline-flex items-center justify-center h-8 px-3 text-xs rounded-xl border border-[#e0e0e0] text-[#666] hover:bg-[#f5f5f5] hover:text-[#333] transition-colors"
             >
               <Plus className="w-4 h-4 mr-1" />
-              <span>新对话</span>
+              <span>{t('header.newChat')}</span>
             </button>
           </>
         )}

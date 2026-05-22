@@ -7,6 +7,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Key, Speech, Plug, Settings, Sparkles } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { ProviderConfigPanel } from './ProviderConfigPanel';
 import { ConfigForm } from './ConfigForm';
 import { McpListTab } from './McpListTab';
@@ -20,11 +21,31 @@ import { cn } from '../lib/utils';
 type TabKey = 'general' | 'providers' | 'mcp' | 'skills' | 'voice';
 
 const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
-  { key: 'general', label: '通用设置', icon: <Settings className="w-4 h-4" /> },
-  { key: 'providers', label: '模型供应商', icon: <Key className="w-4 h-4" /> },
-  { key: 'voice', label: '语音服务', icon: <Speech className="w-4 h-4" /> },
-  { key: 'mcp', label: 'MCP 服务', icon: <Plug className="w-4 h-4" /> },
-  { key: 'skills', label: 'Skills', icon: <Sparkles className="w-4 h-4" /> },
+  {
+    key: 'general',
+    label: 'settings.tabs.general',
+    icon: <Settings className="w-4 h-4" />,
+  },
+  {
+    key: 'providers',
+    label: 'settings.tabs.providers',
+    icon: <Key className="w-4 h-4" />,
+  },
+  {
+    key: 'voice',
+    label: 'settings.tabs.voice',
+    icon: <Speech className="w-4 h-4" />,
+  },
+  {
+    key: 'mcp',
+    label: 'settings.tabs.mcp',
+    icon: <Plug className="w-4 h-4" />,
+  },
+  {
+    key: 'skills',
+    label: 'settings.tabs.skills',
+    icon: <Sparkles className="w-4 h-4" />,
+  },
 ];
 
 /**
@@ -32,6 +53,7 @@ const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
  * 提供通用设置、模型供应商、MCP 服务、Skills 和语音服务五个标签页的切换和内容展示
  */
 export const SettingsPage: React.FC = () => {
+  const { t } = useTranslation();
   const { loading, error, loadConfig } = useConfigStore();
   const { saveAllPending } = useProviderStore();
   const setView = useViewStore((s) => s.setView);
@@ -52,7 +74,7 @@ export const SettingsPage: React.FC = () => {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center bg-[#f7f7f7]">
-        <div className="text-[#999]">加载中...</div>
+        <div className="text-[#999]">{t('common.loading')}</div>
       </div>
     );
   }
@@ -60,7 +82,9 @@ export const SettingsPage: React.FC = () => {
   if (error) {
     return (
       <div className="h-full flex items-center justify-center bg-[#f7f7f7]">
-        <div className="text-red-500">加载配置失败：{error}</div>
+        <div className="text-red-500">
+          {t('settings.loadError')}：{error}
+        </div>
       </div>
     );
   }
@@ -75,7 +99,9 @@ export const SettingsPage: React.FC = () => {
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <h1 className="text-[16px] font-bold text-[#333]">设置中心</h1>
+          <h1 className="text-[16px] font-bold text-[#333]">
+            {t('settings.title')}
+          </h1>
         </div>
 
         <nav className="flex-1 py-1 px-2">
@@ -91,7 +117,7 @@ export const SettingsPage: React.FC = () => {
               )}
             >
               {tab.icon}
-              {tab.label}
+              {t(tab.label)}
             </button>
           ))}
         </nav>

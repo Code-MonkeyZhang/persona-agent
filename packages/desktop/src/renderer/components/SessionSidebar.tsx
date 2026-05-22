@@ -6,6 +6,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { PanelLeftClose } from 'lucide-react';
 import { GroupedVirtuoso } from 'react-virtuoso';
+import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '../stores/sessionStore';
 import { useAgentStore } from '../stores/agentStore';
 import { SessionItem } from './SessionItem';
@@ -32,9 +33,9 @@ function groupSessionsByDate(sessions: SessionMeta[]) {
   const yesterday = today - 86400000;
 
   const groups: { label: string; sessions: SessionMeta[] }[] = [
-    { label: '今天', sessions: [] },
-    { label: '昨天', sessions: [] },
-    { label: '更早', sessions: [] },
+    { label: 'sessionSidebar.today', sessions: [] },
+    { label: 'sessionSidebar.yesterday', sessions: [] },
+    { label: 'sessionSidebar.earlier', sessions: [] },
   ];
 
   const sortedSessions = [...sessions].sort(
@@ -61,6 +62,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   collapsed = false,
   onToggle,
 }) => {
+  const { t } = useTranslation();
   const {
     sessions,
     currentSession,
@@ -129,7 +131,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
             )}
             <div className="min-w-0">
               <div className="font-medium text-[15px] text-[#333] truncate">
-                {currentAgent?.name || '未选择 Agent'}
+                {currentAgent?.name || t('common.noAgentSelected')}
               </div>
               <div className="text-[13px] text-[#999] truncate">
                 {currentAgent?.description || ''}
@@ -141,7 +143,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
               <button
                 onClick={onToggle}
                 className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-                title="收起侧边栏"
+                title={t('common.collapseSidebar')}
               >
                 <PanelLeftClose className="w-4 h-4" />
               </button>
@@ -153,14 +155,16 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
       <div className="flex-1 overflow-hidden">
         {groupedSessions.length === 0 ? (
           <div className="text-center text-gray-400 text-sm py-8">
-            {currentAgent ? '暂无对话记录' : '请先创建 Agent'}
+            {currentAgent
+              ? t('sessionSidebar.noConversations')
+              : t('common.noAgent')}
           </div>
         ) : (
           <GroupedVirtuoso
             groupCounts={groupedSessions.map((g) => g.sessions.length)}
             groupContent={(index) => (
               <div className="px-2 py-1.5 text-[12px] text-[#999] bg-white">
-                {groupedSessions[index].label}
+                {t(groupedSessions[index].label)}
               </div>
             )}
             itemContent={(index, groupIndex) => {

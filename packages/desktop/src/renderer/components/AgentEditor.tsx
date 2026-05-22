@@ -19,6 +19,7 @@ import {
   Loader2,
   VenetianMask,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAgentStore } from '../stores/agentStore';
 import { useViewStore } from '../stores/viewStore';
 import {
@@ -70,10 +71,10 @@ const PREVIEW_TEXTS = [
 ];
 
 const VOICE_LANGUAGES = [
-  { value: 'default', label: 'Default（跟随原文）' },
-  { value: 'zh', label: '中文' },
-  { value: 'en', label: '英语' },
-  { value: 'ja', label: '日语' },
+  { value: 'default', labelKey: 'agentEditor.langDefault' },
+  { value: 'zh', labelKey: 'agentEditor.langZh' },
+  { value: 'en', labelKey: 'agentEditor.langEn' },
+  { value: 'ja', labelKey: 'agentEditor.langJa' },
 ] as const;
 
 /** 立绘图片的本地状态，用于追踪编辑过程中的增删改变更 */
@@ -120,6 +121,7 @@ function PoseImageCardList({
   onRename,
   agentId,
 }: PoseImageCardListProps) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [renamingIdx, setRenamingIdx] = useState<number | null>(null);
@@ -209,7 +211,7 @@ function PoseImageCardList({
                 </div>
                 {img.name === 'default' ? (
                   <span className="shrink-0 text-[8px] bg-white/25 text-white/90 rounded px-1 leading-tight">
-                    默认
+                    {t('agentEditor.defaultPose')}
                   </span>
                 ) : (
                   <button
@@ -288,6 +290,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     setAvatarPreview,
     removeAvatarPreview,
   } = useAgentStore();
+  const { t } = useTranslation();
   const closeAgentEditor = useViewStore((s) => s.closeAgentEditor);
   const editingAgent = editingAgentId
     ? agents.find((a) => a.id === editingAgentId)
@@ -540,7 +543,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     try {
       const ttsConfig = await getTtsConfig();
       if (!ttsConfig.apiKey) {
-        toast.warning('请先在设置中配置 MiniMax API Key');
+        toast.warning(t('common.configureApiKeyInSettings'));
         return;
       }
 
@@ -555,7 +558,8 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
       );
       audioPlayer.play(audio);
     } catch (err) {
-      const message = err instanceof Error ? err.message : '试听失败';
+      const message =
+        err instanceof Error ? err.message : t('common.previewFailed');
       logger.error('[AgentEditor] Voice preview failed:', message);
       toast.error(message);
     } finally {
@@ -691,7 +695,9 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           <ArrowLeft className="w-4 h-4" />
         </button>
         <h1 className="text-[16px] font-bold text-[#333]">
-          {editingAgentId ? '编辑 Agent' : '添加 Agent'}
+          {editingAgentId
+            ? t('agentEditor.editAgent')
+            : t('agentEditor.addAgent')}
         </h1>
       </div>
       <div className="flex-1 overflow-hidden">
@@ -702,7 +708,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
               <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
                 <h3 className="text-[14px] font-bold text-[#333] mb-3">
                   <PenLine className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-[#999]" />
-                  基本信息
+                  {t('agentEditor.basicInfo')}
                 </h3>
                 <div className="flex items-start gap-4">
                   <div
@@ -728,23 +734,23 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                   <div className="flex-1 flex flex-col gap-2.5">
                     <div className="flex items-center gap-3">
                       <span className="text-[13px] text-[#999] shrink-0 w-12">
-                        名称
+                        {t('agentEditor.name')}
                       </span>
                       <Input
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="给 Agent 起个名字"
+                        placeholder={t('agentEditor.namePlaceholder')}
                         className="rounded-lg border-[#e0e0e0] h-8 flex-1 text-[13px]"
                       />
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-[13px] text-[#999] shrink-0 w-12">
-                        描述
+                        {t('agentEditor.description')}
                       </span>
                       <Input
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
-                        placeholder="一句话描述 Agent 的职责"
+                        placeholder={t('agentEditor.descPlaceholder')}
                         className="rounded-lg border-[#e0e0e0] h-8 flex-1 text-[13px]"
                       />
                     </div>
@@ -756,12 +762,12 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
               <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
                 <h3 className="text-[14px] font-bold text-[#333] mb-3">
                   <VenetianMask className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-[#999]" />
-                  形象
+                  {t('agentEditor.appearance')}
                 </h3>
 
                 <LabelWithTooltip
-                  label="立绘"
-                  tooltip="建议比例 3:4，支持 PNG 格式"
+                  label={t('agentEditor.poseImage')}
+                  tooltip={t('agentEditor.poseTooltip')}
                 />
                 <PoseImageCardList
                   images={(() => {
@@ -799,8 +805,8 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                 <SettingDivider />
 
                 <LabelWithTooltip
-                  label="背景图"
-                  tooltip="建议比例 9:16，支持 PNG 格式"
+                  label={t('agentEditor.backgroundImage')}
+                  tooltip={t('agentEditor.bgTooltip')}
                 />
                 {bgPreviewUrl ? (
                   <div className="relative group inline-block">
@@ -860,9 +866,9 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
               <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
                 <h3 className="text-[14px] font-bold text-[#333] mb-3">
                   <Brain className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-[#999]" />
-                  模型配置
+                  {t('agentEditor.modelConfig')}
                 </h3>
-                <SettingRow label="默认模型">
+                <SettingRow label={t('agentEditor.defaultModel')}>
                   <ModelSelector
                     providers={providers}
                     value={modelId}
@@ -875,18 +881,18 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                 <SettingDivider />
                 <div>
                   <div className="text-[14px] text-[#333] leading-[18px] mb-2">
-                    System Prompt
+                    {t('agentEditor.systemPrompt')}
                   </div>
                   <textarea
                     value={systemPrompt}
                     onChange={(e) => setSystemPrompt(e.target.value)}
-                    placeholder="定义 Agent 的角色和行为规范..."
+                    placeholder={t('agentEditor.systemPromptPlaceholder')}
                     rows={5}
                     className="w-full rounded-lg border border-[#e0e0e0] px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                   />
                 </div>
                 <SettingDivider />
-                <SettingRow label="Agent最大步数">
+                <SettingRow label={t('agentEditor.maxSteps')}>
                   <input
                     type="number"
                     value={maxSteps}
@@ -902,9 +908,12 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
               <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
                 <h3 className="text-[14px] font-bold text-[#333] mb-3">
                   <Speech className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-[#999]" />
-                  音色
+                  {t('agentEditor.voice')}
                 </h3>
-                <SettingRow label="选择音色" desc="选择 Agent 使用的语音音色">
+                <SettingRow
+                  label={t('agentEditor.selectVoice')}
+                  desc={t('agentEditor.selectVoiceDesc')}
+                >
                   <div className="flex items-center gap-2">
                     <Select
                       value={voiceId || '__none__'}
@@ -918,15 +927,17 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                       }}
                     >
                       <SelectTrigger className="rounded-lg border-[#e0e0e0] h-8 w-48 text-[13px]">
-                        <SelectValue placeholder="不启用语音" />
+                        <SelectValue placeholder={t('agentEditor.noVoice')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__">不启用语音</SelectItem>
+                        <SelectItem value="__none__">
+                          {t('agentEditor.noVoice')}
+                        </SelectItem>
                         {voices.filter((v) => v.group === 'cloned').length >
                           0 && (
                           <SelectGroup>
                             <SelectLabel className="text-[11px] text-[#999] font-medium uppercase tracking-wide">
-                              我的克隆音色
+                              {t('agentEditor.clonedVoices')}
                             </SelectLabel>
                             {voices
                               .filter((v) => v.group === 'cloned')
@@ -940,17 +951,17 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                         <SelectSeparator />
                         <SelectGroup>
                           <SelectLabel className="text-[11px] text-[#999] font-medium uppercase tracking-wide">
-                            预设音色
+                            {t('agentEditor.presetVoices')}
                           </SelectLabel>
                           {voices
                             .filter((v) => v.group === 'preset')
                             .map((v) => (
                               <SelectItem key={v.id} value={v.id}>
-                                {v.name} ·{' '}
+                                {t('voicePreset.' + v.id)} ·{' '}
                                 {v.gender === 'male'
-                                  ? '男'
+                                  ? t('agentEditor.male')
                                   : v.gender === 'female'
-                                    ? '女'
+                                    ? t('agentEditor.female')
                                     : ''}
                               </SelectItem>
                             ))}
@@ -976,13 +987,12 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                     <div className="flex items-center justify-between min-h-[32px] gap-4">
                       <div className="min-w-0 flex items-center gap-1.5">
                         <div className="text-[14px] text-[#333] leading-[18px]">
-                          TTS 朗读语言
+                          {t('agentEditor.ttsLanguage')}
                         </div>
                         <span className="relative group">
                           <HelpCircle className="w-3.5 h-3.5 text-[#999] cursor-help" />
                           <span className="absolute left-5 top-1/2 -translate-y-1/2 w-56 px-3 py-2 text-[12px] text-[#666] bg-white border border-[#e0e0e0] rounded-lg shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10 pointer-events-none">
-                            设置语音播报使用的语言。Default
-                            表示跟随原文语言，不做翻译
+                            {t('agentEditor.ttsLanguageTooltip')}
                           </span>
                         </span>
                       </div>
@@ -997,7 +1007,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                           <SelectContent>
                             {VOICE_LANGUAGES.map((l) => (
                               <SelectItem key={l.value} value={l.value}>
-                                {l.label}
+                                {t(l.labelKey)}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -1012,16 +1022,16 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
               <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
                 <h3 className="text-[14px] font-bold text-[#333] mb-3">
                   <Folder className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-[#999]" />
-                  工作空间
+                  {t('agentEditor.workspace')}
                 </h3>
                 <SettingRow
-                  label="默认工作空间"
-                  desc="创建新会话时将使用此工作空间"
+                  label={t('agentEditor.defaultWorkspace')}
+                  desc={t('agentEditor.defaultWorkspaceDesc')}
                 >
                   <WorkspaceSelector
                     value={defaultWorkspacePath}
                     onChange={setDefaultWorkspacePath}
-                    placeholder="选择默认工作空间文件夹"
+                    placeholder={t('agentEditor.defaultWorkspacePlaceholder')}
                   />
                 </SettingRow>
               </div>
@@ -1030,7 +1040,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
               <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
                 <h3 className="text-[14px] font-bold text-[#333] mb-3">
                   <Plug className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-[#999]" />
-                  MCP 分配
+                  {t('agentEditor.mcpAssign')}
                 </h3>
                 <div className="grid grid-cols-2 gap-2.5">
                   {selectedMcpIds.map((mcpId) => {
@@ -1053,8 +1063,8 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                           </div>
                           <div className="text-[11px] text-[#999] truncate">
                             {mcp?.toolCount
-                              ? `${mcp.toolCount} tools`
-                              : '未连接'}
+                              ? t('mcp.toolsCount', { count: mcp.toolCount })
+                              : t('mcp.disconnected')}
                           </div>
                         </div>
                         <button
@@ -1072,13 +1082,13 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                       className="w-full px-3 py-3 border border-dashed border-[#d0d0d0] rounded-xl text-[13px] text-[#999] hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors"
                     >
                       <Plus className="w-4 h-4" />
-                      添加 MCP
+                      {t('agentEditor.addMcp')}
                     </button>
                     {showMcpDropdown && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#e8e8e8] rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
                         {availableMcps.length === 0 ? (
                           <div className="px-3 py-2 text-[#ccc] text-[12px]">
-                            没有可添加的 MCP
+                            {t('agentEditor.noMcpToAdd')}
                           </div>
                         ) : (
                           availableMcps.map((mcp) => (
@@ -1094,10 +1104,12 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                                 <div className="text-[13px]">{mcp.name}</div>
                                 <div className="text-[11px] text-[#999]">
                                   {mcp.toolCount
-                                    ? `${mcp.toolCount} tools`
+                                    ? t('mcp.toolsCount', {
+                                        count: mcp.toolCount,
+                                      })
                                     : mcp.status === 'connected'
                                       ? 'connected'
-                                      : 'disconnected'}
+                                      : t('mcp.disconnected')}
                                 </div>
                               </div>
                             </button>
@@ -1113,7 +1125,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
               <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
                 <h3 className="text-[14px] font-bold text-[#333] mb-3">
                   <Sparkles className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-[#999]" />
-                  Skills 分配
+                  {t('agentEditor.skillsAssign')}
                 </h3>
                 <div className="grid grid-cols-2 gap-2.5">
                   {selectedSkillIds.map((skillId) => {
@@ -1146,13 +1158,13 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                       className="w-full px-3 py-3 border border-dashed border-[#d0d0d0] rounded-xl text-[13px] text-[#999] hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors"
                     >
                       <Plus className="w-4 h-4" />
-                      添加 Skill
+                      {t('agentEditor.addSkill')}
                     </button>
                     {showSkillDropdown && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#e8e8e8] rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
                         {availableSkills.length === 0 ? (
                           <div className="px-3 py-2 text-[#ccc] text-[12px]">
-                            没有可添加的 Skill
+                            {t('agentEditor.noSkillToAdd')}
                           </div>
                         ) : (
                           availableSkills.map((skill) => (
@@ -1184,7 +1196,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                       onClick={handleDelete}
                       className="text-[12px] text-[#ccc] hover:text-red-400 transition-colors"
                     >
-                      删除此 Agent
+                      {t('agentEditor.deleteAgent')}
                     </button>
                   )}
                 </div>
@@ -1193,14 +1205,18 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                     onClick={closeAgentEditor}
                     className="rounded-lg border border-[#e0e0e0] h-8 px-5 text-[13px] hover:bg-gray-50"
                   >
-                    取消
+                    {t('common.cancel')}
                   </button>
                   <button
                     onClick={handleSave}
                     disabled={!name.trim() || isLoading}
                     className="bg-[#222] text-white hover:bg-[#333] rounded-lg h-8 px-5 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isLoading ? '保存中...' : editingAgentId ? '保存' : '添加'}
+                    {isLoading
+                      ? t('common.saving')
+                      : editingAgentId
+                        ? t('agentEditor.save')
+                        : t('agentEditor.add')}
                   </button>
                 </div>
               </div>

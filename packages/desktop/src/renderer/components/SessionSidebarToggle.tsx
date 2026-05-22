@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import { Menu } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface SessionSidebarToggleProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const SessionSidebarToggle: React.FC<SessionSidebarToggleProps> = ({
   isOpen,
   onToggle,
 }) => {
+  const { t } = useTranslation();
   return (
     <button
       onClick={onToggle}
@@ -28,7 +30,7 @@ export const SessionSidebarToggle: React.FC<SessionSidebarToggleProps> = ({
         bg-white border border-l-0 border-gray-200 shadow-sm
         hover:bg-gray-100 text-gray-500 hover:text-gray-700
       `}
-      title={isOpen ? '收起侧边栏' : '展开侧边栏'}
+      title={isOpen ? t('common.collapseSidebar') : t('common.expandSidebar')}
     >
       <Menu className="w-4 h-4" />
     </button>

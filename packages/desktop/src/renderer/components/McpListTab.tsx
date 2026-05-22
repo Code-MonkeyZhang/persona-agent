@@ -6,6 +6,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, ExternalLink, FolderOpen } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   listMcpServers,
   startMcpOAuth,
@@ -31,6 +32,7 @@ function getStatusColor(status: McpServer['status']) {
 }
 
 export const McpListTab: React.FC = () => {
+  const { t } = useTranslation();
   const [mcps, setMcps] = useState<McpServer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,9 +52,7 @@ export const McpListTab: React.FC = () => {
       const data = await listMcpServers();
       setMcps(data);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to load MCP servers'
-      );
+      setError(err instanceof Error ? err.message : t('mcp.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -145,12 +145,14 @@ export const McpListTab: React.FC = () => {
     return (
       <div className="p-5">
         <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4 text-center">
-          <p className="text-red-500">加载失败: {error}</p>
+          <p className="text-red-500">
+            {t('common.loadFailed')}: {error}
+          </p>
           <button
             onClick={loadMcps}
             className="mt-2 text-[13px] text-[#666] hover:text-[#333]"
           >
-            重试
+            {t('common.retry')}
           </button>
         </div>
       </div>
@@ -161,7 +163,9 @@ export const McpListTab: React.FC = () => {
     <div className="p-5">
       <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
         <div className="flex items-center justify-between mb-1">
-          <h3 className="text-[14px] font-bold text-[#333]">MCP 服务</h3>
+          <h3 className="text-[14px] font-bold text-[#333]">
+            {t('mcp.title')}
+          </h3>
           <button
             onClick={() =>
               window.api?.openPath('~/.local/share/persona-agent/mcp/')
@@ -169,28 +173,26 @@ export const McpListTab: React.FC = () => {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] text-[#555] border border-[#ddd] bg-white hover:bg-[#f0f0f0] hover:border-[#bbb] transition-colors shadow-sm"
           >
             <FolderOpen className="w-4 h-4" />
-            打开目录
+            {t('common.openDirectory')}
           </button>
         </div>
-        <p className="text-[12px] text-[#999] mb-4">
-          查看已配置的 MCP 服务器状态
-        </p>
+        <p className="text-[12px] text-[#999] mb-4">{t('mcp.desc')}</p>
 
         {mcps.length === 0 ? (
           <div className="text-[#ccc] text-[13px] py-4 text-center">
-            暂无已加载的 MCP 服务
+            {t('mcp.empty')}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2.5">
             {mcps.map((mcp) => {
               const statusText =
                 mcp.status === 'connected' && mcp.toolCount
-                  ? `${mcp.toolCount} tools`
+                  ? t('mcp.toolsCount', { count: mcp.toolCount })
                   : mcp.status === 'needs_auth'
-                    ? '需要授权'
+                    ? t('mcp.needsAuth')
                     : mcp.status === 'connecting'
-                      ? '连接中'
-                      : '未连接';
+                      ? t('mcp.connecting')
+                      : t('mcp.disconnected');
               const isLoading = authorizing === mcp.name;
 
               return (
