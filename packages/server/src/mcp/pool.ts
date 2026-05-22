@@ -196,6 +196,7 @@ export async function startOAuthFlow(name: string): Promise<{
 
   const provider = new McpOAuthProvider(name, getOAuthTokensPath());
   provider.setRedirectUrl(`http://localhost:${callback.port}/callback`);
+  provider.invalidateCredentials('all');
 
   const serverConn = new MCPServerConnection({
     name,
