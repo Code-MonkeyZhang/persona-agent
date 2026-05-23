@@ -1,3 +1,7 @@
+<p align="right">
+简体中文 | <a href="README.en.md">English</a>
+</p>
+
 <div align="center">
 
 <img src="assets/logo-rounded.png" width="150" height="150" alt="Persona Agent" />
