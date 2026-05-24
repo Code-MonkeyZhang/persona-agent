@@ -11,6 +11,10 @@ extraResources:
     to: "bin/cloudflared"
     filter:
       - "**/*"
+  - from: "../server/bin/cloudflared.exe"
+    to: "bin/cloudflared.exe"
+    filter:
+      - "**/*"
 
 mac:
   icon: "build/icon-mac.png"
