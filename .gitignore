@@ -8,3 +8,7 @@ out/
 .env
 .env.local
 .env.*.local
+
+# Unused lockfiles and build cache
+pnpm-lock.yaml
+*.bun-build

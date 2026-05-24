@@ -1,42 +1,77 @@
 /**
  * @file src/renderer/components/WindowControls.tsx
- * @description 窗口控制按钮组件，提供最小化、最大化/还原、关闭功能，仅 Windows 和 Linux 显示
+ * @description macOS 红绿灯风格的窗口控制按钮组件，提供关闭、最小化、最大化/还原功能
+ * 仅在 Windows 和 Linux 上显示（macOS 使用系统原生红绿灯按钮）
  */
 import { useState, useEffect } from 'react';
-import { Minus, Square, X } from 'lucide-react';
+import { Minus, X } from 'lucide-react';
 import { isWin, isLinux } from '../lib/platform';
 
 /**
- * 窗口还原图标（最大化状态下显示）
- * 使用 SVG 绘制两个重叠的矩形表示还原状态
+ * 最大化状态下的还原图标，使用 SVG 绘制两个重叠矩形表示还原窗口
  */
-const WindowRestoreIcon = ({ size = 14 }: { size?: number }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
+const RestoreIcon = ({ size = 10 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 10 10" fill="none">
     <rect
-      width="14"
-      height="14"
-      x="2.76"
-      y="7.07"
-      rx="1.24"
-      style={{ strokeWidth: '1.57' }}
+      x="0.5"
+      y="2.5"
+      width="7"
+      height="7"
+      rx="1"
+      stroke="currentColor"
+      strokeWidth="1"
     />
     <path
-      d="M 8.89,2.83 C 8.39,2.83 7.94,3.07 7.66,3.45 H 18.99 c 0.87,0 1.56,0.70 1.56,1.56 v 11.33 c 0.37,-0.28 0.62,-0.72 0.62,-1.23 V 4.36 c 0,-0.85 -0.69,-1.54 -1.54,-1.54 z"
-      style={{ strokeWidth: '0.91' }}
+      d="M2.5 2.5V1.5a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-1"
+      stroke="currentColor"
+      strokeWidth="1"
     />
   </svg>
 );
 
+/** 单个红绿灯按钮的属性 */
+interface LightButtonProps {
+  color: string;
+  hoverColor: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  ariaLabel: string;
+}
+
 /**
- * 窗口控制按钮组件
+ * 单个红绿灯按钮，默认显示纯色圆点，hover 时显示操作图标并加深背景
+ */
+const LightButton = ({
+  color,
+  hoverColor,
+  icon,
+  onClick,
+  ariaLabel,
+}: LightButtonProps) => {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <button
+      className="rounded-full flex items-center justify-center shrink-0 transition-colors"
+      style={{
+        width: 12,
+        height: 12,
+        backgroundColor: hovered ? hoverColor : color,
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
+      aria-label={ariaLabel}
+    >
+      {hovered && <span style={{ color: 'rgba(0,0,0,0.5)' }}>{icon}</span>}
+    </button>
+  );
+};
+
+/**
+ * 窗口控制按钮组件（macOS 红绿灯风格）
  * 仅在 Windows 和 Linux 上显示，macOS 使用系统原生红绿灯按钮
+ * 不处理自身定位，由父组件控制位置
  */
 export const WindowControls = () => {
   const [isMaximized, setIsMaximized] = useState(false);
@@ -60,27 +95,46 @@ export const WindowControls = () => {
 
   return (
     <div
-      className="flex items-center h-14 select-none z-50"
+      className="flex items-center gap-[8px] header-no-drag"
       style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
     >
-      <button
-        className="flex items-center justify-center w-[46px] h-full bg-transparent border-none cursor-pointer hover:bg-black/10 transition-colors"
-        onClick={() => window.api?.windowControls.minimize()}
-      >
-        <Minus size={14} />
-      </button>
-      <button
-        className="flex items-center justify-center w-[46px] h-full bg-transparent border-none cursor-pointer hover:bg-black/10 transition-colors"
-        onClick={handleMaximize}
-      >
-        {isMaximized ? <WindowRestoreIcon size={14} /> : <Square size={14} />}
-      </button>
-      <button
-        className="flex items-center justify-center w-[46px] h-full bg-transparent border-none cursor-pointer hover:bg-[#e81123] hover:text-white transition-colors"
+      <LightButton
+        color="#ff5f57"
+        hoverColor="#ff3b30"
+        icon={<X size={8} strokeWidth={2.5} />}
         onClick={() => window.api?.windowControls.close()}
-      >
-        <X size={17} />
-      </button>
+        ariaLabel="Close"
+      />
+      <LightButton
+        color="#febc2e"
+        hoverColor="#f5a623"
+        icon={<Minus size={8} strokeWidth={2.5} />}
+        onClick={() => window.api?.windowControls.minimize()}
+        ariaLabel="Minimize"
+      />
+      <LightButton
+        color="#28c840"
+        hoverColor="#1db954"
+        icon={
+          isMaximized ? (
+            <RestoreIcon size={8} />
+          ) : (
+            <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
+              <rect
+                x="0.5"
+                y="0.5"
+                width="9"
+                height="9"
+                rx="1"
+                stroke="currentColor"
+                strokeWidth="1.2"
+              />
+            </svg>
+          )
+        }
+        onClick={handleMaximize}
+        ariaLabel={isMaximized ? 'Restore' : 'Maximize'}
+      />
     </div>
   );
 };
