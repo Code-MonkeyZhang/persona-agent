@@ -124,7 +124,6 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       <div className="flex-1 min-w-0 overflow-y-auto relative">
-        <div className="header-drag absolute top-0 left-0 right-0 h-14 z-10" />
         {activeTab === 'providers' && <ProviderConfigPanel />}
         {activeTab === 'mcp' && <McpListTab />}
         {activeTab === 'skills' && <SkillListTab />}

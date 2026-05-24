@@ -10,7 +10,7 @@ import { useAgentStore } from '../stores/agentStore';
 import { useViewStore } from '../stores/viewStore';
 import { AgentAvatar } from './AgentAvatar';
 import { ServerManagerModal } from './ServerManagerModal';
-import { isMac } from '../lib/platform';
+import { WindowControls } from './WindowControls';
 
 interface AgentSidebarProps {
   connectionStatus: 'connected' | 'connecting' | 'disconnected';
@@ -54,12 +54,13 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = ({
 
   return (
     <aside className="w-[72px] h-full bg-gray-50 border-r border-gray-200 flex flex-col">
-      {isMac && (
-        <div
-          className="header-drag shrink-0"
-          style={{ height: 'env(titlebar-area-height, 28px)' }}
-        />
-      )}
+      {/* 顶部 spacer：macOS 为原生红绿灯预留空间，Windows/Linux 放置自定义红绿灯按钮 */}
+      <div
+        className="header-drag shrink-0 flex justify-center items-end pb-1.5"
+        style={{ height: 'env(titlebar-area-height, 28px)' }}
+      >
+        <WindowControls />
+      </div>
       <div className="flex-1 overflow-y-auto py-2">
         {agents.map((agent) => (
           <div key={agent.id} className="relative group">

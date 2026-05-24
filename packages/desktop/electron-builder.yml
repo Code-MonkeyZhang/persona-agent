@@ -5,8 +5,14 @@ artifactName: "Persona-${os}-${arch}-${version}.${ext}"
 extraResources:
   - from: "../server/dist/persona-agent-server"
     to: "bin/persona-agent-server"
+  - from: "../server/dist/persona-agent-server.exe"
+    to: "bin/persona-agent-server.exe"
   - from: "../server/bin/cloudflared"
     to: "bin/cloudflared"
+    filter:
+      - "**/*"
+  - from: "../server/bin/cloudflared.exe"
+    to: "bin/cloudflared.exe"
     filter:
       - "**/*"
 

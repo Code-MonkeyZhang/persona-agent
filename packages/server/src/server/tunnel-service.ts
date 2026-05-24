@@ -92,7 +92,7 @@ export async function startTunnel(localPort: number): Promise<string> {
           'http2',
           '--no-autoupdate',
         ],
-        { stdio: ['ignore', 'pipe', 'pipe'] }
+        { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true }
       );
 
       process_ = proc;

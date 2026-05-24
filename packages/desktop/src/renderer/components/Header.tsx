@@ -1,6 +1,7 @@
 /**
  * @file src/renderer/components/Header.tsx
  * @description 顶部标题栏，显示当前会话标题、陪伴面板切换和新对话按钮
+ * 窗口控制按钮已移至 AgentSidebar 顶部（macOS 红绿灯风格）
  */
 import React from 'react';
 import { Plus, VenetianMask } from 'lucide-react';
@@ -9,7 +10,6 @@ import { useSessionStore } from '../stores/sessionStore';
 import { useAgentStore } from '../stores/agentStore';
 import { useCompanionStore } from '../stores/companionStore';
 import { isMac } from '../lib/platform';
-import { WindowControls } from './WindowControls';
 
 interface HeaderProps {
   onNewChat: () => void;
@@ -68,7 +68,6 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </>
         )}
-        <WindowControls />
       </div>
     </header>
   );

@@ -98,7 +98,8 @@ async function startServer(): Promise<void> {
   log.info(`Starting server from: ${binaryPath} on port ${port}`);
 
   serverProcess = spawn(binaryPath, [String(port)], {
-    stdio: 'inherit',
+    stdio: 'pipe',
+    windowsHide: true,
   });
 
   serverProcess.on('error', (err) => {
