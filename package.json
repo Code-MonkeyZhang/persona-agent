@@ -8,6 +8,8 @@
     "build:server": "cd packages/server && bun run build",
     "build:desktop": "cd packages/desktop && npm run build",
     "dist": "cd packages/desktop && npm run dist",
+    "dist:mac": "cd packages/desktop && npm run dist:mac",
+    "dist:win": "cd packages/desktop && npm run dist:win",
     "typecheck": "cd packages/server && bun run typecheck && cd ../../packages/desktop && npm run typecheck",
     "lint": "oxlint packages/server/src packages/desktop/src",
     "format": "prettier --write \"packages/*/src/**/*.{ts,tsx}\"",
