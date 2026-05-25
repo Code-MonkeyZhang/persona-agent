@@ -52,6 +52,7 @@ export const useVoiceStore = create<VoiceStore>()(
         try {
           if (!speakText.trim()) return;
 
+          set({ isSpeaking: true });
           const audio = await synthesize(
             speakText,
             voiceId,
@@ -59,9 +60,9 @@ export const useVoiceStore = create<VoiceStore>()(
             model,
             languageBoost
           );
-          set({ isSpeaking: true });
           audioPlayer.play(audio);
         } catch (err) {
+          set({ isSpeaking: false });
           logger.error(
             '[VoiceStore] speak failed:',
             err instanceof Error ? err.message : String(err)
