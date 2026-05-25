@@ -887,8 +887,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                     value={systemPrompt}
                     onChange={(e) => setSystemPrompt(e.target.value)}
                     placeholder={t('agentEditor.systemPromptPlaceholder')}
-                    rows={5}
-                    className="w-full rounded-lg border border-[#e0e0e0] px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    className="w-full min-h-[120px] rounded-lg border border-[#e0e0e0] px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
                   />
                 </div>
                 <SettingDivider />
