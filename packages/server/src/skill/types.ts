@@ -22,6 +22,8 @@ export interface Skill {
   description: string;
   content: string;
   filePath: string;
+  /** Absolute path to the skill directory (parent of SKILL.md). */
+  skillDir: string;
   mtime: number;
 }
 

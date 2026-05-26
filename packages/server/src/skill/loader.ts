@@ -92,6 +92,7 @@ export function loadSkillFile(filePath: string): Skill | null {
       description: result.data.description ?? '',
       content: body,
       filePath,
+      skillDir: path.dirname(filePath),
       mtime: stat.mtimeMs,
     };
   } catch (error) {

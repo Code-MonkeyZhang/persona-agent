@@ -189,6 +189,7 @@ Content without description`
         description: 'Test description',
         content: 'Full content',
         filePath: '/path/to/SKILL.md',
+        skillDir: '/path/to',
         mtime: Date.now(),
       };
 

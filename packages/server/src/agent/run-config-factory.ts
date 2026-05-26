@@ -39,6 +39,9 @@ import type { Session } from '../session/types.js';
  * ## Available Skills
  *
  * ### {skillName1}
+ * [Skill directory: {skillDir1}]
+ * Resolve any relative paths in this skill against the above directory.
+ *
  * {skillContent1}
  * ```
  *
@@ -79,6 +82,9 @@ function buildSystemPrompt(
       prompt += `
 
 ### ${skill.name}
+
+[Skill directory: ${skill.skillDir}]
+Resolve any relative paths in this skill against the above directory.
 
 ${skill.content}`;
     }
