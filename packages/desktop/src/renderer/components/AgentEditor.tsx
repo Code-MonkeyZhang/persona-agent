@@ -887,20 +887,33 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                     value={systemPrompt}
                     onChange={(e) => setSystemPrompt(e.target.value)}
                     placeholder={t('agentEditor.systemPromptPlaceholder')}
-                    className="w-full min-h-[120px] rounded-lg border border-[#e0e0e0] px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                    className="w-full min-h-[360px] rounded-lg border border-[#e0e0e0] px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
                   />
                 </div>
                 <SettingDivider />
-                <SettingRow label={t('agentEditor.maxSteps')}>
-                  <input
-                    type="number"
-                    value={maxSteps}
-                    onChange={(e) => setMaxSteps(e.target.value)}
-                    min={1}
-                    max={50}
-                    className="rounded-lg border border-[#e0e0e0] h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </SettingRow>
+                <div className="flex items-center justify-between min-h-[32px] gap-4">
+                  <div className="min-w-0 flex items-center gap-1.5">
+                    <div className="text-[14px] text-[#333] leading-[18px]">
+                      {t('agentEditor.maxSteps')}
+                    </div>
+                    <span className="relative group">
+                      <HelpCircle className="w-3.5 h-3.5 text-[#999] cursor-help" />
+                      <span className="absolute left-5 top-1/2 -translate-y-1/2 w-56 px-3 py-2 text-[12px] text-[#666] bg-white border border-[#e0e0e0] rounded-lg shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10 pointer-events-none">
+                        {t('agentEditor.maxStepsTooltip')}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="shrink-0">
+                    <input
+                      type="number"
+                      value={maxSteps}
+                      onChange={(e) => setMaxSteps(e.target.value)}
+                      min={1}
+                      max={50}
+                      className="rounded-lg border border-[#e0e0e0] h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* 音色 */}
