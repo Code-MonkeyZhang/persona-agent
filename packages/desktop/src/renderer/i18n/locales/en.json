@@ -149,6 +149,7 @@
   "agentEditor.modelConfig": "Model Configuration",
   "agentEditor.defaultModel": "Default Model",
   "agentEditor.maxSteps": "Max Agent Steps",
+  "agentEditor.maxStepsTooltip": "Maximum steps before the agent auto-stops. More steps may improve task completion, but take longer",
   "agentEditor.voice": "Voice",
   "agentEditor.selectVoice": "Select Voice",
   "agentEditor.selectVoiceDesc": "Select the voice for the Agent",
