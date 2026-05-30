@@ -282,7 +282,7 @@ describe('TTS Integration Tests', () => {
       writeTtsConfig({});
     });
 
-    it('should return 8 TTS models', async () => {
+    it('should return 2 TTS models', async () => {
       const response = await fetch(`${BASE_URL}/api/tts/models`);
       const data = (await response.json()) as {
         success: boolean;
@@ -290,7 +290,7 @@ describe('TTS Integration Tests', () => {
       };
 
       expect(data.success).toBe(true);
-      expect(data.models).toHaveLength(8);
+      expect(data.models).toHaveLength(2);
       expect(data.models[0].id).toBe('speech-2.8-hd');
     });
 

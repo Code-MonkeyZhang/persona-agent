@@ -36,16 +36,10 @@ export interface VoiceLanguage {
   boost?: string;
 }
 
-/** 8 TTS models supported by MiniMax */
+/** TTS models supported by MiniMax (Speech 2.8 only — Token Plan compatible) */
 export const TTS_MODELS: TtsModel[] = [
   { id: 'speech-2.8-hd', name: 'Speech 2.8 HD' },
   { id: 'speech-2.8-turbo', name: 'Speech 2.8 Turbo' },
-  { id: 'speech-2.6-hd', name: 'Speech 2.6 HD' },
-  { id: 'speech-2.6-turbo', name: 'Speech 2.6 Turbo' },
-  { id: 'speech-02-hd', name: 'Speech 02 HD' },
-  { id: 'speech-02-turbo', name: 'Speech 02 Turbo' },
-  { id: 'speech-01-hd', name: 'Speech 01 HD' },
-  { id: 'speech-01-turbo', name: 'Speech 01 Turbo' },
 ];
 
 /** Voice language options. boost maps to MiniMax language_boost parameter. */

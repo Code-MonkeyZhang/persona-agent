@@ -5,12 +5,15 @@
 import * as fs from 'node:fs';
 import { getTtsConfigPath } from '../util/paths.js';
 import type { TtsConfig } from './types.js';
+import { TTS_MODELS } from './types.js';
 
 const DEFAULT_TTS_CONFIG: TtsConfig = {
   apiKey: '',
   model: 'speech-2.8-hd',
   clonedVoices: [],
 };
+
+const VALID_MODEL_IDS = new Set(TTS_MODELS.map((m) => m.id));
 
 /** Load TTS config from minimax-tts.json. Returns defaults for missing fields. */
 export function loadTtsConfig(): TtsConfig {
@@ -20,9 +23,10 @@ export function loadTtsConfig(): TtsConfig {
   }
   const raw = fs.readFileSync(configPath, 'utf-8');
   const parsed = JSON.parse(raw) as Partial<TtsConfig>;
+  const model = parsed.model ?? DEFAULT_TTS_CONFIG.model;
   return {
     apiKey: parsed.apiKey ?? DEFAULT_TTS_CONFIG.apiKey,
-    model: parsed.model ?? DEFAULT_TTS_CONFIG.model,
+    model: VALID_MODEL_IDS.has(model) ? model : DEFAULT_TTS_CONFIG.model,
     clonedVoices: parsed.clonedVoices ?? DEFAULT_TTS_CONFIG.clonedVoices,
   };
 }
