@@ -1,6 +1,9 @@
 /**
  * @file renderer/stores/chatStore.ts
  * @description 聊天状态管理 - 负责消息发送、WebSocket 消息接收分发与聊天状态维护
+ *
+ * 采用 per-session state map 隔离不同 session 的消息和加载状态，
+ * 切换 session 时只更新 currentSessionId 指针，不再替换整个消息数组。
  */
 
 import { create } from 'zustand';
@@ -59,31 +62,38 @@ function cycleToThoughts(msg: StepCompleteMessage): Thought[] {
   return thoughts;
 }
 
-interface ChatStore {
+/** 单个 session 的聊天状态 */
+interface SessionChatState {
   messages: Message[];
-  connectionStatus: ConnectionStatus;
   isLoading: boolean;
-  sessionId: string | null;
+}
+
+interface ChatStore {
+  /** 按 sessionId 隔离的各 session 聊天状态 */
+  sessionStates: Map<string, SessionChatState>;
+  /** 当前用户正在查看的 session ID */
+  currentSessionId: string | null;
+  connectionStatus: ConnectionStatus;
   agentId: string | null;
   lastUserMessage: string | null;
   wsClient: WebSocketClient | null;
 
-  setConnectionStatus: (status: ConnectionStatus) => void;
+  setCurrentSessionId: (id: string | null) => void;
+  /** 为指定 session 初始化聊天状态（从后端加载的历史消息） */
+  initSessionState: (sessionId: string, messages: Message[]) => void;
+  /** 清除指定 session 的聊天状态 */
+  clearSessionState: (sessionId: string) => void;
   sendMessage: (content: string, sessionId?: string) => Promise<void>;
-  addMessage: (message: Message) => void;
-  setMessages: (messages: Message[]) => void;
-  setSessionId: (id: string | null) => void;
-  setAgentId: (id: string | null) => void;
-  clearMessages: () => void;
   handleWsMessage: (msg: ServerMessage) => void;
+  setConnectionStatus: (status: ConnectionStatus) => void;
+  setAgentId: (id: string | null) => void;
   setWsClient: (client: WebSocketClient | null) => void;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
-  messages: [],
+  sessionStates: new Map(),
+  currentSessionId: null,
   connectionStatus: 'disconnected',
-  isLoading: false,
-  sessionId: null,
   agentId: null,
   lastUserMessage: null,
   wsClient: null,
@@ -92,22 +102,24 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({ connectionStatus: status });
   },
 
-  addMessage: (message: Message) => {
-    set((state) => ({
-      messages: [...state.messages, message],
-    }));
+  setCurrentSessionId: (id: string | null) => {
+    set({ currentSessionId: id });
   },
 
-  setMessages: (messages: Message[]) => {
-    set({ messages });
+  initSessionState: (sessionId: string, messages: Message[]) => {
+    set((state) => {
+      const newStates = new Map(state.sessionStates);
+      newStates.set(sessionId, { messages, isLoading: false });
+      return { sessionStates: newStates };
+    });
   },
 
-  clearMessages: () => {
-    set({ messages: [], lastUserMessage: null });
-  },
-
-  setSessionId: (id: string | null) => {
-    set({ sessionId: id });
+  clearSessionState: (sessionId: string) => {
+    set((state) => {
+      const newStates = new Map(state.sessionStates);
+      newStates.delete(sessionId);
+      return { sessionStates: newStates };
+    });
   },
 
   setAgentId: (id: string | null) => {
@@ -120,9 +132,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   sendMessage: async (content: string, explicitSessionId?: string) => {
     const state = get();
-    const sessionId = explicitSessionId || state.sessionId;
+    const sessionId = explicitSessionId || state.currentSessionId;
     const agentId = state.agentId;
-    const { addMessage, connectionStatus, wsClient } = state;
+    const { connectionStatus, wsClient } = state;
 
     if (!agentId || !sessionId) {
       toast.error('No agent or session selected');
@@ -130,19 +142,42 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
 
     if (connectionStatus !== 'connected') {
-      addMessage(createMessage('user', content));
-      addMessage(
-        createMessage(
-          'error',
-          'Cannot connect to server. Please ensure Agent Server is running.'
-        )
-      );
+      set((state) => {
+        const newStates = new Map(state.sessionStates);
+        const sessionState = newStates.get(sessionId) || {
+          messages: [],
+          isLoading: false,
+        };
+        newStates.set(sessionId, {
+          messages: [
+            ...sessionState.messages,
+            createMessage('user', content),
+            createMessage(
+              'error',
+              'Cannot connect to server. Please ensure Agent Server is running.'
+            ),
+          ],
+          isLoading: false,
+        });
+        return { sessionStates: newStates };
+      });
       toast.error('Cannot connect to server');
       return;
     }
 
-    set({ lastUserMessage: content, isLoading: true });
-    addMessage(createMessage('user', content));
+    // 追加用户消息，标记该 session 为加载中
+    set((state) => {
+      const newStates = new Map(state.sessionStates);
+      const sessionState = newStates.get(sessionId) || {
+        messages: [],
+        isLoading: false,
+      };
+      newStates.set(sessionId, {
+        messages: [...sessionState.messages, createMessage('user', content)],
+        isLoading: true,
+      });
+      return { sessionStates: newStates, lastUserMessage: content };
+    });
 
     wsClient?.subscribe(sessionId);
 
@@ -155,22 +190,40 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         voiceEnabled
       );
       if (!result.success) {
-        set({ isLoading: false });
+        set((state) => {
+          const newStates = new Map(state.sessionStates);
+          const sessionState = newStates.get(sessionId);
+          if (sessionState) {
+            newStates.set(sessionId, { ...sessionState, isLoading: false });
+          }
+          return { sessionStates: newStates };
+        });
       }
     } catch {
-      set({ isLoading: false });
+      set((state) => {
+        const newStates = new Map(state.sessionStates);
+        const sessionState = newStates.get(sessionId);
+        if (sessionState) {
+          newStates.set(sessionId, { ...sessionState, isLoading: false });
+        }
+        return { sessionStates: newStates };
+      });
     }
   },
 
+  /**
+   * 处理 WebSocket 推送消息，按 sessionId 路由到对应 session 的状态。
+   * step_complete / complete 事件携带 sessionId，直接定位 Map entry；
+   * error 事件无 sessionId，追加到 currentSessionId 对应的 session。
+   */
   handleWsMessage: (msg: ServerMessage) => {
-    const { addMessage } = get();
-
     switch (msg.type) {
       case 'subscribed':
         logger.info('Subscribed to session:', msg.sessionId);
         break;
 
       case 'step_complete': {
+        const sessionId = msg.sessionId;
         const thoughts = cycleToThoughts(msg);
 
         if (msg.toolCalls) {
@@ -185,22 +238,47 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           }
         }
 
-        addMessage({
-          id: crypto.randomUUID(),
-          type: 'assistant',
-          content: msg.content || '',
-          timestamp: new Date(),
-          thoughts,
+        // 在 set 回调外读取当前 sessionState，避免在回调内调用 get()
+        const currentSnap = get();
+        const sessionState = currentSnap.sessionStates.get(sessionId);
+        if (sessionState) {
+          set((state) => {
+            const newStates = new Map(state.sessionStates);
+            newStates.set(sessionId, {
+              ...sessionState,
+              messages: [
+                ...sessionState.messages,
+                {
+                  id: crypto.randomUUID(),
+                  type: 'assistant' as const,
+                  content: msg.content || '',
+                  timestamp: new Date(),
+                  thoughts,
+                },
+              ],
+            });
+            return { sessionStates: newStates };
+          });
+        }
+        break;
+      }
+
+      case 'complete': {
+        const sessionId = msg.sessionId;
+        set((state) => {
+          const newStates = new Map(state.sessionStates);
+          const sessionState = newStates.get(sessionId);
+          if (sessionState) {
+            newStates.set(sessionId, { ...sessionState, isLoading: false });
+          }
+          return { sessionStates: newStates };
         });
         break;
       }
 
-      case 'complete':
-        set({ isLoading: false });
-        break;
-
       case 'speak_ready': {
         const speakMsg = msg as SpeakReadyMessage;
+        if (speakMsg.sessionId !== get().currentSessionId) break;
         const { voiceEnabled, speak } = useVoiceStore.getState();
         if (voiceEnabled) {
           void speak(
@@ -220,10 +298,28 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         break;
       }
 
-      case 'error':
-        addMessage(createMessage('error', msg.message));
-        set({ isLoading: false });
+      case 'error': {
+        // error 事件没有 sessionId，追加到当前 session
+        const currentSessionId = get().currentSessionId;
+        if (currentSessionId) {
+          set((state) => {
+            const newStates = new Map(state.sessionStates);
+            const sessionState = newStates.get(currentSessionId);
+            if (sessionState) {
+              newStates.set(currentSessionId, {
+                ...sessionState,
+                messages: [
+                  ...sessionState.messages,
+                  createMessage('error', msg.message),
+                ],
+                isLoading: false,
+              });
+            }
+            return { sessionStates: newStates };
+          });
+        }
         break;
+      }
 
       case 'title_updated':
         logger.info('Title updated:', msg.title);

@@ -51,7 +51,12 @@ export function CompanionPanel({
 }: CompanionPanelProps) {
   const { t } = useTranslation();
   const currentPose = useCompanionStore((s) => s.currentPose);
-  const messages = useChatStore((s) => s.messages);
+  const currentSessionId = useChatStore((s) => s.currentSessionId);
+  const messages = useChatStore((s) =>
+    currentSessionId
+      ? (s.sessionStates.get(currentSessionId)?.messages ?? [])
+      : []
+  );
   const voiceEnabled = useVoiceStore((s) => s.voiceEnabled);
   const toggleVoice = useVoiceStore((s) => s.toggleVoice);
   const stopSpeaking = useVoiceStore((s) => s.stopSpeaking);

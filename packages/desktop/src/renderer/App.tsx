@@ -64,16 +64,16 @@ function AppContent() {
   const messageListRef = useRef<MessageListRef>(null);
 
   /* 从Store中获取数据 */
-  const {
-    messages,
-    connectionStatus,
-    isLoading,
-    sendMessage,
-    setMessages,
-    clearMessages,
-    setSessionId,
-    setAgentId,
-  } = useChatStore();
+  const currentSessionId = useChatStore((s) => s.currentSessionId);
+  const currentSessionState = useChatStore((s) =>
+    currentSessionId ? s.sessionStates.get(currentSessionId) : undefined
+  );
+  const messages = currentSessionState?.messages ?? [];
+  const isLoading = currentSessionState?.isLoading ?? false;
+
+  const connectionStatus = useChatStore((s) => s.connectionStatus);
+  const sendMessage = useChatStore((s) => s.sendMessage);
+  const setAgentId = useChatStore((s) => s.setAgentId);
 
   const {
     currentSession,
@@ -116,33 +116,32 @@ function AppContent() {
     }
   }, [connectionStatus, currentAgent, loadSessions]);
 
-  const currentSessionId = currentSession?.id ?? null;
+  const activeSessionId = currentSession?.id ?? null;
 
+  /**
+   * session 切换时更新 currentSessionId 指针并按需加载历史消息。
+   * 已在 sessionStates Map 中存在的 session 直接复用，无需重新加载。
+   */
   useEffect(() => {
     const session = useSessionStore.getState().currentSession;
+    const chatStore = useChatStore.getState();
+
     if (session) {
-      setSessionId(session.id);
+      chatStore.setCurrentSessionId(session.id);
       setAgentId(session.agentId);
+
       if (useSessionStore.getState().isNewlyCreated) {
         useSessionStore.setState({ isNewlyCreated: false });
-      } else {
+        chatStore.initSessionState(session.id, []);
+      } else if (!chatStore.sessionStates.has(session.id)) {
         const convertedMessages = convertSessionMessages(session.messages);
-        setMessages(convertedMessages);
+        chatStore.initSessionState(session.id, convertedMessages);
       }
     } else {
-      setSessionId(null);
+      chatStore.setCurrentSessionId(null);
       setAgentId(currentAgent?.id ?? null);
-      clearMessages();
     }
-  }, [
-    currentSessionId,
-    currentAgent,
-    setSessionId,
-    setAgentId,
-    setMessages,
-    clearMessages,
-    convertSessionMessages,
-  ]);
+  }, [activeSessionId, currentAgent, setAgentId, convertSessionMessages]);
 
   const currentModelId =
     currentSession?.model?.model || currentAgent?.defaultModel?.model || '';

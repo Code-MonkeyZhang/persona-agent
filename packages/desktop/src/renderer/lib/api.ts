@@ -102,7 +102,7 @@ export class WebSocketClient {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
-  private currentSessionId: string | null = null;
+  private activeSessionIds: Set<string> = new Set();
 
   constructor(private urlProvider: () => Promise<string>) {}
 
@@ -134,10 +134,11 @@ export class WebSocketClient {
         this.reconnectAttempts = 0;
         this.connectionListeners.forEach((l) => l(true));
 
-        if (this.currentSessionId) {
+        // 重连时重新订阅所有活跃 session
+        for (const sessionId of this.activeSessionIds) {
           this.send({
             type: 'subscribe',
-            payload: { sessionId: this.currentSessionId },
+            payload: { sessionId },
           });
         }
       };
@@ -225,7 +226,7 @@ export class WebSocketClient {
    * @param sessionId - 要订阅的会话 ID
    */
   subscribe(sessionId: string): void {
-    this.currentSessionId = sessionId;
+    this.activeSessionIds.add(sessionId);
     this.send({ type: 'subscribe', payload: { sessionId } });
   }
 
@@ -234,10 +235,8 @@ export class WebSocketClient {
    * @param sessionId - 要取消订阅的会话 ID
    */
   unsubscribe(sessionId: string): void {
+    this.activeSessionIds.delete(sessionId);
     this.send({ type: 'unsubscribe', payload: { sessionId } });
-    if (this.currentSessionId === sessionId) {
-      this.currentSessionId = null;
-    }
   }
 
   /**
