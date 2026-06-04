@@ -104,3 +104,4 @@ if (pushResult === null) {
 console.log(`\n✅ Done! ${tag} pushed to origin.`);
 console.log(`CI will build and create a Draft Release. Check progress at:`);
 console.log(`https://github.com/Code-MonkeyZhang/persona-agent/actions\n`);
+process.exit(0);
