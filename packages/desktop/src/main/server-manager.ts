@@ -8,16 +8,14 @@ import log from 'electron-log';
 
 let serverUrl: string | null = null;
 
-/**
- * 设置当前 server 的 URL，供前端 IPC 查询
- */
+/** 设置当前服务器 URL，供前端 IPC 查询 */
 export function setServerUrl(url: string | null): void {
   serverUrl = url;
 }
 
 /**
- * 获取当前 server 的 URL
- * @returns 服务 URL，未启动则返回 null
+ * 获取当前服务器 URL
+ * @returns 服务器 URL，未启动则返回 null
  */
 export function getServerUrl(): string | null {
   return serverUrl;
@@ -26,7 +24,7 @@ export function getServerUrl(): string | null {
 /**
  * 轮询 /health 端点等待后端服务启动就绪
  * @param url - 服务地址
- * @param maxAttempts - 最大重试次数，默认 30（每次间隔 500ms，总计约 15s）
+ * @param maxAttempts - 最大重试次数（默认 30，每次间隔 500ms，总计约 15s）
  * @throws 超时未就绪时抛出错误
  */
 export async function waitForServer(
@@ -41,7 +39,7 @@ export async function waitForServer(
         return;
       }
     } catch {
-      // Server not ready yet
+      // 服务尚未就绪
     }
     await new Promise((r) => setTimeout(r, 500));
   }
@@ -49,14 +47,11 @@ export async function waitForServer(
 }
 
 /**
- * 清理上次桌面端异常退出后可能残留的 server 进程。
- * 仅在 production 模式下执行，开发模式下跳过避免误杀。
+ * 清理上次桌面端异常退出后可能残留的服务器进程。
  * macOS/Linux 使用 killall，Windows 使用 taskkill。
  * 命令失败时静默忽略（没有残留进程时命令会返回非零退出码）。
  */
 export function killOrphanProcesses(): void {
-  if (process.env.NODE_ENV === 'development') return;
-
   try {
     if (process.platform === 'win32') {
       execSync('taskkill /F /IM persona-agent-server.exe', { stdio: 'ignore' });
@@ -64,6 +59,6 @@ export function killOrphanProcesses(): void {
       execSync('killall persona-agent-server', { stdio: 'ignore' });
     }
   } catch {
-    // 没有残留进程，正常
+    log.debug('未发现残留的服务器进程');
   }
 }

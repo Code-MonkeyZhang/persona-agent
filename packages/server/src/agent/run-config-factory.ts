@@ -32,7 +32,7 @@ import type { Session } from '../session/types.js';
  * ## Environment
  *
  * - Platform: {darwin|linux|win32}
- * - Date: {YYYY-MM-DD}
+ * - Date: {YYYY-MM-DD HH:mm (UTC+X)}
  * - Model: {provider}/{modelId}
  * - Working directory: {workspaceDir}
  *
@@ -62,7 +62,14 @@ function buildSystemPrompt(
   mcpNames?: string[]
 ): string {
   const platform = process.platform;
-  const date = new Date().toISOString().split('T')[0];
+  // TODO: 写的很杂, 这个迟早要改
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const offset = -now.getTimezoneOffset();
+  const sign = offset >= 0 ? '+' : '-';
+  const absOffset = Math.abs(offset);
+  const tz = `UTC${sign}${Math.floor(absOffset / 60)}${absOffset % 60 > 0 ? `:${pad(absOffset % 60)}` : ''}`;
+  const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())} (${tz})`;
 
   let prompt = `${basePrompt}
 
