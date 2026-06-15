@@ -93,7 +93,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
           <div
             className={cn(
               'px-4 py-2.5 rounded-2xl',
-              isUser && 'bg-[#228be6] text-white',
+              isUser && 'bg-primary text-primary-foreground msg-bubble-user',
               isError && 'bg-red-50 text-red-900 border border-red-200',
               !isUser && !isError && 'bg-[#f1f3f5] text-[#333]'
             )}
