@@ -114,6 +114,38 @@ interface PoseImageCardListProps {
   agentId: string | null;
 }
 
+/**
+ * 图片放大预览遮罩，点击任意位置或按 Escape 键关闭。
+ */
+function ImagePreviewOverlay({
+  src,
+  onClose,
+}: {
+  src: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
+      onClick={onClose}
+    >
+      <img
+        src={src}
+        alt=""
+        className="max-w-[90vw] max-h-[90vh] rounded-lg shadow-2xl"
+      />
+    </div>
+  );
+}
+
 function PoseImageCardList({
   images,
   onAdd,
@@ -253,17 +285,10 @@ function PoseImageCardList({
         className="hidden"
       />
       {previewSrc && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
-          onClick={() => setPreviewSrc(null)}
-        >
-          <img
-            src={previewSrc}
-            alt=""
-            className="max-w-[90vw] max-h-[90vh] rounded-lg shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
+        <ImagePreviewOverlay
+          src={previewSrc}
+          onClose={() => setPreviewSrc(null)}
+        />
       )}
     </div>
   );
@@ -828,18 +853,11 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                     >
                       <X className="w-3 h-3 text-white" />
                     </button>
-                    {bgPreviewOpen && (
-                      <div
-                        className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
-                        onClick={() => setBgPreviewOpen(false)}
-                      >
-                        <img
-                          src={bgPreviewUrl}
-                          alt=""
-                          className="max-w-[90vw] max-h-[90vh] rounded-lg shadow-2xl"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
+                    {bgPreviewOpen && bgPreviewUrl && (
+                      <ImagePreviewOverlay
+                        src={bgPreviewUrl}
+                        onClose={() => setBgPreviewOpen(false)}
+                      />
                     )}
                   </div>
                 ) : (
