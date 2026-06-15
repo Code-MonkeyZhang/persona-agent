@@ -30,8 +30,14 @@ import {
 } from '../lib/api';
 import { synthesize } from '../lib/tts';
 import { SettingRow, SettingDivider } from './SettingRow';
-import { HelpTooltip } from './ui/HelpTooltip';
 import { PasswordInput } from './ui/PasswordInput';
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from './ui/Select';
 import { useVoicePreview } from '../hooks/useVoicePreview';
 import { toast } from '../stores/toastStore';
 import { logger } from '../lib/logger';
@@ -331,28 +337,29 @@ export const VoiceConfigPanel: React.FC = () => {
           {t('voice.params')}
         </h3>
         <SettingRow label={t('voice.ttsModel')}>
-          <select
+          <Select
             value={selectedModel}
-            onChange={(e) => handleModelChange(e.target.value)}
+            onValueChange={handleModelChange}
             disabled={savingModel}
-            className="rounded-lg border border-[#e0e0e0] h-8 w-48 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           >
-            {models.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="rounded-lg border-[#e0e0e0] h-8 w-48 text-[13px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {models.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </SettingRow>
         <SettingDivider />
-        <div className="flex items-center justify-between min-h-[32px] gap-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-1 text-[14px] text-[#333] leading-[18px]">
-              {t('voice.summaryThreshold')}
-              <HelpTooltip text={t('voice.summaryThresholdTooltip')} />
-            </div>
-          </div>
-          <div className="shrink-0 flex items-center gap-2">
+        <SettingRow
+          label={t('voice.summaryThreshold')}
+          tooltip={t('voice.summaryThresholdTooltip')}
+        >
+          <div className="flex items-center gap-2">
             <input
               type="text"
               inputMode="numeric"
@@ -366,7 +373,7 @@ export const VoiceConfigPanel: React.FC = () => {
               {t('voice.characters')}
             </span>
           </div>
-        </div>
+        </SettingRow>
       </div>
 
       {/* 克隆音色管理 */}

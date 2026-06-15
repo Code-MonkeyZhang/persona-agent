@@ -4,25 +4,48 @@
  */
 
 import type { ReactNode } from 'react';
+import { HelpTooltip } from './ui/HelpTooltip';
 
 interface SettingRowProps {
   label: string;
   desc?: string;
+  /** 描述文字的额外 className（如 font-mono truncate） */
+  descClassName?: string;
+  /** 可选的 tooltip 文字，提供时在标签旁显示问号提示 */
+  tooltip?: string;
   children?: ReactNode;
 }
 
 /**
- * 设置行组件，左侧显示标签和描述，右侧放置控件
+ * 设置行组件，左侧显示标签和描述，右侧放置控件。
+ * 提供 tooltip 时自动在标签旁渲染 HelpTooltip。
  * @param label - 设置项标签
  * @param desc - 可选的描述文字
+ * @param descClassName - 描述文字的额外 className
+ * @param tooltip - 可选的 tooltip 文字
  * @param children - 右侧控件区域
  */
-export function SettingRow({ label, desc, children }: SettingRowProps) {
+export function SettingRow({
+  label,
+  desc,
+  descClassName,
+  tooltip,
+  children,
+}: SettingRowProps) {
   return (
     <div className="flex items-center justify-between min-h-[32px] gap-4">
       <div className="min-w-0">
-        <div className="text-[14px] text-[#333] leading-[18px]">{label}</div>
-        {desc && <div className="text-[12px] text-[#999] mt-0.5">{desc}</div>}
+        <div className="flex items-center gap-1.5 text-[14px] text-[#333] leading-[18px]">
+          {label}
+          {tooltip && <HelpTooltip text={tooltip} />}
+        </div>
+        {desc && (
+          <div
+            className={`text-[12px] text-[#999] mt-0.5 ${descClassName ?? ''}`}
+          >
+            {desc}
+          </div>
+        )}
       </div>
       {children && <div className="shrink-0">{children}</div>}
     </div>

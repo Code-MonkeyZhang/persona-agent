@@ -9,11 +9,11 @@
  * - 聚焦/失焦时切换输入框边框样式
  */
 
-import React, { useState, useRef, useCallback } from 'react';
-import type { KeyboardEvent } from 'react';
+import React from 'react';
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
+import { useChatInput } from '../hooks/useChatInput';
 import { ModelSelector } from './ModelSelector';
 import { WorkspaceSelector } from './WorkspaceSelector';
 import type { ProviderInfo } from '../lib/api';
@@ -57,58 +57,20 @@ export const InputBox: React.FC<InputBoxProps> = ({
   onProviderChange,
   onWorkspaceChange,
 }) => {
-  const [input, setInput] = useState('');
-  const [isFocused, setIsFocused] = useState(false);
   const { t } = useTranslation();
-  /** textarea 元素的引用，用于手动重置高度 */
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isFocused, setIsFocused] = React.useState(false);
 
-  /**
-   * 发送消息处理函数
-   *
-   * 检查输入内容非空且组件未被禁用或加载中时，调用外部 onSend 回调，
-   * 然后清空输入框并将 textarea 高度重置为初始值。
-   */
-  const handleSend = useCallback(() => {
-    if (input.trim() && !disabled && !isLoading) {
-      onSend(input.trim());
-      setInput('');
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-      }
-    }
-  }, [input, disabled, isLoading, onSend]);
-
-  /**
-   * 键盘事件处理函数
-   *
-   * 按下 Enter 键时发送消息（阻止默认换行行为），
-   * 按下 Shift+Enter 时不拦截，允许正常换行。
-   *
-   * @param e - 键盘事件对象
-   */
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.nativeEvent.isComposing) return;
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  /**
-   * 输入内容变化处理函数
-   *
-   * 同步输入值到 state，并根据内容实际高度动态调整 textarea 高度，
-   * 最大高度限制为 200px，避免输入框无限撑开。
-   *
-   * @param e - 输入事件对象
-   */
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value);
-    const textarea = e.target;
-    textarea.style.height = 'auto';
-    textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
-  };
+  const { input, textareaRef, handleChange, handleKeyDown, reset } =
+    useChatInput({
+      maxHeight: 200,
+      onSend: () => {
+        const text = input.trim();
+        if (text && !disabled && !isLoading) {
+          onSend(text);
+          reset();
+        }
+      },
+    });
 
   return (
     <div className="px-4 pb-4">
@@ -126,7 +88,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
           <textarea
             ref={textareaRef}
             value={input}
-            onChange={handleInputChange}
+            onChange={handleChange}
             onKeyDown={handleKeyDown}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
@@ -169,7 +131,13 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
           {/* 发送按钮：有内容且非加载中时高亮可点击，否则灰显禁用 */}
           <button
-            onClick={handleSend}
+            onClick={() => {
+              const text = input.trim();
+              if (text && !disabled && !isLoading) {
+                onSend(text);
+                reset();
+              }
+            }}
             disabled={disabled || !input.trim() || isLoading}
             className={cn(
               'w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-200',

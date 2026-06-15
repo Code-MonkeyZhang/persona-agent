@@ -15,6 +15,7 @@ import {
 } from '../lib/api';
 import { logger } from '../lib/logger';
 import { ListState } from './ListState';
+import { StatusDot } from './ui/StatusDot';
 
 const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
@@ -176,9 +177,7 @@ export const McpListTab: React.FC = () => {
                     key={mcp.name}
                     className="group flex items-center gap-2 px-3 py-3 rounded-xl border border-[#eee] bg-[#fafafa] text-left"
                   >
-                    <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${getStatusColor(mcp.status)}`}
-                    />
+                    <StatusDot color={getStatusColor(mcp.status)} />
                     <div className="min-w-0 flex-1">
                       <div className="text-[13px] font-medium text-[#333] truncate">
                         {mcp.name}

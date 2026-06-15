@@ -4,11 +4,9 @@
  */
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  ArrowLeft,
   Plus,
   Camera,
   Volume2,
-  X,
   PenLine,
   Plug,
   Sparkles,
@@ -60,6 +58,9 @@ import type { CreateAgentInput, UpdateAgentInput, Agent } from '../types/agent';
 import { logger } from '../lib/logger';
 import { readFileAsDataURL } from '../lib/utils';
 import { HelpTooltip } from './ui/HelpTooltip';
+import { StatusDot } from './ui/StatusDot';
+import { BackButton } from './ui/BackButton';
+import { HoverDeleteButton } from './ui/HoverDeleteButton';
 import { useVoicePreview } from '../hooks/useVoicePreview';
 
 const PREVIEW_TEXTS = [
@@ -249,15 +250,14 @@ function PoseImageCardList({
               </div>
             )}
           </div>
-          <button
+          <HoverDeleteButton
+            variant="dark"
+            className="absolute top-1 right-1"
             onClick={(e) => {
               e.stopPropagation();
               onRemove(idx);
             }}
-            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-black/60"
-          >
-            <X className="w-3 h-3 text-white" />
-          </button>
+          />
         </div>
       ))}
       <div
@@ -666,12 +666,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   return (
     <div className="h-full w-full flex flex-col bg-[#f7f7f7]">
       <div className="header-drag shrink-0 flex items-center gap-2 px-5 h-14 border-b border-[#e8e8e8] bg-[#f7f7f7]">
-        <button
-          onClick={closeAgentEditor}
-          className="header-no-drag text-gray-400 hover:text-gray-600 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
+        <BackButton onClick={closeAgentEditor} />
         <h1 className="text-[16px] font-bold text-[#333]">
           {editingAgentId
             ? t('agentEditor.editAgent')
@@ -800,12 +795,11 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                         onError={() => setBgPreviewUrl(undefined)}
                       />
                     </div>
-                    <button
+                    <HoverDeleteButton
+                      variant="dark"
+                      className="absolute top-1 right-1"
                       onClick={handleBgRemove}
-                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-black/60"
-                    >
-                      <X className="w-3 h-3 text-white" />
-                    </button>
+                    />
                     {bgPreviewOpen && bgPreviewUrl && (
                       <ImagePreviewOverlay
                         src={bgPreviewUrl}
@@ -862,24 +856,19 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                   />
                 </div>
                 <SettingDivider />
-                <div className="flex items-center justify-between min-h-[32px] gap-4">
-                  <div className="min-w-0 flex items-center gap-1.5">
-                    <div className="text-[14px] text-[#333] leading-[18px]">
-                      {t('agentEditor.maxSteps')}
-                    </div>
-                    <HelpTooltip text={t('agentEditor.maxStepsTooltip')} />
-                  </div>
-                  <div className="shrink-0">
-                    <input
-                      type="number"
-                      value={maxSteps}
-                      onChange={(e) => setMaxSteps(e.target.value)}
-                      min={1}
-                      max={50}
-                      className="rounded-lg border border-[#e0e0e0] h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
+                <SettingRow
+                  label={t('agentEditor.maxSteps')}
+                  tooltip={t('agentEditor.maxStepsTooltip')}
+                >
+                  <input
+                    type="number"
+                    value={maxSteps}
+                    onChange={(e) => setMaxSteps(e.target.value)}
+                    min={1}
+                    max={50}
+                    className="rounded-lg border border-[#e0e0e0] h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </SettingRow>
               </div>
 
               {/* 音色 */}
@@ -971,33 +960,26 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                 {voiceId && (
                   <>
                     <SettingDivider />
-                    <div className="flex items-center justify-between min-h-[32px] gap-4">
-                      <div className="min-w-0 flex items-center gap-1.5">
-                        <div className="text-[14px] text-[#333] leading-[18px]">
-                          {t('agentEditor.ttsLanguage')}
-                        </div>
-                        <HelpTooltip
-                          text={t('agentEditor.ttsLanguageTooltip')}
-                        />
-                      </div>
-                      <div className="shrink-0">
-                        <Select
-                          value={voiceLanguage}
-                          onValueChange={setVoiceLanguage}
-                        >
-                          <SelectTrigger className="rounded-lg border-[#e0e0e0] h-8 w-48 text-[13px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {VOICE_LANGUAGES.map((l) => (
-                              <SelectItem key={l.value} value={l.value}>
-                                {t(l.labelKey)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
+                    <SettingRow
+                      label={t('agentEditor.ttsLanguage')}
+                      tooltip={t('agentEditor.ttsLanguageTooltip')}
+                    >
+                      <Select
+                        value={voiceLanguage}
+                        onValueChange={setVoiceLanguage}
+                      >
+                        <SelectTrigger className="rounded-lg border-[#e0e0e0] h-8 w-48 text-[13px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {VOICE_LANGUAGES.map((l) => (
+                            <SelectItem key={l.value} value={l.value}>
+                              {t(l.labelKey)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </SettingRow>
                   </>
                 )}
               </div>
@@ -1038,9 +1020,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                         key={mcpId}
                         className="group relative flex items-center gap-2.5 px-3 py-3 rounded-xl border border-[#eee] bg-[#fafafa] hover:bg-[#f5f5f5] transition-all text-left"
                       >
-                        <span
-                          className={`w-2 h-2 rounded-full shrink-0 ${statusColor}`}
-                        />
+                        <StatusDot color={statusColor} />
                         <div className="min-w-0 flex-1">
                           <div className="text-[13px] font-medium text-[#333] truncate">
                             {mcpId}
@@ -1051,12 +1031,11 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                               : t('mcp.disconnected')}
                           </div>
                         </div>
-                        <button
+                        <HoverDeleteButton
+                          variant="light"
+                          className="absolute top-1.5 right-1.5"
                           onClick={() => removeMcp(mcpId)}
-                          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10"
-                        >
-                          <X className="w-3 h-3 text-[#999]" />
-                        </button>
+                        />
                       </div>
                     );
                   })}
@@ -1081,8 +1060,12 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                               onClick={() => addMcp(mcp.name)}
                               className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
                             >
-                              <span
-                                className={`w-2 h-2 rounded-full shrink-0 ${mcp.status === 'connected' ? 'bg-green-500' : 'bg-gray-300'}`}
+                              <StatusDot
+                                color={
+                                  mcp.status === 'connected'
+                                    ? 'bg-green-500'
+                                    : 'bg-gray-300'
+                                }
                               />
                               <div className="min-w-0">
                                 <div className="text-[13px]">{mcp.name}</div>
@@ -1127,12 +1110,11 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                             {skill?.description || ''}
                           </div>
                         </div>
-                        <button
+                        <HoverDeleteButton
+                          variant="light"
+                          className="absolute top-1.5 right-1.5"
                           onClick={() => removeSkill(skillId)}
-                          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10"
-                        >
-                          <X className="w-3 h-3 text-[#999]" />
-                        </button>
+                        />
                       </div>
                     );
                   })}

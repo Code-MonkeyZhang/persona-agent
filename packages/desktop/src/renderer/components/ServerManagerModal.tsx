@@ -10,6 +10,7 @@ import { useTunnelStore } from '../stores/tunnelStore';
 import { getBaseUrl } from '../lib/api';
 import type { ConnectionStatus } from '../types/chat';
 import { CopyButton } from './ui/CopyButton';
+import { StatusDot } from './ui/StatusDot';
 
 interface ServerManagerModalProps {
   isOpen: boolean;
@@ -128,7 +129,7 @@ function ServerSection({
           {t('server.agentServer')}
         </div>
         <div className="flex items-center gap-1.5 text-[14px] text-[#666]">
-          <span className={`w-2 h-2 rounded-full ${config.dotColor}`} />
+          <StatusDot color={config.dotColor} />
           <span className={config.color}>{t(config.labelKey)}</span>
         </div>
       </div>

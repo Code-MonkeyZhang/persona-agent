@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Key, Speech, Plug, Settings, Sparkles } from 'lucide-react';
+import { Key, Speech, Plug, Settings, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ProviderConfigPanel } from './ProviderConfigPanel';
 import { ConfigForm } from './ConfigForm';
@@ -17,6 +17,7 @@ import { useConfigStore } from '../stores/configStore';
 import { useProviderStore } from '../stores/providerStore';
 import { useViewStore } from '../stores/viewStore';
 import { cn } from '../lib/utils';
+import { BackButton } from './ui/BackButton';
 
 type TabKey = 'general' | 'providers' | 'mcp' | 'skills' | 'voice';
 
@@ -93,12 +94,7 @@ export const SettingsPage: React.FC = () => {
     <div className="h-full w-full flex bg-[#f7f7f7]">
       <div className="w-52 border-r border-[#e8e8e8] bg-white flex flex-col shrink-0">
         <div className="header-drag px-4 py-4 flex items-center gap-2">
-          <button
-            onClick={handleClose}
-            className="header-no-drag text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
+          <BackButton onClick={handleClose} />
           <h1 className="text-[16px] font-bold text-[#333]">
             {t('settings.title')}
           </h1>

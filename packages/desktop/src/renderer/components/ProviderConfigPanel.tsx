@@ -11,6 +11,7 @@ import { useProviderStore } from '../stores/providerStore';
 import { Button } from './ui/Button';
 import { PasswordInput } from './ui/PasswordInput';
 import { ScrollArea } from './ui/ScrollArea';
+import { StatusDot } from './ui/StatusDot';
 import { SettingRow } from './SettingRow';
 import { toast } from '../stores/toastStore';
 import { logger } from '../lib/logger';
@@ -146,9 +147,7 @@ export const ProviderConfigPanel: React.FC = () => {
                   )}
                 >
                   <span>{provider.name}</span>
-                  {provider.hasAuth && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                  )}
+                  {provider.hasAuth && <StatusDot color="bg-green-500" />}
                 </button>
               ))}
             </div>
