@@ -8,8 +8,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   CheckCircle,
-  Eye,
-  EyeOff,
   XCircle,
   Volume2,
   Trash2,
@@ -31,9 +29,10 @@ import {
   type VoiceOption,
 } from '../lib/api';
 import { synthesize } from '../lib/tts';
-import { audioPlayer } from '../lib/audio-player';
 import { SettingRow, SettingDivider } from './SettingRow';
 import { HelpTooltip } from './ui/HelpTooltip';
+import { PasswordInput } from './ui/PasswordInput';
+import { useVoicePreview } from '../hooks/useVoicePreview';
 import { toast } from '../stores/toastStore';
 import { logger } from '../lib/logger';
 
@@ -86,7 +85,6 @@ function generateVoiceId(): string {
 export const VoiceConfigPanel: React.FC = () => {
   const { t } = useTranslation();
   const [inputKey, setInputKey] = useState('');
-  const [showKey, setShowKey] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
@@ -98,7 +96,7 @@ export const VoiceConfigPanel: React.FC = () => {
   const [savingThreshold, setSavingThreshold] = useState(false);
 
   const [clonedVoices, setClonedVoices] = useState<VoiceOption[]>([]);
-  const [previewingId, setPreviewingId] = useState<string | null>(null);
+  const { playingId: previewingId, preview: previewVoice } = useVoicePreview();
   const [showCloneForm, setShowCloneForm] = useState(false);
   const [cloneFile, setCloneFile] = useState<File | null>(null);
   const [cloneFileName, setCloneFileName] = useState('');
@@ -202,31 +200,6 @@ export const VoiceConfigPanel: React.FC = () => {
     }
   };
 
-  /** 试听克隆音色 */
-  const handlePreviewVoice = async (voiceId: string) => {
-    try {
-      const config = await getTtsConfig();
-      if (!config.apiKey) {
-        toast.warning(t('voice.configureApiKeyFirst'));
-        return;
-      }
-      setPreviewingId(voiceId);
-      const audio = await synthesize(
-        '你好，这是克隆音色的试听效果。',
-        voiceId,
-        config.apiKey,
-        config.model
-      );
-      audioPlayer.play(audio);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : t('voice.previewFailed');
-      toast.error(message);
-    } finally {
-      setTimeout(() => setPreviewingId(null), 3000);
-    }
-  };
-
   /** 删除克隆音色 */
   const handleDeleteVoice = async (voiceId: string) => {
     try {
@@ -323,26 +296,11 @@ export const VoiceConfigPanel: React.FC = () => {
 
         <SettingRow label="API Key">
           <div className="flex items-center gap-2">
-            <div className="relative">
-              <input
-                type={showKey ? 'text' : 'password'}
-                value={inputKey}
-                onChange={(e) => setInputKey(e.target.value)}
-                placeholder={t('voice.enterMinimaxApiKey')}
-                className="w-64 h-8 px-3 text-[13px] border border-[#e0e0e0] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#999] pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowKey(!showKey)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showKey ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </button>
-            </div>
+            <PasswordInput
+              value={inputKey}
+              onChange={(e) => setInputKey(e.target.value)}
+              placeholder={t('voice.enterMinimaxApiKey')}
+            />
             <button
               onClick={handleSaveKey}
               disabled={!inputKey.trim() || verifying}
@@ -530,7 +488,12 @@ export const VoiceConfigPanel: React.FC = () => {
 
                 <div className="shrink-0 flex items-center gap-1">
                   <button
-                    onClick={() => handlePreviewVoice(v.id)}
+                    onClick={() =>
+                      previewVoice(v.id, '你好，这是克隆音色的试听效果。', {
+                        noKey: t('voice.configureApiKeyFirst'),
+                        failed: t('voice.previewFailed'),
+                      })
+                    }
                     disabled={previewingId === v.id}
                     className="h-7 w-7 flex items-center justify-center rounded-md text-[#999] hover:text-[#333] hover:bg-[#f0f0f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title={t('voice.preview')}

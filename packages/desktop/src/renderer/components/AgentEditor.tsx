@@ -35,7 +35,6 @@ import {
   getBackgroundImageUrl,
   getPoseImageUrl,
   getVoices,
-  getTtsConfig,
   type McpServer,
   type Skill,
   type ProviderInfo,
@@ -59,11 +58,9 @@ import {
 } from './ui/Select';
 import type { CreateAgentInput, UpdateAgentInput, Agent } from '../types/agent';
 import { logger } from '../lib/logger';
-import { synthesize } from '../lib/tts';
-import { audioPlayer } from '../lib/audio-player';
-import { toast } from '../stores/toastStore';
 import { readFileAsDataURL } from '../lib/utils';
 import { HelpTooltip } from './ui/HelpTooltip';
+import { useVoicePreview } from '../hooks/useVoicePreview';
 
 const PREVIEW_TEXTS = [
   '你好呀，很高兴见到你，今天有什么我可以帮忙的吗？',
@@ -334,7 +331,8 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   >();
   const [voiceId, setVoiceId] = useState<string>('');
   const [voiceLanguage, setVoiceLanguage] = useState('default');
-  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+  const { playingId: previewingVoiceId, preview: previewVoice } =
+    useVoicePreview();
 
   const [showMcpDropdown, setShowMcpDropdown] = useState(false);
   const [showSkillDropdown, setShowSkillDropdown] = useState(false);
@@ -544,37 +542,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     setPendingBgFile(null);
     if (editingAgentId) {
       setBgDeleted(true);
-    }
-  };
-
-  /**
-   * 试听选中的音色：从服务端获取配置后合成试听文本并播放
-   */
-  const handlePreviewVoice = async () => {
-    try {
-      const ttsConfig = await getTtsConfig();
-      if (!ttsConfig.apiKey) {
-        toast.warning(t('common.configureApiKeyInSettings'));
-        return;
-      }
-
-      setIsPreviewPlaying(true);
-      const previewText =
-        PREVIEW_TEXTS[Math.floor(Math.random() * PREVIEW_TEXTS.length)];
-      const audio = await synthesize(
-        previewText,
-        voiceId,
-        ttsConfig.apiKey,
-        ttsConfig.model
-      );
-      audioPlayer.play(audio);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : t('common.previewFailed');
-      logger.error('[AgentEditor] Voice preview failed:', message);
-      toast.error(message);
-    } finally {
-      setTimeout(() => setIsPreviewPlaying(false), 3000);
     }
   };
 
@@ -980,11 +947,20 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                       </SelectContent>
                     </Select>
                     <button
-                      onClick={handlePreviewVoice}
-                      disabled={!voiceId || isPreviewPlaying}
+                      onClick={() => {
+                        const text =
+                          PREVIEW_TEXTS[
+                            Math.floor(Math.random() * PREVIEW_TEXTS.length)
+                          ];
+                        previewVoice(voiceId, text, {
+                          noKey: t('common.configureApiKeyInSettings'),
+                          failed: t('common.previewFailed'),
+                        });
+                      }}
+                      disabled={!voiceId || !!previewingVoiceId}
                       className="rounded-lg border border-[#e0e0e0] w-8 h-8 shrink-0 flex items-center justify-center text-[#999] hover:text-[#333] hover:bg-[#f0f0f0] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      {isPreviewPlaying ? (
+                      {previewingVoiceId ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       ) : (
                         <Volume2 className="w-3.5 h-3.5" />
