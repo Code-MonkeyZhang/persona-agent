@@ -17,6 +17,7 @@ import { useCompanionStore } from '../stores/companionStore';
 import { useChatStore } from '../stores/chatStore';
 import { useVoiceStore } from '../stores/voiceStore';
 import { useAgentStore } from '../stores/agentStore';
+import { useChatInput } from '../hooks/useChatInput';
 import { getPoseImageUrl, getBackgroundImageUrl, listPoses } from '../lib/api';
 import { Markdown } from './Markdown';
 
@@ -62,15 +63,30 @@ export function CompanionPanel({
   const stopSpeaking = useVoiceStore((s) => s.stopSpeaking);
   const currentAgent = useAgentStore((s) => s.currentAgent);
   const voiceConfigured = !!currentAgent?.voiceId;
-  const [inputText, setInputText] = useState('');
   const [bgError, setBgError] = useState(false);
   const [poseError, setPoseError] = useState(false);
   const [hasAssets, setHasAssets] = useState<boolean | null>(null);
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
   const [showVoiceToast, setShowVoiceToast] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
+
+  const {
+    input: inputText,
+    textareaRef,
+    handleChange,
+    handleKeyDown,
+    reset,
+  } = useChatInput({
+    maxHeight: 120,
+    onSend: () => {
+      const text = inputText.trim();
+      if (text && !isLoading) {
+        onSend(text);
+        reset();
+      }
+    },
+  });
 
   /**
    * 挂载时检测该 Agent 是否有姿态资源，
@@ -105,40 +121,6 @@ export function CompanionPanel({
     }
     return null;
   }, [messages]);
-
-  /** 输入框内容变化时同步状态，并自动调整 textarea 高度（上限 120px） */
-  const handleInput = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      setInputText(e.target.value);
-      const ta = e.target;
-      ta.style.height = 'auto';
-      ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
-    },
-    []
-  );
-
-  /** 点击发送或回车发送，清空输入框并重置 textarea 高度 */
-  const handleSend = useCallback(() => {
-    const text = inputText.trim();
-    if (!text || isLoading) return;
-    onSend(text);
-    setInputText('');
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
-  }, [inputText, isLoading, onSend]);
-
-  /** Enter 发送，Shift+Enter 换行 */
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.nativeEvent.isComposing) return;
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
-    },
-    [handleSend]
-  );
 
   /**
    * 语音开关按钮点击处理：
@@ -288,7 +270,7 @@ export function CompanionPanel({
             <textarea
               ref={textareaRef}
               value={inputText}
-              onChange={handleInput}
+              onChange={handleChange}
               onKeyDown={handleKeyDown}
               placeholder={t('companion.inputPlaceholder')}
               rows={1}
@@ -296,7 +278,13 @@ export function CompanionPanel({
             />
             <div className="flex items-center justify-end mt-3">
               <button
-                onClick={handleSend}
+                onClick={() => {
+                  const text = inputText.trim();
+                  if (text && !isLoading) {
+                    onSend(text);
+                    reset();
+                  }
+                }}
                 disabled={!inputText.trim() || isLoading}
                 className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${
                   inputText.trim() && !isLoading

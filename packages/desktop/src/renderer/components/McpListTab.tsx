@@ -5,7 +5,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, ExternalLink, FolderOpen } from 'lucide-react';
+import { ExternalLink, FolderOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   listMcpServers,
@@ -14,6 +14,8 @@ import {
   type McpServer,
 } from '../lib/api';
 import { logger } from '../lib/logger';
+import { ListState } from './ListState';
+import { StatusDot } from './ui/StatusDot';
 
 const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
@@ -133,108 +135,82 @@ export const McpListTab: React.FC = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-5">
-        <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4 text-center">
-          <p className="text-red-500">
-            {t('common.loadFailed')}: {error}
-          </p>
-          <button
-            onClick={loadMcps}
-            className="mt-2 text-[13px] text-[#666] hover:text-[#333]"
-          >
-            {t('common.retry')}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-5">
-      <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
-        <div className="flex items-center justify-between mb-1">
-          <h3 className="text-[14px] font-bold text-[#333]">
-            {t('mcp.title')}
-          </h3>
-          <button
-            onClick={() =>
-              window.api?.openPath('~/.local/share/persona-agent/mcp/')
-            }
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] text-[#555] border border-[#ddd] bg-white hover:bg-[#f0f0f0] hover:border-[#bbb] transition-colors shadow-sm"
-          >
-            <FolderOpen className="w-4 h-4" />
-            {t('common.openDirectory')}
-          </button>
-        </div>
-        <p className="text-[12px] text-[#999] mb-4">{t('mcp.desc')}</p>
-
-        {mcps.length === 0 ? (
-          <div className="text-[#ccc] text-[13px] py-4 text-center">
-            {t('mcp.empty')}
+    <ListState isLoading={isLoading} error={error} onRetry={loadMcps}>
+      <div className="p-5">
+        <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-[14px] font-bold text-[#333]">
+              {t('mcp.title')}
+            </h3>
+            <button
+              onClick={() =>
+                window.api?.openPath('~/.local/share/persona-agent/mcp/')
+              }
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] text-[#555] border border-[#ddd] bg-white hover:bg-[#f0f0f0] hover:border-[#bbb] transition-colors shadow-sm"
+            >
+              <FolderOpen className="w-4 h-4" />
+              {t('common.openDirectory')}
+            </button>
           </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-2.5">
-            {mcps.map((mcp) => {
-              const statusText =
-                mcp.status === 'connected' && mcp.toolCount
-                  ? t('mcp.toolsCount', { count: mcp.toolCount })
-                  : mcp.status === 'needs_auth'
-                    ? t('mcp.needsAuth')
-                    : mcp.status === 'connecting'
-                      ? t('mcp.connecting')
-                      : t('mcp.disconnected');
-              const isLoading = authorizing === mcp.name;
+          <p className="text-[12px] text-[#999] mb-4">{t('mcp.desc')}</p>
 
-              return (
-                <div
-                  key={mcp.name}
-                  className="group flex items-center gap-2 px-3 py-3 rounded-xl border border-[#eee] bg-[#fafafa] text-left"
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full shrink-0 ${getStatusColor(mcp.status)}`}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-medium text-[#333] truncate">
-                      {mcp.name}
+          {mcps.length === 0 ? (
+            <div className="text-[#ccc] text-[13px] py-4 text-center">
+              {t('mcp.empty')}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2.5">
+              {mcps.map((mcp) => {
+                const statusText =
+                  mcp.status === 'connected' && mcp.toolCount
+                    ? t('mcp.toolsCount', { count: mcp.toolCount })
+                    : mcp.status === 'needs_auth'
+                      ? t('mcp.needsAuth')
+                      : mcp.status === 'connecting'
+                        ? t('mcp.connecting')
+                        : t('mcp.disconnected');
+                const isLoading = authorizing === mcp.name;
+
+                return (
+                  <div
+                    key={mcp.name}
+                    className="group flex items-center gap-2 px-3 py-3 rounded-xl border border-[#eee] bg-[#fafafa] text-left"
+                  >
+                    <StatusDot color={getStatusColor(mcp.status)} />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-medium text-[#333] truncate">
+                        {mcp.name}
+                      </div>
+                      <div className="text-[11px] text-[#999] truncate">
+                        {mcp.error || statusText}
+                      </div>
                     </div>
-                    <div className="text-[11px] text-[#999] truncate">
-                      {mcp.error || statusText}
-                    </div>
+                    {mcp.status === 'needs_auth' && (
+                      <div className="shrink-0">
+                        <button
+                          onClick={() => handleAuthorize(mcp.name)}
+                          disabled={isLoading}
+                          className="h-7 px-2.5 text-[11px] rounded-full border border-[#d0d0d0] text-[#666] hover:text-[#333] hover:border-[#999] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {isLoading ? (
+                            <span className="w-2.5 h-2.5 border-2 border-[#999] border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <ExternalLink className="w-3 h-3" />
+                              OAuth
+                            </span>
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  {mcp.status === 'needs_auth' && (
-                    <div className="shrink-0">
-                      <button
-                        onClick={() => handleAuthorize(mcp.name)}
-                        disabled={isLoading}
-                        className="h-7 px-2.5 text-[11px] rounded-full border border-[#d0d0d0] text-[#666] hover:text-[#333] hover:border-[#999] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {isLoading ? (
-                          <span className="w-2.5 h-2.5 border-2 border-[#999] border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <span className="flex items-center gap-1">
-                            <ExternalLink className="w-3 h-3" />
-                            OAuth
-                          </span>
-                        )}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </ListState>
   );
 };

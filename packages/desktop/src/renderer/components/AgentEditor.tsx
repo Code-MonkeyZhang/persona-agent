@@ -4,18 +4,15 @@
  */
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  ArrowLeft,
   Plus,
   Camera,
   Volume2,
-  X,
   PenLine,
   Plug,
   Sparkles,
   Brain,
   Speech,
   Folder,
-  HelpCircle,
   Loader2,
   VenetianMask,
 } from 'lucide-react';
@@ -36,7 +33,6 @@ import {
   getBackgroundImageUrl,
   getPoseImageUrl,
   getVoices,
-  getTtsConfig,
   type McpServer,
   type Skill,
   type ProviderInfo,
@@ -60,9 +56,12 @@ import {
 } from './ui/Select';
 import type { CreateAgentInput, UpdateAgentInput, Agent } from '../types/agent';
 import { logger } from '../lib/logger';
-import { synthesize } from '../lib/tts';
-import { audioPlayer } from '../lib/audio-player';
-import { toast } from '../stores/toastStore';
+import { readFileAsDataURL } from '../lib/utils';
+import { HelpTooltip } from './ui/HelpTooltip';
+import { StatusDot } from './ui/StatusDot';
+import { BackButton } from './ui/BackButton';
+import { HoverDeleteButton } from './ui/HoverDeleteButton';
+import { useVoicePreview } from '../hooks/useVoicePreview';
 
 const PREVIEW_TEXTS = [
   '你好呀，很高兴见到你，今天有什么我可以帮忙的吗？',
@@ -96,12 +95,7 @@ function LabelWithTooltip({
   return (
     <div className="flex items-center gap-1.5 mb-2">
       <div className="text-[13px] text-[#333]">{label}</div>
-      <span className="relative group">
-        <HelpCircle className="w-3.5 h-3.5 text-[#bbb] cursor-help" />
-        <span className="absolute left-5 top-1/2 -translate-y-1/2 w-56 px-3 py-2 text-[12px] text-[#666] bg-white border border-[#e0e0e0] rounded-lg shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10 pointer-events-none">
-          {tooltip}
-        </span>
-      </span>
+      <HelpTooltip text={tooltip} />
     </div>
   );
 }
@@ -181,16 +175,13 @@ function PoseImageCardList({
     setRenameInput('');
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const name =
       file.name.replace(/\.[^.]+$/, '') || `pose_${images.length + 1}`;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      onAdd(file, ev.target?.result as string, name);
-    };
-    reader.readAsDataURL(file);
+    const dataUrl = await readFileAsDataURL(file);
+    onAdd(file, dataUrl, name);
     e.target.value = '';
   };
 
@@ -259,15 +250,14 @@ function PoseImageCardList({
               </div>
             )}
           </div>
-          <button
+          <HoverDeleteButton
+            variant="dark"
+            className="absolute top-1 right-1"
             onClick={(e) => {
               e.stopPropagation();
               onRemove(idx);
             }}
-            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-black/60"
-          >
-            <X className="w-3 h-3 text-white" />
-          </button>
+          />
         </div>
       ))}
       <div
@@ -341,7 +331,8 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   >();
   const [voiceId, setVoiceId] = useState<string>('');
   const [voiceLanguage, setVoiceLanguage] = useState('default');
-  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+  const { playingId: previewingVoiceId, preview: previewVoice } =
+    useVoicePreview();
 
   const [showMcpDropdown, setShowMcpDropdown] = useState(false);
   const [showSkillDropdown, setShowSkillDropdown] = useState(false);
@@ -480,17 +471,13 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   };
 
   /** 处理头像文件上传，将图片转为 base64 预览并暂存原始文件 */
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      setPreviewDataUrl(base64);
-      setPendingAvatarFile(file);
-    };
-    reader.readAsDataURL(file);
+    const base64 = await readFileAsDataURL(file);
+    setPreviewDataUrl(base64);
+    setPendingAvatarFile(file);
     e.target.value = '';
   };
 
@@ -540,16 +527,13 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     return `${baseName}_${i}`;
   };
 
-  const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setBgPreviewUrl(ev.target?.result as string);
-      setPendingBgFile(file);
-      setBgDeleted(false);
-    };
-    reader.readAsDataURL(file);
+    const dataUrl = await readFileAsDataURL(file);
+    setBgPreviewUrl(dataUrl);
+    setPendingBgFile(file);
+    setBgDeleted(false);
     e.target.value = '';
   };
 
@@ -558,37 +542,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     setPendingBgFile(null);
     if (editingAgentId) {
       setBgDeleted(true);
-    }
-  };
-
-  /**
-   * 试听选中的音色：从服务端获取配置后合成试听文本并播放
-   */
-  const handlePreviewVoice = async () => {
-    try {
-      const ttsConfig = await getTtsConfig();
-      if (!ttsConfig.apiKey) {
-        toast.warning(t('common.configureApiKeyInSettings'));
-        return;
-      }
-
-      setIsPreviewPlaying(true);
-      const previewText =
-        PREVIEW_TEXTS[Math.floor(Math.random() * PREVIEW_TEXTS.length)];
-      const audio = await synthesize(
-        previewText,
-        voiceId,
-        ttsConfig.apiKey,
-        ttsConfig.model
-      );
-      audioPlayer.play(audio);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : t('common.previewFailed');
-      logger.error('[AgentEditor] Voice preview failed:', message);
-      toast.error(message);
-    } finally {
-      setTimeout(() => setIsPreviewPlaying(false), 3000);
     }
   };
 
@@ -713,12 +666,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   return (
     <div className="h-full w-full flex flex-col bg-[#f7f7f7]">
       <div className="header-drag shrink-0 flex items-center gap-2 px-5 h-14 border-b border-[#e8e8e8] bg-[#f7f7f7]">
-        <button
-          onClick={closeAgentEditor}
-          className="header-no-drag text-gray-400 hover:text-gray-600 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
+        <BackButton onClick={closeAgentEditor} />
         <h1 className="text-[16px] font-bold text-[#333]">
           {editingAgentId
             ? t('agentEditor.editAgent')
@@ -847,12 +795,11 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                         onError={() => setBgPreviewUrl(undefined)}
                       />
                     </div>
-                    <button
+                    <HoverDeleteButton
+                      variant="dark"
+                      className="absolute top-1 right-1"
                       onClick={handleBgRemove}
-                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-black/60"
-                    >
-                      <X className="w-3 h-3 text-white" />
-                    </button>
+                    />
                     {bgPreviewOpen && bgPreviewUrl && (
                       <ImagePreviewOverlay
                         src={bgPreviewUrl}
@@ -909,29 +856,19 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                   />
                 </div>
                 <SettingDivider />
-                <div className="flex items-center justify-between min-h-[32px] gap-4">
-                  <div className="min-w-0 flex items-center gap-1.5">
-                    <div className="text-[14px] text-[#333] leading-[18px]">
-                      {t('agentEditor.maxSteps')}
-                    </div>
-                    <span className="relative group">
-                      <HelpCircle className="w-3.5 h-3.5 text-[#999] cursor-help" />
-                      <span className="absolute left-5 top-1/2 -translate-y-1/2 w-56 px-3 py-2 text-[12px] text-[#666] bg-white border border-[#e0e0e0] rounded-lg shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10 pointer-events-none">
-                        {t('agentEditor.maxStepsTooltip')}
-                      </span>
-                    </span>
-                  </div>
-                  <div className="shrink-0">
-                    <input
-                      type="number"
-                      value={maxSteps}
-                      onChange={(e) => setMaxSteps(e.target.value)}
-                      min={1}
-                      max={50}
-                      className="rounded-lg border border-[#e0e0e0] h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
+                <SettingRow
+                  label={t('agentEditor.maxSteps')}
+                  tooltip={t('agentEditor.maxStepsTooltip')}
+                >
+                  <input
+                    type="number"
+                    value={maxSteps}
+                    onChange={(e) => setMaxSteps(e.target.value)}
+                    min={1}
+                    max={50}
+                    className="rounded-lg border border-[#e0e0e0] h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </SettingRow>
               </div>
 
               {/* 音色 */}
@@ -999,11 +936,20 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                       </SelectContent>
                     </Select>
                     <button
-                      onClick={handlePreviewVoice}
-                      disabled={!voiceId || isPreviewPlaying}
+                      onClick={() => {
+                        const text =
+                          PREVIEW_TEXTS[
+                            Math.floor(Math.random() * PREVIEW_TEXTS.length)
+                          ];
+                        previewVoice(voiceId, text, {
+                          noKey: t('common.configureApiKeyInSettings'),
+                          failed: t('common.previewFailed'),
+                        });
+                      }}
+                      disabled={!voiceId || !!previewingVoiceId}
                       className="rounded-lg border border-[#e0e0e0] w-8 h-8 shrink-0 flex items-center justify-center text-[#999] hover:text-[#333] hover:bg-[#f0f0f0] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      {isPreviewPlaying ? (
+                      {previewingVoiceId ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       ) : (
                         <Volume2 className="w-3.5 h-3.5" />
@@ -1014,36 +960,26 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                 {voiceId && (
                   <>
                     <SettingDivider />
-                    <div className="flex items-center justify-between min-h-[32px] gap-4">
-                      <div className="min-w-0 flex items-center gap-1.5">
-                        <div className="text-[14px] text-[#333] leading-[18px]">
-                          {t('agentEditor.ttsLanguage')}
-                        </div>
-                        <span className="relative group">
-                          <HelpCircle className="w-3.5 h-3.5 text-[#999] cursor-help" />
-                          <span className="absolute left-5 top-1/2 -translate-y-1/2 w-56 px-3 py-2 text-[12px] text-[#666] bg-white border border-[#e0e0e0] rounded-lg shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10 pointer-events-none">
-                            {t('agentEditor.ttsLanguageTooltip')}
-                          </span>
-                        </span>
-                      </div>
-                      <div className="shrink-0">
-                        <Select
-                          value={voiceLanguage}
-                          onValueChange={setVoiceLanguage}
-                        >
-                          <SelectTrigger className="rounded-lg border-[#e0e0e0] h-8 w-48 text-[13px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {VOICE_LANGUAGES.map((l) => (
-                              <SelectItem key={l.value} value={l.value}>
-                                {t(l.labelKey)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
+                    <SettingRow
+                      label={t('agentEditor.ttsLanguage')}
+                      tooltip={t('agentEditor.ttsLanguageTooltip')}
+                    >
+                      <Select
+                        value={voiceLanguage}
+                        onValueChange={setVoiceLanguage}
+                      >
+                        <SelectTrigger className="rounded-lg border-[#e0e0e0] h-8 w-48 text-[13px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {VOICE_LANGUAGES.map((l) => (
+                            <SelectItem key={l.value} value={l.value}>
+                              {t(l.labelKey)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </SettingRow>
                   </>
                 )}
               </div>
@@ -1084,9 +1020,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                         key={mcpId}
                         className="group relative flex items-center gap-2.5 px-3 py-3 rounded-xl border border-[#eee] bg-[#fafafa] hover:bg-[#f5f5f5] transition-all text-left"
                       >
-                        <span
-                          className={`w-2 h-2 rounded-full shrink-0 ${statusColor}`}
-                        />
+                        <StatusDot color={statusColor} />
                         <div className="min-w-0 flex-1">
                           <div className="text-[13px] font-medium text-[#333] truncate">
                             {mcpId}
@@ -1097,12 +1031,11 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                               : t('mcp.disconnected')}
                           </div>
                         </div>
-                        <button
+                        <HoverDeleteButton
+                          variant="light"
+                          className="absolute top-1.5 right-1.5"
                           onClick={() => removeMcp(mcpId)}
-                          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10"
-                        >
-                          <X className="w-3 h-3 text-[#999]" />
-                        </button>
+                        />
                       </div>
                     );
                   })}
@@ -1127,8 +1060,12 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                               onClick={() => addMcp(mcp.name)}
                               className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
                             >
-                              <span
-                                className={`w-2 h-2 rounded-full shrink-0 ${mcp.status === 'connected' ? 'bg-green-500' : 'bg-gray-300'}`}
+                              <StatusDot
+                                color={
+                                  mcp.status === 'connected'
+                                    ? 'bg-green-500'
+                                    : 'bg-gray-300'
+                                }
                               />
                               <div className="min-w-0">
                                 <div className="text-[13px]">{mcp.name}</div>
@@ -1173,12 +1110,11 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                             {skill?.description || ''}
                           </div>
                         </div>
-                        <button
+                        <HoverDeleteButton
+                          variant="light"
+                          className="absolute top-1.5 right-1.5"
                           onClick={() => removeSkill(skillId)}
-                          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10"
-                        >
-                          <X className="w-3 h-3 text-[#999]" />
-                        </button>
+                        />
                       </div>
                     );
                   })}

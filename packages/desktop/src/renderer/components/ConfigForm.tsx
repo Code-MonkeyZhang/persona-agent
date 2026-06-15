@@ -24,18 +24,14 @@ function PathRow({ label, path }: { label: string; path: string }) {
   };
 
   return (
-    <div className="flex items-center justify-between min-h-[32px] gap-4">
-      <div className="min-w-0">
-        <div className="text-[14px] text-[#333] leading-[18px]">{label}</div>
-        <div className="text-[12px] text-[#999] font-mono truncate">{path}</div>
-      </div>
+    <SettingRow label={label} desc={path} descClassName="font-mono truncate">
       <button
         onClick={handleOpen}
-        className="shrink-0 h-7 w-7 flex items-center justify-center rounded-md text-[#999] hover:text-[#333] hover:bg-[#f5f5f5] transition-colors"
+        className="h-7 w-7 flex items-center justify-center rounded-md text-[#999] hover:text-[#333] hover:bg-[#f5f5f5] transition-colors"
       >
         <FolderOpen className="w-3.5 h-3.5" />
       </button>
-    </div>
+    </SettingRow>
   );
 }
 

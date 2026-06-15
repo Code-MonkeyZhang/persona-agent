@@ -5,7 +5,6 @@
  */
 
 import React, {
-  useState,
   useRef,
   useEffect,
   useImperativeHandle,
@@ -20,8 +19,8 @@ import { useTranslation } from 'react-i18next';
 import type { Message } from '../types/chat';
 import type { Agent } from '../types/agent';
 import { cn } from '../lib/utils';
-import { Copy, Check } from 'lucide-react';
 import { toast } from '../stores/toastStore';
+import { CopyButton } from './ui/CopyButton';
 import { CollapsedThoughtProcess } from './CollapsedThoughtProcess';
 import { Markdown } from './Markdown';
 import { AgentAvatar } from './AgentAvatar';
@@ -49,24 +48,11 @@ interface MessageItemProps {
  */
 const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
   const { t } = useTranslation();
-  const [copied, setCopied] = useState(false);
   const isUser = message.type === 'user';
   const isError = message.type === 'error';
   const isAssistant = message.type === 'assistant';
   const hasThoughts = message.thoughts && message.thoughts.length > 0;
   const hasContent = message.content.trim().length > 0;
-
-  /** 将消息内容复制到剪贴板，成功后显示 2 秒的对勾反馈 */
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(message.content);
-      setCopied(true);
-      toast.success(t('messageList.copiedToClipboard'));
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error(t('messageList.failedToCopy'));
-    }
-  };
 
   return (
     <div
@@ -124,17 +110,13 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
           )}
         >
           {hasContent && (
-            <button
-              onClick={handleCopy}
+            <CopyButton
+              text={message.content}
               className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors"
               title={t('messageList.copyContent')}
-            >
-              {copied ? (
-                <Check className="w-3.5 h-3.5" />
-              ) : (
-                <Copy className="w-3.5 h-3.5" />
-              )}
-            </button>
+              onCopied={() => toast.success(t('messageList.copiedToClipboard'))}
+              onError={() => toast.error(t('messageList.failedToCopy'))}
+            />
           )}
         </div>
       </div>

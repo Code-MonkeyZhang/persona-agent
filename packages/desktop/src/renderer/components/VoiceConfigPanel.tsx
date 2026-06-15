@@ -8,8 +8,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   CheckCircle,
-  Eye,
-  EyeOff,
   XCircle,
   Volume2,
   Trash2,
@@ -17,7 +15,6 @@ import {
   Plus,
   X,
   Loader2,
-  HelpCircle,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
@@ -32,8 +29,16 @@ import {
   type VoiceOption,
 } from '../lib/api';
 import { synthesize } from '../lib/tts';
-import { audioPlayer } from '../lib/audio-player';
 import { SettingRow, SettingDivider } from './SettingRow';
+import { PasswordInput } from './ui/PasswordInput';
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from './ui/Select';
+import { useVoicePreview } from '../hooks/useVoicePreview';
 import { toast } from '../stores/toastStore';
 import { logger } from '../lib/logger';
 
@@ -86,7 +91,6 @@ function generateVoiceId(): string {
 export const VoiceConfigPanel: React.FC = () => {
   const { t } = useTranslation();
   const [inputKey, setInputKey] = useState('');
-  const [showKey, setShowKey] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
@@ -98,7 +102,7 @@ export const VoiceConfigPanel: React.FC = () => {
   const [savingThreshold, setSavingThreshold] = useState(false);
 
   const [clonedVoices, setClonedVoices] = useState<VoiceOption[]>([]);
-  const [previewingId, setPreviewingId] = useState<string | null>(null);
+  const { playingId: previewingId, preview: previewVoice } = useVoicePreview();
   const [showCloneForm, setShowCloneForm] = useState(false);
   const [cloneFile, setCloneFile] = useState<File | null>(null);
   const [cloneFileName, setCloneFileName] = useState('');
@@ -202,31 +206,6 @@ export const VoiceConfigPanel: React.FC = () => {
     }
   };
 
-  /** 试听克隆音色 */
-  const handlePreviewVoice = async (voiceId: string) => {
-    try {
-      const config = await getTtsConfig();
-      if (!config.apiKey) {
-        toast.warning(t('voice.configureApiKeyFirst'));
-        return;
-      }
-      setPreviewingId(voiceId);
-      const audio = await synthesize(
-        '你好，这是克隆音色的试听效果。',
-        voiceId,
-        config.apiKey,
-        config.model
-      );
-      audioPlayer.play(audio);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : t('voice.previewFailed');
-      toast.error(message);
-    } finally {
-      setTimeout(() => setPreviewingId(null), 3000);
-    }
-  };
-
   /** 删除克隆音色 */
   const handleDeleteVoice = async (voiceId: string) => {
     try {
@@ -323,26 +302,11 @@ export const VoiceConfigPanel: React.FC = () => {
 
         <SettingRow label="API Key">
           <div className="flex items-center gap-2">
-            <div className="relative">
-              <input
-                type={showKey ? 'text' : 'password'}
-                value={inputKey}
-                onChange={(e) => setInputKey(e.target.value)}
-                placeholder={t('voice.enterMinimaxApiKey')}
-                className="w-64 h-8 px-3 text-[13px] border border-[#e0e0e0] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#999] pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowKey(!showKey)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showKey ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </button>
-            </div>
+            <PasswordInput
+              value={inputKey}
+              onChange={(e) => setInputKey(e.target.value)}
+              placeholder={t('voice.enterMinimaxApiKey')}
+            />
             <button
               onClick={handleSaveKey}
               disabled={!inputKey.trim() || verifying}
@@ -373,33 +337,29 @@ export const VoiceConfigPanel: React.FC = () => {
           {t('voice.params')}
         </h3>
         <SettingRow label={t('voice.ttsModel')}>
-          <select
+          <Select
             value={selectedModel}
-            onChange={(e) => handleModelChange(e.target.value)}
+            onValueChange={handleModelChange}
             disabled={savingModel}
-            className="rounded-lg border border-[#e0e0e0] h-8 w-48 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           >
-            {models.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="rounded-lg border-[#e0e0e0] h-8 w-48 text-[13px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {models.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </SettingRow>
         <SettingDivider />
-        <div className="flex items-center justify-between min-h-[32px] gap-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-1 text-[14px] text-[#333] leading-[18px]">
-              {t('voice.summaryThreshold')}
-              <span className="relative group">
-                <HelpCircle className="w-3.5 h-3.5 text-[#999] cursor-help" />
-                <span className="absolute left-5 top-1/2 -translate-y-1/2 w-60 px-2 py-1.5 text-[12px] text-[#666] bg-white border border-[#e0e0e0] rounded-lg shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10 pointer-events-none">
-                  {t('voice.summaryThresholdTooltip')}
-                </span>
-              </span>
-            </div>
-          </div>
-          <div className="shrink-0 flex items-center gap-2">
+        <SettingRow
+          label={t('voice.summaryThreshold')}
+          tooltip={t('voice.summaryThresholdTooltip')}
+        >
+          <div className="flex items-center gap-2">
             <input
               type="text"
               inputMode="numeric"
@@ -413,7 +373,7 @@ export const VoiceConfigPanel: React.FC = () => {
               {t('voice.characters')}
             </span>
           </div>
-        </div>
+        </SettingRow>
       </div>
 
       {/* 克隆音色管理 */}
@@ -535,7 +495,12 @@ export const VoiceConfigPanel: React.FC = () => {
 
                 <div className="shrink-0 flex items-center gap-1">
                   <button
-                    onClick={() => handlePreviewVoice(v.id)}
+                    onClick={() =>
+                      previewVoice(v.id, '你好，这是克隆音色的试听效果。', {
+                        noKey: t('voice.configureApiKeyFirst'),
+                        failed: t('voice.previewFailed'),
+                      })
+                    }
                     disabled={previewingId === v.id}
                     className="h-7 w-7 flex items-center justify-center rounded-md text-[#999] hover:text-[#333] hover:bg-[#f0f0f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title={t('voice.preview')}

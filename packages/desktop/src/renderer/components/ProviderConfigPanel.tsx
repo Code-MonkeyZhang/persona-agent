@@ -5,12 +5,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Check, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useProviderStore } from '../stores/providerStore';
 import { Button } from './ui/Button';
-import { Input } from './ui/Input';
+import { PasswordInput } from './ui/PasswordInput';
 import { ScrollArea } from './ui/ScrollArea';
+import { StatusDot } from './ui/StatusDot';
 import { SettingRow } from './SettingRow';
 import { toast } from '../stores/toastStore';
 import { logger } from '../lib/logger';
@@ -36,7 +37,6 @@ export const ProviderConfigPanel: React.FC = () => {
 
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState('');
-  const [showApiKey, setShowApiKey] = useState(false);
   const [verifyStatus, setVerifyStatus] = useState<{
     valid: boolean;
     error?: string;
@@ -62,7 +62,6 @@ export const ProviderConfigPanel: React.FC = () => {
   const handleSelectProvider = (providerId: string) => {
     setSelectedProvider(providerId);
     setApiKey('');
-    setShowApiKey(false);
     setVerifyStatus(null);
   };
 
@@ -148,9 +147,7 @@ export const ProviderConfigPanel: React.FC = () => {
                   )}
                 >
                   <span>{provider.name}</span>
-                  {provider.hasAuth && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                  )}
+                  {provider.hasAuth && <StatusDot color="bg-green-500" />}
                 </button>
               ))}
             </div>
@@ -171,29 +168,14 @@ export const ProviderConfigPanel: React.FC = () => {
 
                 <SettingRow label="API Key">
                   <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <Input
-                        type={showApiKey ? 'text' : 'password'}
-                        value={displayApiKey}
-                        onChange={(e) => {
-                          setApiKey(e.target.value);
-                          setVerifyStatus(null);
-                        }}
-                        placeholder="sk-..."
-                        className="pr-10 rounded-lg border-[#e0e0e0] h-8 w-64 text-[13px]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowApiKey(!showApiKey)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#999] hover:text-[#333]"
-                      >
-                        {showApiKey ? (
-                          <EyeOff className="w-3.5 h-3.5" />
-                        ) : (
-                          <Eye className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                    </div>
+                    <PasswordInput
+                      value={displayApiKey}
+                      onChange={(e) => {
+                        setApiKey(e.target.value);
+                        setVerifyStatus(null);
+                      }}
+                      placeholder="sk-..."
+                    />
                     <Button
                       variant="outline"
                       onClick={handleVerify}

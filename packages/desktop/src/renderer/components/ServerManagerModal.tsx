@@ -4,11 +4,13 @@
  */
 
 import React from 'react';
-import { X, Bot, Loader2, Copy, Check, Globe, Cloud } from 'lucide-react';
+import { X, Bot, Loader2, Globe, Cloud } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTunnelStore } from '../stores/tunnelStore';
 import { getBaseUrl } from '../lib/api';
 import type { ConnectionStatus } from '../types/chat';
+import { CopyButton } from './ui/CopyButton';
+import { StatusDot } from './ui/StatusDot';
 
 interface ServerManagerModalProps {
   isOpen: boolean;
@@ -127,7 +129,7 @@ function ServerSection({
           {t('server.agentServer')}
         </div>
         <div className="flex items-center gap-1.5 text-[14px] text-[#666]">
-          <span className={`w-2 h-2 rounded-full ${config.dotColor}`} />
+          <StatusDot color={config.dotColor} />
           <span className={config.color}>{t(config.labelKey)}</span>
         </div>
       </div>
@@ -261,39 +263,5 @@ function TunnelSection({
         </div>
       )}
     </div>
-  );
-}
-
-/**
- * 复制按钮组件，点击后将文本写入剪贴板并短暂显示勾选图标
- * @param text 待复制的文本内容
- * @param className 按钮自定义样式
- */
-function CopyButton({
-  text,
-  className = 'text-[#999] hover:text-[#333]',
-}: {
-  text: string;
-  className?: string;
-}) {
-  const [copied, setCopied] = React.useState(false);
-
-  /**
-   * 将文本写入系统剪贴板，2 秒后恢复按钮状态
-   */
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <button onClick={handleCopy} className={className}>
-      {copied ? (
-        <Check className="w-3.5 h-3.5 text-green-500" />
-      ) : (
-        <Copy className="w-3.5 h-3.5" />
-      )}
-    </button>
   );
 }
