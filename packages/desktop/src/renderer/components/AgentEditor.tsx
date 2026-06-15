@@ -63,6 +63,7 @@ import { logger } from '../lib/logger';
 import { synthesize } from '../lib/tts';
 import { audioPlayer } from '../lib/audio-player';
 import { toast } from '../stores/toastStore';
+import { readFileAsDataURL } from '../lib/utils';
 
 const PREVIEW_TEXTS = [
   '你好呀，很高兴见到你，今天有什么我可以帮忙的吗？',
@@ -181,16 +182,13 @@ function PoseImageCardList({
     setRenameInput('');
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const name =
       file.name.replace(/\.[^.]+$/, '') || `pose_${images.length + 1}`;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      onAdd(file, ev.target?.result as string, name);
-    };
-    reader.readAsDataURL(file);
+    const dataUrl = await readFileAsDataURL(file);
+    onAdd(file, dataUrl, name);
     e.target.value = '';
   };
 
@@ -480,17 +478,13 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   };
 
   /** 处理头像文件上传，将图片转为 base64 预览并暂存原始文件 */
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      setPreviewDataUrl(base64);
-      setPendingAvatarFile(file);
-    };
-    reader.readAsDataURL(file);
+    const base64 = await readFileAsDataURL(file);
+    setPreviewDataUrl(base64);
+    setPendingAvatarFile(file);
     e.target.value = '';
   };
 
@@ -540,16 +534,13 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     return `${baseName}_${i}`;
   };
 
-  const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setBgPreviewUrl(ev.target?.result as string);
-      setPendingBgFile(file);
-      setBgDeleted(false);
-    };
-    reader.readAsDataURL(file);
+    const dataUrl = await readFileAsDataURL(file);
+    setBgPreviewUrl(dataUrl);
+    setPendingBgFile(file);
+    setBgDeleted(false);
     e.target.value = '';
   };
 

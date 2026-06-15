@@ -1,6 +1,6 @@
 /**
  * @file src/renderer/lib/utils.ts
- * @description 通用工具函数，主要提供 className 合并能力
+ * @description 通用工具函数，提供 className 合并与文件读取能力
  */
 
 import { clsx, type ClassValue } from 'clsx';
@@ -13,4 +13,18 @@ import { twMerge } from 'tailwind-merge';
  */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+/**
+ * 将文件读取为 Data URL（base64）字符串
+ * @param file - 待读取的文件
+ * @returns base64 编码的 Data URL
+ */
+export function readFileAsDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => resolve(ev.target?.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
