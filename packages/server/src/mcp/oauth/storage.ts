@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Logger } from '../../util/logger.js';
+import { readJsonFile } from '../../util/fs-helpers.js';
 import type {
   OAuthClientInformationMixed,
   OAuthTokens,
@@ -16,14 +17,7 @@ const cache = new Map<string, OAuthStorageEntry | null>();
 
 /** Read the entire OAuth tokens file from disk. Returns empty object if missing. */
 function loadAll(filePath: string): Record<string, OAuthStorageEntry> {
-  if (!fs.existsSync(filePath)) {
-    return {};
-  }
-  const content = fs.readFileSync(filePath, 'utf8');
-  if (!content.trim()) {
-    return {};
-  }
-  return JSON.parse(content) as Record<string, OAuthStorageEntry>;
+  return readJsonFile<Record<string, OAuthStorageEntry>>(filePath, {});
 }
 
 /** Write the entire data map to disk, creating parent directories if needed. */

@@ -6,6 +6,7 @@
 import * as fs from 'node:fs';
 import { getModels } from '@mariozechner/pi-ai';
 import { getAuthPath } from '../util/paths.js';
+import { readJsonFile } from '../util/fs-helpers.js';
 import type { Auth, AuthStore, Provider, KnownProvider } from './types.js';
 
 /** Provider status information */
@@ -68,15 +69,7 @@ const PROVIDER_NAMES: Record<string, string> = {
 
 /** Read auth store from file */
 function readAuthStore(): AuthStore {
-  const filePath = getAuthPath();
-  if (!fs.existsSync(filePath)) {
-    return {};
-  }
-  const content = fs.readFileSync(filePath, 'utf8');
-  if (!content.trim()) {
-    return {};
-  }
-  return JSON.parse(content) as AuthStore;
+  return readJsonFile<AuthStore>(getAuthPath(), {});
 }
 
 /** Write auth store to file */

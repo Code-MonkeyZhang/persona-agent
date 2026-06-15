@@ -10,6 +10,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { readJsonFile } from '../util/fs-helpers.js';
 import {
   getAgentSessionsDir,
   getAgentSessionIndexPath,
@@ -40,11 +41,7 @@ export class SessionStore {
 
   /** Load the session index */
   loadIndex(): SessionMeta[] {
-    if (!fs.existsSync(this.indexPath)) {
-      return [];
-    }
-    const content = fs.readFileSync(this.indexPath, 'utf8');
-    return JSON.parse(content) as SessionMeta[];
+    return readJsonFile<SessionMeta[]>(this.indexPath, []);
   }
 
   /** Save the session index */
@@ -55,11 +52,7 @@ export class SessionStore {
   /** Load a full session by ID */
   loadSession(id: string): Session | null {
     const sessionPath = path.join(this.sessionsDir, `${id}.json`);
-    if (!fs.existsSync(sessionPath)) {
-      return null;
-    }
-    const content = fs.readFileSync(sessionPath, 'utf8');
-    return JSON.parse(content) as Session;
+    return readJsonFile<Session | null>(sessionPath, null);
   }
 
   /** Save a full session */
