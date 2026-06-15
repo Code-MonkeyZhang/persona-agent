@@ -4,11 +4,12 @@
  */
 
 import React from 'react';
-import { X, Bot, Loader2, Copy, Check, Globe, Cloud } from 'lucide-react';
+import { X, Bot, Loader2, Globe, Cloud } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTunnelStore } from '../stores/tunnelStore';
 import { getBaseUrl } from '../lib/api';
 import type { ConnectionStatus } from '../types/chat';
+import { CopyButton } from './ui/CopyButton';
 
 interface ServerManagerModalProps {
   isOpen: boolean;
@@ -261,39 +262,5 @@ function TunnelSection({
         </div>
       )}
     </div>
-  );
-}
-
-/**
- * 复制按钮组件，点击后将文本写入剪贴板并短暂显示勾选图标
- * @param text 待复制的文本内容
- * @param className 按钮自定义样式
- */
-function CopyButton({
-  text,
-  className = 'text-[#999] hover:text-[#333]',
-}: {
-  text: string;
-  className?: string;
-}) {
-  const [copied, setCopied] = React.useState(false);
-
-  /**
-   * 将文本写入系统剪贴板，2 秒后恢复按钮状态
-   */
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <button onClick={handleCopy} className={className}>
-      {copied ? (
-        <Check className="w-3.5 h-3.5 text-green-500" />
-      ) : (
-        <Copy className="w-3.5 h-3.5" />
-      )}
-    </button>
   );
 }

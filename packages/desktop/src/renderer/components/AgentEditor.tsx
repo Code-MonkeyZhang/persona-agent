@@ -15,7 +15,6 @@ import {
   Brain,
   Speech,
   Folder,
-  HelpCircle,
   Loader2,
   VenetianMask,
 } from 'lucide-react';
@@ -64,6 +63,7 @@ import { synthesize } from '../lib/tts';
 import { audioPlayer } from '../lib/audio-player';
 import { toast } from '../stores/toastStore';
 import { readFileAsDataURL } from '../lib/utils';
+import { HelpTooltip } from './ui/HelpTooltip';
 
 const PREVIEW_TEXTS = [
   '你好呀，很高兴见到你，今天有什么我可以帮忙的吗？',
@@ -97,12 +97,7 @@ function LabelWithTooltip({
   return (
     <div className="flex items-center gap-1.5 mb-2">
       <div className="text-[13px] text-[#333]">{label}</div>
-      <span className="relative group">
-        <HelpCircle className="w-3.5 h-3.5 text-[#bbb] cursor-help" />
-        <span className="absolute left-5 top-1/2 -translate-y-1/2 w-56 px-3 py-2 text-[12px] text-[#666] bg-white border border-[#e0e0e0] rounded-lg shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10 pointer-events-none">
-          {tooltip}
-        </span>
-      </span>
+      <HelpTooltip text={tooltip} />
     </div>
   );
 }
@@ -905,12 +900,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                     <div className="text-[14px] text-[#333] leading-[18px]">
                       {t('agentEditor.maxSteps')}
                     </div>
-                    <span className="relative group">
-                      <HelpCircle className="w-3.5 h-3.5 text-[#999] cursor-help" />
-                      <span className="absolute left-5 top-1/2 -translate-y-1/2 w-56 px-3 py-2 text-[12px] text-[#666] bg-white border border-[#e0e0e0] rounded-lg shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10 pointer-events-none">
-                        {t('agentEditor.maxStepsTooltip')}
-                      </span>
-                    </span>
+                    <HelpTooltip text={t('agentEditor.maxStepsTooltip')} />
                   </div>
                   <div className="shrink-0">
                     <input
@@ -1010,12 +1000,9 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                         <div className="text-[14px] text-[#333] leading-[18px]">
                           {t('agentEditor.ttsLanguage')}
                         </div>
-                        <span className="relative group">
-                          <HelpCircle className="w-3.5 h-3.5 text-[#999] cursor-help" />
-                          <span className="absolute left-5 top-1/2 -translate-y-1/2 w-56 px-3 py-2 text-[12px] text-[#666] bg-white border border-[#e0e0e0] rounded-lg shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10 pointer-events-none">
-                            {t('agentEditor.ttsLanguageTooltip')}
-                          </span>
-                        </span>
+                        <HelpTooltip
+                          text={t('agentEditor.ttsLanguageTooltip')}
+                        />
                       </div>
                       <div className="shrink-0">
                         <Select

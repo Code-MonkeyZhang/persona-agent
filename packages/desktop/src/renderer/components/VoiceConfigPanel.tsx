@@ -17,7 +17,6 @@ import {
   Plus,
   X,
   Loader2,
-  HelpCircle,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
@@ -34,6 +33,7 @@ import {
 import { synthesize } from '../lib/tts';
 import { audioPlayer } from '../lib/audio-player';
 import { SettingRow, SettingDivider } from './SettingRow';
+import { HelpTooltip } from './ui/HelpTooltip';
 import { toast } from '../stores/toastStore';
 import { logger } from '../lib/logger';
 
@@ -391,12 +391,7 @@ export const VoiceConfigPanel: React.FC = () => {
           <div className="min-w-0">
             <div className="flex items-center gap-1 text-[14px] text-[#333] leading-[18px]">
               {t('voice.summaryThreshold')}
-              <span className="relative group">
-                <HelpCircle className="w-3.5 h-3.5 text-[#999] cursor-help" />
-                <span className="absolute left-5 top-1/2 -translate-y-1/2 w-60 px-2 py-1.5 text-[12px] text-[#666] bg-white border border-[#e0e0e0] rounded-lg shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10 pointer-events-none">
-                  {t('voice.summaryThresholdTooltip')}
-                </span>
-              </span>
+              <HelpTooltip text={t('voice.summaryThresholdTooltip')} />
             </div>
           </div>
           <div className="shrink-0 flex items-center gap-2">
