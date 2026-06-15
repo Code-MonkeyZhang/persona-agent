@@ -1,0 +1,10 @@
+/* 文件职责:聚合所有全局样式,按顺序导入。
+   新增样式文件时在此追加 import。 */
+
+@import './tailwind.css';
+@import './theme.css';
+@import './base.css';
+@import './animations.css';
+@import './markdown.css';
+@import './code-block.css';
+@import './scrollbar.css';
