@@ -5,9 +5,9 @@
  * title, then cleans up the raw output (strips think tags, truncates, etc.).
  */
 
-import { stream, getModel, type KnownProvider } from '@mariozechner/pi-ai';
-import { getAuth } from '../auth/index.js';
 import { Logger } from '../util/logger.js';
+import { errorMessage } from '../util/errors.js';
+import { streamSingleTurn } from '../agent/llm-single-call.js';
 import TITLE_SYSTEM_PROMPT from '../agent/prompt/title.txt';
 
 /**
@@ -35,41 +35,16 @@ export async function generateTitle(
   provider: string,
   modelId: string
 ): Promise<string> {
-  const auth = getAuth(provider as KnownProvider);
-  if (!auth) return '';
-
-  const model = getModel(
-    provider as KnownProvider,
-    modelId as Parameters<typeof getModel>[1]
-  );
-  if (!model) return '';
-
-  const context = {
-    systemPrompt: TITLE_SYSTEM_PROMPT,
-    messages: [
-      {
-        role: 'user' as const,
-        content: userMessage,
-        timestamp: Date.now(),
-      },
-    ],
-  };
-
-  let raw = '';
   try {
-    const eventStream = stream(model, context, { apiKey: auth.apiKey });
-    for await (const event of eventStream) {
-      if (event.type === 'text_delta') {
-        raw += (event as { delta: string }).delta;
-      }
-      if (event.type === 'done' || event.type === 'error') break;
-    }
+    const raw = await streamSingleTurn(
+      userMessage,
+      TITLE_SYSTEM_PROMPT,
+      provider,
+      modelId
+    );
+    return cleanTitle(raw);
   } catch (err) {
-    Logger.log('TITLE', 'Generation failed', {
-      error: (err as Error).message,
-    });
+    Logger.log('TITLE', 'Generation failed', { error: errorMessage(err) });
     return '';
   }
-
-  return cleanTitle(raw);
 }
