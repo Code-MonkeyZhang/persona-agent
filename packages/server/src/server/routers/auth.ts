@@ -10,7 +10,6 @@
  */
 
 import { Router } from 'express';
-import type { Request, Response } from 'express';
 import {
   listProvidersWithAuth,
   getAuth,
@@ -20,6 +19,7 @@ import {
 import type { KnownProvider, Provider, Auth } from '../../auth/index.js';
 import { getModels, completeSimple } from '@mariozechner/pi-ai';
 import { Logger } from '../../util/logger.js';
+import { asyncHandler, getParam, requireParam } from './utils.js';
 
 /**
  * Creates router for provider management.
@@ -31,17 +31,13 @@ export function createProviderRouter(): Router {
   const router = Router();
 
   /** GET /api/providers - List all providers with auth status */
-  router.get('/', (_req: Request, res: Response) => {
-    try {
+  router.get(
+    '/',
+    asyncHandler('AUTH', 'Error listing providers', (_req, res) => {
       const providers = listProvidersWithAuth();
       res.json({ providers });
-    } catch (error) {
-      Logger.log('AUTH', 'Error listing providers', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   return router;
 }
@@ -59,13 +55,11 @@ export function createAuthRouter(): Router {
   const router = Router();
 
   /** GET /api/auth/:provider - Get auth info from a provider */
-  router.get('/:provider', (req: Request, res: Response) => {
-    try {
-      const provider = req.params['provider'];
-      if (!provider) {
-        res.status(400).json({ error: 'Provider is required' });
-        return;
-      }
+  router.get(
+    '/:provider',
+    asyncHandler('AUTH', 'Error getting auth', (req, res) => {
+      const provider = getParam(req.params['provider']);
+      if (!requireParam(provider, 'Provider', res)) return;
 
       const auth = getAuth(provider as Provider);
       if (!auth) {
@@ -77,22 +71,15 @@ export function createAuthRouter(): Router {
         provider,
         apiKey: auth.apiKey,
       });
-    } catch (error) {
-      Logger.log('AUTH', 'Error getting auth', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   /** PUT /api/auth/:provider - Set auth info for a provider */
-  router.put('/:provider', (req: Request, res: Response) => {
-    try {
-      const provider = req.params['provider'];
-      if (!provider) {
-        res.status(400).json({ error: 'Provider is required' });
-        return;
-      }
+  router.put(
+    '/:provider',
+    asyncHandler('AUTH', 'Error setting auth', (req, res) => {
+      const provider = getParam(req.params['provider']);
+      if (!requireParam(provider, 'Provider', res)) return;
 
       const input = req.body as Auth;
       if (!input.apiKey) {
@@ -108,22 +95,15 @@ export function createAuthRouter(): Router {
         provider,
         apiKey: auth.apiKey,
       });
-    } catch (error) {
-      Logger.log('AUTH', 'Error setting auth', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   /** DELETE /api/auth/:provider - Delete auth info from a provider*/
-  router.delete('/:provider', (req: Request, res: Response) => {
-    try {
-      const provider = req.params['provider'];
-      if (!provider) {
-        res.status(400).json({ error: 'Provider is required' });
-        return;
-      }
+  router.delete(
+    '/:provider',
+    asyncHandler('AUTH', 'Error deleting auth', (req, res) => {
+      const provider = getParam(req.params['provider']);
+      if (!requireParam(provider, 'Provider', res)) return;
 
       const existing = getAuth(provider as Provider);
       if (!existing) {
@@ -134,13 +114,8 @@ export function createAuthRouter(): Router {
       deleteAuth(provider as Provider);
       Logger.log('AUTH', `Deleted auth for provider: ${provider}`);
       res.json({ success: true });
-    } catch (error) {
-      Logger.log('AUTH', 'Error deleting auth', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   /**
    * POST /api/auth/:provider/verify - Verify auth info for a provider
@@ -148,13 +123,11 @@ export function createAuthRouter(): Router {
    * Input:
    *   Body: { apiKey?: string } - Optional. If omitted, uses stored key.
    */
-  router.post('/:provider/verify', async (req: Request, res: Response) => {
-    try {
-      const provider = req.params['provider'];
-      if (!provider) {
-        res.status(400).json({ error: 'Provider is required' });
-        return;
-      }
+  router.post(
+    '/:provider/verify',
+    asyncHandler('AUTH', 'Error verifying auth', async (req, res) => {
+      const provider = getParam(req.params['provider']);
+      if (!requireParam(provider, 'Provider', res)) return;
 
       // use api key from req, if not use api key from storage
       const input = (req.body || {}) as { apiKey?: string };
@@ -230,13 +203,8 @@ export function createAuthRouter(): Router {
         valid: true,
         models: models.map((m) => m.id),
       });
-    } catch (error) {
-      Logger.log('AUTH', 'Error verifying auth', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   return router;
 }

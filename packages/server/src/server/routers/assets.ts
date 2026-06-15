@@ -13,7 +13,6 @@
  */
 
 import { Router } from 'express';
-import type { Request, Response } from 'express';
 import multer from 'multer';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -22,7 +21,7 @@ import {
   getAgentAssetsBackgroundsDir,
 } from '../../util/paths.js';
 import { Logger } from '../../util/logger.js';
-import { getParam } from './utils.js';
+import { asyncHandler, getParam, requireParam } from './utils.js';
 
 const IMAGE_EXTENSIONS = /\.(png|jpg|jpeg|gif|webp)$/i;
 
@@ -75,13 +74,11 @@ export function createAssetsRouter(): Router {
    *
    * @returns JSON: `{ poses: string[] }`
    */
-  router.get('/pose', (req: Request, res: Response) => {
-    try {
+  router.get(
+    '/pose',
+    asyncHandler('ASSETS', 'Error listing poses', (req, res) => {
       const agentId = getParam(req.params['agentId']);
-      if (!agentId) {
-        res.status(400).json({ error: 'Agent ID is required' });
-        return;
-      }
+      if (!requireParam(agentId, 'Agent ID', res)) return;
 
       const poseDir = getAgentAssetsPoseDir(agentId);
       if (!fs.existsSync(poseDir)) {
@@ -95,13 +92,8 @@ export function createAssetsRouter(): Router {
         .map((f) => path.parse(f).name);
 
       res.json({ poses });
-    } catch (error) {
-      Logger.log('ASSETS', 'Error listing poses', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   /**
    * GET /pose/:name — 获取指定名称的立绘图片文件。
@@ -111,14 +103,13 @@ export function createAssetsRouter(): Router {
    *
    * @returns 图片文件流，或 404/400/500 错误 JSON
    */
-  router.get('/pose/:name', (req: Request, res: Response) => {
-    try {
+  router.get(
+    '/pose/:name',
+    asyncHandler('ASSETS', 'Error getting pose', (req, res) => {
       const agentId = getParam(req.params['agentId']);
+      if (!requireParam(agentId, 'Agent ID', res)) return;
       const poseName = getParam(req.params['name']);
-      if (!agentId || !poseName) {
-        res.status(400).json({ error: 'Agent ID and pose name are required' });
-        return;
-      }
+      if (!requireParam(poseName, 'Pose name', res)) return;
 
       const poseDir = getAgentAssetsPoseDir(agentId);
       const matched = findPoseFile(poseDir, poseName);
@@ -135,13 +126,8 @@ export function createAssetsRouter(): Router {
       res.setHeader('Content-Type', contentType);
       res.setHeader('Cache-Control', 'no-cache');
       fs.createReadStream(filePath).pipe(res);
-    } catch (error) {
-      Logger.log('ASSETS', 'Error getting pose', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   /**
    * POST /pose/:name — 上传立绘图片。
@@ -154,43 +140,29 @@ export function createAssetsRouter(): Router {
   router.post(
     '/pose/:name',
     upload.single('pose'),
-    (req: Request, res: Response) => {
-      try {
-        const agentId = getParam(req.params['agentId']);
-        const poseName = getParam(req.params['name']);
-        if (!agentId || !poseName) {
-          res
-            .status(400)
-            .json({ error: 'Agent ID and pose name are required' });
-          return;
-        }
+    asyncHandler('ASSETS', 'Error uploading pose', (req, res) => {
+      const agentId = getParam(req.params['agentId']);
+      if (!requireParam(agentId, 'Agent ID', res)) return;
+      const poseName = getParam(req.params['name']);
+      if (!requireParam(poseName, 'Pose name', res)) return;
 
-        if (!req.file) {
-          res.status(400).json({ error: 'No file uploaded' });
-          return;
-        }
-
-        const poseDir = getAgentAssetsPoseDir(agentId);
-        if (!fs.existsSync(poseDir)) {
-          fs.mkdirSync(poseDir, { recursive: true });
-        }
-
-        const ext = path.extname(req.file.originalname) || '.png';
-        const filePath = path.join(poseDir, `${poseName}${ext}`);
-        fs.writeFileSync(filePath, req.file.buffer);
-
-        Logger.log(
-          'ASSETS',
-          `Uploaded pose "${poseName}" for agent: ${agentId}`
-        );
-        res.json({ success: true });
-      } catch (error) {
-        Logger.log('ASSETS', 'Error uploading pose', error);
-        res.status(500).json({
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
+      if (!req.file) {
+        res.status(400).json({ error: 'No file uploaded' });
+        return;
       }
-    }
+
+      const poseDir = getAgentAssetsPoseDir(agentId);
+      if (!fs.existsSync(poseDir)) {
+        fs.mkdirSync(poseDir, { recursive: true });
+      }
+
+      const ext = path.extname(req.file.originalname) || '.png';
+      const filePath = path.join(poseDir, `${poseName}${ext}`);
+      fs.writeFileSync(filePath, req.file.buffer);
+
+      Logger.log('ASSETS', `Uploaded pose "${poseName}" for agent: ${agentId}`);
+      res.json({ success: true });
+    })
   );
 
   /**
@@ -200,14 +172,13 @@ export function createAssetsRouter(): Router {
    *
    * @returns JSON: `{ success: true }`
    */
-  router.delete('/pose/:name', (req: Request, res: Response) => {
-    try {
+  router.delete(
+    '/pose/:name',
+    asyncHandler('ASSETS', 'Error deleting pose', (req, res) => {
       const agentId = getParam(req.params['agentId']);
+      if (!requireParam(agentId, 'Agent ID', res)) return;
       const poseName = getParam(req.params['name']);
-      if (!agentId || !poseName) {
-        res.status(400).json({ error: 'Agent ID and pose name are required' });
-        return;
-      }
+      if (!requireParam(poseName, 'Pose name', res)) return;
 
       const poseDir = getAgentAssetsPoseDir(agentId);
       const matched = findPoseFile(poseDir, poseName);
@@ -221,13 +192,8 @@ export function createAssetsRouter(): Router {
 
       Logger.log('ASSETS', `Deleted pose "${poseName}" for agent: ${agentId}`);
       res.json({ success: true });
-    } catch (error) {
-      Logger.log('ASSETS', 'Error deleting pose', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   /**
    * PUT /pose/:oldName/rename — 重命名立绘图片。
@@ -237,17 +203,15 @@ export function createAssetsRouter(): Router {
    *
    * @returns JSON: `{ success: true }`
    */
-  router.put('/pose/:oldName/rename', (req: Request, res: Response) => {
-    try {
+  router.put(
+    '/pose/:oldName/rename',
+    asyncHandler('ASSETS', 'Error renaming pose', (req, res) => {
       const agentId = getParam(req.params['agentId']);
+      if (!requireParam(agentId, 'Agent ID', res)) return;
       const oldName = getParam(req.params['oldName']);
+      if (!requireParam(oldName, 'Old name', res)) return;
       const newName: string | undefined = req.body?.name;
-      if (!agentId || !oldName || !newName) {
-        res
-          .status(400)
-          .json({ error: 'Agent ID, old name, and new name are required' });
-        return;
-      }
+      if (!requireParam(newName, 'New name', res)) return;
 
       const poseDir = getAgentAssetsPoseDir(agentId);
       const matched = findPoseFile(poseDir, oldName);
@@ -267,13 +231,8 @@ export function createAssetsRouter(): Router {
         `Renamed pose "${oldName}" to "${newName}" for agent: ${agentId}`
       );
       res.json({ success: true });
-    } catch (error) {
-      Logger.log('ASSETS', 'Error renaming pose', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   /**
    * GET /background — 获取指定 Agent 的背景图片。
@@ -282,13 +241,11 @@ export function createAssetsRouter(): Router {
    *
    * @returns 图片文件流，或 404/400/500 错误 JSON
    */
-  router.get('/background', (req: Request, res: Response) => {
-    try {
+  router.get(
+    '/background',
+    asyncHandler('ASSETS', 'Error getting background', (req, res) => {
       const agentId = getParam(req.params['agentId']);
-      if (!agentId) {
-        res.status(400).json({ error: 'Agent ID is required' });
-        return;
-      }
+      if (!requireParam(agentId, 'Agent ID', res)) return;
 
       const bgDir = getAgentAssetsBackgroundsDir(agentId);
       if (!fs.existsSync(bgDir)) {
@@ -311,13 +268,8 @@ export function createAssetsRouter(): Router {
       res.setHeader('Content-Type', contentType);
       res.setHeader('Cache-Control', 'no-cache');
       fs.createReadStream(filePath).pipe(res);
-    } catch (error) {
-      Logger.log('ASSETS', 'Error getting background', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   /**
    * POST /background — 上传背景图。
@@ -329,44 +281,34 @@ export function createAssetsRouter(): Router {
   router.post(
     '/background',
     upload.single('background'),
-    (req: Request, res: Response) => {
-      try {
-        const agentId = getParam(req.params['agentId']);
-        if (!agentId) {
-          res.status(400).json({ error: 'Agent ID is required' });
-          return;
-        }
+    asyncHandler('ASSETS', 'Error uploading background', (req, res) => {
+      const agentId = getParam(req.params['agentId']);
+      if (!requireParam(agentId, 'Agent ID', res)) return;
 
-        if (!req.file) {
-          res.status(400).json({ error: 'No file uploaded' });
-          return;
-        }
-
-        const bgDir = getAgentAssetsBackgroundsDir(agentId);
-        if (!fs.existsSync(bgDir)) {
-          fs.mkdirSync(bgDir, { recursive: true });
-        }
-
-        // 清理已有的背景图文件
-        for (const f of fs.readdirSync(bgDir)) {
-          if (IMAGE_EXTENSIONS.test(f)) {
-            fs.unlinkSync(path.join(bgDir, f));
-          }
-        }
-
-        const ext = path.extname(req.file.originalname) || '.png';
-        const filePath = path.join(bgDir, `background${ext}`);
-        fs.writeFileSync(filePath, req.file.buffer);
-
-        Logger.log('ASSETS', `Uploaded background for agent: ${agentId}`);
-        res.json({ success: true });
-      } catch (error) {
-        Logger.log('ASSETS', 'Error uploading background', error);
-        res.status(500).json({
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
+      if (!req.file) {
+        res.status(400).json({ error: 'No file uploaded' });
+        return;
       }
-    }
+
+      const bgDir = getAgentAssetsBackgroundsDir(agentId);
+      if (!fs.existsSync(bgDir)) {
+        fs.mkdirSync(bgDir, { recursive: true });
+      }
+
+      // 清理已有的背景图文件
+      for (const f of fs.readdirSync(bgDir)) {
+        if (IMAGE_EXTENSIONS.test(f)) {
+          fs.unlinkSync(path.join(bgDir, f));
+        }
+      }
+
+      const ext = path.extname(req.file.originalname) || '.png';
+      const filePath = path.join(bgDir, `background${ext}`);
+      fs.writeFileSync(filePath, req.file.buffer);
+
+      Logger.log('ASSETS', `Uploaded background for agent: ${agentId}`);
+      res.json({ success: true });
+    })
   );
 
   /**
@@ -374,13 +316,11 @@ export function createAssetsRouter(): Router {
    *
    * @returns JSON: `{ success: true }`
    */
-  router.delete('/background', (req: Request, res: Response) => {
-    try {
+  router.delete(
+    '/background',
+    asyncHandler('ASSETS', 'Error deleting background', (req, res) => {
       const agentId = getParam(req.params['agentId']);
-      if (!agentId) {
-        res.status(400).json({ error: 'Agent ID is required' });
-        return;
-      }
+      if (!requireParam(agentId, 'Agent ID', res)) return;
 
       const bgDir = getAgentAssetsBackgroundsDir(agentId);
       if (!fs.existsSync(bgDir)) {
@@ -400,13 +340,8 @@ export function createAssetsRouter(): Router {
 
       Logger.log('ASSETS', `Deleted background for agent: ${agentId}`);
       res.json({ success: true });
-    } catch (error) {
-      Logger.log('ASSETS', 'Error deleting background', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   return router;
 }

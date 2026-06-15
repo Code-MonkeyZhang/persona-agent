@@ -7,35 +7,27 @@
  */
 
 import { Router } from 'express';
-import type { Request, Response } from 'express';
 import { listSkills, getSkill } from '../../skill/index.js';
-import { Logger } from '../../util/logger.js';
-import { getParam } from './utils.js';
+import { asyncHandler, getParam, requireParam } from './utils.js';
 
 export function createSkillRouter(): Router {
   const router = Router();
 
   /** GET /api/skills - List all available skills */
-  router.get('/', (_req: Request, res: Response) => {
-    try {
+  router.get(
+    '/',
+    asyncHandler('SKILL', 'Error listing skills', (_req, res) => {
       const skills = listSkills();
       res.json({ skills });
-    } catch (error) {
-      Logger.log('SKILL', 'Error listing skills', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   /** GET /api/skills/:name - Get a single skill by name */
-  router.get('/:name', (req: Request, res: Response) => {
-    try {
+  router.get(
+    '/:name',
+    asyncHandler('SKILL', 'Error getting skill', (req, res) => {
       const name = getParam(req.params['name']);
-      if (!name) {
-        res.status(400).json({ error: 'Skill name is required' });
-        return;
-      }
+      if (!requireParam(name, 'Skill name', res)) return;
 
       const skill = getSkill(name);
       if (!skill) {
@@ -44,13 +36,8 @@ export function createSkillRouter(): Router {
       }
 
       res.json({ skill });
-    } catch (error) {
-      Logger.log('SKILL', 'Error getting skill', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   return router;
 }

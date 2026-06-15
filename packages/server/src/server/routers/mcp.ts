@@ -17,13 +17,14 @@ import {
   getOAuthStatus,
 } from '../../mcp/index.js';
 import { Logger } from '../../util/logger.js';
-import { getParam } from './utils.js';
+import { asyncHandler, getParam, requireParam } from './utils.js';
 
 export function createMcpRouter(): Router {
   const router = Router();
 
-  router.get('/', (_req: Request, res: Response) => {
-    try {
+  router.get(
+    '/',
+    asyncHandler('MCP', 'Error listing MCP servers', (_req, res) => {
       const servers = listMcpServers().map((s) => ({
         name: s.name,
         status: s.status,
@@ -32,21 +33,14 @@ export function createMcpRouter(): Router {
         oauthUrl: s.oauthUrl,
       }));
       res.json({ servers });
-    } catch (error) {
-      Logger.log('MCP', 'Error listing MCP servers', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
-  router.get('/:name', (req: Request, res: Response) => {
-    try {
+  router.get(
+    '/:name',
+    asyncHandler('MCP', 'Error getting MCP server', (req, res) => {
       const name = getParam(req.params['name']);
-      if (!name) {
-        res.status(400).json({ error: 'Server name is required' });
-        return;
-      }
+      if (!requireParam(name, 'Server name', res)) return;
 
       const entry = getMcpServer(name);
       if (!entry) {
@@ -62,13 +56,8 @@ export function createMcpRouter(): Router {
         oauthUrl: entry.oauthUrl,
       };
       res.json({ server });
-    } catch (error) {
-      Logger.log('MCP', 'Error getting MCP server', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   router.post('/:name/oauth/authorize', async (req: Request, res: Response) => {
     try {

@@ -10,7 +10,6 @@
  */
 
 import { Router } from 'express';
-import type { Request, Response } from 'express';
 import {
   listAgentConfigs,
   getAgentConfig,
@@ -22,7 +21,7 @@ import {
 import { SessionStore } from '../../session/store.js';
 import { SessionManager } from '../../session/session-manager.js';
 import { Logger } from '../../util/logger.js';
-import { getParam } from './utils.js';
+import { asyncHandler, getParam, requireParam } from './utils.js';
 
 export type SessionManagersMap = Map<string, SessionManager>;
 
@@ -32,26 +31,20 @@ export function createAgentRouter(
   const router = Router();
 
   /** GET /api/agents - List all agent configs */
-  router.get('/', (_req: Request, res: Response) => {
-    try {
+  router.get(
+    '/',
+    asyncHandler('AGENT', 'Error listing agents', (_req, res) => {
       const agents = listAgentConfigs();
       res.json({ agents });
-    } catch (error) {
-      Logger.log('AGENT', 'Error listing agents', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   /** GET /api/agents/:id - Get a single agent config by ID */
-  router.get('/:id', (req: Request, res: Response) => {
-    try {
+  router.get(
+    '/:id',
+    asyncHandler('AGENT', 'Error getting agent', (req, res) => {
       const id = getParam(req.params['id']);
-      if (!id) {
-        res.status(400).json({ error: 'Agent ID is required' });
-        return;
-      }
+      if (!requireParam(id, 'Agent ID', res)) return;
 
       const agent = getAgentConfig(id);
       if (!agent) {
@@ -60,17 +53,13 @@ export function createAgentRouter(
       }
 
       res.json({ agent });
-    } catch (error) {
-      Logger.log('AGENT', 'Error getting agent', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   /** POST /api/agents - Create a new agent config */
-  router.post('/', (req: Request, res: Response) => {
-    try {
+  router.post(
+    '/',
+    asyncHandler('AGENT', 'Error creating agent', (req, res) => {
       const result = AgentConfigInputSchema.safeParse(req.body);
       if (!result.success) {
         res.status(400).json({ error: result.error.issues });
@@ -88,22 +77,15 @@ export function createAgentRouter(
 
       Logger.log('AGENT', `Created agent: ${agent.id}`);
       res.status(201).json({ agent });
-    } catch (error) {
-      Logger.log('AGENT', 'Error creating agent', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   /** PUT /api/agents/:id - Update an existing agent config */
-  router.put('/:id', (req: Request, res: Response) => {
-    try {
+  router.put(
+    '/:id',
+    asyncHandler('AGENT', 'Error updating agent', (req, res) => {
       const id = getParam(req.params['id']);
-      if (!id) {
-        res.status(400).json({ error: 'Agent ID is required' });
-        return;
-      }
+      if (!requireParam(id, 'Agent ID', res)) return;
 
       const existing = getAgentConfig(id);
       if (!existing) {
@@ -120,22 +102,15 @@ export function createAgentRouter(
       const agent = updateAgentConfig(id, result.data);
       Logger.log('AGENT', `Updated agent: ${id}`);
       res.json({ agent });
-    } catch (error) {
-      Logger.log('AGENT', 'Error updating agent', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   /** DELETE /api/agents/:id - Delete an agent config */
-  router.delete('/:id', (req: Request, res: Response) => {
-    try {
+  router.delete(
+    '/:id',
+    asyncHandler('AGENT', 'Error deleting agent', (req, res) => {
       const id = getParam(req.params['id']);
-      if (!id) {
-        res.status(400).json({ error: 'Agent ID is required' });
-        return;
-      }
+      if (!requireParam(id, 'Agent ID', res)) return;
 
       const existing = getAgentConfig(id);
       if (!existing) {
@@ -155,13 +130,8 @@ export function createAgentRouter(
 
       Logger.log('AGENT', `Deleted agent: ${id}`);
       res.json({ success: true });
-    } catch (error) {
-      Logger.log('AGENT', 'Error deleting agent', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   return router;
 }
