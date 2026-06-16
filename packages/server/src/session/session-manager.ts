@@ -9,15 +9,33 @@ import type { ModelConfig } from '../agent/types.js';
 import type { Message } from '../schema/index.js';
 import { getAgentConfig } from '../agent/agent-config-store.js';
 
+/**
+ * Generate a human-readable session ID using local time + short UUID.
+ *
+ * Format: `YYYYMMDD-HHmmss-xxxxxxxx` (e.g. `20260616-143000-a1b2c3d4`).
+ * The timestamp makes filenames sortable and identifiable at a glance;
+ * the 8-char UUID suffix guarantees uniqueness within the same second.
+ */
+function generateSessionId(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const date = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+  const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  const shortId = randomUUID().slice(0, 8);
+  return `${date}-${time}-${shortId}`;
+}
+
 export class SessionManager {
   constructor(
     private readonly store: SessionStore,
     private readonly agentId: string
   ) {}
 
-  /** List all sessions for this agent */
+  /** List all sessions for this agent, sorted by updatedAt descending */
   listSessions(): SessionMeta[] {
-    return this.store.loadIndex().sort((a, b) => b.updatedAt - a.updatedAt);
+    return this.store
+      .listSessionFiles()
+      .sort((a, b) => b.updatedAt - a.updatedAt);
   }
 
   /** Create a new session */
@@ -27,7 +45,7 @@ export class SessionManager {
       throw new Error(`Agent config not found: ${this.agentId}`);
     }
 
-    const id = randomUUID();
+    const id = generateSessionId();
     const now = Date.now();
 
     const session: Session = {
@@ -36,14 +54,12 @@ export class SessionManager {
       title: options.title || 'New Session',
       createdAt: now,
       updatedAt: now,
-      messageCount: 0,
       messages: [],
       workspacePath: agentConfig.defaultWorkspacePath,
       model: agentConfig.defaultModel,
     };
 
-    this.store.saveSession(session);
-    this.addToIndex(session);
+    this.store.createSessionFile(session);
     return session;
   }
 
@@ -54,30 +70,15 @@ export class SessionManager {
 
   /** Delete a session */
   deleteSession(id: string): boolean {
-    const session = this.store.loadSession(id);
-    if (!session) {
-      return false;
-    }
-
-    this.store.deleteSessionFile(id);
-    this.removeFromIndex(id);
-    return true;
+    return this.store.deleteSessionFile(id);
   }
 
-  /** Append a message to a session */
-  appendMessage(id: string, message: Message): Session | null {
-    const session = this.store.loadSession(id);
-    if (!session) {
-      return null;
-    }
-
-    session.messages.push(message);
-    session.messageCount += 1;
-    session.updatedAt = Date.now();
-
-    this.store.saveSession(session);
-    this.updateIndex(session);
-    return session;
+  /**
+   * Append a message to a session file.
+   * @returns `true` on success, `false` if session not found
+   */
+  appendMessage(id: string, message: Message): boolean {
+    return this.store.appendMessageLine(id, message);
   }
 
   /** Update session title */
@@ -95,7 +96,12 @@ export class SessionManager {
     return this.updateSessionField(id, { model });
   }
 
-  /** Generic session field update */
+  /**
+   * Generic session field update.
+   *
+   * Loads the session, applies the updates, then rewrites only the
+   * metadata (first line) of the JSONL file — message lines are preserved.
+   */
   private updateSessionField(
     id: string,
     updates: Partial<Session>
@@ -106,46 +112,9 @@ export class SessionManager {
     }
 
     Object.assign(session, updates, { updatedAt: Date.now() });
-    this.store.saveSession(session);
-    this.updateIndex(session);
+
+    const { messages, ...meta } = session;
+    this.store.rewriteMetaLine(id, meta);
     return session;
-  }
-
-  /** Add session to index */
-  private addToIndex(session: Session): void {
-    const index = this.store.loadIndex();
-    index.push(this.toMeta(session));
-    this.store.saveIndex(index);
-  }
-
-  /** Update session in index */
-  private updateIndex(session: Session): void {
-    const index = this.store.loadIndex();
-    const idx = index.findIndex((s) => s.id === session.id);
-    if (idx !== -1) {
-      index[idx] = this.toMeta(session);
-      this.store.saveIndex(index);
-    }
-  }
-
-  /** Remove session from index */
-  private removeFromIndex(id: string): void {
-    const index = this.store.loadIndex();
-    const filtered = index.filter((s) => s.id !== id);
-    this.store.saveIndex(filtered);
-  }
-
-  /** Convert full session to metadata */
-  private toMeta(session: Session): SessionMeta {
-    return {
-      id: session.id,
-      agentId: session.agentId,
-      title: session.title,
-      createdAt: session.createdAt,
-      updatedAt: session.updatedAt,
-      messageCount: session.messageCount,
-      workspacePath: session.workspacePath,
-      model: session.model,
-    };
   }
 }
