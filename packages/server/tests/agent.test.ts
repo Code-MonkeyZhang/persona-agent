@@ -135,6 +135,7 @@ describe('Agent Module Integration Tests', () => {
         const agent = createAgentConfig(input);
 
         expect(agent.id).toBeDefined();
+        expect(agent.id).toMatch(/^[a-f0-9]{8}-\d{8}-\d{6}$/);
         expect(agent.name).toBe('Test Agent');
         expect(agent.systemPrompt).toBe('You are a helpful assistant.');
         expect(agent.defaultModel).toEqual(defaultModel);

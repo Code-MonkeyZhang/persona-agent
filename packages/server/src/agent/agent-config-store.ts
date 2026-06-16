@@ -84,14 +84,34 @@ export function listAgentConfigs(): AgentConfig[] {
 }
 
 /**
+ * Generate a human-readable agent ID using short UUID + local time.
+ *
+ * Format: `xxxxxxxx-YYYYMMDD-HHmmss` (e.g. `a1b2c3d4-20260616-143000`).
+ * The 8-char UUID prefix guarantees uniqueness; the timestamp suffix
+ * makes the folder name identifiable at a glance.
+ *
+ * @param timestamp - Override the timestamp (used by migration). Defaults to now.
+ */
+function generateAgentId(timestamp: number = Date.now()): string {
+  const now = new Date(timestamp);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const date = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+  const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  const shortId = randomUUID().slice(0, 8);
+  return `${shortId}-${date}-${time}`;
+}
+
+/**
  * Create a new agent config.
- * assets/, assets/pose/, assets/backgrounds/, sessions/, memory/
+ * Creates the directory structure:
+ * agents/{agentId}/ with config.json, assets/, assets/pose/,
+ * assets/backgrounds/, sessions/, memory/
  *
  * @param input - Agent configuration input
  * @returns Created agent configuration
  */
 export function createAgentConfig(input: AgentConfigInput): AgentConfig {
-  const id = randomUUID();
+  const id = generateAgentId();
   const now = Date.now();
 
   const config: AgentConfig = {
