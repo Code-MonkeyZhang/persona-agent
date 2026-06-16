@@ -45,7 +45,6 @@ mock.module('../src/util/paths.js', () => ({
   getAgentAssetsPoseDir: (id: string) => `${agentsDir}/${id}/assets/pose`,
   getAgentAssetsBackgroundsDir: (id: string) => `${agentsDir}/${id}/assets/backgrounds`,
   getAgentSessionsDir: (id: string) => `${agentsDir}/${id}/sessions`,
-  getAgentSessionIndexPath: (id: string) => `${agentsDir}/${id}/sessions/index.json`,
   getAgentMemoryDir: (id: string) => `${agentsDir}/${id}/memory`,
   getAuthPath: () => authPath,
   getConfigDir: () => configDir,

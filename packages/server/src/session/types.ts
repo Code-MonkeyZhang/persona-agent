@@ -5,14 +5,13 @@
 import type { ModelConfig } from '../agent/types.js';
 import type { Message } from '../schema/index.js';
 
-/** Session metadata stored in the index */
+/** Session metadata (first line of the JSONL file) */
 export interface SessionMeta {
   id: string;
   agentId: string;
   title: string;
   createdAt: number;
   updatedAt: number;
-  messageCount: number;
   workspacePath?: string;
   model: ModelConfig;
 }

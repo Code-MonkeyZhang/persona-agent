@@ -289,7 +289,6 @@ describe('Chat Module Integration Tests', () => {
           );
           const { session } = (await sessionResponse.json()) as { session: Session };
 
-          expect(session.messageCount).toBeGreaterThan(0);
           expect(session.messages.length).toBeGreaterThan(0);
           expect(session.messages.some((m) => m.role === 'user')).toBe(true);
           expect(session.messages.some((m) => m.role === 'assistant')).toBe(true);
@@ -584,7 +583,6 @@ describe('Chat Module Integration Tests', () => {
         );
         const { session } = (await sessionResponse.json()) as { session: Session };
 
-        expect(session.messageCount).toBeGreaterThanOrEqual(4);
         expect(session.messages.length).toBeGreaterThanOrEqual(4);
 
         const userMessages = session.messages.filter((m) => m.role === 'user');

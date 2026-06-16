@@ -15,8 +15,7 @@
  * │       │   ├── pose/
  * │       │   └── backgrounds/
  * │       ├── sessions/
- * │       │   ├── index.json
- * │       │   └── {sessionId}.json
+ * │       │   └── {sessionId}.jsonl
  * │       └── memory/
  * ├── skills/
  * │   └── {skillName}/
@@ -76,10 +75,6 @@ export function getAgentConfigPath(agentId: string): string {
 
 export function getAgentSessionsDir(agentId: string): string {
   return path.join(getAgentDir(agentId), 'sessions');
-}
-
-export function getAgentSessionIndexPath(agentId: string): string {
-  return path.join(getAgentSessionsDir(agentId), 'index.json');
 }
 
 export function getAgentAssetsDir(agentId: string): string {

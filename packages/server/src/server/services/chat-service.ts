@@ -128,7 +128,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     Logger.log('CHAT', 'User message added', { agentId, sessionId, content });
 
     // Fire-and-forget: auto-generate title base on the first user message
-    const isFirstMessage = session.messageCount === 0;
+    const isFirstMessage = session.messages.length === 0;
     const isDefaultTitle = session.title === 'New Session';
     if (isFirstMessage && isDefaultTitle) {
       Logger.log('TITLE', 'Auto-generating title', { sessionId });

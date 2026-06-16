@@ -20,6 +20,7 @@ import * as net from 'node:net';
 import { SessionStore } from '../src/session/store.js';
 import { SessionManager } from '../src/session/session-manager.js';
 import type { Session, SessionMeta } from '../src/session/types.js';
+import type { Message } from '../src/schema/index.js';
 import type { SessionManagersMap } from '../src/server/routers/agent.js';
 import type { AgentConfigInput } from '../src/agent/index.js';
 
@@ -35,7 +36,6 @@ mock.module('../src/util/paths.js', () => ({
   getAgentDir: (id: string) => `${agentsDir}/${id}`,
   getAgentConfigPath: (id: string) => `${agentsDir}/${id}/config.json`,
   getAgentSessionsDir: (id: string) => `${agentsDir}/${id}/sessions`,
-  getAgentSessionIndexPath: (id: string) => `${agentsDir}/${id}/sessions/index.json`,
   getAgentAssetsDir: (id: string) => `${agentsDir}/${id}/assets`,
   getAgentAssetsBodyDir: (id: string) => `${agentsDir}/${id}/assets/body`,
   getAgentAssetsBackgroundsDir: (id: string) => `${agentsDir}/${id}/assets/backgrounds`,
@@ -98,6 +98,27 @@ function createTestAgentInput(
   };
 }
 
+/**
+ * 创建测试用 SessionMeta fixture
+ * @param id - session ID
+ * @returns SessionMeta 对象
+ */
+function createMeta(id: string): SessionMeta {
+  return {
+    id,
+    agentId: currentAgentId,
+    title: `Session ${id}`,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    model: defaultModel,
+  };
+}
+
+/** 测试用消息 */
+function createUserMessage(content: string): Message {
+  return { role: 'user', content };
+}
+
 describe('Session Module Integration Tests', () => {
   /** 初始化测试服务器和临时目录 */
   beforeAll(async () => {
@@ -137,82 +158,117 @@ describe('Session Module Integration Tests', () => {
       currentAgentId = 'store-test-agent-1';
       const agentDir = path.join(agentsDir, currentAgentId);
       fs.mkdirSync(agentDir, { recursive: true });
+      const sessionsDir = path.join(agentDir, 'sessions');
+      if (fs.existsSync(sessionsDir)) {
+        fs.rmSync(sessionsDir, { recursive: true, force: true });
+      }
       store = new SessionStore(currentAgentId);
     });
 
-    /** loadIndex / saveIndex 测试 */
-    describe('loadIndex / saveIndex', () => {
-      /** 测试索引不存在时返回空数组 */
-      it('should return empty array when index does not exist', () => {
-        const index = store.loadIndex();
-        expect(index).toEqual([]);
-      });
-
-      /** 测试保存和加载索引 */
-      it('should save and load index', () => {
-        const sessions: SessionMeta[] = [
-          {
-            id: 'session-1',
-            agentId: 'agent-1',
-            title: 'Session 1',
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-            messageCount: 0,
-          },
-        ];
-
-        store.saveIndex(sessions);
-        const loaded = store.loadIndex();
-
-        expect(loaded.length).toBe(1);
-        expect(loaded[0]?.id).toBe('session-1');
-      });
-    });
-
-    /** loadSession / saveSession 测试 */
-    describe('loadSession / saveSession', () => {
+    /** createSessionFile / loadSession 测试 */
+    describe('createSessionFile / loadSession', () => {
       /** 测试加载不存在的 session 返回 null */
       it('should return null for non-existent session', () => {
         const session = store.loadSession('non-existent');
         expect(session).toBeNull();
       });
 
-      /** 测试保存和加载 session */
-      it('should save and load session', () => {
-        const session: Session = {
-          id: 'session-1',
-          agentId: 'agent-1',
-          title: 'Test Session',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          messageCount: 0,
-          messages: [],
-        };
-
-        store.saveSession(session);
+      /** 测试创建并加载 session */
+      it('should create and load session', () => {
+        const meta = createMeta('session-1');
+        store.createSessionFile(meta);
         const loaded = store.loadSession('session-1');
 
         expect(loaded).not.toBeNull();
         expect(loaded?.id).toBe('session-1');
-        expect(loaded?.title).toBe('Test Session');
+        expect(loaded?.title).toBe('Session session-1');
+        expect(loaded?.messages).toEqual([]);
       });
 
-      /** 测试 session 持久化到文件 */
-      it('should persist session to file', () => {
-        const session: Session = {
-          id: 'persist-test',
-          agentId: 'agent-1',
-          title: 'Persist Test',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          messageCount: 0,
-          messages: [],
-        };
+      /** 测试 session 持久化到 .jsonl 文件 */
+      it('should persist session to .jsonl file', () => {
+        const meta = createMeta('persist-test');
+        store.createSessionFile(meta);
 
-        store.saveSession(session);
-
-        const sessionPath = path.join(store.getSessionsPath(), 'persist-test.json');
+        const sessionPath = path.join(
+          store.getSessionsPath(),
+          'persist-test.jsonl'
+        );
         expect(fs.existsSync(sessionPath)).toBe(true);
+      });
+    });
+
+    /** appendMessageLine 测试 */
+    describe('appendMessageLine', () => {
+      /** 测试追加消息后能通过 loadSession 读到 */
+      it('should append message and be readable via loadSession', () => {
+        const meta = createMeta('append-test');
+        store.createSessionFile(meta);
+
+        const result = store.appendMessageLine(
+          'append-test',
+          createUserMessage('Hello!')
+        );
+        expect(result).toBe(true);
+
+        const loaded = store.loadSession('append-test');
+        expect(loaded?.messages.length).toBe(1);
+        expect(loaded?.messages[0]?.role).toBe('user');
+        expect(loaded?.messages[0]?.content).toBe('Hello!');
+      });
+
+      /** 测试向不存在的 session 追加消息返回 false */
+      it('should return false for non-existent session', () => {
+        const result = store.appendMessageLine(
+          'non-existent',
+          createUserMessage('test')
+        );
+        expect(result).toBe(false);
+      });
+    });
+
+    /** rewriteMetaLine 测试 */
+    describe('rewriteMetaLine', () => {
+      /** 测试重写元数据后消息不丢失 */
+      it('should rewrite meta without losing messages', () => {
+        const meta = createMeta('rewrite-test');
+        store.createSessionFile(meta);
+        store.appendMessageLine(
+          'rewrite-test',
+          createUserMessage('msg1')
+        );
+        store.appendMessageLine(
+          'rewrite-test',
+          createUserMessage('msg2')
+        );
+
+        store.rewriteMetaLine('rewrite-test', {
+          ...meta,
+          title: 'Updated Title',
+        });
+
+        const loaded = store.loadSession('rewrite-test');
+        expect(loaded?.title).toBe('Updated Title');
+        expect(loaded?.messages.length).toBe(2);
+      });
+    });
+
+    /** listSessionFiles 测试 */
+    describe('listSessionFiles', () => {
+      /** 测试列出所有 session 元数据 */
+      it('should list all session metas', () => {
+        store.createSessionFile(createMeta('list-1'));
+        store.createSessionFile(createMeta('list-2'));
+
+        const list = store.listSessionFiles();
+        expect(list.length).toBe(2);
+        expect(list.map((m) => m.id).sort()).toEqual(['list-1', 'list-2']);
+      });
+
+      /** 测试目录不存在时返回空数组 */
+      it('should return empty array when no sessions exist', () => {
+        const emptyStore = new SessionStore('no-sessions-agent');
+        expect(emptyStore.listSessionFiles()).toEqual([]);
       });
     });
 
@@ -220,17 +276,7 @@ describe('Session Module Integration Tests', () => {
     describe('deleteSessionFile', () => {
       /** 测试删除 session 文件 */
       it('should delete session file', () => {
-        const session: Session = {
-          id: 'delete-test',
-          agentId: 'agent-1',
-          title: 'Delete Test',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          messageCount: 0,
-          messages: [],
-        };
-
-        store.saveSession(session);
+        store.createSessionFile(createMeta('delete-test'));
         expect(store.loadSession('delete-test')).not.toBeNull();
 
         const deleted = store.deleteSessionFile('delete-test');
@@ -277,7 +323,6 @@ describe('Session Module Integration Tests', () => {
         expect(session.id).toBeDefined();
         expect(session.agentId).toBe(agentId);
         expect(session.title).toBe('New Session');
-        expect(session.messageCount).toBe(0);
         expect(session.messages).toEqual([]);
         expect(session.model).toEqual(defaultModel);
       });
@@ -292,13 +337,13 @@ describe('Session Module Integration Tests', () => {
         expect(session.model).toEqual(defaultModel);
       });
 
-      /** 测试 session 添加到索引 */
-      it('should add session to index', () => {
-        manager.createSession({ title: 'Indexed Session' });
+      /** 测试创建的 session 出现在列表中 */
+      it('should list created session', () => {
+        manager.createSession({ title: 'Listed Session' });
         const sessions = manager.listSessions();
 
         expect(sessions.length).toBe(1);
-        expect(sessions[0]?.title).toBe('Indexed Session');
+        expect(sessions[0]?.title).toBe('Listed Session');
       });
     });
 
@@ -348,9 +393,9 @@ describe('Session Module Integration Tests', () => {
         expect(manager.getSession(session.id)).toBeNull();
       });
 
-      /** 测试从索引中移除 session */
-      it('should remove session from index', () => {
-        const session = manager.createSession({ title: 'Index Remove' });
+      /** 测试删除后不在列表中 */
+      it('should remove session from listing', () => {
+        const session = manager.createSession({ title: 'Remove Me' });
         manager.deleteSession(session.id);
 
         const sessions = manager.listSessions();
@@ -366,26 +411,27 @@ describe('Session Module Integration Tests', () => {
 
     /** appendMessage 测试 */
     describe('appendMessage', () => {
-      /** 测试追加用户消息并设置序号 */
-      it('should append user message with sequence number', () => {
+      /** 测试追加用户消息 */
+      it('should append user message', () => {
         const session = manager.createSession();
-        const updated = manager.appendMessage(session.id, {
+        const result = manager.appendMessage(session.id, {
           role: 'user',
           content: 'Hello!',
         });
 
-        expect(updated).not.toBeNull();
-        expect(updated?.messages.length).toBe(1);
-        expect(updated?.messageCount).toBe(1);
+        expect(result).toBe(true);
+        const loaded = manager.getSession(session.id);
+        expect(loaded?.messages.length).toBe(1);
+        expect(loaded?.messages[0]?.content).toBe('Hello!');
       });
 
-      /** 测试向不存在的 session 追加消息返回 null */
-      it('should return null for non-existent session', () => {
+      /** 测试向不存在的 session 追加消息返回 false */
+      it('should return false for non-existent session', () => {
         const result = manager.appendMessage('non-existent', {
           role: 'user',
           content: 'test',
         });
-        expect(result).toBeNull();
+        expect(result).toBe(false);
       });
     });
 

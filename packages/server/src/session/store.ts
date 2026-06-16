@@ -1,29 +1,33 @@
 /**
- * @fileoverview Session file storage operations.
+ * @fileoverview Session file storage operations (JSONL).
  *
  * Storage structure:
  * {agentDir}/
  * ├── sessions/
- * │   ├── index.json          # Index file with all session metadata
- * │   └── {sessionId}.json    # Full session data with messages
+ * │   └── {sessionId}.jsonl    # One JSONL file per session
+ *
+ * Each file's first line is a session_meta entry; subsequent lines are
+ * message entries. All writes are append-only except meta-line rewrites.
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { readJsonFile } from '../util/fs-helpers.js';
-import {
-  getAgentSessionsDir,
-  getAgentSessionIndexPath,
-} from '../util/paths.js';
+import { getAgentSessionsDir } from '../util/paths.js';
 import type { Session, SessionMeta } from './types.js';
+import type { Message } from '../schema/index.js';
+
+/** Internal shape of one JSONL line */
+interface SessionLine {
+  timestamp: string;
+  type: 'session_meta' | 'message';
+  data: unknown;
+}
 
 export class SessionStore {
   private readonly sessionsDir: string;
-  private readonly indexPath: string;
 
   constructor(agentId: string) {
     this.sessionsDir = getAgentSessionsDir(agentId);
-    this.indexPath = getAgentSessionIndexPath(agentId);
     this.ensureDirs();
   }
 
@@ -39,42 +43,145 @@ export class SessionStore {
     return this.sessionsDir;
   }
 
-  /** Load the session index */
-  loadIndex(): SessionMeta[] {
-    return readJsonFile<SessionMeta[]>(this.indexPath, []);
+  /** Resolve the JSONL file path for a given session ID */
+  private sessionFilePath(id: string): string {
+    return path.join(this.sessionsDir, `${id}.jsonl`);
   }
 
-  /** Save the session index */
-  saveIndex(sessions: SessionMeta[]): void {
-    this.writeJsonAtomic(this.indexPath, sessions);
+  /**
+   * Create a new session file with the given metadata as the first line.
+   * Overwrites any existing file at the same path.
+   */
+  createSessionFile(meta: SessionMeta): void {
+    const line: SessionLine = {
+      timestamp: new Date().toISOString(),
+      type: 'session_meta',
+      data: meta,
+    };
+    fs.writeFileSync(
+      this.sessionFilePath(meta.id),
+      JSON.stringify(line) + '\n'
+    );
   }
 
-  /** Load a full session by ID */
+  /**
+   * Append a single message line to the end of a session file.
+   * @returns `true` on success, `false` if the file does not exist
+   */
+  appendMessageLine(id: string, message: Message): boolean {
+    const filePath = this.sessionFilePath(id);
+    if (!fs.existsSync(filePath)) return false;
+    const line: SessionLine = {
+      timestamp: new Date().toISOString(),
+      type: 'message',
+      data: message,
+    };
+    fs.appendFileSync(filePath, JSON.stringify(line) + '\n');
+    return true;
+  }
+
+  /**
+   * Rewrite the first line (session_meta) of a session file.
+   *
+   * Reads the entire file, replaces the content before the first newline
+   * with the new meta line, and preserves all subsequent message lines.
+   * Only call this for infrequent metadata updates (title, model, etc.).
+   */
+  rewriteMetaLine(id: string, meta: SessionMeta): void {
+    const filePath = this.sessionFilePath(id);
+    const content = fs.readFileSync(filePath, 'utf8');
+    const firstNewline = content.indexOf('\n');
+    const rest = firstNewline === -1 ? '' : content.slice(firstNewline + 1);
+    const line: SessionLine = {
+      timestamp: new Date().toISOString(),
+      type: 'session_meta',
+      data: meta,
+    };
+    fs.writeFileSync(filePath, JSON.stringify(line) + '\n' + rest);
+  }
+
+  /**
+   * Load a full session by ID.
+   *
+   * Reads the JSONL file line by line. The first line is parsed as
+   * session_meta; subsequent lines are parsed as messages. Lines that
+   * fail JSON parsing are silently skipped (crash recovery).
+   * `updatedAt` is derived from the file's modification time.
+   */
   loadSession(id: string): Session | null {
-    const sessionPath = path.join(this.sessionsDir, `${id}.json`);
-    return readJsonFile<Session | null>(sessionPath, null);
+    const filePath = this.sessionFilePath(id);
+    if (!fs.existsSync(filePath)) return null;
+
+    const content = fs.readFileSync(filePath, 'utf8');
+    const lines = content.split('\n').filter((l) => l.trim());
+
+    let meta: SessionMeta | null = null;
+    const messages: Message[] = [];
+
+    for (const raw of lines) {
+      let parsed: SessionLine;
+      try {
+        parsed = JSON.parse(raw) as SessionLine;
+      } catch {
+        continue;
+      }
+      if (parsed.type === 'session_meta' && !meta) {
+        meta = parsed.data as SessionMeta;
+      } else if (parsed.type === 'message') {
+        messages.push(parsed.data as Message);
+      }
+    }
+
+    if (!meta) return null;
+
+    const stat = fs.statSync(filePath);
+    return { ...meta, updatedAt: stat.mtimeMs, messages };
   }
 
-  /** Save a full session */
-  saveSession(session: Session): void {
-    const sessionPath = path.join(this.sessionsDir, `${session.id}.json`);
-    this.writeJsonAtomic(sessionPath, session);
+  /**
+   * List all sessions' metadata by scanning the sessions directory.
+   *
+   * For each `.jsonl` file, reads only the first line to extract the
+   * session_meta. `updatedAt` is derived from the file's modification time.
+   */
+  listSessionFiles(): SessionMeta[] {
+    if (!fs.existsSync(this.sessionsDir)) return [];
+
+    const files = fs
+      .readdirSync(this.sessionsDir)
+      .filter((f) => f.endsWith('.jsonl'));
+
+    const results: SessionMeta[] = [];
+
+    for (const file of files) {
+      const filePath = path.join(this.sessionsDir, file);
+      const content = fs.readFileSync(filePath, 'utf8');
+      const firstLine = content.split('\n')[0];
+      if (!firstLine?.trim()) continue;
+
+      let parsed: SessionLine;
+      try {
+        parsed = JSON.parse(firstLine) as SessionLine;
+      } catch {
+        continue;
+      }
+      if (parsed.type !== 'session_meta') continue;
+
+      const meta = parsed.data as SessionMeta;
+      const stat = fs.statSync(filePath);
+      results.push({ ...meta, updatedAt: stat.mtimeMs });
+    }
+
+    return results;
   }
 
   /** Delete a session file */
   deleteSessionFile(id: string): boolean {
-    const sessionPath = path.join(this.sessionsDir, `${id}.json`);
-    if (fs.existsSync(sessionPath)) {
-      fs.unlinkSync(sessionPath);
+    const filePath = this.sessionFilePath(id);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
       return true;
     }
     return false;
-  }
-
-  /** Atomic write to prevent data corruption */
-  private writeJsonAtomic(filePath: string, data: unknown): void {
-    const tmpPath = `${filePath}.tmp`;
-    fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2));
-    fs.renameSync(tmpPath, filePath);
   }
 }
