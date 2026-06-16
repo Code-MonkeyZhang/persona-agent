@@ -5,7 +5,7 @@
  * 失败时抛出异常，由调用方自行 try/catch 处理。
  */
 
-import { stream, getModel, type KnownProvider } from '@mariozechner/pi-ai';
+import { stream, getModel, type KnownProvider } from '@earendil-works/pi-ai';
 import { getAuth } from '../auth/index.js';
 
 /**

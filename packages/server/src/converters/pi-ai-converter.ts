@@ -12,8 +12,8 @@ import type {
   TextContent,
   ThinkingContent,
   ToolCall as PiAiToolCall,
-} from '@mariozechner/pi-ai';
-import { Type, type TSchema } from '@sinclair/typebox';
+} from '@earendil-works/pi-ai';
+import { Type, type TSchema } from '@earendil-works/pi-ai';
 import type { Message, ToolCall } from '../schema/index.js';
 import type { Tool } from '../tools/index.js';
 

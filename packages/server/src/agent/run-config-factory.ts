@@ -4,7 +4,7 @@
  * Assembles AgentRunConfig from AgentConfig and Session information.
  */
 
-import { getModel, type KnownProvider } from '@mariozechner/pi-ai';
+import { getModel, type KnownProvider } from '@earendil-works/pi-ai';
 import { getAuth } from '../auth/index.js';
 import { getSkills } from '../skill/index.js';
 import type { Skill } from '../skill/index.js';

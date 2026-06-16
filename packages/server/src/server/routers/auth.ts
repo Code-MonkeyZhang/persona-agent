@@ -17,7 +17,7 @@ import {
   deleteAuth,
 } from '../../auth/index.js';
 import type { KnownProvider, Provider, Auth } from '../../auth/index.js';
-import { getModels, completeSimple } from '@mariozechner/pi-ai';
+import { getModels, completeSimple } from '@earendil-works/pi-ai';
 import { Logger } from '../../util/logger.js';
 import { asyncHandler, getParam, requireParam } from './utils.js';
 

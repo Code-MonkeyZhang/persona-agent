@@ -2,7 +2,7 @@
  * @fileoverview Type definitions for auth management.
  */
 
-import type { KnownProvider, Provider } from '@mariozechner/pi-ai';
+import type { KnownProvider, Provider } from '@earendil-works/pi-ai';
 
 export type { KnownProvider, Provider };
 

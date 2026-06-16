@@ -4,7 +4,7 @@
  */
 
 import * as fs from 'node:fs';
-import { getModels } from '@mariozechner/pi-ai';
+import { getModels } from '@earendil-works/pi-ai';
 import { getAuthPath } from '../util/paths.js';
 import { readJsonFile } from '../util/fs-helpers.js';
 import type { Auth, AuthStore, Provider, KnownProvider } from './types.js';
@@ -42,6 +42,12 @@ const SUPPORTED_PROVIDERS: KnownProvider[] = [
   'huggingface',
   'openai-codex',
   'vercel-ai-gateway',
+  // 迁移到 @earendil-works/pi-ai 后新增的纯单 key 供应商
+  'nvidia',
+  'together',
+  'zai-coding-cn',
+  'xiaomi',
+  'ant-ling',
 ];
 
 /** Mapping of provider IDs to display names */
@@ -65,6 +71,11 @@ const PROVIDER_NAMES: Record<string, string> = {
   huggingface: 'HuggingFace',
   'openai-codex': 'OpenAI Codex',
   'vercel-ai-gateway': 'Vercel AI Gateway',
+  nvidia: 'NVIDIA',
+  together: 'Together AI',
+  'zai-coding-cn': 'ZAI Coding CN',
+  xiaomi: 'Xiaomi MiMo',
+  'ant-ling': 'Ant Ling',
 };
 
 /** Read auth store from file */
