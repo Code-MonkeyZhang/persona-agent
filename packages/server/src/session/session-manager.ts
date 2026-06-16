@@ -9,6 +9,22 @@ import type { ModelConfig } from '../agent/types.js';
 import type { Message } from '../schema/index.js';
 import { getAgentConfig } from '../agent/agent-config-store.js';
 
+/**
+ * Generate a human-readable session ID using local time + short UUID.
+ *
+ * Format: `YYYYMMDD-HHmmss-xxxxxxxx` (e.g. `20260616-143000-a1b2c3d4`).
+ * The timestamp makes filenames sortable and identifiable at a glance;
+ * the 8-char UUID suffix guarantees uniqueness within the same second.
+ */
+function generateSessionId(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const date = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+  const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  const shortId = randomUUID().slice(0, 8);
+  return `${date}-${time}-${shortId}`;
+}
+
 export class SessionManager {
   constructor(
     private readonly store: SessionStore,
@@ -29,7 +45,7 @@ export class SessionManager {
       throw new Error(`Agent config not found: ${this.agentId}`);
     }
 
-    const id = randomUUID();
+    const id = generateSessionId();
     const now = Date.now();
 
     const session: Session = {

@@ -327,6 +327,13 @@ describe('Session Module Integration Tests', () => {
         expect(session.model).toEqual(defaultModel);
       });
 
+      /** 测试生成的 ID 符合 timestamp-shortUUID 格式 */
+      it('should generate ID in YYYYMMDD-HHmmss-xxxxxxxx format', () => {
+        const session = manager.createSession();
+
+        expect(session.id).toMatch(/^\d{8}-\d{6}-[a-f0-9]{8}$/);
+      });
+
       /** 测试使用自定义选项创建 session */
       it('should create session with custom options', () => {
         const session = manager.createSession({
