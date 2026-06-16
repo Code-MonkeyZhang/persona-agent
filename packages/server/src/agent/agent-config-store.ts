@@ -19,6 +19,7 @@
 
 import * as fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
+import { readJsonFile } from '../util/fs-helpers.js';
 import {
   getAgentsDir,
   getAgentDir,
@@ -53,12 +54,8 @@ export function hasAgentConfig(id: string): boolean {
  * @returns The agent config object, or undefined if not found or invalid.
  */
 export function getAgentConfig(id: string): AgentConfig | undefined {
-  const configPath = getAgentConfigPath(id);
-  if (!fs.existsSync(configPath)) {
-    return undefined;
-  }
-  const content = fs.readFileSync(configPath, 'utf8');
-  const parsed = JSON.parse(content);
+  const parsed = readJsonFile<unknown>(getAgentConfigPath(id), null);
+  if (parsed === null) return undefined;
   const result = AgentConfigSchema.safeParse(parsed);
   return result.success ? result.data : undefined;
 }

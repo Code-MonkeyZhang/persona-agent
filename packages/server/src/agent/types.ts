@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod';
-import type { Model, Api } from '@mariozechner/pi-ai';
+import type { Model, Api } from '@earendil-works/pi-ai';
 import type { Tool } from '../tools/index.js';
 
 /** Model configuration schema */

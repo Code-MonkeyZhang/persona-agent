@@ -9,7 +9,7 @@
  * Mock 策略：
  * - 文件系统：mock paths.js 到临时目录
  * - MiniMax API：mock minimax-api.ts 避免调用真实外部 API
- * - Agent 循环：mock @mariozechner/pi-ai 的 stream，返回固定文本
+ * - Agent 循环：mock @earendil-works/pi-ai 的 stream，返回固定文本
  * - Express + WebSocket：真实启动
  */
 
@@ -73,7 +73,7 @@ mock.module('../src/config/index.js', () => ({
   getDefaultConfigYaml: () => 'enableLogging: false\ntts:\n  summaryThreshold: 200\n',
 }));
 
-mock.module('@mariozechner/pi-ai', () => {
+mock.module('@earendil-works/pi-ai', () => {
   return {
     stream: () => {
       function* fakeStream() {

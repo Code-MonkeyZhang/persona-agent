@@ -1,0 +1,145 @@
+/* ============================================
+   Markdown Content Styles (.msg-content)
+   ============================================ */
+
+.msg-content {
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-x: auto;
+}
+
+.msg-content > *:first-child {
+  margin-top: 0;
+}
+
+.msg-content > *:last-child {
+  margin-bottom: 0;
+}
+
+.msg-content p {
+  margin: 0.5rem 0;
+}
+
+.msg-content h1,
+.msg-content h2,
+.msg-content h3,
+.msg-content h4,
+.msg-content h5,
+.msg-content h6 {
+  margin: 1rem 0 0.5rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.msg-content h1 { font-size: 1.25rem; }
+.msg-content h2 { font-size: 1.125rem; }
+.msg-content h3 { font-size: 1.05rem; }
+
+.msg-content ul,
+.msg-content ol {
+  margin: 0.5rem 0;
+  padding-inline-start: 1.5rem;
+}
+
+.msg-content ul {
+  list-style-type: disc;
+}
+
+.msg-content ol {
+  list-style-type: decimal;
+}
+
+.msg-content li {
+  margin: 0.2rem 0;
+}
+
+.msg-content li > p {
+  margin: 0.25rem 0;
+}
+
+.msg-content blockquote {
+  margin: 0.5rem 0;
+  padding: 0.25rem 0.75rem;
+  border-left: 3px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted));
+  border-radius: 0 4px 4px 0;
+}
+
+.msg-content blockquote p {
+  margin: 0.25rem 0;
+}
+
+.msg-content hr {
+  margin: 0.75rem 0;
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.msg-content strong {
+  font-weight: 600;
+}
+
+.msg-content em {
+  font-style: italic;
+}
+
+.msg-content img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+/* Inline code */
+.msg-content .inline-code,
+.msg-content code:not(pre code) {
+  background: hsl(var(--foreground) / 0.06);
+  border: 1px solid hsl(var(--border));
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.875em;
+  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
+  color: hsl(var(--foreground));
+}
+
+/* User bubble overrides for inline code */
+.msg-bubble-user .msg-content .inline-code,
+.msg-bubble-user .msg-content code:not(pre code) {
+  background: hsl(var(--primary-foreground) / 0.2);
+  border-color: hsl(var(--primary-foreground) / 0.15);
+  color: hsl(var(--primary-foreground));
+}
+
+/* Table */
+.msg-content .table-wrapper {
+  overflow-x: auto;
+  margin: 0.5rem 0;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--border));
+}
+
+.msg-content table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.msg-content thead th {
+  background: hsl(var(--muted));
+  font-weight: 600;
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 2px solid hsl(var(--border));
+}
+
+.msg-content tbody td {
+  padding: 6px 12px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.msg-content tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.msg-content tbody tr:hover {
+  background: hsl(var(--muted));
+}

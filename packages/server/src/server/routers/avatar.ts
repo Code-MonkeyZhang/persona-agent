@@ -7,13 +7,12 @@
  */
 
 import { Router } from 'express';
-import type { Request, Response } from 'express';
 import multer from 'multer';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getAgentAssetsDir } from '../../util/paths.js';
 import { Logger } from '../../util/logger.js';
-import { getParam } from './utils.js';
+import { asyncHandler, getParam, requireParam } from './utils.js';
 import { processAvatar } from '../../lib/avatar-processor.js';
 
 const AVATAR_FILENAME = 'avatar.png';
@@ -53,13 +52,11 @@ export function createAvatarRouter(): Router {
    *
    * @returns PNG 图片流，或 404/400 错误 JSON
    */
-  router.get('/', (req: Request, res: Response) => {
-    try {
+  router.get(
+    '/',
+    asyncHandler('AVATAR', 'Error getting avatar', (req, res) => {
       const agentId = getParam(req.params['agentId']);
-      if (!agentId) {
-        res.status(400).json({ error: 'Agent ID is required' });
-        return;
-      }
+      if (!requireParam(agentId, 'Agent ID', res)) return;
 
       const avatarPath = getAvatarPath(agentId);
       if (!fs.existsSync(avatarPath)) {
@@ -70,13 +67,8 @@ export function createAvatarRouter(): Router {
       res.setHeader('Content-Type', 'image/png');
       res.setHeader('Cache-Control', 'no-cache');
       fs.createReadStream(avatarPath).pipe(res);
-    } catch (error) {
-      Logger.log('AVATAR', 'Error getting avatar', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   /**
    * POST / — 上传 Agent 头像图片。
@@ -89,36 +81,26 @@ export function createAvatarRouter(): Router {
   router.post(
     '/',
     upload.single('avatar'),
-    async (req: Request, res: Response) => {
-      try {
-        const agentId = getParam(req.params['agentId']);
-        if (!agentId) {
-          res.status(400).json({ error: 'Agent ID is required' });
-          return;
-        }
+    asyncHandler('AVATAR', 'Error uploading avatar', async (req, res) => {
+      const agentId = getParam(req.params['agentId']);
+      if (!requireParam(agentId, 'Agent ID', res)) return;
 
-        if (!req.file) {
-          res.status(400).json({ error: 'No file uploaded' });
-          return;
-        }
-
-        const assetsDir = getAgentAssetsDir(agentId);
-        if (!fs.existsSync(assetsDir)) {
-          fs.mkdirSync(assetsDir, { recursive: true });
-        }
-
-        const processed = await processAvatar(req.file.buffer);
-        fs.writeFileSync(getAvatarPath(agentId), processed);
-
-        Logger.log('AVATAR', `Uploaded avatar for agent: ${agentId}`);
-        res.json({ success: true });
-      } catch (error) {
-        Logger.log('AVATAR', 'Error uploading avatar', error);
-        res.status(500).json({
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
+      if (!req.file) {
+        res.status(400).json({ error: 'No file uploaded' });
+        return;
       }
-    }
+
+      const assetsDir = getAgentAssetsDir(agentId);
+      if (!fs.existsSync(assetsDir)) {
+        fs.mkdirSync(assetsDir, { recursive: true });
+      }
+
+      const processed = await processAvatar(req.file.buffer);
+      fs.writeFileSync(getAvatarPath(agentId), processed);
+
+      Logger.log('AVATAR', `Uploaded avatar for agent: ${agentId}`);
+      res.json({ success: true });
+    })
   );
 
   return router;

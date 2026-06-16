@@ -4,9 +4,9 @@
  * Pipeline: cleanText() → threshold/language check → at most one LLM call → fallback to cleaned text.
  */
 
-import { stream, getModel, type KnownProvider } from '@mariozechner/pi-ai';
-import { getAuth } from '../auth/index.js';
 import { Logger } from '../util/logger.js';
+import { errorMessage } from '../util/errors.js';
+import { streamSingleTurn } from '../agent/llm-single-call.js';
 import { loadConfig } from '../config/index.js';
 import { getConfigPath } from '../util/paths.js';
 
@@ -94,7 +94,18 @@ export async function processTextForTTS(
     needTranslate,
   });
 
-  const result = await callLLM(prompt, options.provider, options.modelId);
+  let result = '';
+  try {
+    result = await streamSingleTurn(
+      prompt,
+      '',
+      options.provider,
+      options.modelId
+    );
+  } catch (err) {
+    Logger.log('TTS', 'LLM generation failed', { error: errorMessage(err) });
+  }
+
   if (!result) {
     Logger.log('TTS', 'LLM failed, using cleaned text as fallback', {
       method: 'fallback',
@@ -304,60 +315,6 @@ function buildGenericTranslatePrompt(
   );
 
   return parts.join('\n');
-}
-
-/**
- * Call the session's LLM with a single user message and collect the full response.
- * Returns empty string on any failure (auth missing, model not found, stream error).
- */
-async function callLLM(
-  prompt: string,
-  provider: string,
-  modelId: string
-): Promise<string> {
-  const auth = getAuth(provider as KnownProvider);
-  if (!auth) {
-    Logger.log('TTS', `No auth for provider: ${provider}`);
-    return '';
-  }
-
-  const model = getModel(
-    provider as KnownProvider,
-    modelId as Parameters<typeof getModel>[1]
-  );
-  if (!model) {
-    Logger.log('TTS', `Model not found: ${provider}/${modelId}`);
-    return '';
-  }
-
-  const context = {
-    systemPrompt: '',
-    messages: [
-      {
-        role: 'user' as const,
-        content: prompt,
-        timestamp: Date.now(),
-      },
-    ],
-  };
-
-  let raw = '';
-  try {
-    const eventStream = stream(model, context, { apiKey: auth.apiKey });
-    for await (const event of eventStream) {
-      if (event.type === 'text_delta') {
-        raw += (event as { delta: string }).delta;
-      }
-      if (event.type === 'done' || event.type === 'error') break;
-    }
-  } catch (err) {
-    Logger.log('TTS', 'LLM generation failed', {
-      error: (err as Error).message,
-    });
-    return '';
-  }
-
-  return raw;
 }
 
 function stripThink(raw: string): string {

@@ -1,0 +1,111 @@
+/* ============================================
+   Code Block Styles
+   ============================================ */
+
+.code-block-wrapper {
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  overflow: hidden;
+  background: hsl(var(--card));
+}
+
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: hsl(var(--muted));
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.code-block-lang {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.code-block-lang-name {
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+  color: hsl(var(--muted-foreground));
+}
+
+.code-block-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.code-block-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.code-block-action-btn:hover {
+  background: hsl(var(--foreground) / 0.06);
+  color: hsl(var(--foreground));
+}
+
+.code-block-body {
+  overflow: auto;
+  position: relative;
+}
+
+.code-block-body pre {
+  margin: 0 !important;
+  padding: 12px 16px !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.code-block-body code {
+  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
+  font-size: 13px;
+  background: transparent !important;
+}
+
+.code-block-collapsed {
+  max-height: 10rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.code-block-expand-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  padding: 8px;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  background: linear-gradient(to bottom, transparent, hsl(var(--card)) 30%);
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.code-block-expand-overlay:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+/* highlight.js theme overrides */
+.hljs {
+  background: transparent !important;
+  padding: 0 !important;
+}

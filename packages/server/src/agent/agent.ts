@@ -3,7 +3,7 @@
  *
  */
 
-import { stream } from '@mariozechner/pi-ai';
+import { stream } from '@earendil-works/pi-ai';
 import type { Message, AgentEvent, ToolCall } from '../schema/index.js';
 import type { AgentRunConfig } from './types.js';
 import type { Tool, ToolResult } from '../tools/index.js';

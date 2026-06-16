@@ -1,0 +1,19 @@
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  .header-drag {
+    -webkit-app-region: drag;
+  }
+
+  .header-no-drag {
+    -webkit-app-region: no-drag;
+  }
+}

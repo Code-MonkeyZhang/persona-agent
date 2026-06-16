@@ -288,7 +288,7 @@ export function CompanionPanel({
                 disabled={!inputText.trim() || isLoading}
                 className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${
                   inputText.trim() && !isLoading
-                    ? 'bg-[#228be6] text-white hover:bg-[#1a7ad4]'
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                     : 'bg-[#d8d8d8] text-white'
                 }`}
               >

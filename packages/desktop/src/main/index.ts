@@ -19,6 +19,8 @@ import {
   getServerUrl,
   killOrphanProcesses,
 } from './server-manager';
+import { IPC } from '@shared/ipc/channels';
+import type { ProxyFetchOptions, SelectFolderOptions } from '@shared/types/api';
 
 const isMac = process.platform === 'darwin';
 const isWin = process.platform === 'win32';
@@ -63,14 +65,14 @@ app.whenReady().then(async () => {
   });
 
   // IPC：获取当前服务器 URL
-  ipcMain.handle('get-server-url', () => {
+  ipcMain.handle(IPC.GET_SERVER_URL, () => {
     return getServerUrl();
   });
 
   // IPC：打开文件夹选择对话框
   ipcMain.handle(
-    'select-folder',
-    async (_event, options?: { title?: string; defaultPath?: string }) => {
+    IPC.SELECT_FOLDER,
+    async (_event, options?: SelectFolderOptions) => {
       log.info('IPC: select-folder received', options);
       const result = await dialog.showOpenDialog({
         title: options?.title || '选择文件夹',
@@ -87,25 +89,25 @@ app.whenReady().then(async () => {
   );
 
   // IPC：窗口控制操作（最小化、最大化、关闭、查询状态）
-  ipcMain.handle('window:minimize', () =>
+  ipcMain.handle(IPC.WINDOW_MINIMIZE, () =>
     BrowserWindow.getFocusedWindow()?.minimize()
   );
-  ipcMain.handle('window:maximize', () =>
+  ipcMain.handle(IPC.WINDOW_MAXIMIZE, () =>
     BrowserWindow.getFocusedWindow()?.maximize()
   );
-  ipcMain.handle('window:unmaximize', () =>
+  ipcMain.handle(IPC.WINDOW_UNMAXIMIZE, () =>
     BrowserWindow.getFocusedWindow()?.unmaximize()
   );
-  ipcMain.handle('window:close', () =>
+  ipcMain.handle(IPC.WINDOW_CLOSE, () =>
     BrowserWindow.getFocusedWindow()?.close()
   );
   ipcMain.handle(
-    'window:is-maximized',
+    IPC.WINDOW_IS_MAXIMIZED,
     () => BrowserWindow.getFocusedWindow()?.isMaximized() ?? false
   );
 
   // IPC：将渲染进程日志转发到主进程日志（仅开发环境生效）
-  ipcMain.handle('log', (_event, level: string, ...args: unknown[]) => {
+  ipcMain.handle(IPC.LOG, (_event, level: string, ...args: unknown[]) => {
     if (is.dev) {
       const logFn = log[level as keyof typeof log];
       if (typeof logFn === 'function') {
@@ -117,16 +119,8 @@ app.whenReady().then(async () => {
   // IPC：代理 HTTP 请求，绕过渲染进程的 CORS 限制
   // 主进程运行在 Node.js 环境，可直接使用全局 fetch，不受浏览器 CORS 策略约束
   ipcMain.handle(
-    'proxy-fetch',
-    async (
-      _event,
-      url: string,
-      options: {
-        method: string;
-        headers: Record<string, string>;
-        body?: string;
-      }
-    ) => {
+    IPC.PROXY_FETCH,
+    async (_event, url: string, options: ProxyFetchOptions) => {
       log.info(`[proxyFetch] ${options.method} ${url}`);
       try {
         const response = await fetch(url, {
@@ -151,11 +145,11 @@ app.whenReady().then(async () => {
   );
 
   // IPC：使用系统默认浏览器打开指定 URL
-  ipcMain.handle('open-external', (_event, url: string) => {
+  ipcMain.handle(IPC.OPEN_EXTERNAL, (_event, url: string) => {
     return shell.openExternal(url);
   });
 
-  ipcMain.handle('open-path', (_event, filePath: string) => {
+  ipcMain.handle(IPC.OPEN_PATH, (_event, filePath: string) => {
     const resolved = filePath.replace(/^~/, homedir());
     return shell.openPath(resolved);
   });
@@ -283,11 +277,11 @@ function createWindow(): void {
   });
 
   mainWindow.on('maximize', () => {
-    mainWindow.webContents.send('window:maximized-changed', true);
+    mainWindow.webContents.send(IPC.WINDOW_MAXIMIZED_CHANGED, true);
   });
 
   mainWindow.on('unmaximize', () => {
-    mainWindow.webContents.send('window:maximized-changed', false);
+    mainWindow.webContents.send(IPC.WINDOW_MAXIMIZED_CHANGED, false);
   });
 
   // 窗口准备好显示时触发，此时内部资源已加载完成
