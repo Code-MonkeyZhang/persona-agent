@@ -123,7 +123,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       }
     }
 
-    const historyLength = agent.messages.length;
+    let historyLength = agent.messages.length;
     agent.addUserMessage(content);
     Logger.log('CHAT', 'User message added', { agentId, sessionId, content });
 
@@ -198,6 +198,9 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     /**
      * Flush the current step: save messages, log, and broadcast step_complete.
      * Resets currentStep to null after broadcasting.
+     *
+     * After saving, updates historyLength to the current agent.messages.length
+     * so the next flush only saves newly added messages (fixes #56).
      */
     const flushCurrentStep = () => {
       if (!currentStep) return;
@@ -205,6 +208,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
         lastContentText = currentStep.content;
       }
       saveStepMessages(sessionManager, sessionId, agent, historyLength);
+      historyLength = agent.messages.length;
       Logger.log('CHAT', 'Step complete', {
         sessionId,
         stepIndex: currentStep.stepIndex,
