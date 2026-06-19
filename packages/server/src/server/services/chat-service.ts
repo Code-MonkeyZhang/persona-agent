@@ -2,7 +2,7 @@
  * @fileoverview 聊天服务 - 处理消息的核心逻辑。
  */
 
-import type { SessionManager } from '../../session/index.js';
+import { SessionManager } from '../../session/index.js';
 import {
   getAgentConfig,
   AgentCore,
@@ -19,6 +19,9 @@ import { getLanguageBoost } from '../../tts/types.js';
 import { processTextForTTS } from '../../tts/text-processor.js';
 
 const MAX_RESULT_LENGTH = 1000;
+
+/** 聊天 Session 上下文窗口大小（发送给 LLM 的最大消息条数） */
+const MAX_CHAT_CONTEXT_MESSAGES = 50;
 
 function truncate(str: string, maxLen: number): string {
   if (str.length <= maxLen) return str;
@@ -116,8 +119,13 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     const runConfig = createAgentRunConfig(agentConfig, session, workspaceDir);
     const agent = new AgentCore(runConfig);
 
-    // 把除了SystemPrompt以外的消息推入Agent, 新的SystemPrompt已经在构建AgentCore时注入了
-    for (const msg of session.messages) {
+    // 把除了SystemPrompt以外的消息推入Agent, 新的SystemPrompt已经在构建AgentCore时注入了。
+    // 聊天 Session 用滑动窗口截断，只保留最近 MAX_CHAT_CONTEXT_MESSAGES 条。
+    const isChatSession = session.id === SessionManager.CHAT_SESSION_ID;
+    const messagesToLoad = isChatSession
+      ? session.messages.slice(-MAX_CHAT_CONTEXT_MESSAGES)
+      : session.messages;
+    for (const msg of messagesToLoad) {
       if (msg.role !== 'system') {
         agent.messages.push(msg);
       }
@@ -130,7 +138,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     // Fire-and-forget: auto-generate title base on the first user message
     const isFirstMessage = session.messages.length === 0;
     const isDefaultTitle = session.title === 'New Session';
-    if (isFirstMessage && isDefaultTitle) {
+    if (isFirstMessage && isDefaultTitle && !isChatSession) {
       Logger.log('TITLE', 'Auto-generating title', { sessionId });
       const { provider: modelProvider, model: modelId } = session.model;
       generateTitle(content, modelProvider, modelId)

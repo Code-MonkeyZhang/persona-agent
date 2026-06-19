@@ -26,6 +26,9 @@ function generateSessionId(): string {
 }
 
 export class SessionManager {
+  /** Fixed ID for the persistent chat session */
+  static readonly CHAT_SESSION_ID = 'chat';
+
   constructor(
     private readonly store: SessionStore,
     private readonly agentId: string
@@ -52,6 +55,35 @@ export class SessionManager {
       id,
       agentId: this.agentId,
       title: options.title || 'New Session',
+      createdAt: now,
+      updatedAt: now,
+      messages: [],
+      workspacePath: agentConfig.defaultWorkspacePath,
+      model: agentConfig.defaultModel,
+    };
+
+    this.store.createSessionFile(session);
+    return session;
+  }
+
+  /**
+   * Create the persistent chat session with a fixed ID and title.
+   *
+   * Unlike `createSession`, this uses {@link CHAT_SESSION_ID} as the ID
+   * and `"聊天"` as the title. The caller should check `getSession` first
+   * to avoid overwriting an existing chat session.
+   */
+  createChatSession(): Session {
+    const agentConfig = getAgentConfig(this.agentId);
+    if (!agentConfig) {
+      throw new Error(`Agent config not found: ${this.agentId}`);
+    }
+
+    const now = Date.now();
+    const session: Session = {
+      id: SessionManager.CHAT_SESSION_ID,
+      agentId: this.agentId,
+      title: '聊天',
       createdAt: now,
       updatedAt: now,
       messages: [],

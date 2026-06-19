@@ -56,16 +56,19 @@ app.get('/health', (_req: Request, res: Response) => {
 const sessionManagers: SessionManagersMap = new Map();
 
 /**
- * 给所有Agent创建对应的SessionStore, 然后保存在SessionManagersMap映射关系
+ * 给所有Agent创建对应的SessionStore, 然后保存在SessionManagersMap映射关系。
+ * 同时为每个 Agent 补建聊天 Session（旧 Agent 升级用）。
  */
 function initSessionManagers(): void {
   const agentConfigs = listAgentConfigs();
   for (const agentConfig of agentConfigs) {
     const store = new SessionStore(agentConfig.id);
-    sessionManagers.set(
-      agentConfig.id,
-      new SessionManager(store, agentConfig.id)
-    );
+    const manager = new SessionManager(store, agentConfig.id);
+    sessionManagers.set(agentConfig.id, manager);
+
+    if (!manager.getSession(SessionManager.CHAT_SESSION_ID)) {
+      manager.createChatSession();
+    }
   }
   Logger.log('SERVER', `Initialized ${agentConfigs.length} session managers`);
 }

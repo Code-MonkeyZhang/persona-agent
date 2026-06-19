@@ -78,9 +78,12 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
     ? sessions.filter((s) => s.agentId === currentAgent.id)
     : sessions;
 
+  const chatSession = filteredSessions.find((s) => s.id === 'chat');
+  const regularSessions = filteredSessions.filter((s) => s.id !== 'chat');
+
   const groupedSessions = useMemo(
-    () => groupSessionsByDate(filteredSessions),
-    [filteredSessions]
+    () => groupSessionsByDate(regularSessions),
+    [regularSessions]
   );
 
   useEffect(() => {
@@ -152,39 +155,60 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden">
-        {groupedSessions.length === 0 ? (
-          <div className="text-center text-gray-400 text-sm py-8">
-            {currentAgent
-              ? t('sessionSidebar.noConversations')
-              : t('common.noAgent')}
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {/* 聊天 Session 固定顶部 */}
+        {chatSession && (
+          <div className="px-2 pt-2">
+            <SessionItem
+              session={chatSession}
+              isActive={currentSession?.id === chatSession.id}
+              onSelect={handleSelectSession}
+              onDelete={() => {}}
+              onRename={() => {}}
+            />
           </div>
-        ) : (
-          <GroupedVirtuoso
-            groupCounts={groupedSessions.map((g) => g.sessions.length)}
-            groupContent={(index) => (
-              <div className="px-2 py-1.5 text-[12px] text-[#999] bg-white">
-                {t(groupedSessions[index].label)}
-              </div>
-            )}
-            itemContent={(index, groupIndex) => {
-              const session = groupedSessions[groupIndex]?.sessions?.[index];
-              if (!session) return null;
-              return (
-                <div className="px-2 pb-1">
-                  <SessionItem
-                    session={session}
-                    isActive={currentSession?.id === session.id}
-                    onSelect={handleSelectSession}
-                    onDelete={handleDeleteSession}
-                    onRename={handleRenameSession}
-                  />
-                </div>
-              );
-            }}
-            overscan={200}
-          />
         )}
+
+        {/* 分隔线 */}
+        {chatSession && regularSessions.length > 0 && (
+          <div className="mx-3 my-1 border-t border-gray-200" />
+        )}
+
+        {/* 普通 Session 列表 */}
+        <div className="flex-1 overflow-hidden">
+          {groupedSessions.length === 0 && !chatSession ? (
+            <div className="text-center text-gray-400 text-sm py-8">
+              {currentAgent
+                ? t('sessionSidebar.noConversations')
+                : t('common.noAgent')}
+            </div>
+          ) : (
+            <GroupedVirtuoso
+              groupCounts={groupedSessions.map((g) => g.sessions.length)}
+              groupContent={(index) => (
+                <div className="px-2 py-1.5 text-[12px] text-[#999] bg-white">
+                  {t(groupedSessions[index].label)}
+                </div>
+              )}
+              itemContent={(index, groupIndex) => {
+                const session = groupedSessions[groupIndex]?.sessions?.[index];
+                if (!session) return null;
+                return (
+                  <div className="px-2 pb-1">
+                    <SessionItem
+                      session={session}
+                      isActive={currentSession?.id === session.id}
+                      onSelect={handleSelectSession}
+                      onDelete={handleDeleteSession}
+                      onRename={handleRenameSession}
+                    />
+                  </div>
+                );
+              }}
+              overscan={200}
+            />
+          )}
+        </div>
       </div>
     </aside>
   );

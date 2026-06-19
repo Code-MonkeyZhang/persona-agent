@@ -11,7 +11,7 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import type { SessionManager } from '../../session/index.js';
+import { SessionManager } from '../../session/index.js';
 import { Logger } from '../../util/logger.js';
 import type { SessionManagersMap } from './agent.js';
 import { asyncHandler, getParam, requireParam } from './utils.js';
@@ -104,6 +104,12 @@ export function createSessionRouter(
         return;
       }
 
+      // 聊天 Session 不允许改标题（workspace 和 model 修改不拦截）
+      if (title !== undefined && id === SessionManager.CHAT_SESSION_ID) {
+        res.status(403).json({ error: 'Cannot rename chat session' });
+        return;
+      }
+
       if (workspacePath !== undefined) {
         session = manager.updateWorkspacePath(id, workspacePath);
       }
@@ -135,6 +141,13 @@ export function createSessionRouter(
       if (!manager) return;
       const id = getParam(req.params['id']);
       if (!requireParam(id, 'Session ID', res)) return;
+
+      // 聊天 Session 不允许删除
+      if (id === SessionManager.CHAT_SESSION_ID) {
+        res.status(403).json({ error: 'Cannot delete chat session' });
+        return;
+      }
+
       const deleted = manager.deleteSession(id);
 
       if (!deleted) {
