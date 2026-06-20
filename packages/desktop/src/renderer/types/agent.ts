@@ -17,6 +17,7 @@ export interface Agent {
   skillNames: string[];
   defaultWorkspacePath?: string;
   compressionThreshold?: number;
+  dreamIntervalMinutes?: number;
   voiceId?: string;
   voiceLanguage?: string;
   createdAt?: number;

@@ -153,6 +153,8 @@
   "agentEditor.chatConfig": "聊天配置",
   "agentEditor.compressionThreshold": "压缩阈值",
   "agentEditor.compressionThresholdTooltip": "聊天中未压缩消息超过模型上下文窗口的该比例时，较早的对话会被总结进记忆。数值越低越早压缩",
+  "agentEditor.dreamInterval": "记忆整理间隔",
+  "agentEditor.dreamIntervalTooltip": "Agent 每隔多少分钟回顾已总结的对话并整理进长期记忆。数值越小越早整理",
   "agentEditor.voice": "音色",
   "agentEditor.selectVoice": "选择音色",
   "agentEditor.selectVoiceDesc": "选择 Agent 使用的语音音色",

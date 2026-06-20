@@ -153,6 +153,8 @@
   "agentEditor.chatConfig": "Chat Configuration",
   "agentEditor.compressionThreshold": "Compression Threshold",
   "agentEditor.compressionThresholdTooltip": "When uncompressed messages in the chat exceed this percentage of the model's context window, older messages are summarized into memory. Lower values compress sooner",
+  "agentEditor.dreamInterval": "Memory Consolidation Interval",
+  "agentEditor.dreamIntervalTooltip": "How often (minutes) the agent reviews summarized history and consolidates it into long-term memory. Smaller values consolidate sooner",
   "agentEditor.voice": "Voice",
   "agentEditor.selectVoice": "Select Voice",
   "agentEditor.selectVoiceDesc": "Select the voice for the Agent",

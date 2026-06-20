@@ -21,6 +21,7 @@ import { createTunnelRouter } from './routers/tunnel.js';
 import { createAssetsRouter } from './routers/assets.js';
 import { createAvatarRouter } from './routers/avatar.js';
 import { initWebSocket, isWebSocketInitialized } from './websocket-server.js';
+import { startDreamScheduler } from './dream-scheduler.js';
 
 import { listAgentConfigs } from '../agent/index.js';
 import { initSkillPool } from '../skill/index.js';
@@ -78,6 +79,7 @@ initSessionManagers();
 initSkillPool();
 void initMcpPool();
 Logger.setSessionManagers(sessionManagers);
+startDreamScheduler();
 
 app.use('/api/providers', createProviderRouter());
 app.use('/api/auth', createAuthRouter());

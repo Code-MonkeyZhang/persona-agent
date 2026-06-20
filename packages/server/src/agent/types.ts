@@ -33,6 +33,13 @@ export const AgentConfigSchema = z.object({
    * 用 `.default(50)` 使存量 Agent 的 config.json 经 safeParse 自动补默认值（零迁移）。
    */
   compressionThreshold: z.number().int().min(1).max(100).default(50),
+  /**
+   * 记忆整理（Dream）间隔（分钟，默认 120）。
+   *
+   * 距离该 Agent 上一次 Dream 达到该间隔、且有未处理 history 时触发整理。
+   * 用 `.default(120)` 使存量 Agent 的 config.json 经 safeParse 自动补默认值（零迁移）。
+   */
+  dreamIntervalMinutes: z.number().int().min(1).default(120),
   voiceId: z.string().optional(),
   voiceLanguage: z.string().optional(),
   createdAt: z.number(),

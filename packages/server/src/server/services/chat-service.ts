@@ -9,8 +9,6 @@ import {
   createAgentRunConfig,
 } from '../../agent/index.js';
 import { runCompression } from './compress-service.js';
-import { MemoryStore } from '../../agent/memory/memory-store.js';
-import type { HistoryEntry } from '../../agent/memory/memory-store.js';
 import {
   estimateMessagesTokens,
   estimateMessageTokens,
@@ -26,10 +24,6 @@ import { getLanguageBoost } from '../../tts/types.js';
 import { processTextForTTS } from '../../tts/text-processor.js';
 
 const MAX_RESULT_LENGTH = 1000;
-/** # Recent History 段注入的上限：最多条目数 */
-const MAX_HISTORY_ENTRIES = 50;
-/** # Recent History 段注入的上限：最大总字符数 */
-const MAX_HISTORY_CHARS = 32000;
 /** 溢出安全网：未摘要消息估算 token 超过上下文窗口的该比例时触发头部裁切 */
 const SAFETY_NET_RATIO = 0.9;
 
@@ -127,14 +121,6 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
   try {
     const runConfig = createAgentRunConfig(agentConfig, session, workspaceDir);
     const isChatSession = session.id.startsWith('chat');
-
-    // 如果是ChatSession, 把 history 追加到 system prompt。
-    if (isChatSession) {
-      const recentHistory = buildRecentHistorySegment(agentId);
-      if (recentHistory) {
-        runConfig.systemPrompt += `\n\n# Recent History\n\n${recentHistory}`;
-      }
-    }
 
     const agent = new AgentCore(runConfig);
 
@@ -473,35 +459,6 @@ async function handleTtsAsync(
     model: ttsConfig.model,
     languageBoost: getLanguageBoost(agentConfig.voiceLanguage),
   });
-}
-
-/**
- * 构建注入 system prompt 的 `# Recent History` 段（聊天 Session 专用）。
- *
- * 读取 dream_cursor 之后的未处理 history 摘要，最近的优先纳入预算
- * （最多 {@link MAX_HISTORY_ENTRIES} 条 / {@link MAX_HISTORY_CHARS} 字符），
- * 按时间顺序拼接返回。
- *
- * @param agentId - Agent ID
- * @returns 拼接好的摘要文本；无可用条目时返回空字符串。
- */
-function buildRecentHistorySegment(agentId: string): string {
-  const memoryStore = new MemoryStore(agentId);
-  const entries = memoryStore.readHistory(memoryStore.getDreamCursor());
-  if (entries.length === 0) return '';
-
-  const selected: HistoryEntry[] = [];
-  let total = 0;
-  // 从最新的开始纳入预算（最近的上下文更重要），收集后再反转回时间顺序
-  for (let i = entries.length - 1; i >= 0; i--) {
-    if (selected.length >= MAX_HISTORY_ENTRIES) break;
-    const text = entries[i]!.content;
-    if (total + text.length > MAX_HISTORY_CHARS) break;
-    total += text.length;
-    selected.push(entries[i]!);
-  }
-  selected.reverse();
-  return selected.map((e) => e.content).join('\n');
 }
 
 /**

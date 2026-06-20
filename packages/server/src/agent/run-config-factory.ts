@@ -19,6 +19,7 @@ import {
   WebFetchTool,
 } from '../tools/index.js';
 import { ShowPoseTool, GetCurrentPoseTool } from '../tools/pose-tools.js';
+import { MemoryStore } from './memory/memory-store.js';
 import type { AgentConfig, AgentRunConfig } from './types.js';
 import type { Session } from '../session/types.js';
 
@@ -146,7 +147,7 @@ export function createAgentRunConfig(
     ? getSkills(agentConfig.skillNames)
     : [];
 
-  const systemPrompt = buildSystemPrompt(
+  let systemPrompt = buildSystemPrompt(
     agentConfig.systemPrompt,
     workspaceDir,
     provider,
@@ -154,6 +155,19 @@ export function createAgentRunConfig(
     skills,
     agentConfig.mcpNames
   );
+
+  // 聊天 Session：在系统提示词末尾追加长期记忆与近期未整理的摘要
+  if (session.id.startsWith('chat')) {
+    const memory = new MemoryStore(agentConfig.id);
+    const memoryMd = memory.readMemoryMd();
+    if (memoryMd) {
+      systemPrompt += `\n\n# Memory\n\n${memoryMd}`;
+    }
+    const recentHistory = memory.readRecentHistorySegment();
+    if (recentHistory) {
+      systemPrompt += `\n\n# Recent History\n\n${recentHistory}`;
+    }
+  }
 
   const mcpTools = agentConfig.mcpNames?.length
     ? getMcpToolsForServers(agentConfig.mcpNames)

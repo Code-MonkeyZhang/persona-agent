@@ -333,6 +333,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   const [voiceId, setVoiceId] = useState<string>('');
   const [voiceLanguage, setVoiceLanguage] = useState('default');
   const [compressionThreshold, setCompressionThreshold] = useState('50');
+  const [dreamIntervalMinutes, setDreamIntervalMinutes] = useState('120');
   const { playingId: previewingVoiceId, preview: previewVoice } =
     useVoicePreview();
 
@@ -367,6 +368,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
       setVoiceId(editingAgent.voiceId || '');
       setVoiceLanguage(editingAgent.voiceLanguage || 'default');
       setCompressionThreshold(String(editingAgent.compressionThreshold ?? 50));
+      setDreamIntervalMinutes(String(editingAgent.dreamIntervalMinutes ?? 120));
       loadPoseImages(editingAgent.id);
       setBgPreviewUrl(getBackgroundImageUrl(editingAgent.id));
       setBgDeleted(false);
@@ -432,6 +434,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     setVoiceId('');
     setVoiceLanguage('default');
     setCompressionThreshold('50');
+    setDreamIntervalMinutes('120');
     setPoseImages([]);
     setPendingBgFile(null);
     setBgPreviewUrl(undefined);
@@ -571,6 +574,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           skillNames: selectedSkillIds,
           maxSteps: parseInt(maxSteps) || 50,
           compressionThreshold: parseInt(compressionThreshold) || 50,
+          dreamIntervalMinutes: parseInt(dreamIntervalMinutes) || 120,
           defaultWorkspacePath,
           voiceId: voiceId || undefined,
           voiceLanguage: voiceId ? voiceLanguage : undefined,
@@ -586,6 +590,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           skillNames: selectedSkillIds,
           maxSteps: parseInt(maxSteps) || 50,
           compressionThreshold: parseInt(compressionThreshold) || 50,
+          dreamIntervalMinutes: parseInt(dreamIntervalMinutes) || 120,
           defaultWorkspacePath,
           voiceId: voiceId || undefined,
           voiceLanguage: voiceId ? voiceLanguage : undefined,
@@ -893,6 +898,18 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                     onChange={(e) => setCompressionThreshold(e.target.value)}
                     min={1}
                     max={100}
+                    className="rounded-lg border border-[#e0e0e0] h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </SettingRow>
+                <SettingRow
+                  label={t('agentEditor.dreamInterval')}
+                  tooltip={t('agentEditor.dreamIntervalTooltip')}
+                >
+                  <input
+                    type="number"
+                    value={dreamIntervalMinutes}
+                    onChange={(e) => setDreamIntervalMinutes(e.target.value)}
+                    min={1}
                     className="rounded-lg border border-[#e0e0e0] h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </SettingRow>
