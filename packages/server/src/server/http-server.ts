@@ -66,7 +66,8 @@ function initSessionManagers(): void {
     const manager = new SessionManager(store, agentConfig.id);
     sessionManagers.set(agentConfig.id, manager);
 
-    if (!manager.getSession(SessionManager.CHAT_SESSION_ID)) {
+    // 为没有Chat的Agent补建Chat
+    if (!manager.getSession(manager.chatSessionId())) {
       manager.createChatSession();
     }
   }

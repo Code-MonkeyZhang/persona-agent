@@ -105,7 +105,7 @@ export function createSessionRouter(
       }
 
       // 聊天 Session 不允许改标题（workspace 和 model 修改不拦截）
-      if (title !== undefined && id === SessionManager.CHAT_SESSION_ID) {
+      if (title !== undefined && id.startsWith('chat')) {
         res.status(403).json({ error: 'Cannot rename chat session' });
         return;
       }
@@ -143,7 +143,7 @@ export function createSessionRouter(
       if (!requireParam(id, 'Session ID', res)) return;
 
       // 聊天 Session 不允许删除
-      if (id === SessionManager.CHAT_SESSION_ID) {
+      if (id.startsWith('chat')) {
         res.status(403).json({ error: 'Cannot delete chat session' });
         return;
       }

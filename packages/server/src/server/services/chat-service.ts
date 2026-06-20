@@ -8,7 +8,14 @@ import {
   AgentCore,
   createAgentRunConfig,
 } from '../../agent/index.js';
-import type { ToolCall } from '../../schema/index.js';
+import { runCompression } from './compress-service.js';
+import { MemoryStore } from '../../agent/memory/memory-store.js';
+import type { HistoryEntry } from '../../agent/memory/memory-store.js';
+import {
+  estimateMessagesTokens,
+  estimateMessageTokens,
+} from '../../agent/memory/token-estimate.js';
+import type { Message, ToolCall } from '../../schema/index.js';
 import type { ToolResult } from '../../tools/index.js';
 import { Logger } from '../../util/logger.js';
 import { broadcastToSession } from '../websocket-server.js';
@@ -19,9 +26,12 @@ import { getLanguageBoost } from '../../tts/types.js';
 import { processTextForTTS } from '../../tts/text-processor.js';
 
 const MAX_RESULT_LENGTH = 1000;
-
-/** 聊天 Session 上下文窗口大小（发送给 LLM 的最大消息条数） */
-const MAX_CHAT_CONTEXT_MESSAGES = 50;
+/** # Recent History 段注入的上限：最多条目数 */
+const MAX_HISTORY_ENTRIES = 50;
+/** # Recent History 段注入的上限：最大总字符数 */
+const MAX_HISTORY_CHARS = 32000;
+/** 溢出安全网：未摘要消息估算 token 超过上下文窗口的该比例时触发头部裁切 */
+const SAFETY_NET_RATIO = 0.9;
 
 function truncate(str: string, maxLen: number): string {
   if (str.length <= maxLen) return str;
@@ -115,19 +125,47 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     session.workspacePath || agentConfig.defaultWorkspacePath || process.cwd();
 
   try {
-    // 构建AgentConfig, 创建AgentCore
     const runConfig = createAgentRunConfig(agentConfig, session, workspaceDir);
+    const isChatSession = session.id.startsWith('chat');
+
+    // 如果是ChatSession, 把 history 追加到 system prompt。
+    if (isChatSession) {
+      const recentHistory = buildRecentHistorySegment(agentId);
+      if (recentHistory) {
+        runConfig.systemPrompt += `\n\n# Recent History\n\n${recentHistory}`;
+      }
+    }
+
     const agent = new AgentCore(runConfig);
 
-    // 把除了SystemPrompt以外的消息推入Agent, 新的SystemPrompt已经在构建AgentCore时注入了。
-    // 聊天 Session 用滑动窗口截断，只保留最近 MAX_CHAT_CONTEXT_MESSAGES 条。
-    const isChatSession = session.id === SessionManager.CHAT_SESSION_ID;
-    const messagesToLoad = isChatSession
-      ? session.messages.slice(-MAX_CHAT_CONTEXT_MESSAGES)
-      : session.messages;
-    for (const msg of messagesToLoad) {
-      if (msg.role !== 'system') {
-        agent.messages.push(msg);
+    // 把除了 SystemPrompt 以外的消息推入 Agent, 新的SystemPrompt已经在构建AgentCore时注入了。
+    if (isChatSession) {
+      // 聊天 Session：压缩模式。只加载 summarizedUpTo 之后的近期原始消息；
+      // 若该切片估算 token 超过上下文窗口的 90%，从头部裁掉最老的完整轮（安全网）。
+      const summarizedUpTo = session.summarizedUpTo ?? 0;
+      let messagesToLoad = session.messages.slice(summarizedUpTo);
+      const safetyNetTokens = Math.floor(
+        SAFETY_NET_RATIO * runConfig.model.contextWindow
+      );
+      if (estimateMessagesTokens(messagesToLoad) > safetyNetTokens) {
+        messagesToLoad = trimToSafetyWindow(messagesToLoad, safetyNetTokens);
+        Logger.log('CHAT', 'Safety net trimmed messages', {
+          sessionId,
+          remaining: messagesToLoad.length,
+        });
+      }
+      for (const msg of messagesToLoad) {
+        if (msg.role !== 'system') {
+          agent.messages.push(msg);
+        }
+      }
+    } else {
+      // 普通 Session全量加载原始消息。
+      // TODO: 普通Session应该使用滑动窗口等简单机制, 而不是全部加载
+      for (const msg of session.messages) {
+        if (msg.role !== 'system') {
+          agent.messages.push(msg);
+        }
       }
     }
 
@@ -313,6 +351,19 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       );
     }
 
+    // Fire-and-forget: 异步上下文压缩（仅聊天 Session）
+    if (isChatSession) {
+      runCompression({
+        agentId,
+        sessionId,
+        sessionManager,
+        threshold: agentConfig.compressionThreshold,
+        contextWindow: runConfig.model.contextWindow,
+        provider: runConfig.provider,
+        modelId: runConfig.modelId,
+      }).catch(() => {});
+    }
+
     return { success: true };
   } catch (error) {
     const err = error as Error;
@@ -422,4 +473,61 @@ async function handleTtsAsync(
     model: ttsConfig.model,
     languageBoost: getLanguageBoost(agentConfig.voiceLanguage),
   });
+}
+
+/**
+ * 构建注入 system prompt 的 `# Recent History` 段（聊天 Session 专用）。
+ *
+ * 读取 dream_cursor 之后的未处理 history 摘要，最近的优先纳入预算
+ * （最多 {@link MAX_HISTORY_ENTRIES} 条 / {@link MAX_HISTORY_CHARS} 字符），
+ * 按时间顺序拼接返回。
+ *
+ * @param agentId - Agent ID
+ * @returns 拼接好的摘要文本；无可用条目时返回空字符串。
+ */
+function buildRecentHistorySegment(agentId: string): string {
+  const memoryStore = new MemoryStore(agentId);
+  const entries = memoryStore.readHistory(memoryStore.getDreamCursor());
+  if (entries.length === 0) return '';
+
+  const selected: HistoryEntry[] = [];
+  let total = 0;
+  // 从最新的开始纳入预算（最近的上下文更重要），收集后再反转回时间顺序
+  for (let i = entries.length - 1; i >= 0; i--) {
+    if (selected.length >= MAX_HISTORY_ENTRIES) break;
+    const text = entries[i]!.content;
+    if (total + text.length > MAX_HISTORY_CHARS) break;
+    total += text.length;
+    selected.push(entries[i]!);
+  }
+  selected.reverse();
+  return selected.map((e) => e.content).join('\n');
+}
+
+/**
+ * 溢出安全网裁切：未摘要消息估算 token 超过上下文窗口的 90% 时，
+ * 从头部裁掉最老的若干完整轮，只保留能装进预算的最近一段。
+ *
+ * 从尾部向前累计 token，直到加入下一条（更老的）会超预算为止；再把起点对齐到
+ * 一条 user 消息（完整轮边界），避免留下孤立的 assistant 回复。被裁掉的消息仍在磁盘，
+ * 下一轮压缩会兜底，不丢数据。
+ *
+ * @param messages - 未摘要的消息切片
+ * @param maxTokens - 安全网预算 token 数
+ * @returns 裁切后保留的消息数组
+ */
+function trimToSafetyWindow(messages: Message[], maxTokens: number): Message[] {
+  let acc = 0;
+  let start = messages.length;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const t = estimateMessageTokens(messages[i]!);
+    if (acc + t > maxTokens) break;
+    acc += t;
+    start = i;
+  }
+  // 起点对齐到 user 消息（完整轮边界）
+  while (start < messages.length && messages[start]!.role !== 'user') {
+    start++;
+  }
+  return messages.slice(start);
 }

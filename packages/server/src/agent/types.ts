@@ -26,6 +26,13 @@ export const AgentConfigSchema = z.object({
   defaultWorkspacePath: z.string().optional(),
   skillNames: z.array(z.string()).default([]),
   mcpNames: z.array(z.string()).default([]),
+  /**
+   * 上下文压缩阈值（百分比，1–100，默认 50）。
+   *
+   * 聊天 Session 中，未摘要消息的估算 token 超过模型上下文窗口的该比例时触发压缩。
+   * 用 `.default(50)` 使存量 Agent 的 config.json 经 safeParse 自动补默认值（零迁移）。
+   */
+  compressionThreshold: z.number().int().min(1).max(100).default(50),
   voiceId: z.string().optional(),
   voiceLanguage: z.string().optional(),
   createdAt: z.number(),

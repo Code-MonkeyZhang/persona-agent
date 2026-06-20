@@ -17,9 +17,6 @@ import { deleteScrollPosition } from './scrollPositionCache';
 
 const LAST_SESSION_KEY = 'last-session-id';
 
-/** 聊天 Session 的固定 ID */
-const CHAT_SESSION_ID = 'chat';
-
 interface SessionStore {
   sessions: SessionMeta[];
   currentSession: Session | null;
@@ -76,7 +73,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
       if (sessions.length > 0) {
         const lastSessionId = localStorage.getItem(LAST_SESSION_KEY);
-        const chatSession = sessions.find((s) => s.id === CHAT_SESSION_ID);
+        const chatSession = sessions.find((s) => s.id.startsWith('chat'));
 
         let targetId: string;
         if (lastSessionId && sessions.some((s) => s.id === lastSessionId)) {

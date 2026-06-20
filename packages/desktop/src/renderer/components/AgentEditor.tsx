@@ -12,6 +12,7 @@ import {
   Sparkles,
   Brain,
   Speech,
+  MessageSquare,
   Folder,
   Loader2,
   VenetianMask,
@@ -331,6 +332,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   >();
   const [voiceId, setVoiceId] = useState<string>('');
   const [voiceLanguage, setVoiceLanguage] = useState('default');
+  const [compressionThreshold, setCompressionThreshold] = useState('50');
   const { playingId: previewingVoiceId, preview: previewVoice } =
     useVoicePreview();
 
@@ -364,6 +366,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
       setPreviewDataUrl(undefined);
       setVoiceId(editingAgent.voiceId || '');
       setVoiceLanguage(editingAgent.voiceLanguage || 'default');
+      setCompressionThreshold(String(editingAgent.compressionThreshold ?? 50));
       loadPoseImages(editingAgent.id);
       setBgPreviewUrl(getBackgroundImageUrl(editingAgent.id));
       setBgDeleted(false);
@@ -428,6 +431,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     setPendingAvatarFile(null);
     setVoiceId('');
     setVoiceLanguage('default');
+    setCompressionThreshold('50');
     setPoseImages([]);
     setPendingBgFile(null);
     setBgPreviewUrl(undefined);
@@ -566,6 +570,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           mcpNames: selectedMcpIds,
           skillNames: selectedSkillIds,
           maxSteps: parseInt(maxSteps) || 50,
+          compressionThreshold: parseInt(compressionThreshold) || 50,
           defaultWorkspacePath,
           voiceId: voiceId || undefined,
           voiceLanguage: voiceId ? voiceLanguage : undefined,
@@ -580,6 +585,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           mcpNames: selectedMcpIds,
           skillNames: selectedSkillIds,
           maxSteps: parseInt(maxSteps) || 50,
+          compressionThreshold: parseInt(compressionThreshold) || 50,
           defaultWorkspacePath,
           voiceId: voiceId || undefined,
           voiceLanguage: voiceId ? voiceLanguage : undefined,
@@ -866,6 +872,27 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                     onChange={(e) => setMaxSteps(e.target.value)}
                     min={1}
                     max={50}
+                    className="rounded-lg border border-[#e0e0e0] h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </SettingRow>
+              </div>
+
+              {/* 聊天配置 */}
+              <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
+                <h3 className="text-[14px] font-bold text-[#333] mb-3">
+                  <MessageSquare className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-[#999]" />
+                  {t('agentEditor.chatConfig')}
+                </h3>
+                <SettingRow
+                  label={t('agentEditor.compressionThreshold')}
+                  tooltip={t('agentEditor.compressionThresholdTooltip')}
+                >
+                  <input
+                    type="number"
+                    value={compressionThreshold}
+                    onChange={(e) => setCompressionThreshold(e.target.value)}
+                    min={1}
+                    max={100}
                     className="rounded-lg border border-[#e0e0e0] h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </SettingRow>

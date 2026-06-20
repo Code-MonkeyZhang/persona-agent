@@ -514,7 +514,7 @@ describe('Session Module Integration Tests', () => {
 
         const data = (await response.json()) as { sessions: SessionMeta[] };
         expect(data.sessions).toHaveLength(1);
-        expect(data.sessions[0].id).toBe(SessionManager.CHAT_SESSION_ID);
+        expect(data.sessions[0].id).toBe(SessionManager.chatSessionIdFor(agentId));
         expect(data.sessions[0].title).toBe('聊天');
       });
 
@@ -767,7 +767,7 @@ describe('Session Module Integration Tests', () => {
         const agentId = await createTestAgent();
 
         const response = await fetch(
-          `${BASE_URL}/api/agents/${agentId}/sessions/${SessionManager.CHAT_SESSION_ID}`,
+          `${BASE_URL}/api/agents/${agentId}/sessions/${SessionManager.chatSessionIdFor(agentId)}`,
           { method: 'DELETE' }
         );
 
@@ -782,7 +782,7 @@ describe('Session Module Integration Tests', () => {
         const agentId = await createTestAgent();
 
         const response = await fetch(
-          `${BASE_URL}/api/agents/${agentId}/sessions/${SessionManager.CHAT_SESSION_ID}`,
+          `${BASE_URL}/api/agents/${agentId}/sessions/${SessionManager.chatSessionIdFor(agentId)}`,
           {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -798,7 +798,7 @@ describe('Session Module Integration Tests', () => {
         const agentId = await createTestAgent();
 
         const response = await fetch(
-          `${BASE_URL}/api/agents/${agentId}/sessions/${SessionManager.CHAT_SESSION_ID}`,
+          `${BASE_URL}/api/agents/${agentId}/sessions/${SessionManager.chatSessionIdFor(agentId)}`,
           {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },

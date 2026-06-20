@@ -16,6 +16,7 @@ export interface Agent {
   mcpNames: string[];
   skillNames: string[];
   defaultWorkspacePath?: string;
+  compressionThreshold?: number;
   voiceId?: string;
   voiceLanguage?: string;
   createdAt?: number;

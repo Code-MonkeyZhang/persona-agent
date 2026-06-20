@@ -78,8 +78,10 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
     ? sessions.filter((s) => s.agentId === currentAgent.id)
     : sessions;
 
-  const chatSession = filteredSessions.find((s) => s.id === 'chat');
-  const regularSessions = filteredSessions.filter((s) => s.id !== 'chat');
+  const chatSession = filteredSessions.find((s) => s.id.startsWith('chat'));
+  const regularSessions = filteredSessions.filter(
+    (s) => !s.id.startsWith('chat')
+  );
 
   const groupedSessions = useMemo(
     () => groupSessionsByDate(regularSessions),
