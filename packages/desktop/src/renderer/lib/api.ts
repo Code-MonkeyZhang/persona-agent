@@ -4,10 +4,22 @@
  */
 
 import type { Message } from '../types/chat';
-import type { ServerMessage } from '../types/chat';
 import type { SessionMeta, Session } from '../types/session';
 import type { Agent, CreateAgentInput, UpdateAgentInput } from '../types/agent';
 import type { AgentConfig } from '../stores/configStore';
+import type {
+  ServerMessage,
+  ClientMessage,
+  ModelConfig,
+  McpServerInfo as McpServer,
+  McpOAuthStatus,
+  ProviderStatus as ProviderInfo,
+  SkillInfo as Skill,
+  ClonedVoice,
+  TtsConfig,
+  TtsModel,
+  VoiceOption,
+} from '@persona/shared';
 import { logger } from './logger';
 
 interface ListAgentsResponse {
@@ -53,37 +65,24 @@ export async function getBaseUrl(): Promise<string> {
   return `http://localhost:${DEFAULT_PORT}`;
 }
 
-export interface McpServer {
-  name: string;
-  status: 'connected' | 'disconnected' | 'connecting' | 'needs_auth';
-  toolCount?: number;
-  error?: string;
-}
-
-interface McpOAuthStatus {
-  status: McpServer['status'];
-  oauthUrl?: string;
-  error?: string;
-}
+// DTO 类型已迁移至 @persona/shared，此处再导出别名以兼容下游
+export type {
+  McpServer,
+  McpOAuthStatus,
+  ProviderInfo,
+  Skill,
+  ClonedVoice,
+  TtsConfig,
+  TtsModel,
+  VoiceOption,
+};
 
 interface ListMcpsResponse {
   servers: McpServer[];
 }
 
-export interface Skill {
-  name: string;
-  description?: string;
-}
-
 interface ListSkillsResponse {
   skills: Skill[];
-}
-
-export interface ProviderInfo {
-  id: string;
-  name: string;
-  hasAuth: boolean;
-  models: string[];
 }
 
 interface ListProvidersResponse {
@@ -206,12 +205,7 @@ export class WebSocketClient {
   /**
    * 通过 WebSocket 发送原始消息，仅在连接打开时生效。
    */
-  private send(
-    msg:
-      | { type: 'subscribe'; payload: { sessionId: string } }
-      | { type: 'unsubscribe'; payload: { sessionId: string } }
-      | { type: 'ping' }
-  ): void {
+  private send(msg: ClientMessage): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       logger.info(
         '[WebSocket] → Sent to server:',
@@ -383,7 +377,7 @@ export async function deleteSession(
 interface UpdateSessionInput {
   title?: string;
   workspacePath?: string;
-  model?: { provider: string; model: string };
+  model?: ModelConfig;
 }
 
 /**
@@ -1024,18 +1018,6 @@ export async function deleteBackgroundImage(agentId: string): Promise<void> {
   }
 }
 
-export interface ClonedVoice {
-  voice_id: string;
-  name: string;
-}
-
-export interface TtsConfig {
-  apiKey: string;
-  model: string;
-  clonedVoices: ClonedVoice[];
-  summaryThreshold: number;
-}
-
 export async function getTtsConfig(): Promise<TtsConfig> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(`${baseUrl}/api/tts/config`, {
@@ -1070,11 +1052,6 @@ export async function updateTtsConfig(
   }
 }
 
-export interface TtsModel {
-  id: string;
-  name: string;
-}
-
 export async function getTtsModels(): Promise<TtsModel[]> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(`${baseUrl}/api/tts/models`, {
@@ -1088,13 +1065,6 @@ export async function getTtsModels(): Promise<TtsModel[]> {
 
   const data = await response.json();
   return data.models;
-}
-
-export interface VoiceOption {
-  id: string;
-  name: string;
-  gender: 'male' | 'female' | 'neutral';
-  group: 'preset' | 'cloned';
 }
 
 export async function getVoices(): Promise<VoiceOption[]> {

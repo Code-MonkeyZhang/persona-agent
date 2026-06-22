@@ -6,4 +6,26 @@
  *
  * 后续按阶段迁入：WS 协议 → 领域模型 → Provider/MCP/Skill/TTS 契约。
  */
-export {};
+
+export { ModelConfigSchema, type ModelConfig } from './model-config.js';
+export {
+  AgentConfigSchema,
+  AgentConfigInputSchema,
+  type AgentConfig,
+  type AgentConfigInput,
+  type AgentConfigUpdate,
+} from './agent.js';
+export type {
+  ContentBlock,
+  SystemMessage,
+  UserMessage,
+  ToolCall,
+  AssistantMessage,
+  Message,
+} from './schema.js';
+export type { SessionMeta, Session } from './session.js';
+export * from './ws.js';
+export type { ProviderStatus } from './provider.js';
+export type { McpServerStatus, McpServerInfo, McpOAuthStatus } from './mcp.js';
+export type { SkillInfo } from './skill.js';
+export type { TtsModel, ClonedVoice, VoiceOption, TtsConfig } from './tts.js';

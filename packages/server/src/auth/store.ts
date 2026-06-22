@@ -8,14 +8,10 @@ import { getModels } from '@earendil-works/pi-ai';
 import { getAuthPath } from '../util/paths.js';
 import { readJsonFile } from '../util/fs-helpers.js';
 import type { Auth, AuthStore, Provider, KnownProvider } from './types.js';
+import type { ProviderStatus } from '@persona/shared';
 
-/** Provider status information */
-export interface ProviderStatus {
-  id: Provider;
-  name: string;
-  models: string[];
-  hasAuth: boolean;
-}
+// 线上形状已迁移至 @persona/shared（id 用 string，不引 pi-ai 的 Provider 枚举）
+export type { ProviderStatus };
 
 /**
  * Supported providers whitelist.

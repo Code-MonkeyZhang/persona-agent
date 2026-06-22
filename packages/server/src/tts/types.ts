@@ -2,31 +2,20 @@
  * @fileoverview TTS type definitions, constants, and preset voices.
  */
 
-/** TTS model definition */
-export interface TtsModel {
-  id: string;
-  name: string;
-}
+import type { ClonedVoice, TtsModel, VoiceOption } from '@persona/shared';
 
-/** Cloned voice entry stored in minimax-tts.json */
-export interface ClonedVoice {
-  voice_id: string;
-  name: string;
-}
+// 线上 DTO 已迁移至 @persona/shared
+export type { TtsModel, ClonedVoice, VoiceOption } from '@persona/shared';
 
-/** Full TTS config stored in config/minimax-tts.json */
+/**
+ * Server storage shape (config/minimax-tts.json)。
+ * 注意：线上 TtsConfig（在 shared）多一个 summaryThreshold（来自 AppConfig.tts），
+ * 路由响应时拼入。此接口仅用于 server 内部存储。
+ */
 export interface TtsConfig {
   apiKey: string;
   model: string;
   clonedVoices: ClonedVoice[];
-}
-
-/** Voice option returned by API (preset or cloned) */
-export interface VoiceOption {
-  id: string;
-  name: string;
-  gender: 'male' | 'female' | 'neutral';
-  group: 'preset' | 'cloned';
 }
 
 /** Voice language option for language_boost parameter */

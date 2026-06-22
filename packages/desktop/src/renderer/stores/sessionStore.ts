@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import type { SessionMeta, Session, SessionMessage } from '../types/session';
+import type { SessionMeta, Session } from '../types/session';
 import {
   listSessions,
   createSession,
@@ -13,6 +13,7 @@ import {
   updateSession,
 } from '../lib/api';
 import type { Message } from '../types/chat';
+import type { Message as WireMessage } from '@persona/shared';
 import { deleteScrollPosition } from './scrollPositionCache';
 
 const LAST_SESSION_KEY = 'last-session-id';
@@ -50,7 +51,7 @@ interface SessionStore {
   ) => Promise<boolean>;
   updateCurrentSession: (session: Session) => void;
   updateSessionTitleLocally: (sessionId: string, title: string) => void;
-  convertSessionMessages: (messages: SessionMessage[]) => Message[];
+  convertSessionMessages: (messages: WireMessage[]) => Message[];
 }
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
@@ -321,11 +322,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   /**
-   * 将服务端返回的 SessionMessage 数组转换为客户端 Message 格式，提取 thinking 和 tool_calls 为 Thought 数组。
-   * @param messages - 服务端返回的原始消息数组
-   * @returns 转换后的客户端 Message 数组
+   * 将服务端返回的 Message 数组转换为客户端 Message 格式，提取 thinking 和 tool_calls 为 Thought 数组。
+   * @param messages - 服务端返回的原始消息数组（shared Message 联合）
+   * @returns 转换后的客户端 Message 数组（UI 视图模型）
    */
-  convertSessionMessages: (messages: SessionMessage[]): Message[] => {
+  convertSessionMessages: (messages: WireMessage[]): Message[] => {
     return messages.map((msg, index): Message => {
       const type = msg.role === 'user' ? 'user' : 'assistant';
 
@@ -334,37 +335,43 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
        */
       const thoughts: Message['thoughts'] = [];
 
-      if (msg.thinking) {
-        thoughts.push({
-          id: `thought-${index}-thinking`,
-          type: 'thinking',
-          timestamp: new Date(),
-          content: msg.thinking,
-        });
+      // thinking / tool_calls 只存在于 AssistantMessage
+      if (msg.role === 'assistant') {
+        if (msg.thinking) {
+          thoughts.push({
+            id: `thought-${index}-thinking`,
+            type: 'thinking',
+            timestamp: new Date(),
+            content: msg.thinking,
+          });
+        }
+
+        if (msg.tool_calls && msg.tool_calls.length > 0) {
+          msg.tool_calls.forEach((tc, tcIndex) => {
+            thoughts.push({
+              id: `thought-${index}-tool-${tcIndex}`,
+              type: 'tool_use',
+              timestamp: new Date(),
+              toolName: tc.function.name,
+              toolInput: tc.function.arguments,
+              toolResult: tc.toolResult
+                ? {
+                    output: tc.toolResult.content,
+                    isError: tc.toolResult.isError,
+                  }
+                : undefined,
+            });
+          });
+        }
       }
 
-      if (msg.tool_calls && msg.tool_calls.length > 0) {
-        msg.tool_calls.forEach((tc, tcIndex) => {
-          thoughts.push({
-            id: `thought-${index}-tool-${tcIndex}`,
-            type: 'tool_use',
-            timestamp: new Date(),
-            toolName: tc.function.name,
-            toolInput: tc.function.arguments,
-            toolResult: tc.toolResult
-              ? {
-                  output: tc.toolResult.content,
-                  isError: tc.toolResult.isError,
-                }
-              : undefined,
-          });
-        });
-      }
+      // UserMessage.content 可能是 string | ContentBlock[]，持久化用户消息恒为 string
+      const content = typeof msg.content === 'string' ? msg.content : '';
 
       return {
         id: `session-msg-${index}`,
         type,
-        content: msg.content,
+        content,
         timestamp: new Date(),
         thoughts: thoughts.length > 0 ? thoughts : undefined,
       };

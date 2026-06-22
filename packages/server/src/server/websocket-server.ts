@@ -8,6 +8,7 @@
 import { WebSocket, WebSocketServer } from 'ws';
 import type { IncomingMessage } from 'http';
 import { randomUUID } from 'node:crypto';
+import type { ServerMessage, ClientMessage } from '@persona/shared';
 import { Logger } from '../util/logger.js';
 
 interface WebSocketClient {
@@ -18,12 +19,6 @@ interface WebSocketClient {
 
 const clients = new Map<string, WebSocketClient>();
 let wss: WebSocketServer | null = null;
-
-export interface WSEvent {
-  type: string;
-  sessionId?: string;
-  [key: string]: unknown;
-}
 
 export function initWebSocket(server: import('http').Server): WebSocketServer {
   wss = new WebSocketServer({ server, path: '/ws' });
@@ -67,57 +62,49 @@ export function initWebSocket(server: import('http').Server): WebSocketServer {
 
 function handleClientMessage(
   client: WebSocketClient,
-  message: { type: string; payload?: unknown }
+  message: ClientMessage
 ): void {
   switch (message.type) {
-    case 'subscribe':
-      if (message.payload && typeof message.payload === 'object') {
-        const { sessionId } = message.payload as { sessionId?: string };
-        if (sessionId) {
-          client.subscriptions.add(sessionId);
-          Logger.log('WS', 'Client subscribed', {
-            clientId: client.id,
-            sessionId,
-          });
-          sendToClient(client, { type: 'subscribed', sessionId });
-        }
-      }
+    case 'subscribe': {
+      const { sessionId } = message.payload;
+      client.subscriptions.add(sessionId);
+      Logger.log('WS', 'Client subscribed', {
+        clientId: client.id,
+        sessionId,
+      });
+      sendToClient(client, { type: 'subscribed', sessionId });
       break;
+    }
 
-    case 'unsubscribe':
-      if (message.payload && typeof message.payload === 'object') {
-        const { sessionId } = message.payload as { sessionId?: string };
-        if (sessionId) {
-          client.subscriptions.delete(sessionId);
-          Logger.log('WS', 'Client unsubscribed', {
-            clientId: client.id,
-            sessionId,
-          });
-        }
-      }
+    case 'unsubscribe': {
+      const { sessionId } = message.payload;
+      client.subscriptions.delete(sessionId);
+      Logger.log('WS', 'Client unsubscribed', {
+        clientId: client.id,
+        sessionId,
+      });
       break;
+    }
 
     case 'ping':
       sendToClient(client, { type: 'pong' });
       break;
-
-    default:
-      Logger.log('WS', `Unknown message type: ${message.type}`);
   }
 }
 
-function sendToClient(client: WebSocketClient, message: WSEvent): void {
+function sendToClient(client: WebSocketClient, message: ServerMessage): void {
   if (client.ws.readyState === WebSocket.OPEN) {
     client.ws.send(JSON.stringify(message));
   }
 }
 
-export function broadcastToSession(sessionId: string, event: WSEvent): void {
-  const message = { ...event, sessionId };
-
+export function broadcastToSession(
+  sessionId: string,
+  event: ServerMessage
+): void {
   for (const client of clients.values()) {
     if (client.subscriptions.has(sessionId)) {
-      sendToClient(client, message);
+      sendToClient(client, event);
     }
   }
 }

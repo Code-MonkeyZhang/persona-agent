@@ -1,6 +1,7 @@
 /**
  * @file src/renderer/types/chat.ts
- * @description 聊天消息与 WebSocket 消息类型定义，覆盖客户端请求和服务端推送全链路消息格式
+ * @description 聊天界面的视图模型类型（Message、Thought、ConnectionStatus 等）。
+ * WS 协议类型已迁移至 @persona/shared。
  */
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
@@ -46,83 +47,3 @@ export interface Message {
   /** Agent's reasoning process */
   thoughts?: Thought[];
 }
-
-/**
- * WebSocket message types
- */
-
-interface ConnectedMessage {
-  type: 'connected';
-  clientId: string;
-}
-
-interface SubscribedMessage {
-  type: 'subscribed';
-  sessionId: string;
-}
-
-interface WsToolCall {
-  id: string;
-  name: string;
-  arguments: Record<string, unknown>;
-}
-
-interface WsToolResult {
-  toolCallId: string;
-  toolName: string;
-  result: string;
-  success: boolean;
-}
-
-export interface StepCompleteMessage {
-  type: 'step_complete';
-  sessionId: string;
-  stepIndex: number;
-  thinking?: string;
-  content?: string;
-  toolCalls?: WsToolCall[];
-  toolResults?: WsToolResult[];
-}
-
-interface CompleteMessage {
-  type: 'complete';
-  sessionId: string;
-}
-
-interface ErrorMessage {
-  type: 'error';
-  message: string;
-}
-
-interface TitleUpdatedMessage {
-  type: 'title_updated';
-  sessionId: string;
-  title: string;
-}
-
-export interface SpeakReadyMessage {
-  type: 'speak_ready';
-  sessionId: string;
-  speakText: string;
-  voiceId: string;
-  apiKey: string;
-  model: string;
-  languageBoost?: string;
-}
-
-export interface SpeakErrorMessage {
-  type: 'speak_error';
-  sessionId: string;
-  reason: 'no_api_key' | 'no_voice_id' | 'no_content' | 'voice_not_found';
-  message: string;
-}
-
-export type ServerMessage =
-  | ConnectedMessage
-  | SubscribedMessage
-  | StepCompleteMessage
-  | CompleteMessage
-  | ErrorMessage
-  | TitleUpdatedMessage
-  | SpeakReadyMessage
-  | SpeakErrorMessage;

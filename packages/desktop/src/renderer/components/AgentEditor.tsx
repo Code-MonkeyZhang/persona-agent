@@ -670,8 +670,12 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     mcpNames: selectedMcpIds,
     skillNames: selectedSkillIds,
     defaultWorkspacePath,
+    compressionThreshold: parseInt(compressionThreshold) || 50,
+    dreamIntervalMinutes: parseInt(dreamIntervalMinutes) || 120,
     voiceId: voiceId || undefined,
     voiceLanguage: voiceId ? voiceLanguage : undefined,
+    createdAt: 0,
+    updatedAt: 0,
   };
 
   return (

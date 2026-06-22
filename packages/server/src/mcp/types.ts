@@ -4,14 +4,11 @@
 
 import type { JsonSchema } from '../tools/base.js';
 import type { Tool } from '../tools/base.js';
+import type { McpServerStatus } from '@persona/shared';
+
+export type { McpServerStatus } from '@persona/shared';
 
 export type ConnectionType = 'stdio' | 'streamable_http';
-
-export type McpServerStatus =
-  | 'disconnected'
-  | 'connecting'
-  | 'connected'
-  | 'needs_auth';
 
 export interface McpCallToolResult {
   content?: unknown;
