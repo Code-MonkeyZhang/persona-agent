@@ -26,10 +26,25 @@ function generateSessionId(): string {
 }
 
 export class SessionManager {
+  /**
+   * 计算指定 Agent 的常驻聊天会话 ID。
+   *
+   * 形如 `chat-{agentId}`，全局唯一——避免不同 Agent 的聊天会话在前端缓存
+   * 与 WebSocket 路由中因同名而串台。是否为聊天会话可用 `id.startsWith('chat')` 判断。
+   */
+  static chatSessionIdFor(agentId: string): string {
+    return `chat-${agentId}`;
+  }
+
   constructor(
     private readonly store: SessionStore,
     private readonly agentId: string
   ) {}
+
+  /** 当前 Agent 的常驻聊天会话 ID。 */
+  chatSessionId(): string {
+    return SessionManager.chatSessionIdFor(this.agentId);
+  }
 
   /** List all sessions for this agent, sorted by updatedAt descending */
   listSessions(): SessionMeta[] {
@@ -52,6 +67,35 @@ export class SessionManager {
       id,
       agentId: this.agentId,
       title: options.title || 'New Session',
+      createdAt: now,
+      updatedAt: now,
+      messages: [],
+      workspacePath: agentConfig.defaultWorkspacePath,
+      model: agentConfig.defaultModel,
+    };
+
+    this.store.createSessionFile(session);
+    return session;
+  }
+
+  /**
+   * Create the persistent chat session with a per-agent unique ID and title.
+   *
+   * Unlike `createSession`, this uses {@link chatSessionId} as the ID
+   * and `"聊天"` as the title. The caller should check `getSession` first
+   * to avoid overwriting an existing chat session.
+   */
+  createChatSession(): Session {
+    const agentConfig = getAgentConfig(this.agentId);
+    if (!agentConfig) {
+      throw new Error(`Agent config not found: ${this.agentId}`);
+    }
+
+    const now = Date.now();
+    const session: Session = {
+      id: this.chatSessionId(),
+      agentId: this.agentId,
+      title: '聊天',
       createdAt: now,
       updatedAt: now,
       messages: [],
@@ -94,6 +138,16 @@ export class SessionManager {
   /** Update session model */
   updateModel(id: string, model: ModelConfig | undefined): Session | null {
     return this.updateSessionField(id, { model });
+  }
+
+  /**
+   * 更新聊天 Session 的压缩进度指针（原始消息已压缩到的下标）。
+   *
+   * 压缩完成后由 compress-service 调用，推进 `summarizedUpTo`；
+   * 仅重写 JSONL 首行元数据，消息行不受影响。
+   */
+  updateSummarizedUpTo(id: string, summarizedUpTo: number): Session | null {
+    return this.updateSessionField(id, { summarizedUpTo });
   }
 
   /**

@@ -3,19 +3,35 @@
  * @description 核心 API 通信层 - 封装所有 HTTP 接口调用与 WebSocket 客户端，提供后端服务地址管理
  */
 
-import type { Message } from '../types/chat';
-import type { ServerMessage } from '../types/chat';
+import type { UIMessage } from '../types/chat';
 import type { SessionMeta, Session } from '../types/session';
-import type { Agent, CreateAgentInput, UpdateAgentInput } from '../types/agent';
-import type { AgentConfig } from '../stores/configStore';
+import type {
+  AgentConfig,
+  AgentConfigInput,
+  AgentConfigUpdate,
+} from '../types/agent';
+import type { AppConfig } from '../stores/configStore';
+import type {
+  ServerMessage,
+  ClientMessage,
+  ModelConfig,
+  McpServerInfo,
+  McpOAuthStatus,
+  ProviderStatus,
+  SkillInfo,
+  ClonedVoice,
+  TtsConfig,
+  TtsModel,
+  VoiceOption,
+} from '@persona/shared';
 import { logger } from './logger';
 
 interface ListAgentsResponse {
-  agents: Agent[];
+  agents: AgentConfig[];
 }
 
 interface AgentResponse {
-  agent: Agent;
+  agent: AgentConfig;
 }
 
 interface ListSessionsResponse {
@@ -53,41 +69,28 @@ export async function getBaseUrl(): Promise<string> {
   return `http://localhost:${DEFAULT_PORT}`;
 }
 
-export interface McpServer {
-  name: string;
-  status: 'connected' | 'disconnected' | 'connecting' | 'needs_auth';
-  toolCount?: number;
-  error?: string;
-}
-
-interface McpOAuthStatus {
-  status: McpServer['status'];
-  oauthUrl?: string;
-  error?: string;
-}
+// DTO 类型已迁移至 @persona/shared
+export type {
+  McpServerInfo,
+  McpOAuthStatus,
+  ProviderStatus,
+  SkillInfo,
+  ClonedVoice,
+  TtsConfig,
+  TtsModel,
+  VoiceOption,
+};
 
 interface ListMcpsResponse {
-  servers: McpServer[];
-}
-
-export interface Skill {
-  name: string;
-  description?: string;
+  servers: McpServerInfo[];
 }
 
 interface ListSkillsResponse {
-  skills: Skill[];
-}
-
-export interface ProviderInfo {
-  id: string;
-  name: string;
-  hasAuth: boolean;
-  models: string[];
+  skills: SkillInfo[];
 }
 
 interface ListProvidersResponse {
-  providers: ProviderInfo[];
+  providers: ProviderStatus[];
 }
 
 /**
@@ -206,12 +209,7 @@ export class WebSocketClient {
   /**
    * 通过 WebSocket 发送原始消息，仅在连接打开时生效。
    */
-  private send(
-    msg:
-      | { type: 'subscribe'; payload: { sessionId: string } }
-      | { type: 'unsubscribe'; payload: { sessionId: string } }
-      | { type: 'ping' }
-  ): void {
+  private send(msg: ClientMessage): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       logger.info(
         '[WebSocket] → Sent to server:',
@@ -260,17 +258,17 @@ export class WebSocketClient {
 }
 
 /**
- * 构造一条带有自动生成 ID 和当前时间戳的 Message 对象。
+ * 构造一条带有自动生成 ID 和当前时间戳的 UIMessage 对象。
  * @param type - 消息类型（user、assistant、error 等）
  * @param content - 消息文本内容
  * @param extra - 可选的额外字段，合并到消息对象中
- * @returns 完整的 Message 对象
+ * @returns 完整的 UIMessage 对象
  */
 export function createMessage(
-  type: Message['type'],
+  type: UIMessage['type'],
   content: string,
-  extra?: Partial<Message>
-): Message {
+  extra?: Partial<UIMessage>
+): UIMessage {
   return {
     id: crypto.randomUUID(),
     type,
@@ -383,7 +381,7 @@ export async function deleteSession(
 interface UpdateSessionInput {
   title?: string;
   workspacePath?: string;
-  model?: { provider: string; model: string };
+  model?: ModelConfig;
 }
 
 /**
@@ -451,7 +449,7 @@ export async function sendChatMessage(
  * 从服务器获取全局 agent 配置。
  * @returns 当前的 agent 配置
  */
-export async function getConfig(): Promise<AgentConfig> {
+export async function getConfig(): Promise<AppConfig> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(`${baseUrl}/api/config`, {
     method: 'GET',
@@ -470,7 +468,7 @@ export async function getConfig(): Promise<AgentConfig> {
  * 更新全局 agent 配置。
  * @param config - 新的配置对象
  */
-export async function updateConfig(config: AgentConfig): Promise<void> {
+export async function updateConfig(config: AppConfig): Promise<void> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(`${baseUrl}/api/config`, {
     method: 'PUT',
@@ -490,7 +488,7 @@ export async function updateConfig(config: AgentConfig): Promise<void> {
  * 获取所有 agent 列表。
  * @returns agent 数组
  */
-export async function listAgents(): Promise<Agent[]> {
+export async function listAgents(): Promise<AgentConfig[]> {
   const baseUrl = await getBaseUrl();
   const url = `${baseUrl}/api/agents`;
   logger.info(`[API] GET ${url}`);
@@ -516,7 +514,7 @@ export async function listAgents(): Promise<Agent[]> {
  * @param id - Agent ID
  * @returns agent 对象
  */
-export async function getAgent(id: string): Promise<Agent> {
+export async function getAgent(id: string): Promise<AgentConfig> {
   const baseUrl = await getBaseUrl();
   const url = `${baseUrl}/api/agents/${id}`;
   logger.info(`[API] GET ${url}`);
@@ -542,7 +540,9 @@ export async function getAgent(id: string): Promise<Agent> {
  * @param input - 创建参数
  * @returns 创建的 agent 对象
  */
-export async function createAgent(input: CreateAgentInput): Promise<Agent> {
+export async function createAgent(
+  input: AgentConfigInput
+): Promise<AgentConfig> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(`${baseUrl}/api/agents`, {
     method: 'POST',
@@ -566,8 +566,8 @@ export async function createAgent(input: CreateAgentInput): Promise<Agent> {
  */
 export async function updateAgent(
   id: string,
-  input: UpdateAgentInput
-): Promise<Agent> {
+  input: AgentConfigUpdate
+): Promise<AgentConfig> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(`${baseUrl}/api/agents/${id}`, {
     method: 'PUT',
@@ -606,7 +606,7 @@ export async function deleteAgent(id: string): Promise<boolean> {
  * 获取已连接的 MCP 服务器列表。
  * @returns MCP 服务器数组
  */
-export async function listMcpServers(): Promise<McpServer[]> {
+export async function listMcpServers(): Promise<McpServerInfo[]> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(`${baseUrl}/api/mcp`, {
     method: 'GET',
@@ -669,7 +669,7 @@ export async function getMcpOAuthStatus(name: string): Promise<McpOAuthStatus> {
  * 获取可用的技能列表。
  * @returns 技能数组
  */
-export async function listSkills(): Promise<Skill[]> {
+export async function listSkills(): Promise<SkillInfo[]> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(`${baseUrl}/api/skills`, {
     method: 'GET',
@@ -688,7 +688,7 @@ export async function listSkills(): Promise<Skill[]> {
  * 获取所有可用的模型提供商信息。
  * @returns 提供商信息数组
  */
-export async function listProviders(): Promise<ProviderInfo[]> {
+export async function listProviders(): Promise<ProviderStatus[]> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(`${baseUrl}/api/providers`, {
     method: 'GET',
@@ -1024,18 +1024,6 @@ export async function deleteBackgroundImage(agentId: string): Promise<void> {
   }
 }
 
-export interface ClonedVoice {
-  voice_id: string;
-  name: string;
-}
-
-export interface TtsConfig {
-  apiKey: string;
-  model: string;
-  clonedVoices: ClonedVoice[];
-  summaryThreshold: number;
-}
-
 export async function getTtsConfig(): Promise<TtsConfig> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(`${baseUrl}/api/tts/config`, {
@@ -1070,11 +1058,6 @@ export async function updateTtsConfig(
   }
 }
 
-export interface TtsModel {
-  id: string;
-  name: string;
-}
-
 export async function getTtsModels(): Promise<TtsModel[]> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(`${baseUrl}/api/tts/models`, {
@@ -1088,13 +1071,6 @@ export async function getTtsModels(): Promise<TtsModel[]> {
 
   const data = await response.json();
   return data.models;
-}
-
-export interface VoiceOption {
-  id: string;
-  name: string;
-  gender: 'male' | 'female' | 'neutral';
-  group: 'preset' | 'cloned';
 }
 
 export async function getVoices(): Promise<VoiceOption[]> {

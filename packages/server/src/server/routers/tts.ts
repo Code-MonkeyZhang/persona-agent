@@ -11,8 +11,6 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { loadTtsConfig, saveTtsConfig } from '../../tts/store.js';
 import { TTS_MODELS } from '../../tts/types.js';
-import { loadConfig, saveConfig } from '../../config/index.js';
-import { getConfigPath } from '../../util/paths.js';
 import { Logger } from '../../util/logger.js';
 
 export function createTtsRouter(): Router {
@@ -20,14 +18,10 @@ export function createTtsRouter(): Router {
 
   router.get('/config', (_req: Request, res: Response) => {
     try {
-      const ttsConfig = loadTtsConfig();
-      const appConfig = loadConfig(getConfigPath());
+      const config = loadTtsConfig();
       res.json({
         success: true,
-        config: {
-          ...ttsConfig,
-          summaryThreshold: appConfig.tts?.summaryThreshold ?? 200,
-        },
+        config,
       });
     } catch (error) {
       Logger.log('TTS', 'Failed to load TTS config', error);
@@ -70,8 +64,6 @@ export function createTtsRouter(): Router {
         config.model = model;
       }
 
-      saveTtsConfig(config);
-
       if (summaryThreshold !== undefined) {
         if (typeof summaryThreshold !== 'number') {
           res.status(400).json({
@@ -80,11 +72,10 @@ export function createTtsRouter(): Router {
           });
           return;
         }
-        const configPath = getConfigPath();
-        const appConfig = loadConfig(configPath);
-        appConfig.tts = { summaryThreshold };
-        saveConfig(configPath, appConfig);
+        config.summaryThreshold = summaryThreshold;
       }
+
+      saveTtsConfig(config);
 
       res.json({ success: true });
     } catch (error) {

@@ -2,31 +2,20 @@
  * @fileoverview TTS type definitions, constants, and preset voices.
  */
 
-/** TTS model definition */
-export interface TtsModel {
-  id: string;
-  name: string;
-}
+import type { ClonedVoice, TtsModel, VoiceOption } from '@persona/shared';
 
-/** Cloned voice entry stored in minimax-tts.json */
-export interface ClonedVoice {
-  voice_id: string;
-  name: string;
-}
+// 线上 DTO 已迁移至 @persona/shared
+export type { TtsModel, ClonedVoice, VoiceOption } from '@persona/shared';
 
-/** Full TTS config stored in config/minimax-tts.json */
+/**
+ * TTS 配置（minimax-tts.json），存储与线上传输共用同一形状。
+ * summaryThreshold 原存于 config.yaml，现已搬迁至此。
+ */
 export interface TtsConfig {
   apiKey: string;
   model: string;
   clonedVoices: ClonedVoice[];
-}
-
-/** Voice option returned by API (preset or cloned) */
-export interface VoiceOption {
-  id: string;
-  name: string;
-  gender: 'male' | 'female' | 'neutral';
-  group: 'preset' | 'cloned';
+  summaryThreshold: number;
 }
 
 /** Voice language option for language_boost parameter */

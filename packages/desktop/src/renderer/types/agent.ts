@@ -1,31 +1,10 @@
 /**
  * @file src/renderer/types/agent.ts
- * @description Agent 相关类型定义，包含 Agent 实体、创建/更新输入及 API 响应类型
+ * @description Agent 相关类型再导出。类型定义已迁移至 @persona/shared。
  */
 
-export interface Agent {
-  id: string;
-  name: string;
-  description?: string;
-  systemPrompt: string;
-  defaultModel: {
-    provider: string;
-    model: string;
-  };
-  maxSteps: number;
-  mcpNames: string[];
-  skillNames: string[];
-  defaultWorkspacePath?: string;
-  voiceId?: string;
-  voiceLanguage?: string;
-  createdAt?: number;
-  updatedAt?: number;
-}
-
-export type CreateAgentInput = Omit<Agent, 'id' | 'createdAt' | 'updatedAt'> & {
-  id?: string;
-};
-
-export type UpdateAgentInput = Partial<
-  Omit<Agent, 'id' | 'createdAt' | 'updatedAt'>
->;
+export type {
+  AgentConfig,
+  AgentConfigInput,
+  AgentConfigUpdate,
+} from '@persona/shared';

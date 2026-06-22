@@ -2,13 +2,18 @@
  * @fileoverview 聊天服务 - 处理消息的核心逻辑。
  */
 
-import type { SessionManager } from '../../session/index.js';
+import { SessionManager } from '../../session/index.js';
 import {
   getAgentConfig,
   AgentCore,
   createAgentRunConfig,
 } from '../../agent/index.js';
-import type { ToolCall } from '../../schema/index.js';
+import { runCompression } from './compress-service.js';
+import {
+  estimateMessagesTokens,
+  estimateMessageTokens,
+} from '../../agent/memory/token-estimate.js';
+import type { Message, ToolCall } from '../../schema/index.js';
 import type { ToolResult } from '../../tools/index.js';
 import { Logger } from '../../util/logger.js';
 import { broadcastToSession } from '../websocket-server.js';
@@ -19,6 +24,8 @@ import { getLanguageBoost } from '../../tts/types.js';
 import { processTextForTTS } from '../../tts/text-processor.js';
 
 const MAX_RESULT_LENGTH = 1000;
+/** 溢出安全网：未摘要消息估算 token 超过上下文窗口的该比例时触发头部裁切 */
+const SAFETY_NET_RATIO = 0.9;
 
 function truncate(str: string, maxLen: number): string {
   if (str.length <= maxLen) return str;
@@ -112,14 +119,39 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     session.workspacePath || agentConfig.defaultWorkspacePath || process.cwd();
 
   try {
-    // 构建AgentConfig, 创建AgentCore
     const runConfig = createAgentRunConfig(agentConfig, session, workspaceDir);
+    const isChatSession = session.id.startsWith('chat');
+
     const agent = new AgentCore(runConfig);
 
-    // 把除了SystemPrompt以外的消息推入Agent, 新的SystemPrompt已经在构建AgentCore时注入了
-    for (const msg of session.messages) {
-      if (msg.role !== 'system') {
-        agent.messages.push(msg);
+    // 把除了 SystemPrompt 以外的消息推入 Agent, 新的SystemPrompt已经在构建AgentCore时注入了。
+    if (isChatSession) {
+      // 聊天 Session：压缩模式。只加载 summarizedUpTo 之后的近期原始消息；
+      // 若该切片估算 token 超过上下文窗口的 90%，从头部裁掉最老的完整轮（安全网）。
+      const summarizedUpTo = session.summarizedUpTo ?? 0;
+      let messagesToLoad = session.messages.slice(summarizedUpTo);
+      const safetyNetTokens = Math.floor(
+        SAFETY_NET_RATIO * runConfig.model.contextWindow
+      );
+      if (estimateMessagesTokens(messagesToLoad) > safetyNetTokens) {
+        messagesToLoad = trimToSafetyWindow(messagesToLoad, safetyNetTokens);
+        Logger.log('CHAT', 'Safety net trimmed messages', {
+          sessionId,
+          remaining: messagesToLoad.length,
+        });
+      }
+      for (const msg of messagesToLoad) {
+        if (msg.role !== 'system') {
+          agent.messages.push(msg);
+        }
+      }
+    } else {
+      // 普通 Session全量加载原始消息。
+      // TODO: 普通Session应该使用滑动窗口等简单机制, 而不是全部加载
+      for (const msg of session.messages) {
+        if (msg.role !== 'system') {
+          agent.messages.push(msg);
+        }
       }
     }
 
@@ -130,7 +162,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     // Fire-and-forget: auto-generate title base on the first user message
     const isFirstMessage = session.messages.length === 0;
     const isDefaultTitle = session.title === 'New Session';
-    if (isFirstMessage && isDefaultTitle) {
+    if (isFirstMessage && isDefaultTitle && !isChatSession) {
       Logger.log('TITLE', 'Auto-generating title', { sessionId });
       const { provider: modelProvider, model: modelId } = session.model;
       generateTitle(content, modelProvider, modelId)
@@ -305,6 +337,19 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       );
     }
 
+    // Fire-and-forget: 异步上下文压缩（仅聊天 Session）
+    if (isChatSession) {
+      runCompression({
+        agentId,
+        sessionId,
+        sessionManager,
+        threshold: agentConfig.compressionThreshold,
+        contextWindow: runConfig.model.contextWindow,
+        provider: runConfig.provider,
+        modelId: runConfig.modelId,
+      }).catch(() => {});
+    }
+
     return { success: true };
   } catch (error) {
     const err = error as Error;
@@ -414,4 +459,32 @@ async function handleTtsAsync(
     model: ttsConfig.model,
     languageBoost: getLanguageBoost(agentConfig.voiceLanguage),
   });
+}
+
+/**
+ * 溢出安全网裁切：未摘要消息估算 token 超过上下文窗口的 90% 时，
+ * 从头部裁掉最老的若干完整轮，只保留能装进预算的最近一段。
+ *
+ * 从尾部向前累计 token，直到加入下一条（更老的）会超预算为止；再把起点对齐到
+ * 一条 user 消息（完整轮边界），避免留下孤立的 assistant 回复。被裁掉的消息仍在磁盘，
+ * 下一轮压缩会兜底，不丢数据。
+ *
+ * @param messages - 未摘要的消息切片
+ * @param maxTokens - 安全网预算 token 数
+ * @returns 裁切后保留的消息数组
+ */
+function trimToSafetyWindow(messages: Message[], maxTokens: number): Message[] {
+  let acc = 0;
+  let start = messages.length;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const t = estimateMessageTokens(messages[i]!);
+    if (acc + t > maxTokens) break;
+    acc += t;
+    start = i;
+  }
+  // 起点对齐到 user 消息（完整轮边界）
+  while (start < messages.length && messages[start]!.role !== 'user') {
+    start++;
+  }
+  return messages.slice(start);
 }

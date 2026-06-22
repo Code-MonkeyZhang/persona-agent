@@ -66,10 +66,9 @@ mock.module('../src/auth/index.js', () => ({
 mock.module('../src/config/index.js', () => ({
   loadConfig: () => ({
     enableLogging: false,
-    tts: { summaryThreshold: 200 },
   }),
   saveConfig: () => {},
-  getDefaultConfigYaml: () => 'enableLogging: false\ntts:\n  summaryThreshold: 200\n',
+  getDefaultConfigYaml: () => 'enableLogging: false\n',
 }));
 
 mock.module('@earendil-works/pi-ai', () => {
@@ -168,6 +167,7 @@ function writeTtsConfig(config: {
   apiKey?: string;
   model?: string;
   clonedVoices?: Array<{ voice_id: string; name: string }>;
+  summaryThreshold?: number;
 }): void {
   fs.writeFileSync(
     ttsConfigPath,
@@ -176,6 +176,7 @@ function writeTtsConfig(config: {
         apiKey: config.apiKey ?? '',
         model: config.model ?? 'speech-2.8-hd',
         clonedVoices: config.clonedVoices ?? [],
+        summaryThreshold: config.summaryThreshold ?? 200,
       },
       null,
       2,
@@ -195,7 +196,7 @@ describe('TTS Integration Tests', () => {
     fs.mkdirSync(configDir, { recursive: true });
     fs.writeFileSync(
       configPath,
-      'enableLogging: false\ntts:\n  summaryThreshold: 200\n',
+      'enableLogging: false\n',
     );
     writeTtsConfig({});
 
@@ -297,13 +298,49 @@ describe('TTS Integration Tests', () => {
       const response = await fetch(`${BASE_URL}/api/tts/config`);
       const data = (await response.json()) as {
         success: boolean;
-        config: { apiKey: string; model: string; clonedVoices: unknown[] };
+        config: {
+          apiKey: string;
+          model: string;
+          clonedVoices: unknown[];
+          summaryThreshold: number;
+        };
       };
 
       expect(data.success).toBe(true);
       expect(data.config.apiKey).toBe('');
       expect(data.config.model).toBe('speech-2.8-hd');
       expect(data.config.clonedVoices).toEqual([]);
+      expect(data.config.summaryThreshold).toBe(200);
+    });
+
+    it('should migrate summaryThreshold from legacy config.yaml', async () => {
+      // 模拟旧版用户：config.yaml 有 tts.summaryThreshold=500，minimax-tts.json 无此字段
+      fs.writeFileSync(
+        ttsConfigPath,
+        JSON.stringify({ apiKey: '', model: 'speech-2.8-hd', clonedVoices: [] }, null, 2),
+      );
+      fs.writeFileSync(
+        configPath,
+        'enableLogging: false\ntts:\n  summaryThreshold: 500\n',
+      );
+
+      // GET 触发迁移：从 config.yaml 读 500，持久化到 minimax-tts.json
+      const response = await fetch(`${BASE_URL}/api/tts/config`);
+      const data = (await response.json()) as {
+        success: boolean;
+        config: { summaryThreshold: number };
+      };
+
+      expect(data.success).toBe(true);
+      expect(data.config.summaryThreshold).toBe(500);
+
+      // 验证迁移已持久化到 minimax-tts.json
+      const persisted = JSON.parse(fs.readFileSync(ttsConfigPath, 'utf-8'));
+      expect(persisted.summaryThreshold).toBe(500);
+
+      // 恢复测试环境
+      writeTtsConfig({});
+      fs.writeFileSync(configPath, 'enableLogging: false\n');
     });
 
     it('should update and persist apiKey', async () => {

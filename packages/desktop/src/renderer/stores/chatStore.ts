@@ -7,15 +7,8 @@
  */
 
 import { create } from 'zustand';
-import type {
-  Message,
-  ConnectionStatus,
-  Thought,
-  ServerMessage,
-  StepCompleteMessage,
-  SpeakReadyMessage,
-  SpeakErrorMessage,
-} from '../types/chat';
+import type { UIMessage, ConnectionStatus, Thought } from '../types/chat';
+import type { ServerMessage, StepCompleteMessage } from '@persona/shared';
 import { createMessage, sendChatMessage, WebSocketClient } from '../lib/api';
 import { toast } from './toastStore';
 import { logger } from '../lib/logger';
@@ -64,7 +57,7 @@ function cycleToThoughts(msg: StepCompleteMessage): Thought[] {
 
 /** 单个 session 的聊天状态 */
 interface SessionChatState {
-  messages: Message[];
+  messages: UIMessage[];
   isLoading: boolean;
 }
 
@@ -80,7 +73,7 @@ interface ChatStore {
 
   setCurrentSessionId: (id: string | null) => void;
   /** 为指定 session 初始化聊天状态（从后端加载的历史消息） */
-  initSessionState: (sessionId: string, messages: Message[]) => void;
+  initSessionState: (sessionId: string, messages: UIMessage[]) => void;
   /** 清除指定 session 的聊天状态 */
   clearSessionState: (sessionId: string) => void;
   sendMessage: (content: string, sessionId?: string) => Promise<void>;
@@ -106,7 +99,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({ currentSessionId: id });
   },
 
-  initSessionState: (sessionId: string, messages: Message[]) => {
+  initSessionState: (sessionId: string, messages: UIMessage[]) => {
     set((state) => {
       const newStates = new Map(state.sessionStates);
       newStates.set(sessionId, { messages, isLoading: false });
@@ -213,8 +206,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   /**
    * 处理 WebSocket 推送消息，按 sessionId 路由到对应 session 的状态。
-   * step_complete / complete 事件携带 sessionId，直接定位 Map entry；
-   * error 事件无 sessionId，追加到 currentSessionId 对应的 session。
+   * 所有 session 作用域事件（step_complete / complete / error 等）均通过 msg.sessionId 定位 Map entry。
    */
   handleWsMessage: (msg: ServerMessage) => {
     switch (msg.type) {
@@ -277,47 +269,42 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       }
 
       case 'speak_ready': {
-        const speakMsg = msg as SpeakReadyMessage;
-        if (speakMsg.sessionId !== get().currentSessionId) break;
+        if (msg.sessionId !== get().currentSessionId) break;
         const { voiceEnabled, speak } = useVoiceStore.getState();
         if (voiceEnabled) {
           void speak(
-            speakMsg.speakText,
-            speakMsg.voiceId,
-            speakMsg.apiKey,
-            speakMsg.model,
-            speakMsg.languageBoost
+            msg.speakText,
+            msg.voiceId,
+            msg.apiKey,
+            msg.model,
+            msg.languageBoost
           );
         }
         break;
       }
 
       case 'speak_error': {
-        const errMsg = msg as SpeakErrorMessage;
-        toast.warning(errMsg.message);
+        toast.warning(msg.message);
         break;
       }
 
       case 'error': {
-        // error 事件没有 sessionId，追加到当前 session
-        const currentSessionId = get().currentSessionId;
-        if (currentSessionId) {
-          set((state) => {
-            const newStates = new Map(state.sessionStates);
-            const sessionState = newStates.get(currentSessionId);
-            if (sessionState) {
-              newStates.set(currentSessionId, {
-                ...sessionState,
-                messages: [
-                  ...sessionState.messages,
-                  createMessage('error', msg.message),
-                ],
-                isLoading: false,
-              });
-            }
-            return { sessionStates: newStates };
-          });
-        }
+        const sessionId = msg.sessionId;
+        set((state) => {
+          const newStates = new Map(state.sessionStates);
+          const sessionState = newStates.get(sessionId);
+          if (sessionState) {
+            newStates.set(sessionId, {
+              ...sessionState,
+              messages: [
+                ...sessionState.messages,
+                createMessage('error', msg.message),
+              ],
+              isLoading: false,
+            });
+          }
+          return { sessionStates: newStates };
+        });
         break;
       }
 

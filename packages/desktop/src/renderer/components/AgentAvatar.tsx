@@ -8,7 +8,7 @@ import { VenetianMask } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { getAgentAvatarUrl } from '../lib/api';
 import { useAgentStore } from '../stores/agentStore';
-import type { Agent } from '../types/agent';
+import type { AgentConfig } from '../types/agent';
 
 const sizeMap = {
   sm: 'w-8 h-8',
@@ -23,7 +23,7 @@ const iconSizeMap = {
 };
 
 interface AgentAvatarProps {
-  agent: Agent;
+  agent: AgentConfig;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   /** 编辑器中的 base64 预览 URL（如 "data:image/..."），传入时优先使用 */

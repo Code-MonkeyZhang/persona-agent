@@ -34,11 +34,9 @@ export type SkillStatus = 'available' | 'unavailable';
 
 /**
  * Skill info returned by list API (without full content).
+ * 类型已迁移至 @persona/shared，此处再导出。
  */
-export interface SkillInfo {
-  name: string;
-  description: string;
-}
+export type { SkillInfo } from '@persona/shared';
 
 /**
  * Skill status info for agent detail response.

@@ -73,6 +73,9 @@ export function createAgentRouter(
         const sessionStore = new SessionStore(agent.id);
         const sessionManager = new SessionManager(sessionStore, agent.id);
         sessionManagers.set(agent.id, sessionManager);
+
+        // 自动创建聊天 Session
+        sessionManager.createChatSession();
       }
 
       Logger.log('AGENT', `Created agent: ${agent.id}`);

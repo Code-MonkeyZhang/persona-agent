@@ -9,12 +9,12 @@ import {
   setCredential as apiSetCredential,
   verifyCredential as apiVerifyCredential,
   deleteCredential as apiDeleteCredential,
-  type ProviderInfo,
+  type ProviderStatus,
   type VerifyResult,
 } from '../lib/api';
 
 interface ProviderStore {
-  providers: ProviderInfo[];
+  providers: ProviderStatus[];
   isLoading: boolean;
   error: string | null;
   verifyingProvider: string | null;

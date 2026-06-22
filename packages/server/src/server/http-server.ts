@@ -21,6 +21,7 @@ import { createTunnelRouter } from './routers/tunnel.js';
 import { createAssetsRouter } from './routers/assets.js';
 import { createAvatarRouter } from './routers/avatar.js';
 import { initWebSocket, isWebSocketInitialized } from './websocket-server.js';
+import { startDreamScheduler } from './dream-scheduler.js';
 
 import { listAgentConfigs } from '../agent/index.js';
 import { initSkillPool } from '../skill/index.js';
@@ -56,16 +57,20 @@ app.get('/health', (_req: Request, res: Response) => {
 const sessionManagers: SessionManagersMap = new Map();
 
 /**
- * 给所有Agent创建对应的SessionStore, 然后保存在SessionManagersMap映射关系
+ * 给所有Agent创建对应的SessionStore, 然后保存在SessionManagersMap映射关系。
+ * 同时为每个 Agent 补建聊天 Session（旧 Agent 升级用）。
  */
 function initSessionManagers(): void {
   const agentConfigs = listAgentConfigs();
   for (const agentConfig of agentConfigs) {
     const store = new SessionStore(agentConfig.id);
-    sessionManagers.set(
-      agentConfig.id,
-      new SessionManager(store, agentConfig.id)
-    );
+    const manager = new SessionManager(store, agentConfig.id);
+    sessionManagers.set(agentConfig.id, manager);
+
+    // 为没有Chat的Agent补建Chat
+    if (!manager.getSession(manager.chatSessionId())) {
+      manager.createChatSession();
+    }
   }
   Logger.log('SERVER', `Initialized ${agentConfigs.length} session managers`);
 }
@@ -74,6 +79,7 @@ initSessionManagers();
 initSkillPool();
 void initMcpPool();
 Logger.setSessionManagers(sessionManagers);
+startDreamScheduler();
 
 app.use('/api/providers', createProviderRouter());
 app.use('/api/auth', createAuthRouter());

@@ -4,7 +4,11 @@
  */
 
 import { create } from 'zustand';
-import type { Agent, CreateAgentInput, UpdateAgentInput } from '../types/agent';
+import type {
+  AgentConfig,
+  AgentConfigInput,
+  AgentConfigUpdate,
+} from '../types/agent';
 import {
   listAgents,
   getAgent,
@@ -16,19 +20,19 @@ import { logger } from '../lib/logger';
 
 const LAST_AGENT_KEY = 'last-agent-id';
 interface AgentStore {
-  agents: Agent[];
-  currentAgent: Agent | null;
+  agents: AgentConfig[];
+  currentAgent: AgentConfig | null;
   isLoading: boolean;
   error: string | null;
   agentAvatarPreviews: Record<string, string>;
 
   loadAgents: () => Promise<void>;
-  switchAgent: (id: string) => Promise<Agent | null>;
-  createNewAgent: (input: CreateAgentInput) => Promise<Agent | null>;
+  switchAgent: (id: string) => Promise<AgentConfig | null>;
+  createNewAgent: (input: AgentConfigInput) => Promise<AgentConfig | null>;
   updateAgentById: (
     id: string,
-    input: UpdateAgentInput
-  ) => Promise<Agent | null>;
+    input: AgentConfigUpdate
+  ) => Promise<AgentConfig | null>;
   deleteAgentById: (id: string) => Promise<boolean>;
   setAvatarPreview: (id: string, base64: string) => void;
   removeAvatarPreview: (id: string) => void;
@@ -100,7 +104,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     }
   },
 
-  createNewAgent: async (input: CreateAgentInput) => {
+  createNewAgent: async (input: AgentConfigInput) => {
     set({ isLoading: true, error: null });
     try {
       const agent = await createAgent(input);
@@ -122,7 +126,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     }
   },
 
-  updateAgentById: async (id: string, input: UpdateAgentInput) => {
+  updateAgentById: async (id: string, input: AgentConfigUpdate) => {
     set({ error: null });
     try {
       const agent = await updateAgent(id, input);

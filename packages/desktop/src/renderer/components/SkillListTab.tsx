@@ -7,7 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import { FolderOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { listSkills, type Skill } from '../lib/api';
+import { listSkills, type SkillInfo } from '../lib/api';
 import { ListState } from './ListState';
 
 /**
@@ -15,7 +15,7 @@ import { ListState } from './ListState';
  */
 export const SkillListTab: React.FC = () => {
   const { t } = useTranslation();
-  const [skills, setSkills] = useState<Skill[]>([]);
+  const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

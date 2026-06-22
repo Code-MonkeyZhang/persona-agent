@@ -503,8 +503,8 @@ describe('Session Module Integration Tests', () => {
 
     /** GET /api/agents/:agentId/sessions 测试 */
     describe('GET /api/agents/:agentId/sessions', () => {
-      /** 测试无 sessions 时返回空数组 */
-      it('should return empty array when no sessions exist', async () => {
+      /** 测试新建 Agent 自动创建聊天 Session */
+      it('should return chat session when no manual sessions exist', async () => {
         const agentId = await createTestAgent();
 
         const response = await fetch(
@@ -513,7 +513,9 @@ describe('Session Module Integration Tests', () => {
         expect(response.status).toBe(200);
 
         const data = (await response.json()) as { sessions: SessionMeta[] };
-        expect(data.sessions).toEqual([]);
+        expect(data.sessions).toHaveLength(1);
+        expect(data.sessions[0].id).toBe(SessionManager.chatSessionIdFor(agentId));
+        expect(data.sessions[0].title).toBe('聊天');
       });
 
       /** 测试返回 agent 的所有 sessions */
@@ -535,7 +537,8 @@ describe('Session Module Integration Tests', () => {
           `${BASE_URL}/api/agents/${agentId}/sessions`
         );
         const data = (await response.json()) as { sessions: SessionMeta[] };
-        expect(data.sessions.length).toBe(2);
+        // 聊天 Session + 2 个手动创建 = 3
+        expect(data.sessions.length).toBe(3);
       });
 
       /** 测试不存在的 agent 返回 404 */
@@ -757,6 +760,55 @@ describe('Session Module Integration Tests', () => {
         );
 
         expect(response.status).toBe(404);
+      });
+
+      /** 聊天 Session 不允许删除 */
+      it('should return 403 when deleting chat session', async () => {
+        const agentId = await createTestAgent();
+
+        const response = await fetch(
+          `${BASE_URL}/api/agents/${agentId}/sessions/${SessionManager.chatSessionIdFor(agentId)}`,
+          { method: 'DELETE' }
+        );
+
+        expect(response.status).toBe(403);
+      });
+    });
+
+    /** 聊天 Session 保护测试 */
+    describe('Chat session protection', () => {
+      /** 聊天 Session 不允许改标题 */
+      it('should return 403 when renaming chat session', async () => {
+        const agentId = await createTestAgent();
+
+        const response = await fetch(
+          `${BASE_URL}/api/agents/${agentId}/sessions/${SessionManager.chatSessionIdFor(agentId)}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: 'Hacked' }),
+          }
+        );
+
+        expect(response.status).toBe(403);
+      });
+
+      /** 聊天 Session 允许改 model */
+      it('should allow updating chat session model', async () => {
+        const agentId = await createTestAgent();
+
+        const response = await fetch(
+          `${BASE_URL}/api/agents/${agentId}/sessions/${SessionManager.chatSessionIdFor(agentId)}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: { provider: 'openai', model: 'gpt-4o' },
+            }),
+          }
+        );
+
+        expect(response.status).toBe(200);
       });
     });
   });

@@ -182,7 +182,7 @@ export const SessionItem: React.FC<SessionItemProps> = ({
             )}
           </div>
 
-          {!isEditing && isHovered && (
+          {!isEditing && isHovered && !session.id.startsWith('chat') && (
             <button
               onClick={handleMenuClick}
               className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"

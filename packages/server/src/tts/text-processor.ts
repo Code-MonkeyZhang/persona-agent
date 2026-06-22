@@ -7,8 +7,7 @@
 import { Logger } from '../util/logger.js';
 import { errorMessage } from '../util/errors.js';
 import { streamSingleTurn } from '../agent/llm-single-call.js';
-import { loadConfig } from '../config/index.js';
-import { getConfigPath } from '../util/paths.js';
+import { loadTtsConfig } from './store.js';
 
 /**
  * Rule-based text cleaning: strip Markdown, code blocks, HTML tags, emoji, and normalize whitespace.
@@ -61,9 +60,7 @@ export async function processTextForTTS(
 ): Promise<string> {
   const cleaned = cleanText(text);
 
-  const configPath = getConfigPath();
-  const config = loadConfig(configPath);
-  const threshold = config.tts?.summaryThreshold ?? 200;
+  const threshold = loadTtsConfig().summaryThreshold;
 
   const needCompress = cleaned.length > threshold;
   const needTranslate = !!options.language && options.language !== 'default';

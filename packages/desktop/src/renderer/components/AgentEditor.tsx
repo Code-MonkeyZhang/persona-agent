@@ -12,6 +12,7 @@ import {
   Sparkles,
   Brain,
   Speech,
+  MessageSquare,
   Folder,
   Loader2,
   VenetianMask,
@@ -33,9 +34,9 @@ import {
   getBackgroundImageUrl,
   getPoseImageUrl,
   getVoices,
-  type McpServer,
-  type Skill,
-  type ProviderInfo,
+  type McpServerInfo,
+  type SkillInfo,
+  type ProviderStatus,
   type VoiceOption,
 } from '../lib/api';
 import { ModelSelector } from './ModelSelector';
@@ -54,7 +55,11 @@ import {
   SelectLabel,
   SelectSeparator,
 } from './ui/Select';
-import type { CreateAgentInput, UpdateAgentInput, Agent } from '../types/agent';
+import type {
+  AgentConfigInput,
+  AgentConfigUpdate,
+  AgentConfig,
+} from '../types/agent';
 import { logger } from '../lib/logger';
 import { readFileAsDataURL } from '../lib/utils';
 import { HelpTooltip } from './ui/HelpTooltip';
@@ -311,9 +316,9 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     ? agents.find((a) => a.id === editingAgentId)
     : null;
 
-  const [mcps, setMcps] = useState<McpServer[]>([]);
-  const [skills, setSkills] = useState<Skill[]>([]);
-  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [mcps, setMcps] = useState<McpServerInfo[]>([]);
+  const [skills, setSkills] = useState<SkillInfo[]>([]);
+  const [providers, setProviders] = useState<ProviderStatus[]>([]);
   const [voices, setVoices] = useState<VoiceOption[]>([]);
 
   const [previewDataUrl, setPreviewDataUrl] = useState<string | undefined>();
@@ -331,6 +336,8 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   >();
   const [voiceId, setVoiceId] = useState<string>('');
   const [voiceLanguage, setVoiceLanguage] = useState('default');
+  const [compressionThreshold, setCompressionThreshold] = useState('50');
+  const [dreamIntervalMinutes, setDreamIntervalMinutes] = useState('120');
   const { playingId: previewingVoiceId, preview: previewVoice } =
     useVoicePreview();
 
@@ -364,6 +371,8 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
       setPreviewDataUrl(undefined);
       setVoiceId(editingAgent.voiceId || '');
       setVoiceLanguage(editingAgent.voiceLanguage || 'default');
+      setCompressionThreshold(String(editingAgent.compressionThreshold ?? 50));
+      setDreamIntervalMinutes(String(editingAgent.dreamIntervalMinutes ?? 120));
       loadPoseImages(editingAgent.id);
       setBgPreviewUrl(getBackgroundImageUrl(editingAgent.id));
       setBgDeleted(false);
@@ -428,6 +437,8 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     setPendingAvatarFile(null);
     setVoiceId('');
     setVoiceLanguage('default');
+    setCompressionThreshold('50');
+    setDreamIntervalMinutes('120');
     setPoseImages([]);
     setPendingBgFile(null);
     setBgPreviewUrl(undefined);
@@ -558,7 +569,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           await uploadAvatar(editingAgentId, pendingAvatarFile);
         }
 
-        const input: UpdateAgentInput = {
+        const input: AgentConfigUpdate = {
           name: name.trim(),
           description: description.trim() || undefined,
           defaultModel: { provider, model: modelId },
@@ -566,13 +577,15 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           mcpNames: selectedMcpIds,
           skillNames: selectedSkillIds,
           maxSteps: parseInt(maxSteps) || 50,
+          compressionThreshold: parseInt(compressionThreshold) || 50,
+          dreamIntervalMinutes: parseInt(dreamIntervalMinutes) || 120,
           defaultWorkspacePath,
           voiceId: voiceId || undefined,
           voiceLanguage: voiceId ? voiceLanguage : undefined,
         };
         await updateAgentById(editingAgentId, input);
       } else {
-        const input: CreateAgentInput = {
+        const input: AgentConfigInput = {
           name: name.trim(),
           description: description.trim() || undefined,
           defaultModel: { provider, model: modelId },
@@ -580,6 +593,8 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           mcpNames: selectedMcpIds,
           skillNames: selectedSkillIds,
           maxSteps: parseInt(maxSteps) || 50,
+          compressionThreshold: parseInt(compressionThreshold) || 50,
+          dreamIntervalMinutes: parseInt(dreamIntervalMinutes) || 120,
           defaultWorkspacePath,
           voiceId: voiceId || undefined,
           voiceLanguage: voiceId ? voiceLanguage : undefined,
@@ -649,7 +664,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     }
   };
 
-  const previewAgent: Agent = {
+  const previewAgent: AgentConfig = {
     id: editingAgentId || 'preview',
     name: name || 'A',
     description,
@@ -659,8 +674,12 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     mcpNames: selectedMcpIds,
     skillNames: selectedSkillIds,
     defaultWorkspacePath,
+    compressionThreshold: parseInt(compressionThreshold) || 50,
+    dreamIntervalMinutes: parseInt(dreamIntervalMinutes) || 120,
     voiceId: voiceId || undefined,
     voiceLanguage: voiceId ? voiceLanguage : undefined,
+    createdAt: 0,
+    updatedAt: 0,
   };
 
   return (
@@ -866,6 +885,39 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                     onChange={(e) => setMaxSteps(e.target.value)}
                     min={1}
                     max={50}
+                    className="rounded-lg border border-[#e0e0e0] h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </SettingRow>
+              </div>
+
+              {/* 聊天配置 */}
+              <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
+                <h3 className="text-[14px] font-bold text-[#333] mb-3">
+                  <MessageSquare className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-[#999]" />
+                  {t('agentEditor.chatConfig')}
+                </h3>
+                <SettingRow
+                  label={t('agentEditor.compressionThreshold')}
+                  tooltip={t('agentEditor.compressionThresholdTooltip')}
+                >
+                  <input
+                    type="number"
+                    value={compressionThreshold}
+                    onChange={(e) => setCompressionThreshold(e.target.value)}
+                    min={1}
+                    max={100}
+                    className="rounded-lg border border-[#e0e0e0] h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </SettingRow>
+                <SettingRow
+                  label={t('agentEditor.dreamInterval')}
+                  tooltip={t('agentEditor.dreamIntervalTooltip')}
+                >
+                  <input
+                    type="number"
+                    value={dreamIntervalMinutes}
+                    onChange={(e) => setDreamIntervalMinutes(e.target.value)}
+                    min={1}
                     className="rounded-lg border border-[#e0e0e0] h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </SettingRow>

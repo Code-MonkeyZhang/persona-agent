@@ -3,6 +3,8 @@
  */
 
 export type {
+  ContentBlock,
+  SystemMessage,
   UserMessage,
   AssistantMessage,
   ToolCall,
