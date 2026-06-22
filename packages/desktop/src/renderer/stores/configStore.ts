@@ -22,7 +22,7 @@ interface ToolsConfig {
   mcp: MCPConfig;
 }
 
-export interface AgentConfig {
+export interface AppConfig {
   apiKey: string;
   apiBase: string;
   model: string;
@@ -35,16 +35,16 @@ export interface AgentConfig {
 }
 
 interface ConfigState {
-  config: AgentConfig | null;
+  config: AppConfig | null;
   loading: boolean;
   saving: boolean;
   error: string | null;
 
   loadConfig: () => Promise<void>;
-  saveConfig: (config: AgentConfig) => Promise<void>;
-  updateField: <K extends keyof AgentConfig>(
+  saveConfig: (config: AppConfig) => Promise<void>;
+  updateField: <K extends keyof AppConfig>(
     field: K,
-    value: AgentConfig[K]
+    value: AppConfig[K]
   ) => void;
 }
 
@@ -71,10 +71,10 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
 
   /**
    * 将完整配置提交到后端持久化，成功后同步更新本地状态
-   * @param config - 要保存的完整 AgentConfig 对象
+   * @param config - 要保存的完整 AppConfig 对象
    * @throws 后端保存失败时抛出异常
    */
-  saveConfig: async (config: AgentConfig) => {
+  saveConfig: async (config: AppConfig) => {
     set({ saving: true, error: null });
     try {
       await updateConfig(config);
@@ -89,7 +89,7 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
 
   /**
    * 更新配置中的顶层字段，仅修改本地状态不触发后端保存
-   * @param field - 要修改的 AgentConfig 字段名
+   * @param field - 要修改的 AppConfig 字段名
    * @param value - 新值
    */
   updateField: (field, value) => {

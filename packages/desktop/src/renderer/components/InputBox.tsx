@@ -16,7 +16,7 @@ import { cn } from '../lib/utils';
 import { useChatInput } from '../hooks/useChatInput';
 import { ModelSelector } from './ModelSelector';
 import { WorkspaceSelector } from './WorkspaceSelector';
-import type { ProviderInfo } from '../lib/api';
+import type { ProviderStatus } from '../lib/api';
 
 /**
  * InputBox 组件的属性接口
@@ -27,7 +27,7 @@ interface InputBoxProps {
   isLoading?: boolean;
   disabled?: boolean;
   /** 当前可用的模型供应商列表，传递给 ModelSelector */
-  providers: ProviderInfo[];
+  providers: ProviderStatus[];
   currentModelId: string;
   currentProviderId: string | undefined;
   workspacePath: string | undefined;

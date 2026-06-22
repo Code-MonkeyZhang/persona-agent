@@ -9,16 +9,10 @@ import * as yaml from 'yaml';
 
 export interface AppConfig {
   enableLogging: boolean;
-  tts?: {
-    summaryThreshold: number;
-  };
 }
 
 const DEFAULT_CONFIG: AppConfig = {
   enableLogging: false,
-  tts: {
-    summaryThreshold: 200,
-  },
 };
 
 /** Generate default config YAML string for first-time creation */
@@ -36,10 +30,6 @@ export function loadConfig(configPath: string): AppConfig {
   const parsed = yaml.parse(content) as Partial<AppConfig>;
   return {
     enableLogging: parsed.enableLogging ?? DEFAULT_CONFIG.enableLogging,
-    tts: {
-      summaryThreshold:
-        parsed.tts?.summaryThreshold ?? DEFAULT_CONFIG.tts!.summaryThreshold,
-    },
   };
 }
 

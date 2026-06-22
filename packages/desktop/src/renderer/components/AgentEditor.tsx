@@ -34,9 +34,9 @@ import {
   getBackgroundImageUrl,
   getPoseImageUrl,
   getVoices,
-  type McpServer,
-  type Skill,
-  type ProviderInfo,
+  type McpServerInfo,
+  type SkillInfo,
+  type ProviderStatus,
   type VoiceOption,
 } from '../lib/api';
 import { ModelSelector } from './ModelSelector';
@@ -55,7 +55,11 @@ import {
   SelectLabel,
   SelectSeparator,
 } from './ui/Select';
-import type { CreateAgentInput, UpdateAgentInput, Agent } from '../types/agent';
+import type {
+  AgentConfigInput,
+  AgentConfigUpdate,
+  AgentConfig,
+} from '../types/agent';
 import { logger } from '../lib/logger';
 import { readFileAsDataURL } from '../lib/utils';
 import { HelpTooltip } from './ui/HelpTooltip';
@@ -312,9 +316,9 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     ? agents.find((a) => a.id === editingAgentId)
     : null;
 
-  const [mcps, setMcps] = useState<McpServer[]>([]);
-  const [skills, setSkills] = useState<Skill[]>([]);
-  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [mcps, setMcps] = useState<McpServerInfo[]>([]);
+  const [skills, setSkills] = useState<SkillInfo[]>([]);
+  const [providers, setProviders] = useState<ProviderStatus[]>([]);
   const [voices, setVoices] = useState<VoiceOption[]>([]);
 
   const [previewDataUrl, setPreviewDataUrl] = useState<string | undefined>();
@@ -565,7 +569,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           await uploadAvatar(editingAgentId, pendingAvatarFile);
         }
 
-        const input: UpdateAgentInput = {
+        const input: AgentConfigUpdate = {
           name: name.trim(),
           description: description.trim() || undefined,
           defaultModel: { provider, model: modelId },
@@ -581,7 +585,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
         };
         await updateAgentById(editingAgentId, input);
       } else {
-        const input: CreateAgentInput = {
+        const input: AgentConfigInput = {
           name: name.trim(),
           description: description.trim() || undefined,
           defaultModel: { provider, model: modelId },
@@ -660,7 +664,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     }
   };
 
-  const previewAgent: Agent = {
+  const previewAgent: AgentConfig = {
     id: editingAgentId || 'preview',
     name: name || 'A',
     description,

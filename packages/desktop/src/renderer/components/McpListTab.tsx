@@ -11,7 +11,7 @@ import {
   listMcpServers,
   startMcpOAuth,
   getMcpOAuthStatus,
-  type McpServer,
+  type McpServerInfo,
 } from '../lib/api';
 import { logger } from '../lib/logger';
 import { ListState } from './ListState';
@@ -20,7 +20,7 @@ import { StatusDot } from './ui/StatusDot';
 const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
-function getStatusColor(status: McpServer['status']) {
+function getStatusColor(status: McpServerInfo['status']) {
   switch (status) {
     case 'connected':
       return 'bg-green-500';
@@ -35,7 +35,7 @@ function getStatusColor(status: McpServer['status']) {
 
 export const McpListTab: React.FC = () => {
   const { t } = useTranslation();
-  const [mcps, setMcps] = useState<McpServer[]>([]);
+  const [mcps, setMcps] = useState<McpServerInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authorizing, setAuthorizing] = useState<string | null>(null);

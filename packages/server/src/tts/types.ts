@@ -8,14 +8,14 @@ import type { ClonedVoice, TtsModel, VoiceOption } from '@persona/shared';
 export type { TtsModel, ClonedVoice, VoiceOption } from '@persona/shared';
 
 /**
- * Server storage shape (config/minimax-tts.json)。
- * 注意：线上 TtsConfig（在 shared）多一个 summaryThreshold（来自 AppConfig.tts），
- * 路由响应时拼入。此接口仅用于 server 内部存储。
+ * TTS 配置（minimax-tts.json），存储与线上传输共用同一形状。
+ * summaryThreshold 原存于 config.yaml，现已搬迁至此。
  */
 export interface TtsConfig {
   apiKey: string;
   model: string;
   clonedVoices: ClonedVoice[];
+  summaryThreshold: number;
 }
 
 /** Voice language option for language_boost parameter */

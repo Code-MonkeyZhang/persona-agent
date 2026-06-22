@@ -83,7 +83,7 @@ const REQUIRED_FILES: Array<{
   {
     getPath: getTtsConfigPath,
     getContent: () =>
-      '{\n  "model": "speech-2.8-hd",\n  "clonedVoices": []\n}\n',
+      '{\n  "model": "speech-2.8-hd",\n  "clonedVoices": [],\n  "summaryThreshold": 200\n}\n',
   },
 ];
 

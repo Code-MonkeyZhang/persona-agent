@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ProviderInfo } from '../lib/api';
+import type { ProviderStatus } from '../lib/api';
 import {
   Select,
   SelectContent,
@@ -16,7 +16,7 @@ import {
 } from './ui/Select';
 
 interface ModelSelectorProps {
-  providers: ProviderInfo[];
+  providers: ProviderStatus[];
   value: string;
   onChange: (modelId: string) => void;
   providerValue?: string;

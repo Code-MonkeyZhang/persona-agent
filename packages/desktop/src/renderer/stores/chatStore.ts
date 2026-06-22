@@ -7,7 +7,7 @@
  */
 
 import { create } from 'zustand';
-import type { Message, ConnectionStatus, Thought } from '../types/chat';
+import type { UIMessage, ConnectionStatus, Thought } from '../types/chat';
 import type { ServerMessage, StepCompleteMessage } from '@persona/shared';
 import { createMessage, sendChatMessage, WebSocketClient } from '../lib/api';
 import { toast } from './toastStore';
@@ -57,7 +57,7 @@ function cycleToThoughts(msg: StepCompleteMessage): Thought[] {
 
 /** 单个 session 的聊天状态 */
 interface SessionChatState {
-  messages: Message[];
+  messages: UIMessage[];
   isLoading: boolean;
 }
 
@@ -73,7 +73,7 @@ interface ChatStore {
 
   setCurrentSessionId: (id: string | null) => void;
   /** 为指定 session 初始化聊天状态（从后端加载的历史消息） */
-  initSessionState: (sessionId: string, messages: Message[]) => void;
+  initSessionState: (sessionId: string, messages: UIMessage[]) => void;
   /** 清除指定 session 的聊天状态 */
   clearSessionState: (sessionId: string) => void;
   sendMessage: (content: string, sessionId?: string) => Promise<void>;
@@ -99,7 +99,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({ currentSessionId: id });
   },
 
-  initSessionState: (sessionId: string, messages: Message[]) => {
+  initSessionState: (sessionId: string, messages: UIMessage[]) => {
     set((state) => {
       const newStates = new Map(state.sessionStates);
       newStates.set(sessionId, { messages, isLoading: false });

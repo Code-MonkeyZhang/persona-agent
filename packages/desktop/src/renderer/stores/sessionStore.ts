@@ -12,8 +12,8 @@ import {
   deleteSession,
   updateSession,
 } from '../lib/api';
-import type { Message } from '../types/chat';
-import type { Message as WireMessage } from '@persona/shared';
+import type { UIMessage } from '../types/chat';
+import type { Message } from '@persona/shared';
 import { deleteScrollPosition } from './scrollPositionCache';
 
 const LAST_SESSION_KEY = 'last-session-id';
@@ -51,7 +51,7 @@ interface SessionStore {
   ) => Promise<boolean>;
   updateCurrentSession: (session: Session) => void;
   updateSessionTitleLocally: (sessionId: string, title: string) => void;
-  convertSessionMessages: (messages: WireMessage[]) => Message[];
+  convertSessionMessages: (messages: Message[]) => UIMessage[];
 }
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
@@ -322,18 +322,18 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   /**
-   * 将服务端返回的 Message 数组转换为客户端 Message 格式，提取 thinking 和 tool_calls 为 Thought 数组。
+   * 将服务端返回的 Message 数组转换为客户端 UIMessage 格式，提取 thinking 和 tool_calls 为 Thought 数组。
    * @param messages - 服务端返回的原始消息数组（shared Message 联合）
-   * @returns 转换后的客户端 Message 数组（UI 视图模型）
+   * @returns 转换后的客户端 UIMessage 数组（UI 视图模型）
    */
-  convertSessionMessages: (messages: WireMessage[]): Message[] => {
-    return messages.map((msg, index): Message => {
+  convertSessionMessages: (messages: Message[]): UIMessage[] => {
+    return messages.map((msg, index): UIMessage => {
       const type = msg.role === 'user' ? 'user' : 'assistant';
 
       /**
        * Build thoughts array from thinking and tool_calls
        */
-      const thoughts: Message['thoughts'] = [];
+      const thoughts: UIMessage['thoughts'] = [];
 
       // thinking / tool_calls 只存在于 AssistantMessage
       if (msg.role === 'assistant') {

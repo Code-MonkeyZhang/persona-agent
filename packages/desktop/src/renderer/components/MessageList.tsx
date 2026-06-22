@@ -16,8 +16,8 @@ import {
   type StateSnapshot,
 } from 'react-virtuoso';
 import { useTranslation } from 'react-i18next';
-import type { Message } from '../types/chat';
-import type { Agent } from '../types/agent';
+import type { UIMessage } from '../types/chat';
+import type { AgentConfig } from '../types/agent';
 import { cn } from '../lib/utils';
 import { toast } from '../stores/toastStore';
 import { CopyButton } from './ui/CopyButton';
@@ -35,8 +35,8 @@ export interface MessageListRef {
 }
 
 interface MessageItemProps {
-  message: Message;
-  agent: Agent | null;
+  message: UIMessage;
+  agent: AgentConfig | null;
 }
 
 /**
@@ -125,11 +125,11 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
 };
 
 interface MessageListProps {
-  messages: Message[];
+  messages: UIMessage[];
   isLoading?: boolean;
   sessionId: string | null;
   hasAgent?: boolean;
-  agent: Agent | null;
+  agent: AgentConfig | null;
 }
 
 /**
