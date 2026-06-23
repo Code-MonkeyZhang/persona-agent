@@ -18,7 +18,7 @@
     "server": "bun run src/server/standalone.ts"
   },
   "devDependencies": {
-    "@persona/shared": "workspace:*",
+    "@persona/shared": "file:../shared",
     "@types/bun": "^1.2.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
