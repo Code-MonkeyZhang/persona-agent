@@ -36,6 +36,11 @@ interface AgentStore {
   deleteAgentById: (id: string) => Promise<boolean>;
   setAvatarPreview: (id: string, base64: string) => void;
   removeAvatarPreview: (id: string) => void;
+  updateAgentMcpNames: (agentId: string, mcpNames: string[]) => Promise<void>;
+  updateAgentSkillNames: (
+    agentId: string,
+    skillNames: string[]
+  ) => Promise<void>;
 }
 
 export const useAgentStore = create<AgentStore>((set, get) => ({
@@ -188,5 +193,15 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     const { agentAvatarPreviews } = get();
     const { [id]: _, ...rest } = agentAvatarPreviews;
     set({ agentAvatarPreviews: rest });
+  },
+
+  /** 仅更新 Agent 的 MCP 工具分配（供工具视图保存按钮调用） */
+  updateAgentMcpNames: async (agentId: string, mcpNames: string[]) => {
+    await get().updateAgentById(agentId, { mcpNames });
+  },
+
+  /** 仅更新 Agent 的 Skill 分配（供技能视图保存按钮调用） */
+  updateAgentSkillNames: async (agentId: string, skillNames: string[]) => {
+    await get().updateAgentById(agentId, { skillNames });
   },
 }));

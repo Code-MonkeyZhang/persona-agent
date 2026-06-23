@@ -34,7 +34,6 @@ export const SessionItem: React.FC<SessionItemProps> = ({
   onRename,
 }) => {
   const { t } = useTranslation();
-  const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(session.title);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -140,12 +139,10 @@ export const SessionItem: React.FC<SessionItemProps> = ({
     <>
       <div
         className={cn(
-          'group relative px-3 py-2 rounded-lg cursor-pointer transition-colors',
-          isActive ? 'bg-[#f5f5f5] text-[#333]' : 'hover:bg-gray-100'
+          'group relative pl-7 pr-7 py-2 rounded-lg cursor-pointer transition-colors',
+          isActive ? 'bg-muted text-foreground' : 'hover:bg-muted'
         )}
         onClick={() => !isEditing && onSelect(session.id)}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
@@ -170,28 +167,32 @@ export const SessionItem: React.FC<SessionItemProps> = ({
                 </button>
                 <button
                   onClick={handleCancelRename}
-                  className="p-1 rounded hover:bg-gray-100 text-gray-500"
+                  className="p-1 rounded hover:bg-muted text-muted-foreground"
                 >
                   <X className="w-3 h-3" />
                 </button>
               </div>
             ) : (
               <>
-                <p className="text-sm font-medium truncate">{session.title}</p>
+                <p
+                  className={cn('text-sm truncate', isActive && 'font-medium')}
+                >
+                  {session.title}
+                </p>
               </>
             )}
           </div>
-
-          {!isEditing && isHovered && !session.id.startsWith('chat') && (
-            <button
-              onClick={handleMenuClick}
-              className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
-              title={t('sessionItem.moreActions')}
-            >
-              <MoreVertical className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
+
+        {!isEditing && !session.id.startsWith('chat') && (
+          <button
+            onClick={handleMenuClick}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+            title={t('sessionItem.moreActions')}
+          >
+            <MoreVertical className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {menuOpen &&
@@ -199,7 +200,7 @@ export const SessionItem: React.FC<SessionItemProps> = ({
         createPortal(
           <div
             ref={menuRef}
-            className="fixed z-[9999] min-w-[140px] bg-white border border-gray-200 rounded-lg shadow-lg py-1"
+            className="fixed z-[9999] min-w-[140px] bg-background border border-border rounded-lg shadow-lg py-1"
             style={{
               top: menuPosition.top,
               left: menuPosition.left,
@@ -208,7 +209,7 @@ export const SessionItem: React.FC<SessionItemProps> = ({
           >
             <button
               onClick={handleMenuRename}
-              className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-foreground hover:bg-muted"
             >
               <Pencil className="w-3.5 h-3.5" />
               <span>{t('sessionItem.rename')}</span>

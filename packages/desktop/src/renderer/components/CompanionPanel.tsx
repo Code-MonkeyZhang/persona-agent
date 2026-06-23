@@ -4,19 +4,19 @@
  * 以全屏覆盖层的形式展示 AI 陪伴角色，叠加在聊天区域之上。
  * 面板包含：
  * - 背景图 + 角色立绘（支持表情切换）
- * - 顶部语音开关按钮（毛玻璃风格）
  * - 底部 Agent 回复气泡（显示最后一条 assistant 消息，带入场动画，上下箭头指示溢出）
  * - 底部输入框 + 发送按钮（毛玻璃风格，直接调用主聊天发送逻辑）
  *
+ * 面板的滑入/滑出动画由 framer-motion 驱动，父组件（App.tsx）通过
+ * AnimatePresence 控制挂载/卸载，面板根元素 motion.div 提供自动退出动画。
  * 关闭面板由 Header 中的「形象」按钮统一控制，面板内不再提供关闭按钮。
  */
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
-import { Send, ChevronUp, ChevronDown, Speech } from 'lucide-react';
+import { Send, ChevronUp, ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
 import { useCompanionStore } from '../stores/companionStore';
 import { useChatStore } from '../stores/chatStore';
-import { useVoiceStore } from '../stores/voiceStore';
-import { useAgentStore } from '../stores/agentStore';
 import { useChatInput } from '../hooks/useChatInput';
 import { getPoseImageUrl, getBackgroundImageUrl, listPoses } from '../lib/api';
 import { Markdown } from './Markdown';
@@ -26,19 +26,16 @@ import { Markdown } from './Markdown';
  * @property agentId - 当前 Agent ID，用于拼接资源 URL；为 null 时不渲染
  * @property onSend - 发送消息回调，复用主聊天区的发送逻辑
  * @property isLoading - 是否正在等待 Agent 回复
- * @property isClosing - 是否正在播放退出动画
- * @property onClosed - 退出动画播放完毕后的回调，父组件据此卸载面板
  */
 interface CompanionPanelProps {
   agentId: string | null;
   onSend: (content: string) => void;
   isLoading: boolean;
-  isClosing?: boolean;
-  onClosed?: () => void;
 }
 
 /**
  * CompanionPanel 全屏覆盖面板组件，叠加在聊天区域之上展示 AI 陪伴角色
+ * 滑入/滑出动画由 framer-motion 管理，父组件通过 AnimatePresence 控制退出。
  * @param props.agentId - 当前 Agent ID，为 null 时不渲染
  * @param props.onSend - 发送消息回调，复用主聊天区的发送逻辑
  * @param props.isLoading - 是否正在等待 Agent 回复
@@ -47,8 +44,6 @@ export function CompanionPanel({
   agentId,
   onSend,
   isLoading,
-  isClosing,
-  onClosed,
 }: CompanionPanelProps) {
   const { t } = useTranslation();
   const currentPose = useCompanionStore((s) => s.currentPose);
@@ -58,17 +53,11 @@ export function CompanionPanel({
       ? (s.sessionStates.get(currentSessionId)?.messages ?? [])
       : []
   );
-  const voiceEnabled = useVoiceStore((s) => s.voiceEnabled);
-  const toggleVoice = useVoiceStore((s) => s.toggleVoice);
-  const stopSpeaking = useVoiceStore((s) => s.stopSpeaking);
-  const currentAgent = useAgentStore((s) => s.currentAgent);
-  const voiceConfigured = !!currentAgent?.voiceId;
   const [bgError, setBgError] = useState(false);
   const [poseError, setPoseError] = useState(false);
   const [hasAssets, setHasAssets] = useState<boolean | null>(null);
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
-  const [showVoiceToast, setShowVoiceToast] = useState(false);
   const bubbleRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -122,24 +111,6 @@ export function CompanionPanel({
     return null;
   }, [messages]);
 
-  /**
-   * 语音开关按钮点击处理：
-   * - 未配置音色 → 弹 toast 提示
-   * - 已开启 → 先停掉当前播放，再切换为关闭
-   * - 已关闭 → 直接切换为开启
-   */
-  const handleVoiceToggle = useCallback(() => {
-    if (!voiceConfigured) {
-      setShowVoiceToast(true);
-      setTimeout(() => setShowVoiceToast(false), 2000);
-      return;
-    }
-    if (voiceEnabled) {
-      stopSpeaking();
-    }
-    toggleVoice();
-  }, [voiceConfigured, voiceEnabled, stopSpeaking, toggleVoice]);
-
   /** 根据气泡容器的滚动位置更新 canScrollUp / canScrollDown 状态（1px 容差避免浮点精度问题） */
   const updateScrollState = useCallback(() => {
     const el = bubbleRef.current;
@@ -157,153 +128,126 @@ export function CompanionPanel({
 
   if (hasAssets === false) {
     return (
-      <div
-        className="absolute inset-0 z-30"
+      <motion.div
+        className="absolute inset-0 z-30 flex flex-col h-full"
         style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+        initial={{ x: '100%' }}
+        animate={{ x: 0, transition: { duration: 0.3, ease: 'easeOut' } }}
+        exit={{ x: '100%', transition: { duration: 0.2, ease: 'easeIn' } }}
       >
-        <div
-          className={`flex flex-col h-full ${isClosing ? 'animate-companion-slide-out' : 'animate-companion-slide-in'}`}
-          onAnimationEnd={isClosing ? onClosed : undefined}
-        >
-          <div className="absolute inset-0 bg-gradient-to-b from-gray-100 to-gray-300" />
-          <div className="relative z-10 flex-1 flex items-center justify-center px-8">
-            <div className="text-center">
-              <p className="text-[18px] font-medium text-[#555] leading-relaxed">
-                {t('companion.noAppearance')}
-              </p>
-              <p className="text-[14px] text-[#999] mt-3 leading-relaxed">
-                {t('companion.uploadPoseHint')}
-              </p>
-            </div>
+        <div className="absolute inset-0 bg-muted" />
+        <div className="relative z-10 flex-1 flex items-center justify-center px-8">
+          <div className="text-center">
+            <p className="text-[18px] font-medium text-muted-foreground leading-relaxed">
+              {t('companion.noAppearance')}
+            </p>
+            <p className="text-[14px] text-muted-foreground mt-3 leading-relaxed">
+              {t('companion.uploadPoseHint')}
+            </p>
           </div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div
-      className="absolute inset-0 z-30"
+    <motion.div
+      className="absolute inset-0 z-30 flex flex-col h-full"
       style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+      initial={{ x: '100%' }}
+      animate={{ x: 0, transition: { duration: 0.3, ease: 'easeOut' } }}
+      exit={{ x: '100%', transition: { duration: 0.2, ease: 'easeIn' } }}
     >
-      <div
-        className={`flex flex-col h-full ${isClosing ? 'animate-companion-slide-out' : 'animate-companion-slide-in'}`}
-        onAnimationEnd={isClosing ? onClosed : undefined}
-      >
-        {hasAssets === null || bgError ? (
-          <div className="absolute inset-0 bg-gradient-to-b from-gray-100 to-gray-300" />
-        ) : (
-          <img
-            src={getBackgroundImageUrl(agentId)}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
-            onError={() => setBgError(true)}
-          />
-        )}
+      {hasAssets === null || bgError ? (
+        <div className="absolute inset-0 bg-muted" />
+      ) : (
+        <img
+          src={getBackgroundImageUrl(agentId)}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          onError={() => setBgError(true)}
+        />
+      )}
 
-        {hasAssets === true && !poseError && (
-          <img
-            src={getPoseImageUrl(agentId, currentPose)}
-            alt=""
-            className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[1] h-[85%] object-contain object-bottom translate-y-[-8%]"
-            onError={() => setPoseError(true)}
-          />
-        )}
+      {hasAssets === true && !poseError && (
+        <img
+          src={getPoseImageUrl(agentId, currentPose)}
+          alt=""
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[1] h-[85%] object-contain object-bottom translate-y-[-8%]"
+          onError={() => setPoseError(true)}
+        />
+      )}
 
-        <div className="relative z-10 flex items-center justify-end px-4 pt-4 pb-2">
-          <button
-            onClick={handleVoiceToggle}
-            disabled={!voiceConfigured}
-            className={`w-9 h-9 rounded-full backdrop-blur-2xl border flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.08)] transition-colors ${
-              !voiceConfigured
-                ? 'bg-white/80 border-white/30 text-[#999] cursor-not-allowed opacity-60'
-                : voiceEnabled
-                  ? 'bg-white/80 border-white/60 text-[#333]'
-                  : 'bg-white/40 border-white/50 text-[#333] hover:bg-white/80'
-            }`}
-          >
-            {voiceEnabled && voiceConfigured ? (
-              <Speech className="w-4 h-4" />
-            ) : (
-              <Speech className="w-4 h-4 opacity-40" />
-            )}
-          </button>
-        </div>
+      <div className="relative z-10 flex-1" />
 
-        <div className="relative z-10 flex-1" />
-
-        {lastAgentMessage && (
-          <div
-            key={lastAgentMessage.id}
-            className="z-10 shrink-0 px-5 pb-3 animate-companion-bubble-in"
-          >
-            {lastAgentMessage.content.trim().length > 0 ? (
-              <div className="relative overflow-hidden rounded-[24px] bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
-                <div
-                  ref={bubbleRef}
-                  onScroll={updateScrollState}
-                  className="companion-scroll-hidden px-4 pt-7 pb-7 max-h-[160px] overflow-y-auto text-[14px] text-[#333] leading-relaxed"
-                >
-                  <Markdown content={lastAgentMessage.content} />
-                </div>
-                {canScrollUp && (
-                  <div className="absolute top-1 left-1/2 -translate-x-1/2 pointer-events-none">
-                    <ChevronUp className="w-5 h-5 text-[#333] drop-shadow-[0_1px_2px_rgba(0,0,0,0.1)]" />
-                  </div>
-                )}
-                {canScrollDown && (
-                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2 pointer-events-none">
-                    <ChevronDown className="w-5 h-5 text-[#333] drop-shadow-[0_1px_2px_rgba(0,0,0,0.1)]" />
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="rounded-[24px] bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)] px-4 py-2 text-[13px] text-[#999] animate-pulse text-center">
-                {t('companion.thinking')}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="relative z-10 shrink-0 px-5 pb-5">
-          <div className="rounded-[24px] p-4 bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
-            <textarea
-              ref={textareaRef}
-              value={inputText}
-              onChange={handleChange}
-              onKeyDown={handleKeyDown}
-              placeholder={t('companion.inputPlaceholder')}
-              rows={1}
-              className="w-full resize-none bg-transparent text-[15px] text-[#333] placeholder:text-[#999] focus-visible:outline-none max-h-[120px]"
-            />
-            <div className="flex items-center justify-end mt-3">
-              <button
-                onClick={() => {
-                  const text = inputText.trim();
-                  if (text && !isLoading) {
-                    onSend(text);
-                    reset();
-                  }
-                }}
-                disabled={!inputText.trim() || isLoading}
-                className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-                  inputText.trim() && !isLoading
-                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    : 'bg-[#d8d8d8] text-white'
-                }`}
+      {lastAgentMessage && (
+        <motion.div
+          key={lastAgentMessage.id}
+          className="z-10 shrink-0 px-5 pb-3"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: 'easeOut' }}
+        >
+          {lastAgentMessage.content.trim().length > 0 ? (
+            <div className="relative overflow-hidden rounded-[24px] bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
+              <div
+                ref={bubbleRef}
+                onScroll={updateScrollState}
+                className="companion-scroll-hidden px-4 pt-7 pb-7 max-h-[160px] overflow-y-auto text-[14px] text-foreground leading-relaxed"
               >
-                <Send className="w-4 h-4" />
-              </button>
+                <Markdown content={lastAgentMessage.content} />
+              </div>
+              {canScrollUp && (
+                <div className="absolute top-1 left-1/2 -translate-x-1/2 pointer-events-none">
+                  <ChevronUp className="w-5 h-5 text-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.1)]" />
+                </div>
+              )}
+              {canScrollDown && (
+                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 pointer-events-none">
+                  <ChevronDown className="w-5 h-5 text-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.1)]" />
+                </div>
+              )}
             </div>
+          ) : (
+            <div className="rounded-[24px] bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)] px-4 py-2 text-[13px] text-muted-foreground animate-pulse text-center">
+              {t('companion.thinking')}
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      <div className="relative z-10 shrink-0 px-5 pb-5">
+        <div className="rounded-[24px] p-4 bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
+          <textarea
+            ref={textareaRef}
+            value={inputText}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            placeholder={t('companion.inputPlaceholder')}
+            rows={1}
+            className="w-full resize-none bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground focus-visible:outline-none max-h-[120px]"
+          />
+          <div className="flex items-center justify-end mt-3">
+            <button
+              onClick={() => {
+                const text = inputText.trim();
+                if (text && !isLoading) {
+                  onSend(text);
+                  reset();
+                }
+              }}
+              disabled={!inputText.trim() || isLoading}
+              className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                inputText.trim() && !isLoading
+                  ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                  : 'bg-muted text-white'
+              }`}
+            >
+              <Send className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>
-
-      {showVoiceToast && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full bg-black/70 text-white text-[13px] whitespace-nowrap">
-          {t('companion.configureVoiceFirst')}
-        </div>
-      )}
-    </div>
+    </motion.div>
   );
 }

@@ -1,6 +1,6 @@
 /**
  * @file src/renderer/components/AgentEditor.tsx
- * @description Agent 编辑全页面组件，支持创建和编辑 Agent，包括基本信息、模型配置、工作空间、MCP、Skills 分配和语音配置
+ * @description Agent 编辑全页面组件，支持创建和编辑 Agent，包括基本信息、模型配置、工作空间和语音配置
  */
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -8,8 +8,6 @@ import {
   Camera,
   Volume2,
   PenLine,
-  Plug,
-  Sparkles,
   Brain,
   Speech,
   MessageSquare,
@@ -21,8 +19,6 @@ import { useTranslation } from 'react-i18next';
 import { useAgentStore } from '../stores/agentStore';
 import { useViewStore } from '../stores/viewStore';
 import {
-  listMcpServers,
-  listSkills,
   listProviders,
   uploadAvatar,
   uploadPoseImage,
@@ -34,8 +30,6 @@ import {
   getBackgroundImageUrl,
   getPoseImageUrl,
   getVoices,
-  type McpServerInfo,
-  type SkillInfo,
   type ProviderStatus,
   type VoiceOption,
 } from '../lib/api';
@@ -63,7 +57,6 @@ import type {
 import { logger } from '../lib/logger';
 import { readFileAsDataURL } from '../lib/utils';
 import { HelpTooltip } from './ui/HelpTooltip';
-import { StatusDot } from './ui/StatusDot';
 import { BackButton } from './ui/BackButton';
 import { HoverDeleteButton } from './ui/HoverDeleteButton';
 import { useVoicePreview } from '../hooks/useVoicePreview';
@@ -99,7 +92,7 @@ function LabelWithTooltip({
 }) {
   return (
     <div className="flex items-center gap-1.5 mb-2">
-      <div className="text-[13px] text-[#333]">{label}</div>
+      <div className="text-[13px] text-foreground">{label}</div>
       <HelpTooltip text={tooltip} />
     </div>
   );
@@ -195,7 +188,7 @@ function PoseImageCardList({
       {images.map((img, idx) => (
         <div
           key={img.name + img.status}
-          className="relative group shrink-0 rounded-lg overflow-hidden bg-[#fafafa]"
+          className="relative group shrink-0 rounded-lg overflow-hidden bg-muted"
           style={{ width: 90, height: 120 }}
         >
           <img
@@ -227,7 +220,7 @@ function PoseImageCardList({
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onBlur={handleConfirmRename}
-                className="text-[10px] text-white bg-white/20 rounded px-1 py-0.5 leading-tight w-full outline-none border border-white/30"
+                className="text-[10px] text-white bg-background/20 rounded px-1 py-0.5 leading-tight w-full outline-none border border-white/30"
               />
             ) : (
               <div className="flex items-center gap-1">
@@ -238,7 +231,7 @@ function PoseImageCardList({
                   {img.name}
                 </div>
                 {img.name === 'default' ? (
-                  <span className="shrink-0 text-[8px] bg-white/25 text-white/90 rounded px-1 leading-tight">
+                  <span className="shrink-0 text-[8px] bg-background/25 text-white/90 rounded px-1 leading-tight">
                     {t('agentEditor.defaultPose')}
                   </span>
                 ) : (
@@ -247,7 +240,7 @@ function PoseImageCardList({
                       e.stopPropagation();
                       handleStartRename(idx);
                     }}
-                    className="shrink-0 w-3.5 h-3.5 flex items-center justify-center rounded hover:bg-white/20 text-white/60 hover:text-white/90"
+                    className="shrink-0 w-3.5 h-3.5 flex items-center justify-center rounded hover:bg-background/20 text-white/60 hover:text-white/90"
                   >
                     <PenLine className="w-2.5 h-2.5" />
                   </button>
@@ -266,11 +259,11 @@ function PoseImageCardList({
         </div>
       ))}
       <div
-        className="shrink-0 rounded-lg border border-dashed border-[#d0d0d0] bg-[#fafafa] flex items-center justify-center cursor-pointer hover:border-[#999] transition-colors"
+        className="shrink-0 rounded-lg border border-dashed border-border bg-muted flex items-center justify-center cursor-pointer hover:border-muted-foreground transition-colors"
         style={{ width: 90, height: 120 }}
         onClick={() => inputRef.current?.click()}
       >
-        <Plus className="w-5 h-5 text-[#ccc]" />
+        <Plus className="w-5 h-5 text-muted-foreground" />
       </div>
       <input
         ref={inputRef}
@@ -316,8 +309,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     ? agents.find((a) => a.id === editingAgentId)
     : null;
 
-  const [mcps, setMcps] = useState<McpServerInfo[]>([]);
-  const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [providers, setProviders] = useState<ProviderStatus[]>([]);
   const [voices, setVoices] = useState<VoiceOption[]>([]);
 
@@ -328,8 +319,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   const [provider, setProvider] = useState<string>('deepseek');
   const [modelId, setModelId] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
-  const [selectedMcpIds, setSelectedMcpIds] = useState<string[]>([]);
-  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
   const [maxSteps, setMaxSteps] = useState('50');
   const [defaultWorkspacePath, setDefaultWorkspacePath] = useState<
     string | undefined
@@ -341,8 +330,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   const { playingId: previewingVoiceId, preview: previewVoice } =
     useVoicePreview();
 
-  const [showMcpDropdown, setShowMcpDropdown] = useState(false);
-  const [showSkillDropdown, setShowSkillDropdown] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -364,8 +351,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
       setProvider(editingAgent.defaultModel.provider);
       setModelId(editingAgent.defaultModel.model);
       setSystemPrompt(editingAgent.systemPrompt);
-      setSelectedMcpIds(editingAgent.mcpNames);
-      setSelectedSkillIds(editingAgent.skillNames);
       setMaxSteps(String(editingAgent.maxSteps));
       setDefaultWorkspacePath(editingAgent.defaultWorkspacePath);
       setPreviewDataUrl(undefined);
@@ -392,17 +377,13 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     }
   }, [providers, modelId]);
 
-  /** 并行加载 MCP 服务器列表、技能列表和 Provider 列表 */
+  /** 并行加载 Provider 列表和音色列表 */
   const loadOptions = async () => {
     try {
-      const [mcpData, skillData, providerData, voicesData] = await Promise.all([
-        listMcpServers(),
-        listSkills(),
+      const [providerData, voicesData] = await Promise.all([
         listProviders(),
         getVoices(),
       ]);
-      setMcps(mcpData);
-      setSkills(skillData);
       setProviders(providerData);
       setVoices(voicesData);
     } catch (error) {
@@ -429,8 +410,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     setProvider('deepseek');
     setModelId('');
     setSystemPrompt('');
-    setSelectedMcpIds([]);
-    setSelectedSkillIds([]);
     setMaxSteps('50');
     setDefaultWorkspacePath(undefined);
     setPreviewDataUrl(undefined);
@@ -452,33 +431,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     if (providerInfo && providerInfo.models.length > 0) {
       setModelId(providerInfo.models[0]);
     }
-  };
-
-  const availableMcps = mcps.filter((m) => !selectedMcpIds.includes(m.name));
-  const availableSkills = skills.filter(
-    (s) => !selectedSkillIds.includes(s.name)
-  );
-
-  /** 将指定 MCP 添加到已选列表并关闭下拉菜单 */
-  const addMcp = (mcpName: string) => {
-    setSelectedMcpIds([...selectedMcpIds, mcpName]);
-    setShowMcpDropdown(false);
-  };
-
-  /** 从已选 MCP 列表中移除指定项 */
-  const removeMcp = (mcpName: string) => {
-    setSelectedMcpIds(selectedMcpIds.filter((id) => id !== mcpName));
-  };
-
-  /** 将指定 Skill 添加到已选列表并关闭下拉菜单 */
-  const addSkill = (skillId: string) => {
-    setSelectedSkillIds([...selectedSkillIds, skillId]);
-    setShowSkillDropdown(false);
-  };
-
-  /** 从已选 Skill 列表中移除指定项 */
-  const removeSkill = (skillId: string) => {
-    setSelectedSkillIds(selectedSkillIds.filter((id) => id !== skillId));
   };
 
   /** 处理头像文件上传，将图片转为 base64 预览并暂存原始文件 */
@@ -574,8 +526,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           description: description.trim() || undefined,
           defaultModel: { provider, model: modelId },
           systemPrompt,
-          mcpNames: selectedMcpIds,
-          skillNames: selectedSkillIds,
           maxSteps: parseInt(maxSteps) || 50,
           compressionThreshold: parseInt(compressionThreshold) || 50,
           dreamIntervalMinutes: parseInt(dreamIntervalMinutes) || 120,
@@ -590,8 +540,8 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           description: description.trim() || undefined,
           defaultModel: { provider, model: modelId },
           systemPrompt,
-          mcpNames: selectedMcpIds,
-          skillNames: selectedSkillIds,
+          mcpNames: [],
+          skillNames: [],
           maxSteps: parseInt(maxSteps) || 50,
           compressionThreshold: parseInt(compressionThreshold) || 50,
           dreamIntervalMinutes: parseInt(dreamIntervalMinutes) || 120,
@@ -656,9 +606,10 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     }
   };
 
-  /** 删除当前编辑的 Agent 并返回聊天页面 */
+  /** 删除当前编辑的 Agent 并返回聊天页面（带二次确认） */
   const handleDelete = () => {
     if (editingAgentId && onDelete) {
+      if (!confirm(t('agentEditor.confirmDelete'))) return;
       onDelete(editingAgentId);
       closeAgentEditor();
     }
@@ -671,8 +622,8 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     systemPrompt,
     defaultModel: { provider, model: modelId },
     maxSteps: parseInt(maxSteps) || 50,
-    mcpNames: selectedMcpIds,
-    skillNames: selectedSkillIds,
+    mcpNames: [],
+    skillNames: [],
     defaultWorkspacePath,
     compressionThreshold: parseInt(compressionThreshold) || 50,
     dreamIntervalMinutes: parseInt(dreamIntervalMinutes) || 120,
@@ -683,23 +634,43 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   };
 
   return (
-    <div className="h-full w-full flex flex-col bg-[#f7f7f7]">
-      <div className="header-drag shrink-0 flex items-center gap-2 px-5 h-14 border-b border-[#e8e8e8] bg-[#f7f7f7]">
+    <div className="h-full w-full flex flex-col bg-muted">
+      <div className="shrink-0 flex items-center gap-2 px-5 h-14 border-b border-border bg-muted">
         <BackButton onClick={closeAgentEditor} />
-        <h1 className="text-[16px] font-bold text-[#333]">
+        <h1 className="text-[16px] font-bold text-foreground">
           {editingAgentId
             ? t('agentEditor.editAgent')
             : t('agentEditor.addAgent')}
         </h1>
+        <div className="flex-1" />
+        <div className="flex gap-2">
+          <button
+            onClick={closeAgentEditor}
+            className="rounded-lg border border-border h-8 px-5 text-[13px] hover:bg-muted"
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!name.trim() || isLoading}
+            className="bg-foreground text-background hover:bg-foreground/90 rounded-lg h-8 px-5 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading
+              ? t('common.saving')
+              : editingAgentId
+                ? t('agentEditor.save')
+                : t('agentEditor.add')}
+          </button>
+        </div>
       </div>
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full">
           <div className="px-5 py-5">
             <div className="flex flex-col gap-4">
               {/* 基本信息 */}
-              <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
-                <h3 className="text-[14px] font-bold text-[#333] mb-3">
-                  <PenLine className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-[#999]" />
+              <div className="rounded-xl border border-border bg-background px-4 py-4">
+                <h3 className="text-[14px] font-bold text-foreground mb-3">
+                  <PenLine className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-muted-foreground" />
                   {t('agentEditor.basicInfo')}
                 </h3>
                 <div className="flex items-start gap-4">
@@ -725,25 +696,25 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                   </div>
                   <div className="flex-1 flex flex-col gap-2.5">
                     <div className="flex items-center gap-3">
-                      <span className="text-[13px] text-[#999] shrink-0 w-12">
+                      <span className="text-[13px] text-muted-foreground shrink-0 w-12">
                         {t('agentEditor.name')}
                       </span>
                       <Input
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder={t('agentEditor.namePlaceholder')}
-                        className="rounded-lg border-[#e0e0e0] h-8 flex-1 text-[13px]"
+                        className="rounded-lg border-border h-8 flex-1 text-[13px]"
                       />
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-[13px] text-[#999] shrink-0 w-12">
+                      <span className="text-[13px] text-muted-foreground shrink-0 w-12">
                         {t('agentEditor.description')}
                       </span>
                       <Input
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         placeholder={t('agentEditor.descPlaceholder')}
-                        className="rounded-lg border-[#e0e0e0] h-8 flex-1 text-[13px]"
+                        className="rounded-lg border-border h-8 flex-1 text-[13px]"
                       />
                     </div>
                   </div>
@@ -751,9 +722,9 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
               </div>
 
               {/* 形象 */}
-              <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
-                <h3 className="text-[14px] font-bold text-[#333] mb-3">
-                  <VenetianMask className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-[#999]" />
+              <div className="rounded-xl border border-border bg-background px-4 py-4">
+                <h3 className="text-[14px] font-bold text-foreground mb-3">
+                  <VenetianMask className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-muted-foreground" />
                   {t('agentEditor.appearance')}
                 </h3>
 
@@ -829,11 +800,11 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                 ) : (
                   <div className="inline-block">
                     <div
-                      className="rounded-lg border border-dashed border-[#d0d0d0] bg-[#fafafa] flex items-center justify-center cursor-pointer hover:border-[#999] transition-colors"
+                      className="rounded-lg border border-dashed border-border bg-muted flex items-center justify-center cursor-pointer hover:border-muted-foreground transition-colors"
                       style={{ width: 90, height: 160 }}
                       onClick={() => bgInputRef.current?.click()}
                     >
-                      <Plus className="w-5 h-5 text-[#ccc]" />
+                      <Plus className="w-5 h-5 text-muted-foreground" />
                     </div>
                     <input
                       ref={bgInputRef}
@@ -847,9 +818,9 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
               </div>
 
               {/* 模型配置 */}
-              <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
-                <h3 className="text-[14px] font-bold text-[#333] mb-3">
-                  <Brain className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-[#999]" />
+              <div className="rounded-xl border border-border bg-background px-4 py-4">
+                <h3 className="text-[14px] font-bold text-foreground mb-3">
+                  <Brain className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-muted-foreground" />
                   {t('agentEditor.modelConfig')}
                 </h3>
                 <SettingRow label={t('agentEditor.defaultModel')}>
@@ -863,18 +834,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                   />
                 </SettingRow>
                 <SettingDivider />
-                <div>
-                  <div className="text-[14px] text-[#333] leading-[18px] mb-2">
-                    {t('agentEditor.systemPrompt')}
-                  </div>
-                  <textarea
-                    value={systemPrompt}
-                    onChange={(e) => setSystemPrompt(e.target.value)}
-                    placeholder={t('agentEditor.systemPromptPlaceholder')}
-                    className="w-full min-h-[360px] rounded-lg border border-[#e0e0e0] px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-                  />
-                </div>
-                <SettingDivider />
                 <SettingRow
                   label={t('agentEditor.maxSteps')}
                   tooltip={t('agentEditor.maxStepsTooltip')}
@@ -885,15 +844,27 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                     onChange={(e) => setMaxSteps(e.target.value)}
                     min={1}
                     max={50}
-                    className="rounded-lg border border-[#e0e0e0] h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="rounded-lg border border-border h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </SettingRow>
+                <SettingDivider />
+                <div>
+                  <div className="text-[14px] text-foreground leading-[18px] mb-2">
+                    {t('agentEditor.systemPrompt')}
+                  </div>
+                  <textarea
+                    value={systemPrompt}
+                    onChange={(e) => setSystemPrompt(e.target.value)}
+                    placeholder={t('agentEditor.systemPromptPlaceholder')}
+                    className="w-full min-h-[360px] rounded-lg border border-border px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                  />
+                </div>
               </div>
 
               {/* 聊天配置 */}
-              <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
-                <h3 className="text-[14px] font-bold text-[#333] mb-3">
-                  <MessageSquare className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-[#999]" />
+              <div className="rounded-xl border border-border bg-background px-4 py-4">
+                <h3 className="text-[14px] font-bold text-foreground mb-3">
+                  <MessageSquare className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-muted-foreground" />
                   {t('agentEditor.chatConfig')}
                 </h3>
                 <SettingRow
@@ -906,9 +877,10 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                     onChange={(e) => setCompressionThreshold(e.target.value)}
                     min={1}
                     max={100}
-                    className="rounded-lg border border-[#e0e0e0] h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="rounded-lg border border-border h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </SettingRow>
+                <SettingDivider />
                 <SettingRow
                   label={t('agentEditor.dreamInterval')}
                   tooltip={t('agentEditor.dreamIntervalTooltip')}
@@ -918,15 +890,15 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                     value={dreamIntervalMinutes}
                     onChange={(e) => setDreamIntervalMinutes(e.target.value)}
                     min={1}
-                    className="rounded-lg border border-[#e0e0e0] h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="rounded-lg border border-border h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </SettingRow>
               </div>
 
               {/* 音色 */}
-              <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
-                <h3 className="text-[14px] font-bold text-[#333] mb-3">
-                  <Speech className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-[#999]" />
+              <div className="rounded-xl border border-border bg-background px-4 py-4">
+                <h3 className="text-[14px] font-bold text-foreground mb-3">
+                  <Speech className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-muted-foreground" />
                   {t('agentEditor.voice')}
                 </h3>
                 <SettingRow
@@ -945,7 +917,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                         }
                       }}
                     >
-                      <SelectTrigger className="rounded-lg border-[#e0e0e0] h-8 w-48 text-[13px]">
+                      <SelectTrigger className="rounded-lg border-border h-8 w-48 text-[13px]">
                         <SelectValue placeholder={t('agentEditor.noVoice')} />
                       </SelectTrigger>
                       <SelectContent>
@@ -955,7 +927,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                         {voices.filter((v) => v.group === 'cloned').length >
                           0 && (
                           <SelectGroup>
-                            <SelectLabel className="text-[11px] text-[#999] font-medium uppercase tracking-wide">
+                            <SelectLabel className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">
                               {t('agentEditor.clonedVoices')}
                             </SelectLabel>
                             {voices
@@ -969,7 +941,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                         )}
                         <SelectSeparator />
                         <SelectGroup>
-                          <SelectLabel className="text-[11px] text-[#999] font-medium uppercase tracking-wide">
+                          <SelectLabel className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">
                             {t('agentEditor.presetVoices')}
                           </SelectLabel>
                           {voices
@@ -999,7 +971,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                         });
                       }}
                       disabled={!voiceId || !!previewingVoiceId}
-                      className="rounded-lg border border-[#e0e0e0] w-8 h-8 shrink-0 flex items-center justify-center text-[#999] hover:text-[#333] hover:bg-[#f0f0f0] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="rounded-lg border border-border w-8 h-8 shrink-0 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       {previewingVoiceId ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1020,7 +992,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                         value={voiceLanguage}
                         onValueChange={setVoiceLanguage}
                       >
-                        <SelectTrigger className="rounded-lg border-[#e0e0e0] h-8 w-48 text-[13px]">
+                        <SelectTrigger className="rounded-lg border-border h-8 w-48 text-[13px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -1037,9 +1009,9 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
               </div>
 
               {/* 工作空间 */}
-              <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
-                <h3 className="text-[14px] font-bold text-[#333] mb-3">
-                  <Folder className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-[#999]" />
+              <div className="rounded-xl border border-border bg-background px-4 py-4">
+                <h3 className="text-[14px] font-bold text-foreground mb-3">
+                  <Folder className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-muted-foreground" />
                   {t('agentEditor.workspace')}
                 </h3>
                 <SettingRow
@@ -1054,190 +1026,17 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                 </SettingRow>
               </div>
 
-              {/* MCP 分配 */}
-              <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
-                <h3 className="text-[14px] font-bold text-[#333] mb-3">
-                  <Plug className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-[#999]" />
-                  {t('agentEditor.mcpAssign')}
-                </h3>
-                <div className="grid grid-cols-2 gap-2.5">
-                  {selectedMcpIds.map((mcpId) => {
-                    const mcp = mcps.find((m) => m.name === mcpId);
-                    const statusColor =
-                      mcp?.status === 'connected'
-                        ? 'bg-green-500'
-                        : 'bg-gray-300';
-                    return (
-                      <div
-                        key={mcpId}
-                        className="group relative flex items-center gap-2.5 px-3 py-3 rounded-xl border border-[#eee] bg-[#fafafa] hover:bg-[#f5f5f5] transition-all text-left"
-                      >
-                        <StatusDot color={statusColor} />
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[13px] font-medium text-[#333] truncate">
-                            {mcpId}
-                          </div>
-                          <div className="text-[11px] text-[#999] truncate">
-                            {mcp?.toolCount
-                              ? t('mcp.toolsCount', { count: mcp.toolCount })
-                              : t('mcp.disconnected')}
-                          </div>
-                        </div>
-                        <HoverDeleteButton
-                          variant="light"
-                          className="absolute top-1.5 right-1.5"
-                          onClick={() => removeMcp(mcpId)}
-                        />
-                      </div>
-                    );
-                  })}
-                  <div className="relative flex">
-                    <button
-                      onClick={() => setShowMcpDropdown(!showMcpDropdown)}
-                      className="w-full px-3 py-3 border border-dashed border-[#d0d0d0] rounded-xl text-[13px] text-[#999] hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
-                      {t('agentEditor.addMcp')}
-                    </button>
-                    {showMcpDropdown && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#e8e8e8] rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
-                        {availableMcps.length === 0 ? (
-                          <div className="px-3 py-2 text-[#ccc] text-[12px]">
-                            {t('agentEditor.noMcpToAdd')}
-                          </div>
-                        ) : (
-                          availableMcps.map((mcp) => (
-                            <button
-                              key={mcp.name}
-                              onClick={() => addMcp(mcp.name)}
-                              className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
-                            >
-                              <StatusDot
-                                color={
-                                  mcp.status === 'connected'
-                                    ? 'bg-green-500'
-                                    : 'bg-gray-300'
-                                }
-                              />
-                              <div className="min-w-0">
-                                <div className="text-[13px]">{mcp.name}</div>
-                                <div className="text-[11px] text-[#999]">
-                                  {mcp.toolCount
-                                    ? t('mcp.toolsCount', {
-                                        count: mcp.toolCount,
-                                      })
-                                    : mcp.status === 'connected'
-                                      ? 'connected'
-                                      : t('mcp.disconnected')}
-                                </div>
-                              </div>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Skills 分配 */}
-              <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
-                <h3 className="text-[14px] font-bold text-[#333] mb-3">
-                  <Sparkles className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-[#999]" />
-                  {t('agentEditor.skillsAssign')}
-                </h3>
-                <div className="grid grid-cols-2 gap-2.5">
-                  {selectedSkillIds.map((skillId) => {
-                    const skill = skills.find((s) => s.name === skillId);
-                    return (
-                      <div
-                        key={skillId}
-                        className="group relative flex items-center gap-2.5 px-3 py-3 rounded-xl border border-[#eee] bg-[#fafafa] hover:bg-[#f5f5f5] transition-all text-left"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[13px] font-medium text-[#333] truncate">
-                            {skill?.name || skillId}
-                          </div>
-                          <div className="text-[11px] text-[#999] truncate">
-                            {skill?.description || ''}
-                          </div>
-                        </div>
-                        <HoverDeleteButton
-                          variant="light"
-                          className="absolute top-1.5 right-1.5"
-                          onClick={() => removeSkill(skillId)}
-                        />
-                      </div>
-                    );
-                  })}
-                  <div className="relative flex">
-                    <button
-                      onClick={() => setShowSkillDropdown(!showSkillDropdown)}
-                      className="w-full px-3 py-3 border border-dashed border-[#d0d0d0] rounded-xl text-[13px] text-[#999] hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
-                      {t('agentEditor.addSkill')}
-                    </button>
-                    {showSkillDropdown && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#e8e8e8] rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
-                        {availableSkills.length === 0 ? (
-                          <div className="px-3 py-2 text-[#ccc] text-[12px]">
-                            {t('agentEditor.noSkillToAdd')}
-                          </div>
-                        ) : (
-                          availableSkills.map((skill) => (
-                            <button
-                              key={skill.name}
-                              onClick={() => addSkill(skill.name)}
-                              className="w-full px-3 py-2 text-left hover:bg-gray-50"
-                            >
-                              <div className="text-[13px]">{skill.name}</div>
-                              {skill.description && (
-                                <div className="text-[11px] text-[#999]">
-                                  {skill.description}
-                                </div>
-                              )}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* 底部操作 */}
-              <div className="flex justify-between items-center pt-1 pb-6">
-                <div>
-                  {editingAgentId && (
-                    <button
-                      onClick={handleDelete}
-                      className="text-[12px] text-[#ccc] hover:text-red-400 transition-colors"
-                    >
-                      {t('agentEditor.deleteAgent')}
-                    </button>
-                  )}
-                </div>
-                <div className="flex gap-2">
+              {/* 删除 Agent */}
+              {editingAgentId && (
+                <div className="flex justify-center pb-6">
                   <button
-                    onClick={closeAgentEditor}
-                    className="rounded-lg border border-[#e0e0e0] h-8 px-5 text-[13px] hover:bg-gray-50"
+                    onClick={handleDelete}
+                    className="text-[13px] text-red-400 hover:text-red-500 transition-colors"
                   >
-                    {t('common.cancel')}
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    disabled={!name.trim() || isLoading}
-                    className="bg-[#222] text-white hover:bg-[#333] rounded-lg h-8 px-5 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isLoading
-                      ? t('common.saving')
-                      : editingAgentId
-                        ? t('agentEditor.save')
-                        : t('agentEditor.add')}
+                    {t('agentEditor.deleteAgent')}
                   </button>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </ScrollArea>

@@ -266,7 +266,7 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     ...(isMac
-      ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 8, y: 13 } }
+      ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 8, y: 12 } }
       : { frame: false }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.cjs'),
