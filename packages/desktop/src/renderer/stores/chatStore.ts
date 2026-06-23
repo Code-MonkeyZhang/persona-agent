@@ -55,6 +55,15 @@ function cycleToThoughts(msg: StepCompleteMessage): Thought[] {
   return thoughts;
 }
 
+/**
+ * 从消息内容提取预览文本：去除 HTML 标签后截取前 30 个字符。
+ * @param content - 原始消息内容
+ * @returns 30 字截断的纯文本预览
+ */
+function extractPreview(content: string): string {
+  return content.replace(/<[^>]+>/g, '').slice(0, 30);
+}
+
 /** 单个 session 的聊天状态 */
 interface SessionChatState {
   messages: UIMessage[];
@@ -172,6 +181,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       return { sessionStates: newStates, lastUserMessage: content };
     });
 
+    // 同步更新会话预览（用于 Session 栏 chat 入口的消息预览）
+    useSessionStore
+      .getState()
+      .updateSessionPreview(sessionId, extractPreview(content));
+
     wsClient?.subscribe(sessionId);
 
     try {
@@ -251,6 +265,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             });
             return { sessionStates: newStates };
           });
+          // 同步更新会话预览
+          useSessionStore
+            .getState()
+            .updateSessionPreview(sessionId, extractPreview(msg.content || ''));
         }
         break;
       }

@@ -93,7 +93,7 @@ export const SettingsPage: React.FC = () => {
   return (
     <div className="h-full w-full flex bg-[#f7f7f7]">
       <div className="w-52 border-r border-[#e8e8e8] bg-white flex flex-col shrink-0">
-        <div className="header-drag px-4 py-4 flex items-center gap-2">
+        <div className="px-4 py-4 flex items-center gap-2">
           <BackButton onClick={handleClose} />
           <h1 className="text-[16px] font-bold text-[#333]">
             {t('settings.title')}

@@ -2,26 +2,29 @@
  * @file App.tsx
  * @description Electron前端渲染进程根组件
  *
- * 根据 viewStore.currentView 决定渲染哪个视图：
- * - 'settings'     → 设置页面（SettingsPage）
- * - 'agent-editor' → Agent 编辑页面（AgentEditor）
- * - 'chat'         → 主界面（WebSocketProvider + AppContent）
+ * 布局自上而下：TitleBar（全宽状态条）+ 下方横向布局（AgentSidebar + 内容区）。
+ * currentView 决定顶层视图（'settings' → 设置页面，否则进入主布局）。
+ * 主布局内部由 viewStore.activeNav 驱动 MainContent 区域切换：
+ * - 'chat'           → 对话区（Header + MessageList + InputBox + CompanionPanel）
+ * - 'agent-settings' → Agent 编辑页面（AgentEditor）
+ * - 'tools'          → MCP 工具分配视图（AgentToolsView）
+ * - 'skills'         → Skill 分配视图（SkillsView）
  *
- * AppContent 是主界面的核心，包含：
- * - AgentSidebar：左侧 Agent 列表
- * - SessionSidebar：会话列表
- * - MessageList：消息展示
- * - InputBox：输入框
+ * Session 栏折叠状态由 viewStore.sessionSidebarCollapsed 管理，
+ * 折叠开关位于 TitleBar，不再需要独立的悬浮按钮。
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
+import { AnimatePresence } from 'framer-motion';
+import { TitleBar } from './components/TitleBar';
 import { Header } from './components/Header';
 import { MessageList, type MessageListRef } from './components/MessageList';
 import { InputBox } from './components/InputBox';
 import { AgentSidebar } from './components/AgentSidebar';
 import { SessionSidebar } from './components/SessionSidebar';
-import { SessionSidebarToggle } from './components/SessionSidebarToggle';
 import { SettingsPage } from './components/SettingsPage';
 import { AgentEditor } from './components/AgentEditor';
+import { AgentToolsView } from './components/AgentToolsView';
+import { SkillsView } from './components/SkillsView';
 import { CompanionPanel } from './components/CompanionPanel';
 import { ToastContainer } from './components/Toast';
 import { WebSocketProvider } from './components/WebSocketProvider';
@@ -39,27 +42,11 @@ import { logger } from './lib/logger';
 function AppContent() {
   /* 状态定义 */
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [companionClosing, setCompanionClosing] = useState(false);
   const companionVisible = useCompanionStore((s) => s.visible);
-  const toggleCompanion = useCompanionStore((s) => s.toggleVisible);
   const currentView = useViewStore((s) => s.currentView);
   const editingAgentId = useViewStore((s) => s.editingAgentId);
+  const activeNav = useViewStore((s) => s.activeNav);
 
-  const companionMounted = companionVisible || companionClosing;
-
-  const handleCompanionToggle = useCallback(() => {
-    if (companionVisible) {
-      setCompanionClosing(true);
-    } else {
-      toggleCompanion();
-    }
-  }, [companionVisible, toggleCompanion]);
-
-  const handleCompanionClosed = useCallback(() => {
-    toggleCompanion();
-    setCompanionClosing(false);
-  }, [toggleCompanion]);
   const pendingProviderRef = useRef<string | undefined>();
   const messageListRef = useRef<MessageListRef>(null);
 
@@ -228,73 +215,67 @@ function AppContent() {
   };
 
   return (
-    <div className="h-full flex bg-white">
-      <AgentSidebar connectionStatus={connectionStatus} />
-      {currentView === 'settings' ? (
-        <div className="flex-1 flex flex-col min-h-0 min-w-0">
-          <SettingsPage />
+    <div className="h-full flex flex-col overflow-hidden bg-background">
+      <TitleBar />
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        <AgentSidebar connectionStatus={connectionStatus} />
+        <div className="flex-1 flex min-h-0 min-w-0">
+          {currentView === 'settings' ? (
+            <SettingsPage />
+          ) : (
+            <>
+              <SessionSidebar />
+              <div className="flex-1 overflow-hidden min-w-0">
+                {activeNav === 'chat' && (
+                  <div className="h-full flex flex-col">
+                    <Header onNewChat={handleNewChat} />
+                    <div className="flex-1 flex flex-col min-h-0 relative">
+                      <MessageList
+                        ref={messageListRef}
+                        key={currentSession?.id ?? 'no-session'}
+                        messages={messages}
+                        isLoading={isLoading}
+                        sessionId={currentSession?.id ?? null}
+                        hasAgent={!!currentAgent}
+                        agent={currentAgent}
+                      />
+                      <InputBox
+                        onSend={handleSend}
+                        isLoading={isLoading}
+                        disabled={!currentAgent}
+                        providers={providers}
+                        currentModelId={currentModelId}
+                        currentProviderId={currentProviderId}
+                        onModelChange={handleModelChange}
+                        onProviderChange={handleProviderChange}
+                        workspacePath={currentWorkspacePath}
+                        onWorkspaceChange={handleWorkspaceChange}
+                      />
+                      <AnimatePresence initial={false}>
+                        {companionVisible && (
+                          <CompanionPanel
+                            agentId={currentAgent?.id ?? null}
+                            onSend={handleSend}
+                            isLoading={isLoading}
+                          />
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                )}
+                {activeNav === 'agent-settings' && (
+                  <AgentEditor
+                    editingAgentId={editingAgentId}
+                    onDelete={handleDeleteAgent}
+                  />
+                )}
+                {activeNav === 'tools' && <AgentToolsView />}
+                {activeNav === 'skills' && <SkillsView />}
+              </div>
+            </>
+          )}
         </div>
-      ) : currentView === 'agent-editor' ? (
-        <div className="flex-1 flex flex-col min-h-0 min-w-0">
-          <AgentEditor
-            editingAgentId={editingAgentId}
-            onDelete={handleDeleteAgent}
-          />
-        </div>
-      ) : (
-        <>
-          <SessionSidebar
-            collapsed={sidebarCollapsed}
-            onToggle={() => setSidebarCollapsed(true)}
-          />
-          <div className="flex-1 flex flex-col min-h-0 min-w-0">
-            <div className="header-drag relative">
-              {sidebarCollapsed && (
-                <SessionSidebarToggle
-                  isOpen={false}
-                  onToggle={() => setSidebarCollapsed(false)}
-                />
-              )}
-              <Header
-                onNewChat={handleNewChat}
-                onToggleCompanion={handleCompanionToggle}
-              />
-            </div>
-            <div className="flex-1 flex flex-col min-h-0 min-w-0 relative">
-              <MessageList
-                ref={messageListRef}
-                key={currentSession?.id ?? 'no-session'}
-                messages={messages}
-                isLoading={isLoading}
-                sessionId={currentSession?.id ?? null}
-                hasAgent={!!currentAgent}
-                agent={currentAgent}
-              />
-              <InputBox
-                onSend={handleSend}
-                isLoading={isLoading}
-                disabled={!currentAgent}
-                providers={providers}
-                currentModelId={currentModelId}
-                currentProviderId={currentProviderId}
-                onModelChange={handleModelChange}
-                onProviderChange={handleProviderChange}
-                workspacePath={currentWorkspacePath}
-                onWorkspaceChange={handleWorkspaceChange}
-              />
-              {companionMounted && (
-                <CompanionPanel
-                  agentId={currentAgent?.id ?? null}
-                  onSend={handleSend}
-                  isLoading={isLoading}
-                  isClosing={companionClosing}
-                  onClosed={handleCompanionClosed}
-                />
-              )}
-            </div>
-          </div>
-        </>
-      )}
+      </div>
       <ToastContainer />
     </div>
   );
