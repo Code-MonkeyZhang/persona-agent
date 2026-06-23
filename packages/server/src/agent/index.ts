@@ -10,7 +10,11 @@ export {
   updateAgentConfig,
   deleteAgentConfig,
 } from './agent-config-store.js';
-export { AgentConfigSchema, AgentConfigInputSchema } from './types.js';
+export {
+  AgentConfigSchema,
+  AgentConfigInputSchema,
+  AgentConfigUpdateSchema,
+} from './types.js';
 export type {
   ModelConfig,
   AgentConfig,

@@ -17,6 +17,7 @@ import {
   updateAgentConfig,
   deleteAgentConfig,
   AgentConfigInputSchema,
+  AgentConfigUpdateSchema,
 } from '../../agent/index.js';
 import { SessionStore } from '../../session/store.js';
 import { SessionManager } from '../../session/session-manager.js';
@@ -96,7 +97,7 @@ export function createAgentRouter(
         return;
       }
 
-      const result = AgentConfigInputSchema.safeParse(req.body);
+      const result = AgentConfigUpdateSchema.safeParse(req.body);
       if (!result.success) {
         res.status(400).json({ error: result.error.issues });
         return;

@@ -10,6 +10,7 @@ export {
   ModelConfigSchema,
   AgentConfigSchema,
   AgentConfigInputSchema,
+  AgentConfigUpdateSchema,
   type ModelConfig,
   type AgentConfig,
   type AgentConfigInput,

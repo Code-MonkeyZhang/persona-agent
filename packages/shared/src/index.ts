@@ -11,6 +11,7 @@ export { ModelConfigSchema, type ModelConfig } from './model-config.js';
 export {
   AgentConfigSchema,
   AgentConfigInputSchema,
+  AgentConfigUpdateSchema,
   type AgentConfig,
   type AgentConfigInput,
   type AgentConfigUpdate,

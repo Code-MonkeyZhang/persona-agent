@@ -48,5 +48,14 @@ export const AgentConfigInputSchema = AgentConfigSchema.omit({
 /** Input type for creating/updating an Agent */
 export type AgentConfigInput = z.infer<typeof AgentConfigInputSchema>;
 
+/**
+ * Partial schema for PUT (update) requests.
+ *
+ * 所有字段均为可选，只校验请求体中实际包含的字段。
+ * 与 {@link AgentConfigInputSchema}（完整校验，用于 POST 创建）的区别：
+ * 创建要求必填字段齐全，更新允许只传需要修改的字段。
+ */
+export const AgentConfigUpdateSchema = AgentConfigInputSchema.partial();
+
 /** Partial of AgentConfigInput, used for PUT (update) requests. */
-export type AgentConfigUpdate = Partial<AgentConfigInput>;
+export type AgentConfigUpdate = z.infer<typeof AgentConfigUpdateSchema>;

@@ -34,6 +34,7 @@ import {
   AgentConfigSchema,
   type AgentConfig,
   type AgentConfigInput,
+  type AgentConfigUpdate,
 } from './types.js';
 
 /** Atomic write to prevent data corruption */
@@ -136,10 +137,20 @@ export function createAgentConfig(input: AgentConfigInput): AgentConfig {
   return config;
 }
 
-/** Update an existing agent */
+/**
+ * Update an existing agent config.
+ *
+ * 接受部分更新：传入对象中只需包含需要修改的字段，其余字段从现有配置继承。
+ * id 与 createdAt 不可变，updatedAt 每次调用都会刷新。
+ *
+ * @param id - The unique identifier of the agent.
+ * @param input - Partial agent config fields to update.
+ * @returns The updated agent config object.
+ * @throws {Error} If the agent does not exist.
+ */
 export function updateAgentConfig(
   id: string,
-  input: AgentConfigInput
+  input: AgentConfigUpdate
 ): AgentConfig {
   const existing = getAgentConfig(id);
   if (!existing) {

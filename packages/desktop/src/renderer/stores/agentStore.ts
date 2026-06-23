@@ -32,7 +32,7 @@ interface AgentStore {
   updateAgentById: (
     id: string,
     input: AgentConfigUpdate
-  ) => Promise<AgentConfig | null>;
+  ) => Promise<AgentConfig>;
   deleteAgentById: (id: string) => Promise<boolean>;
   setAvatarPreview: (id: string, base64: string) => void;
   removeAvatarPreview: (id: string) => void;
@@ -144,11 +144,10 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
       }
       return agent;
     } catch (error) {
-      set({
-        error:
-          error instanceof Error ? error.message : 'Failed to update agent',
-      });
-      return null;
+      const msg =
+        error instanceof Error ? error.message : 'Failed to update agent';
+      set({ error: msg });
+      throw error;
     }
   },
 
