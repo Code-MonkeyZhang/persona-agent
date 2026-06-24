@@ -83,7 +83,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
           isUser ? 'flex flex-col items-end' : 'flex flex-col items-start'
         )}
       >
-        {/* 思考过程（仅助手消息，在气泡上方） */}
+        {/* 思考过程 */}
         {isAssistant && hasThoughts && (
           <CollapsedThoughtProcess thoughts={message.thoughts!} />
         )}
@@ -102,7 +102,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
           </div>
         )}
 
-        {/* 操作按钮（hover 时显示） */}
+        {/* 操作按钮 */}
         <div
           className={cn(
             'flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity',

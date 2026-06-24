@@ -25,10 +25,10 @@ export interface CallbackResult {
  * Start a temporary HTTP server on a random port to receive the OAuth callback.
  *
  * The caller should:
- * 1. Read `result.port` to get the actual port number
- * 2. Configure the provider's redirect URL as `http://localhost:{port}/callback`
- * 3. Call `result.waitForCode()` to block until the code arrives (or timeout)
- * 4. Call `result.close()` when done
+ * - Read `result.port` to get the actual port number
+ * - Configure the provider's redirect URL as `http://localhost:{port}/callback`
+ * - Call `result.waitForCode()` to block until the code arrives (or timeout)
+ * - Call `result.close()` when done
  */
 export function startCallbackServer(): Promise<CallbackResult> {
   let resolveCode: ((code: string) => void) | undefined;

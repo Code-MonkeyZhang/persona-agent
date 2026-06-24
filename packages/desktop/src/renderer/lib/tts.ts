@@ -24,11 +24,11 @@ function hexToArrayBuffer(hex: string): ArrayBuffer {
 
 /**
  * 调用 MiniMax TTS 将文本合成为音频的主要函数
- * @param text - 要合成的文本（不超过 10000 字符）
+ * @param text - 要合成的文本
  * @param voiceId - 音色 ID
  * @param apiKey - MiniMax API Key
  * @param model - TTS 模型 ID，默认 speech-2.8-hd
- * @param languageBoost - 语言增强参数（如 "Chinese"、"English"、"Japanese"），可选
+ * @param languageBoost - 语言增强参数
  * @returns MP3 格式的音频 ArrayBuffer
  */
 export async function synthesize(

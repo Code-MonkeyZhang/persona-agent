@@ -155,11 +155,11 @@ export function getMcpPromptInfo(
  * Start the OAuth flow for a server that requires authentication.
  *
  * This method:
- * 1. Starts a local callback server on a random port
- * 2. Creates a new connection with an OAuth provider
- * 3. Triggers the SDK's built-in OAuth discovery + PKCE flow
- * 4. Returns the authorization URL for the frontend to open in a browser
- * 5. In the background: waits for callback → finishAuth → reconnect → update status
+ * - Starts a local callback server on a random port
+ * - Creates a new connection with an OAuth provider
+ * - Triggers the SDK's built-in OAuth discovery + PKCE flow
+ * - Returns the authorization URL for the frontend to open in a browser
+ * - In the background: waits for callback → finishAuth → reconnect → update status
  *
  * The frontend should:
  * - Call shell.openExternal(authorizationUrl) to open the browser

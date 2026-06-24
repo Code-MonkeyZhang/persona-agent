@@ -1,7 +1,7 @@
 /**
  * @fileoverview WebFetch 工具 — 抓取网页内容并返回结构化结果。
  *
- * 核心流程：参数解析 → 缓存检查 → SSRF 检查 → HTTP GET（手动重定向）→
+ * 核心流程：参数解析 → 缓存检查 → SSRF 检查 → HTTP GET →
  * Content-Type 分流 → 格式转换 → 截断 → 外部内容包装 → 缓存写入 → 返回 JSON。
  */
 
@@ -129,7 +129,7 @@ export class WebFetchTool implements Tool<WebFetchInput, ToolResult> {
   };
 
   async execute(params: WebFetchInput): Promise<ToolResult> {
-    // 1. 参数解析
+    // - 参数解析
     const rawUrl = (params.url ?? '').trim();
     const extractMode: 'markdown' | 'text' =
       params.extractMode === 'text' ? 'text' : 'markdown';
@@ -160,7 +160,7 @@ export class WebFetchTool implements Tool<WebFetchInput, ToolResult> {
       };
     }
 
-    // 2. 缓存检查
+    // - 缓存检查
     const cacheKey = `fetch:${rawUrl}:${extractMode}:${maxChars}`.toLowerCase();
     const cached = readCache(FETCH_CACHE, cacheKey);
     if (cached) {
@@ -170,7 +170,7 @@ export class WebFetchTool implements Tool<WebFetchInput, ToolResult> {
       };
     }
 
-    // 3. SSRF 检查
+    // - SSRF 检查
     try {
       await assertPublicUrl(parsedUrl.toString());
     } catch (error) {
@@ -188,7 +188,7 @@ export class WebFetchTool implements Tool<WebFetchInput, ToolResult> {
       };
     }
 
-    // 4. HTTP GET + 手动重定向
+    // - HTTP GET + 手动重定向
     const start = Date.now();
     let currentUrl = parsedUrl.toString();
     let res: Response;
@@ -215,7 +215,7 @@ export class WebFetchTool implements Tool<WebFetchInput, ToolResult> {
       };
     }
 
-    // 5. 检查响应状态
+    // - 检查响应状态
     if (!res.ok) {
       const rawDetailResult = await readResponseText(res, {
         maxBytes: DEFAULT_ERROR_MAX_BYTES,
@@ -233,7 +233,7 @@ export class WebFetchTool implements Tool<WebFetchInput, ToolResult> {
       };
     }
 
-    // 6. 读取响应体
+    // - 读取响应体
     const contentType =
       res.headers.get('content-type') ?? 'application/octet-stream';
     const normalizedContentType =
@@ -246,7 +246,7 @@ export class WebFetchTool implements Tool<WebFetchInput, ToolResult> {
       ? `Response body truncated after ${DEFAULT_FETCH_MAX_RESPONSE_BYTES} bytes.`
       : undefined;
 
-    // 7. Content-Type 分流 + 格式转换
+    // - Content-Type 分流 + 格式转换
     let title: string | undefined;
     let extractor = 'raw';
     let text = body;
@@ -279,13 +279,13 @@ export class WebFetchTool implements Tool<WebFetchInput, ToolResult> {
       }
     }
 
-    // 8. 不可见 Unicode 清洗
+    // - 不可见 Unicode 清洗
     text = stripInvisibleUnicode(text);
 
-    // 9. 外部内容包装
+    // - 外部内容包装
     const wrapped = wrapContentWithMetadata(text, maxChars);
 
-    // 10. 构造结果
+    // - 构造结果
     const payload: Record<string, unknown> = {
       url: rawUrl,
       finalUrl,
@@ -307,7 +307,7 @@ export class WebFetchTool implements Tool<WebFetchInput, ToolResult> {
         : {}),
     };
 
-    // 11. 写缓存
+    // - 写缓存
     writeCache(FETCH_CACHE, cacheKey, payload, DEFAULT_CACHE_TTL_MS);
 
     return { success: true, content: JSON.stringify(payload) };

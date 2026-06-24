@@ -1,6 +1,6 @@
 /**
  * @file src/renderer/types/chat.ts
- * @description 聊天界面的视图模型类型（UIMessage、Thought、ConnectionStatus 等）。
+ * @description 聊天界面的视图模型类型。
  * WS 协议类型已迁移至 @persona/shared。
  */
 

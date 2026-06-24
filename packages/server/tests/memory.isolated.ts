@@ -1,8 +1,8 @@
 /**
- * @fileoverview 记忆子系统测试（独立运行，避免 pi-ai mock 污染其它测试）。
+ * @fileoverview 记忆子系统测试。
  *
  * Mock 策略：
- * - 文件系统：mock paths.js 到临时目录（含 getAgentMemoryDir）；
+ * - 文件系统：mock paths.js 到临时目录；
  * - LLM：mock llm-single-call.js 的 streamSingleTurn，用模块级变量控制返回/抛错。
  *
  * 覆盖：MemoryStore 的 MEMORY.md 读写 / dream_cursor 推进 / readRecentHistorySegment
@@ -57,7 +57,7 @@ import { MemoryStore } from '../src/agent/memory/memory-store.js';
 import { consolidateMemory } from '../src/server/services/memory-service.js';
 import type { AgentConfig } from '../src/agent/types.js';
 
-/** 构造一个最小可用的 AgentConfig（不经文件系统，直接拼对象） */
+/** 构造一个最小可用的 AgentConfig */
 function makeAgentConfig(id: string): AgentConfig {
   return {
     id,

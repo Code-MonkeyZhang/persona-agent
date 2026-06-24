@@ -7,7 +7,7 @@ import type { StateSnapshot } from 'react-virtuoso';
 /**
  * 滚动位置缓存模块
  *
- * 使用 LRU（最近最少使用）策略管理会话的滚动位置。
+ * 使用 LRU 策略管理会话的滚动位置。
  * 当缓存数量超过限制时，自动淘汰最旧的记录。
  */
 

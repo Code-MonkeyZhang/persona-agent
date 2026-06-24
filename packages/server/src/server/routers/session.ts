@@ -104,7 +104,7 @@ export function createSessionRouter(
         return;
       }
 
-      // 聊天 Session 不允许改标题（workspace 和 model 修改不拦截）
+      // 聊天 Session 不允许改标题
       if (title !== undefined && id.startsWith('chat')) {
         res.status(403).json({ error: 'Cannot rename chat session' });
         return;

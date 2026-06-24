@@ -194,12 +194,12 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     set({ agentAvatarPreviews: rest });
   },
 
-  /** 仅更新 Agent 的 MCP 工具分配（供工具视图保存按钮调用） */
+  /** 仅更新 Agent 的 MCP 工具分配 */
   updateAgentMcpNames: async (agentId: string, mcpNames: string[]) => {
     await get().updateAgentById(agentId, { mcpNames });
   },
 
-  /** 仅更新 Agent 的 Skill 分配（供技能视图保存按钮调用） */
+  /** 仅更新 Agent 的 Skill 分配 */
   updateAgentSkillNames: async (agentId: string, skillNames: string[]) => {
     await get().updateAgentById(agentId, { skillNames });
   },

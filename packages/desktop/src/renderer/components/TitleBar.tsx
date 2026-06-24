@@ -1,8 +1,8 @@
 /**
  * @file src/renderer/components/TitleBar.tsx
- * @description 全宽顶部状态条，统一承载窗口控制（红绿灯）和 Session 栏收起/展开开关。
+ * @description 全宽顶部状态条，统一承载窗口控制和 Session 栏收起/展开开关。
  * 整栏可拖拽移动窗口，按钮区域不可拖拽。
- * macOS 使用系统原生红绿灯（预留左侧空间），Windows/Linux 自绘红绿灯。
+ * macOS 使用系统原生红绿灯，Windows/Linux 自绘红绿灯。
  */
 import React from 'react';
 import { PanelLeft, PanelLeftClose } from 'lucide-react';

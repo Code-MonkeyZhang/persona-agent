@@ -23,7 +23,7 @@ let toastId = 0;
 
 /**
  * Toast 状态 store，管理提示消息队列
- * addToast 自动在 duration 后移除对应提示（默认 4 秒）
+ * addToast 自动在 duration 后移除对应提示
  */
 export const useToastStore = create<ToastStore>((set, get) => ({
   toasts: [],

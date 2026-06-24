@@ -54,7 +54,7 @@ interface ChatResponse {
 /**
  * 增量保存消息到Session中
  *
- * 从 agent 的消息列表中提取新增消息（通过 historyLength 确定边界），
+ * 从 agent 的消息列表中提取新增消息，
  * 并逐条追加到Session管理器中进行持久化存储。
  *
  * @param sessionManager - Session管理器，负责消息持久化
@@ -127,7 +127,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     // 把除了 SystemPrompt 以外的消息推入 Agent, 新的SystemPrompt已经在构建AgentCore时注入了。
     if (isChatSession) {
       // 聊天 Session：压缩模式。只加载 summarizedUpTo 之后的近期原始消息；
-      // 若该切片估算 token 超过上下文窗口的 90%，从头部裁掉最老的完整轮（安全网）。
+      // 若该切片估算 token 超过上下文窗口的 90%，从头部裁掉最老的完整轮。
       const summarizedUpTo = session.summarizedUpTo ?? 0;
       let messagesToLoad = session.messages.slice(summarizedUpTo);
       const safetyNetTokens = Math.floor(
@@ -337,7 +337,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       );
     }
 
-    // Fire-and-forget: 异步上下文压缩（仅聊天 Session）
+    // Fire-and-forget: 异步上下文压缩
     if (isChatSession) {
       runCompression({
         agentId,
@@ -465,8 +465,8 @@ async function handleTtsAsync(
  * 溢出安全网裁切：未摘要消息估算 token 超过上下文窗口的 90% 时，
  * 从头部裁掉最老的若干完整轮，只保留能装进预算的最近一段。
  *
- * 从尾部向前累计 token，直到加入下一条（更老的）会超预算为止；再把起点对齐到
- * 一条 user 消息（完整轮边界），避免留下孤立的 assistant 回复。被裁掉的消息仍在磁盘，
+ * 从尾部向前累计 token，直到加入下一条会超预算为止；再把起点对齐到
+ * 一条 user 消息，避免留下孤立的 assistant 回复。被裁掉的消息仍在磁盘，
  * 下一轮压缩会兜底，不丢数据。
  *
  * @param messages - 未摘要的消息切片
@@ -482,7 +482,7 @@ function trimToSafetyWindow(messages: Message[], maxTokens: number): Message[] {
     acc += t;
     start = i;
   }
-  // 起点对齐到 user 消息（完整轮边界）
+  // 起点对齐到 user 消息
   while (start < messages.length && messages[start]!.role !== 'user') {
     start++;
   }

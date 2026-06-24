@@ -1,5 +1,5 @@
 /**
- * Marketplace 仓库的 jsDelivr 地址配置（CDN + 文件树 API）。
+ * Marketplace 仓库的 jsDelivr 地址配置。
  * 集中在这里，以后想换镜像只改这一处。文件字节走 CDN，目录扫描走 data API。
  */
 

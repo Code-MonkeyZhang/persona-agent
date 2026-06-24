@@ -12,11 +12,11 @@ import { getAuth } from '../auth/index.js';
  * 调用 LLM 进行单轮流式对话，收集完整文本返回。
  *
  * 内部完成 auth 检查、model 查找和流式文本收集。
- * 任何步骤失败时抛出异常（auth 不存在、model 未找到、流式请求出错等），
+ * 任何步骤失败时抛出异常，
  * 不做日志记录，由调用方在 catch 中决定如何处理。
  *
  * @param userMessage - 用户消息内容
- * @param systemPrompt - 系统提示词（可为空字符串）
+ * @param systemPrompt - 系统提示词
  * @param provider - LLM 提供商
  * @param modelId - 模型 ID
  * @returns LLM 生成的完整文本

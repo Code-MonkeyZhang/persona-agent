@@ -119,7 +119,7 @@ describe('Agent Module Integration Tests', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  /** 测试套件：Agent Store 函数（直接调用，无 HTTP） */
+  /** 测试套件：Agent Store 函数 */
   describe('Agent Store Functions', () => {
     /** 每个测试前清理 Agent 目录 */
     beforeEach(() => {
@@ -267,7 +267,7 @@ describe('Agent Module Integration Tests', () => {
     });
   });
 
-  /** 测试套件：HTTP API 路由（集成测试） */
+  /** 测试套件：HTTP API 路由 */
   describe('HTTP API - Agent Routes', () => {
     /** 每个测试前清理 Agent 目录和 Session 管理器 */
     beforeEach(() => {

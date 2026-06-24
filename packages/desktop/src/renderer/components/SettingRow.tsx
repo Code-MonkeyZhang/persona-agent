@@ -9,7 +9,7 @@ import { HelpTooltip } from './ui/HelpTooltip';
 interface SettingRowProps {
   label: string;
   desc?: string;
-  /** 描述文字的额外 className（如 font-mono truncate） */
+  /** 描述文字的额外 className */
   descClassName?: string;
   /** 可选的 tooltip 文字，提供时在标签旁显示问号提示 */
   tooltip?: string;

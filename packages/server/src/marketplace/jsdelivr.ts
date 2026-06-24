@@ -1,12 +1,12 @@
 /**
  * @fileoverview 通过 jsDelivr 文件树 API 列出某条目下的全部文件。
  *
- * 只返回已提交到 git 的文件——构建产物 / 缓存（node_modules、__pycache__ 等）只要被
+ * 只返回已提交到 git 的文件——构建产物 / 缓存只要被
  * .gitignore 排除、没进仓库，就天然不会出现在结果里。
  */
 import { listApiUrl } from './config.js';
 
-/** 不应下发到用户机器的 OS 垃圾文件（按文件名兜底，防作者误提交） */
+/** 不应下发到用户机器的 OS 垃圾文件 */
 const JUNK_NAMES = new Set(['.DS_Store', 'Thumbs.db', 'ehthumbs.db']);
 
 /** jsDelivr flat API 返回的单个文件条目 */
@@ -17,7 +17,7 @@ interface JsDelivrFileEntry {
 /**
  * 列出 remotePath 下的全部文件，返回相对 remotePath 的路径数组。
  *
- * 调一次 jsDelivr flat API（返回整个仓库的已提交文件），按前缀过滤出目标条目下的文件，
+ * 调一次 jsDelivr flat API，按前缀过滤出目标条目下的文件，
  * 规范成相对路径，并兜底剔除 OS 垃圾文件。
  *
  * @param remotePath 条目在仓库内的路径，如 'skills/skill-creator'

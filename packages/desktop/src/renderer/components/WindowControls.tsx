@@ -1,7 +1,7 @@
 /**
  * @file src/renderer/components/WindowControls.tsx
  * @description macOS 红绿灯风格的窗口控制按钮组件，提供关闭、最小化、最大化/还原功能
- * 仅在 Windows 和 Linux 上显示（macOS 使用系统原生红绿灯按钮）
+ * 仅在 Windows 和 Linux 上显示
  */
 import { useState, useEffect } from 'react';
 import { Minus, X } from 'lucide-react';
@@ -69,7 +69,7 @@ const LightButton = ({
 };
 
 /**
- * 窗口控制按钮组件（macOS 红绿灯风格）
+ * 窗口控制按钮组件
  * 仅在 Windows 和 Linux 上显示，macOS 使用系统原生红绿灯按钮
  * 不处理自身定位，由父组件控制位置
  */

@@ -1,12 +1,12 @@
 /**
- * @fileoverview 上下文压缩集成测试（独立运行，避免 pi-ai mock 污染其它测试）。
+ * @fileoverview 上下文压缩集成测试。
  *
  * Mock 策略：
- * - 文件系统：mock paths.js 到临时目录（含 getAgentMemoryDir）；
+ * - 文件系统：mock paths.js 到临时目录；
  * - LLM：mock llm-single-call.js 的 streamSingleTurn，用模块级变量控制返回/抛错。
  *
  * 覆盖：MemoryStore 往返、压缩触发/no-op/批次推进、[RAW] 兜底。
- * 运行：`bun test ./tests/compress.isolated.ts`（已在 package.json test 脚本追加）。
+ * 运行：`bun test ./tests/compress.isolated.ts`。
  */
 
 import {

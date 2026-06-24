@@ -1,6 +1,6 @@
 /**
  * Marketplace 清单条目的 schema 与类型。
- * 一份清单（skills/index.json）是一个由此条目组成的数组，前后端共用。
+ * 一份清单是一个由此条目组成的数组，前后端共用。
  */
 import { z } from 'zod';
 

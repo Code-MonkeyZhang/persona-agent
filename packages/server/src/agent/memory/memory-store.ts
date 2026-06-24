@@ -1,13 +1,13 @@
 /**
  * @fileoverview Agent 记忆存储：只追加的 history.jsonl + dream 指针。
  *
- * 存储结构（位于 `agents/{agentId}/memory/`）：
- * ├── MEMORY.md         # Dream 整理产出的长期记忆（自由 markdown）
+ * 存储结构：
+ * ├── MEMORY.md         # Dream 整理产出的长期记忆
  * ├── history.jsonl     # 每行一条压缩摘要 {cursor, timestamp, content}，只追加
  * └── .dream_cursor     # dream 已整理到的 history 行号
  *
  * 原文从不删除，压缩产出只追加；双指针分别标记原始消息压缩进度
- * （SessionMeta.summarizedUpTo）与 dream 整理进度（.dream_cursor）。
+ * 与 dream 整理进度。
  */
 
 import * as fs from 'node:fs';
@@ -17,7 +17,7 @@ import { getAgentMemoryDir } from '../../util/paths.js';
 /** history.jsonl 中一条压缩摘要记录 */
 export interface HistoryEntry {
   /**
-   * 本条摘要覆盖到的原始消息下标（压缩后的 summarizedUpTo 高水位）。
+   *     本条摘要覆盖到的原始消息下标。
    * 即该摘要总结了 messages[prev, cursor) 这一段。
    */
   cursor: number;
@@ -52,13 +52,13 @@ export class MemoryStore {
   }
 
   /**
-   * 读取 history.jsonl 中从 `fromIndex`（行号，0 基）开始的摘要记录。
+   *     读取 history.jsonl 中从 `fromIndex` 开始的摘要记录。
    *
    * 配合 `.dream_cursor` 使用：dream 已整理到第 N 条，则传 fromIndex=N，
    * 返回尚未被 dream 整理的"未处理 history"。解析失败的行静默跳过。
    *
-   * @param fromIndex - 起始行号（默认 0，即全部）
-   * @param limit - 最多返回的条数（默认不限）
+   * @param fromIndex - 起始行号
+   * @param limit - 最多返回的条数
    * @returns 从 fromIndex 开始的摘要记录数组
    */
   readHistory(fromIndex = 0, limit?: number): HistoryEntry[] {
@@ -79,9 +79,9 @@ export class MemoryStore {
   }
 
   /**
-   * 读取 `.dream_cursor`（dream 已整理到的 history 行号）。
+   * 读取 `.dream_cursor`。
    *
-   * 文件不存在或无效时返回 0（即全部 history 都尚未被 dream 整理）。
+   * 文件不存在或无效时返回 0。
    *
    * @returns dream 已整理到的 history 行号；无有效文件时返回 0
    */
@@ -94,9 +94,9 @@ export class MemoryStore {
   }
 
   /**
-   * 推进 `.dream_cursor`（dream 成功整理一批后调用）。
+   * 推进 `.dream_cursor`。
    *
-   * 在当前游标基础上累加 `count`（本批实际处理的条目数）写入。
+   * 在当前游标基础上累加 `count` 写入。
    * 即使期间有新的 history 追加进来，它们位于 `cursor + count` 之后，
    * 下次 dream 会正确从新游标读取，不漏不重。
    *
@@ -111,7 +111,7 @@ export class MemoryStore {
   }
 
   /**
-   * 读取 `MEMORY.md`（Dream 整理产出的长期记忆）。
+   *     读取 `MEMORY.md`。
    *
    * @returns MEMORY.md 去除首尾空白后的内容；文件不存在时返回空字符串。
    */
@@ -122,7 +122,7 @@ export class MemoryStore {
   }
 
   /**
-   * 覆盖写入 `MEMORY.md`（Dream 整理成功后用整份新记忆覆盖旧记忆）。
+   *     覆盖写入 `MEMORY.md`。
    *
    * 采用 tmp + rename 原子写，避免进程中途被杀导致文件损坏。
    *
@@ -136,10 +136,9 @@ export class MemoryStore {
   }
 
   /**
-   * 构建注入 system prompt 的 `# Recent History` 段（聊天 Session 专用）。
+   * 构建注入 system prompt 的 `# Recent History` 段。
    *
-   * 读取 dream_cursor 之后的未处理 history 摘要，最近的优先纳入预算
-   * （最多 {@link MAX_HISTORY_ENTRIES} 条 / {@link MAX_HISTORY_CHARS} 字符），
+   * 读取 dream_cursor 之后的未处理 history 摘要，最近的优先纳入预算，
    * 收集后再反转回时间顺序拼接返回。
    *
    * @returns 拼接好的摘要文本；无可用条目时返回空字符串。
@@ -150,7 +149,7 @@ export class MemoryStore {
 
     const selected: HistoryEntry[] = [];
     let total = 0;
-    // 从最新的开始纳入预算（最近的上下文更重要），收集后再反转回时间顺序
+    // 从最新的开始纳入预算，收集后再反转回时间顺序
     for (let i = entries.length - 1; i >= 0; i--) {
       if (selected.length >= MAX_HISTORY_ENTRIES) break;
       const text = entries[i]!.content;

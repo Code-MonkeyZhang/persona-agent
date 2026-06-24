@@ -119,7 +119,7 @@ export function convertTools(tools: Tool[]): PiAiTool[] {
 /**
  * 递归将JSON Schema转换为TypeBox Schema。
  *
- * 支持基本类型（string、number、boolean）、数组和对象。
+ * 支持基本类型、数组和对象。
  * 对于无法识别的类型，回退到Type.Any。
  *
  * @param schema - 要转换的JSON Schema对象

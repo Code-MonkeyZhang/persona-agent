@@ -2,8 +2,8 @@
  * @fileoverview Auth 模块集成测试
  *
  * 测试覆盖两个层级：
- * 1. Auth Store 函数 - 直接测试存储操作
- * 2. HTTP API 路由 - 通过 HTTP 请求测试 Express 服务器
+ * - Auth Store 函数 - 直接测试存储操作
+ * - HTTP API 路由 - 通过 HTTP 请求测试 Express 服务器
  */
 
 import {

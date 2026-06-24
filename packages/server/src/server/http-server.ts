@@ -59,7 +59,7 @@ const sessionManagers: SessionManagersMap = new Map();
 
 /**
  * 给所有Agent创建对应的SessionStore, 然后保存在SessionManagersMap映射关系。
- * 同时为每个 Agent 补建聊天 Session（旧 Agent 升级用）。
+ * 同时为每个 Agent 补建聊天 Session。
  */
 function initSessionManagers(): void {
   const agentConfigs = listAgentConfigs();

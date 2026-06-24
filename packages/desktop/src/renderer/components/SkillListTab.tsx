@@ -1,6 +1,6 @@
 /**
  * @file src/renderer/components/SkillListTab.tsx
- * @description Skills 列表标签页，展示后端已注册的技能模块名称和描述，并支持卸载（含二次确认弹窗）
+ * @description Skills 列表标签页，展示后端已注册的技能模块名称和描述，并支持卸载
  * 使用 2 列网格卡片的 Demo 视觉风格
  */
 
@@ -19,7 +19,7 @@ export const SkillListTab: React.FC = () => {
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  /** 待卸载的 Skill（非 null 时弹出确认框） */
+  /** 待卸载的 Skill */
   const [uninstallTarget, setUninstallTarget] = useState<SkillInfo | null>(
     null
   );
@@ -120,7 +120,7 @@ export const SkillListTab: React.FC = () => {
         </div>
       </ListState>
 
-      {/* 卸载二次确认弹窗（单层浮层：点空白处关闭，卸载中禁用关闭） */}
+      {/* 卸载二次确认弹窗 */}
       {uninstallTarget && (
         <div
           className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center"

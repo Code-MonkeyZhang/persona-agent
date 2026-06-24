@@ -1,7 +1,7 @@
 /**
  * @fileoverview 消息的核心类型定义。
  *
- * 主要类型已迁移至 @persona/shared，此处保留 ToolResultMessage（server 内部运行状态，不上线）。
+ * 主要类型已迁移至 @persona/shared，此处保留 ToolResultMessage。
  */
 
 export type {

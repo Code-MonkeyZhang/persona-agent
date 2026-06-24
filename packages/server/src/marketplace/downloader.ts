@@ -6,20 +6,20 @@ import { listPackageFiles } from './jsdelivr.js';
 import { folderNameOf } from './util.js';
 import type { MarketplaceEntry } from '@persona/shared';
 
-/** 并发下载上限（多文件包如自研 MCP 可加速，同时避免打满连接） */
+/** 并发下载上限 */
 const CONCURRENCY = 8;
 
 /**
  * 下载一个商城包的全部文件到本地目标目录。
  *
- * - 文件清单由 jsDelivr 文件树 API 运行时扫描得到（不再依赖清单里显式列出 files）。
- * - 并发下载（上限 CONCURRENCY），统一按二进制字节写盘（文本/图片/音频同一套逻辑）。
+ * - 文件清单由 jsDelivr 文件树 API 运行时扫描得到。
+ * - 并发下载，统一按二进制字节写盘。
  * - 路径安全：每个文件解析后必须落在 destDir 内，禁止 `..` 越界或绝对路径。
- * - 失败回滚：任一文件下载或写入失败，删掉本次已写入的内容（含目录），当作没装过。
+ * - 失败回滚：任一文件下载或写入失败，删掉本次已写入的内容，当作没装过。
  *
  * 这是一个通用下载器：skills / 将来的 MCP 代码 / Agent 资源都复用它，只传不同的 destDir。
  *
- * @param remotePath 包在仓库内的路径（如 'skills/skill-creator'）
+ * @param remotePath 包在仓库内的路径
  * @param destDir 本地目标目录的绝对路径
  * @returns destDir
  * @throws 扫描失败、路径越界、下载或写入失败时抛出
@@ -36,7 +36,7 @@ export async function downloadPackage(
   const errors: Error[] = [];
 
   // 并发跑完所有文件；单个失败只记进 errors，不打断其他在途下载，便于统一回滚。
-  // 注意：回调内必须自行 try/catch（runWithConcurrency 不再兜底）。
+  // 注意：回调内必须自行 try/catch。
   await runWithConcurrency(files, CONCURRENCY, async (relFile) => {
     try {
       const target = path.resolve(destDir, relFile);
@@ -81,10 +81,10 @@ export async function downloadPackage(
 }
 
 /**
- * 下载一个商城 Skill 到本地 skills 目录（downloadPackage 的薄封装）。
+ * 下载一个商城 Skill 到本地 skills 目录。
  *
  *
- * @param entry 清单条目（提供 path）
+ * @param entry 清单条目
  * @returns skill 文件夹的绝对路径
  */
 export async function downloadSkill(entry: MarketplaceEntry): Promise<string> {
@@ -94,7 +94,7 @@ export async function downloadSkill(entry: MarketplaceEntry): Promise<string> {
 }
 
 /**
- * 以固定并发上限跑一批异步任务（worker 池）。
+ * 以固定并发上限跑一批异步任务。
  * 回调须自行捕获异常并收集——本函数不再兜底，任意回调抛错都会让整体立刻 reject。
  */
 async function runWithConcurrency<T>(

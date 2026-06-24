@@ -36,7 +36,7 @@ interface CodeBlockProps {
 }
 
 /**
- * 代码块展示组件，包含 header bar（语言名+操作按钮）、代码体、折叠/展开逻辑。
+ * 代码块展示组件，包含 header bar、代码体、折叠/展开逻辑。
  * 超过 COLLAPSE_THRESHOLD 行时默认折叠，折叠时显示渐变遮罩和"展开全部 N 行"按钮。
  */
 export function CodeBlock({ lang, code, highlightElement }: CodeBlockProps) {

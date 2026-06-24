@@ -1,6 +1,6 @@
 /**
  * @file components/MarketplaceView.tsx
- * @description Skill 商城视图（浏览 + 安装）。单列滚动布局，卡片三态：未安装 / 安装中 / 已安装。
+ * @description Skill 商城视图。单列滚动布局，卡片三态：未安装 / 安装中 / 已安装。
  * 从 SkillsView 进入，安装后会自动把该 Skill 分配给当前 Agent。卸载不在本视图，放阶段 5 的 SkillListTab。
  */
 import React, { useEffect, useState, useCallback } from 'react';
@@ -19,7 +19,7 @@ import { logger } from '../lib/logger';
 import { BackButton } from './ui/BackButton';
 import { ListState } from './ListState';
 
-/** 取清单条目的文件夹名（= ID = path 最后一段） */
+/** 取清单条目的文件夹名 */
 function folderNameOf(entry: MarketplaceEntry): string {
   const parts = entry.path.split('/');
   return parts[parts.length - 1];
@@ -36,7 +36,7 @@ export const MarketplaceView: React.FC = () => {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  /** 正在安装的文件夹名集合（支持并发安装多个，避免单值被覆盖） */
+  /** 正在安装的文件夹名集合 */
   const [installing, setInstalling] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
@@ -66,12 +66,12 @@ export const MarketplaceView: React.FC = () => {
     if (!currentAgent) return;
     setInstalling((prev) => new Set(prev).add(folder));
     try {
-      // 1) 后端下载 + 入池
+      // - 后端下载 + 入池
       await installMarketplaceSkill(folder);
-      // 2) 前端把 skill 分配给当前 Agent（Set 去重，避免重复分配）
+      // - 前端把 skill 分配给当前 Agent
       const next = Array.from(new Set([...currentAgent.skillNames, folder]));
       await updateAgentSkillNames(currentAgent.id, next);
-      // 3) 本地标记为已安装
+      // - 本地标记为已安装
       setInstalledNames((prev) => new Set(prev).add(folder));
       toast.success(t('marketplace.installSuccess', { name: entry.name }));
     } catch (err) {
@@ -99,19 +99,19 @@ export const MarketplaceView: React.FC = () => {
   return (
     <div className="h-full w-full overflow-y-auto bg-muted">
       <div className="max-w-2xl mx-auto px-6 py-6">
-        {/* 标题 + 返回（无固定顶栏，随内容滚动） */}
+        {/* 标题 + 返回 */}
         <div className="flex items-center gap-2 mb-1">
           <BackButton onClick={() => setActiveNav('skills')} />
           <h1 className="text-[16px] font-bold text-foreground">
             {t('marketplace.title')}
           </h1>
         </div>
-        {/* 说明小字：ml-6 对齐标题下方（BackButton 是 16px 图标 + gap-2 = 24px） */}
+        {/* 说明小字：ml-6 对齐标题下方 */}
         <p className="text-[12px] text-muted-foreground mb-4 ml-6">
           {t('marketplace.subtitle')}
         </p>
 
-        {/* 搜索框（带放大镜图标） */}
+        {/* 搜索框 */}
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
           <input
@@ -122,7 +122,7 @@ export const MarketplaceView: React.FC = () => {
           />
         </div>
 
-        {/* 列表（加载/错误态交给 ListState） */}
+        {/* 列表 */}
         <ListState isLoading={isLoading} error={error} onRetry={load}>
           {filtered.length === 0 ? (
             <div className="text-muted-foreground text-[13px] py-12 text-center">

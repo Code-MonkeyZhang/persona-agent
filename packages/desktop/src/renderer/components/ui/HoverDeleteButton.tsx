@@ -1,6 +1,6 @@
 /**
  * @file src/renderer/components/ui/HoverDeleteButton.tsx
- * @description 卡片悬浮删除按钮，鼠标 hover 时显示，支持图片（深色）和标签（浅色）两种风格
+ * @description 卡片悬浮删除按钮，鼠标 hover 时显示，支持图片和标签两种风格
  */
 
 import { X } from 'lucide-react';
@@ -23,7 +23,7 @@ interface HoverDeleteButtonProps {
 
 /**
  * 卡片悬浮删除按钮，固定 w-5 h-5 rounded-full 尺寸，hover 时显示 X 图标。
- * 通过 className 控制定位（如 absolute top-1 right-1）。
+ * 通过 className 控制定位。
  */
 export function HoverDeleteButton({
   variant = 'dark',

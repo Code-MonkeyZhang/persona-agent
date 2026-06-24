@@ -20,7 +20,7 @@ import type { MarketplaceEntry } from '@persona/shared';
 let tempDir: string;
 let skillsDir: string;
 
-// 把路径模块指向临时目录，把日志静音（和 skill.test.ts 一致）
+// 把路径模块指向临时目录，把日志静音
 mock.module('../src/util/paths.js', () => ({
   getSkillsDir: () => skillsDir,
 }));
@@ -34,7 +34,7 @@ mock.module('../src/util/logger.js', () => ({
 import { isSafeSkillName, folderNameOf } from '../src/marketplace/util.js';
 import { downloadSkill } from '../src/marketplace/downloader.js';
 
-/** 造一个最小可用的清单条目（具体文件由 jsDelivr 扫描得到，条目不再带 files） */
+/** 造一个最小可用的清单条目 */
 function makeEntry(folder = 'test-skill'): MarketplaceEntry {
   return {
     name: '测试技能',
@@ -101,8 +101,8 @@ describe('downloadSkill', () => {
 
   /**
    * 造一个按 URL 分流的 fetch mock：
-   * - data.jsdelivr.com（文件树 API）→ 返回 names 指定的文件清单
-   * - cdn.jsdelivr.net（文件字节）→ 按 cdnResponses[相对文件名] 返回，默认 200 'ok'
+    * - data.jsdelivr.com → 返回 names 指定的文件清单
+    * - cdn.jsdelivr.net → 按 cdnResponses[相对文件名] 返回，默认 200 'ok'
    */
   function mockFetch(
     names: string[],
@@ -117,7 +117,7 @@ describe('downloadSkill', () => {
           headers: { 'content-type': 'application/json' },
         });
       }
-      // CDN：切出相对文件名（MARKER 之后的部分）
+      // CDN：切出相对文件名
       const idx = u.indexOf(MARKER);
       const rel = idx >= 0 ? u.slice(idx + MARKER.length) : '';
       const cfg = cdnResponses[rel] ?? { body: 'ok' };

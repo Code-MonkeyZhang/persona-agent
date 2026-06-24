@@ -59,7 +59,7 @@ app.whenReady().then(async () => {
 
   electronApp.setAppUserModelId('com.persona.desktop');
 
-  // 监听窗口创建事件，自动优化窗口快捷键（如 DevTools、F5 刷新等）
+  // 监听窗口创建事件，自动优化窗口快捷键
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window);
   });
@@ -88,7 +88,7 @@ app.whenReady().then(async () => {
     }
   );
 
-  // IPC：窗口控制操作（最小化、最大化、关闭、查询状态）
+  // IPC：窗口控制操作
   ipcMain.handle(IPC.WINDOW_MINIMIZE, () =>
     BrowserWindow.getFocusedWindow()?.minimize()
   );
@@ -106,7 +106,7 @@ app.whenReady().then(async () => {
     () => BrowserWindow.getFocusedWindow()?.isMaximized() ?? false
   );
 
-  // IPC：将渲染进程日志转发到主进程日志（仅开发环境生效）
+  // IPC：将渲染进程日志转发到主进程日志
   ipcMain.handle(IPC.LOG, (_event, level: string, ...args: unknown[]) => {
     if (is.dev) {
       const logFn = log[level as keyof typeof log];
@@ -296,7 +296,7 @@ function createWindow(): void {
   });
 
   // 根据环境决定加载页面
-  // 开发环境加载 dev server URL（支持热更新），生产环境加载打包后的静态文件
+  // 开发环境加载 dev server URL，生产环境加载打包后的静态文件
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
   } else {

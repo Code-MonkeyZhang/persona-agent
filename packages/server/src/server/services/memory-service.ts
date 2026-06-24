@@ -1,5 +1,5 @@
 /**
- * @fileoverview 记忆沉淀服务（Dream）：定期把 history 摘要整理进 MEMORY.md。
+ * @fileoverview 记忆沉淀服务：定期把 history 摘要整理进 MEMORY.md。
  */
 
 import { Logger } from '../../util/logger.js';
@@ -11,21 +11,21 @@ import type { AgentConfig } from '../../agent/types.js';
 
 /** 每批整理的最大 history 条目数 */
 const DREAM_BATCH_SIZE = 20;
-/** compress 阶段打的属性标签；整理后从记忆正文剥离（prompt 已要求无标签，此处为防御性兜底） */
+/** compress 阶段打的属性标签；整理后从记忆正文剥离 */
 const MEMORY_TAGS = /\[(permanent|durable|ephemeral|correction|skip|RAW)\]\s?/g;
 
 /** 防并发重入：正在整理的 agentId 集合 */
 const inflight = new Set<string>();
 
 /**
- * 整理一批 history 摘要进 MEMORY.md（Dream 核心，fire-and-forget 调用）。
+ * 整理一批 history 摘要进 MEMORY.md。
  *
  * 读取 `dream_cursor` 之后最多 {@link DREAM_BATCH_SIZE} 条未处理摘要 + 当前
- * MEMORY.md，交给大模型归纳/合并/去重/修正，输出干净 markdown（无属性标签）
+ * MEMORY.md，交给大模型归纳/合并/去重/修正，输出干净 markdown
  * 覆盖写回 MEMORY.md。**仅整轮成功才推进 dream_cursor**——失败不推进，下次
  * 原样重跑同一批，幂等不漏不重。模型用 Agent 的 defaultModel。
  *
- * @param agentConfig - Agent 配置（取 id 定位 memory 目录，取 defaultModel 调用 LLM）
+ * @param agentConfig - Agent 配置
  */
 export async function consolidateMemory(
   agentConfig: AgentConfig

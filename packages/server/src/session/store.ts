@@ -136,7 +136,7 @@ export class SessionStore {
 
     const stat = fs.statSync(filePath);
     // 文件名是会话 id 的权威来源。历史迁移可能留下 meta.id 与文件名不一致的残留，
-    // 统一以传入的 id（即文件名）为准，避免"列出时读到的 id"与"按 id 找文件"对不上。
+    // 统一以传入的 id 为准，避免"列出时读到的 id"与"按 id 找文件"对不上。
     return { ...meta, id, updatedAt: stat.mtimeMs, messages };
   }
 
@@ -171,7 +171,7 @@ export class SessionStore {
 
       const meta = parsed.data as SessionMeta;
       const stat = fs.statSync(filePath);
-      // 以文件名为 id 权威来源（见 loadSession 同名注释），meta.id 可能是历史残留。
+      // 以文件名为 id 权威来源，meta.id 可能是历史残留。
       results.push({
         ...meta,
         id: file.replace(/\.jsonl$/, ''),

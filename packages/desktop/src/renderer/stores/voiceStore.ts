@@ -26,7 +26,7 @@ interface VoiceStore {
    * @param voiceId - 音色 ID
    * @param apiKey - MiniMax API Key
    * @param model - TTS 模型 ID
-   * @param languageBoost - 语言增强参数（可选）
+   * @param languageBoost - 语言增强参数
    */
   speak: (
     speakText: string,

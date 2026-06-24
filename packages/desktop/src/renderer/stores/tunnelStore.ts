@@ -1,6 +1,6 @@
 /**
  * @file src/renderer/stores/tunnelStore.ts
- * @description 隧道（tunnel）状态管理，控制隧道的启动/停止/状态轮询
+ * @description 隧道状态管理，控制隧道的启动/停止/状态轮询
  */
 import { create } from 'zustand';
 import { startTunnel, stopTunnel, getTunnelStatus } from '../lib/api';

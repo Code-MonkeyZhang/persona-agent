@@ -37,7 +37,7 @@ function readLegacySummaryThreshold(): number | undefined {
 
 /**
  * Load TTS config from minimax-tts.json. Returns defaults for missing fields.
- * 若 json 中无 summaryThreshold，自动从旧版 config.yaml 迁移并持久化（一次性、幂等）。
+ * 若 json 中无 summaryThreshold，自动从旧版 config.yaml 迁移并持久化。
  */
 export function loadTtsConfig(): TtsConfig {
   const configPath = getTtsConfigPath();

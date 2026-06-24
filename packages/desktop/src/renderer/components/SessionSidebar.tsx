@@ -1,8 +1,8 @@
 /**
  * @file components/SessionSidebar.tsx
  * @description 会话列表侧边栏，展示当前 Agent 的常驻聊天入口、任务会话列表及底部资源入口。
- * 信息架构（自上而下）：Header（Agent 编辑入口）→ 聊天入口 → 分隔线 → 「会话」折叠头 →
- * 平铺会话列表 → 底部资源入口（工具/技能）。
+ * 信息架构：Header → 聊天入口 → 分隔线 → 「会话」折叠头 →
+ * 平铺会话列表 → 底部资源入口。
  * 折叠状态由 viewStore 管理，开关位于 TitleBar。
  * 整体收起/展开使用 framer-motion AnimatePresence 做宽度过渡动画。
  */
@@ -131,7 +131,7 @@ export const SessionSidebar: React.FC = () => {
         >
           {/* 内部固定 216px，防止动画过程中内容被挤压 */}
           <div className="w-[216px] h-full bg-background border-r border-border flex flex-col">
-            {/* ① Header：Agent 信息块，整块可点击进入编辑 */}
+            {/* - Header：Agent 信息块，整块可点击进入编辑 */}
             <div className="h-14 px-4 border-b border-border flex items-center shrink-0">
               <button
                 onClick={() => currentAgent && openAgentEditor(currentAgent.id)}
@@ -156,9 +156,9 @@ export const SessionSidebar: React.FC = () => {
               </button>
             </div>
 
-            {/* ② 上半固定区：聊天入口 + 分隔线 + 「会话」折叠头 */}
+            {/* - 上半固定区：聊天入口 + 分隔线 + 「会话」折叠头 */}
             <div className="px-2 shrink-0">
-              {/* 聊天（常驻陪伴）入口，钉顶单独渲染 */}
+              {/* 聊天入口，钉顶单独渲染 */}
               {chatSession && (
                 <div className="pt-2">
                   <button
@@ -211,7 +211,7 @@ export const SessionSidebar: React.FC = () => {
               </div>
             </div>
 
-            {/* ③ 下半区：会话列表（可滚动 + 折叠动画）+ 底部资源入口（钉底） */}
+            {/* - 下半区：会话列表 + 底部资源入口 */}
             <div className="flex-1 min-h-0 flex flex-col">
               {/* 普通会话列表，平铺无分组，折叠时 flex-grow 0→1 动画 */}
               <div

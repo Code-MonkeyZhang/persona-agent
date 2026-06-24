@@ -288,7 +288,7 @@ interface AgentEditorProps {
 }
 
 /**
- * Agent 编辑全页面组件，以独立页面形式展示（与 SettingsPage 同级），支持创建新 Agent 或编辑已有 Agent
+ * Agent 编辑全页面组件，以独立页面形式展示，支持创建新 Agent 或编辑已有 Agent
  * @param props.editingAgentId - 正在编辑的 Agent ID，为 null 时进入新建模式
  * @param props.onDelete - 删除 Agent 回调
  */
@@ -560,7 +560,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
       }
 
       /**
-       * 并行执行所有待处理的形象资源操作（立绘上传/删除/重命名、背景图上传/删除）。
+       * 并行执行所有待处理的形象资源操作。
        * 各操作独立互不依赖，用 Promise.all 并行发出以提高保存速度。
        */
       if (savedId) {
@@ -606,7 +606,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     }
   };
 
-  /** 删除当前编辑的 Agent 并返回聊天页面（带二次确认） */
+  /** 删除当前编辑的 Agent 并返回聊天页面 */
   const handleDelete = () => {
     if (editingAgentId && onDelete) {
       if (!confirm(t('agentEditor.confirmDelete'))) return;

@@ -1,7 +1,7 @@
 /**
  * @file src/renderer/components/AgentSidebar.tsx
  * @description 左侧 Agent 列表侧边栏，展示所有 Agent 头像、添加按钮、服务管理和设置入口。
- * 选中态使用 framer-motion 共享布局动画（layoutId），切换 Agent 时白色卡片和蓝色竖条弹性滑动。
+ * 选中态使用 framer-motion 共享布局动画，切换 Agent 时白色卡片和蓝色竖条弹性滑动。
  */
 import React, { useState } from 'react';
 import { Settings, Plus, Loader2, Bot } from 'lucide-react';

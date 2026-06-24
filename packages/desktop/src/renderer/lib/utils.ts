@@ -16,7 +16,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * 将文件读取为 Data URL（base64）字符串
+ * 将文件读取为 Data URL 字符串
  * @param file - 待读取的文件
  * @returns base64 编码的 Data URL
  */

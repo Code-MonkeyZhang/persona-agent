@@ -116,7 +116,7 @@ ${skill.content}`;
 /**
  * 从AgentConfig和Session创建Agent运行时配置。
  *
- * @param agentConfig - 静态Agent配置（名称、提示、最大步数等）
+ * @param agentConfig - 静态Agent配置
  * @param session - 包含模型配置和工作区路径的Session
  * @param workspaceDir - 文件操作的目录路径
  * @returns 完整的AgentRunConfig，可用于实例化AgentCore

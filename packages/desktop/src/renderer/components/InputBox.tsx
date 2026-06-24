@@ -3,7 +3,7 @@
  * @description 聊天输入框组件 - 负责用户消息的输入、编辑和发送
  *
  * 包含以下功能：
- * - 多行文本输入，自动根据内容调整高度（最大 200px）
+ * - 多行文本输入，自动根据内容调整高度
  * - 按 Enter 发送消息，Shift+Enter 换行
  * - 底部工具栏：添加附件按钮、工作目录选择器、模型选择器、发送按钮
  * - 聚焦/失焦时切换输入框边框样式
@@ -103,7 +103,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
         <div className="flex items-center justify-between px-2 pb-2 pt-1">
           {/* 左侧工具按钮组 */}
           <div className="flex items-center gap-1">
-            {/* 添加附件按钮（当前为占位，暂无实际功能） */}
+            {/* 添加附件按钮 */}
             <button
               className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50 transition-colors duration-150"
               title={t('inputBox.addAttachment')}

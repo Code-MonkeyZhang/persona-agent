@@ -38,7 +38,7 @@ function getAvatarPath(agentId: string): string {
  * 创建 Agent 头像路由。
  *
  * 挂载到 `/api/agents/:agentId/avatar` 路径下，
- * 提供 GET（获取头像图片）和 POST（上传头像图片）两个接口。
+ * 提供 GET 和 POST 两个接口。
  *
  * @returns 配置好 GET/POST 路由的 Express Router
  */
@@ -73,7 +73,7 @@ export function createAvatarRouter(): Router {
   /**
    * POST / — 上传 Agent 头像图片。
    *
-   * 接收 multipart/form-data 中的图片文件（5MB 上限），
+   * 接收 multipart/form-data 中的图片文件，
    * 用 jimp 裁剪缩放为 256x256 PNG 后写入 assets/avatar.png。
    *
    * @returns JSON: `{ success: true }`

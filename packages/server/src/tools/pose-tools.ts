@@ -77,7 +77,7 @@ class PoseStateManager {
    * 获取指定 Agent 所有可用的表情名称列表。
    *
    * @param agentId - Agent 唯一标识
-   * @returns 表情名称数组（不含文件扩展名），目录不存在时返回空数组
+   * @returns 表情名称数组，目录不存在时返回空数组
    */
   getAvailablePoses(agentId: string): string[] {
     const poseDir = getAgentAssetsPoseDir(agentId);

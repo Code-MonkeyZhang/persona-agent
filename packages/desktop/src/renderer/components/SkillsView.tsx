@@ -1,6 +1,6 @@
 /**
  * @file components/SkillsView.tsx
- * @description Agent 技能视图（Skill 分配），独立于 AgentEditor，采用草稿+保存模式。
+ * @description Agent 技能视图，独立于 AgentEditor，采用草稿+保存模式。
  * 从 currentAgent.skillNames 初始化草稿，保存后调 updateAgentSkillNames 写入后端。
  * 两段式布局：上半「已分配」+ 下半「技能库」，放弃下拉菜单。
  */
@@ -59,7 +59,7 @@ export const SkillsView: React.FC = () => {
     }
   };
 
-  /** 根据 ID 查找技能信息（从已加载列表中解析） */
+  /** 根据 ID 查找技能信息 */
   const resolveSkill = (name: string): SkillInfo | undefined =>
     skills.find((s) => s.name === name);
 
@@ -136,7 +136,7 @@ export const SkillsView: React.FC = () => {
               )}
             </CollapsibleSection>
 
-            {/* 技能库（未分配） */}
+            {/* 技能库 */}
             <CollapsibleSection
               title={t('skills.library')}
               count={librarySkills.length}

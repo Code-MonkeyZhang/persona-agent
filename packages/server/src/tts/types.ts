@@ -8,7 +8,7 @@ import type { ClonedVoice, TtsModel, VoiceOption } from '@persona/shared';
 export type { TtsModel, ClonedVoice, VoiceOption } from '@persona/shared';
 
 /**
- * TTS 配置（minimax-tts.json），存储与线上传输共用同一形状。
+ * TTS 配置，存储与线上传输共用同一形状。
  * summaryThreshold 原存于 config.yaml，现已搬迁至此。
  */
 export interface TtsConfig {

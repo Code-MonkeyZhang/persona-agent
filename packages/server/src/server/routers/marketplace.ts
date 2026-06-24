@@ -2,9 +2,9 @@
  * @fileoverview Marketplace 路由 —— 从 GitHub 仓库读清单、下载安装、卸载。
  *
  * Routes:
- * - GET    /api/marketplace/skills              - 拉取 Skill 清单（浏览）
- * - POST   /api/marketplace/skills/:name/install - 下载安装（重名 409 / 找不到 404 / 坏文件 500）
- * - DELETE /api/marketplace/skills/:name         - 卸载（删文件夹）
+ * - GET    /api/marketplace/skills              - 拉取 Skill 清单
+ * - POST   /api/marketplace/skills/:name/install - 下载安装
+ * - DELETE /api/marketplace/skills/:name         - 卸载
  */
 
 import * as fs from 'node:fs';
@@ -22,7 +22,7 @@ import { Logger } from '../../util/logger.js';
 export function createMarketplaceRouter(): Router {
   const router = Router();
 
-  /** GET /api/marketplace/skills - 拉取 Skill 清单（后端代理，绕开前端 CORS） */
+  /** GET /api/marketplace/skills - 拉取 Skill 清单 */
   router.get(
     '/skills',
     asyncHandler(
@@ -38,7 +38,7 @@ export function createMarketplaceRouter(): Router {
   /**
    * POST /api/marketplace/skills/:name/install
    * 后端只管"下载到全局 skills 目录"，不关心分配给哪个 Agent；
-   * 分配由前端装成功后调 updateAgentSkillNames 自己做（见阶段 4）。
+   * 分配由前端装成功后调 updateAgentSkillNames 自己做。
    *
    * 状态码：400 名字非法 / 409 已装过 / 404 清单无此条目 / 500 下载失败或 SKILL.md 无法解析。
    */
@@ -50,7 +50,7 @@ export function createMarketplaceRouter(): Router {
         return;
       }
 
-      // 重名拒绝：hasSkill 按名懒加载，能发现已存在的（含手建的）
+      // 重名拒绝：hasSkill 按名懒加载，能发现已存在的
       if (hasSkill(name)) {
         res.status(409).json({
           error: `Skill "${name}" already installed, please uninstall first`,
@@ -68,11 +68,11 @@ export function createMarketplaceRouter(): Router {
         return;
       }
 
-      // 下载（含路径安全 + 下载失败回滚）
+      // 下载
       const skillDir = await downloadSkill(entry);
 
       // 入池：listSkills 不扫目录，必须主动按名加载一次，否则商城"已安装"状态对不上。
-      // 若 getSkill 返回 undefined，说明下载下来的 SKILL.md 无法解析（作者写错）——回滚并报错。
+      // 若 getSkill 返回 undefined，说明下载下来的 SKILL.md 无法解析——回滚并报错。
       const loaded = getSkill(name);
       if (!loaded) {
         fs.rmSync(skillDir, { recursive: true });
@@ -92,7 +92,7 @@ export function createMarketplaceRouter(): Router {
 
   /**
    * DELETE /api/marketplace/skills/:name
-   * 删除本地 skill 文件夹；池子在下次访问时自动移除该条目（pool.ts 的 stat 失败 catch 分支）。
+   * 删除本地 skill 文件夹；池子在下次访问时自动移除该条目。
    */
   router.delete('/skills/:name', async (req: Request, res: Response) => {
     try {
