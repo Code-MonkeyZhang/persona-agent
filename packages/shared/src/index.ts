@@ -30,3 +30,7 @@ export type { ProviderStatus } from './provider.js';
 export type { McpServerStatus, McpServerInfo, McpOAuthStatus } from './mcp.js';
 export type { SkillInfo } from './skill.js';
 export type { TtsModel, ClonedVoice, VoiceOption, TtsConfig } from './tts.js';
+export {
+  MarketplaceEntrySchema,
+  type MarketplaceEntry,
+} from './marketplace.js';

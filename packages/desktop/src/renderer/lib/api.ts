@@ -19,6 +19,7 @@ import type {
   McpOAuthStatus,
   ProviderStatus,
   SkillInfo,
+  MarketplaceEntry,
   ClonedVoice,
   TtsConfig,
   TtsModel,
@@ -75,6 +76,7 @@ export type {
   McpOAuthStatus,
   ProviderStatus,
   SkillInfo,
+  MarketplaceEntry,
   ClonedVoice,
   TtsConfig,
   TtsModel,
@@ -87,6 +89,10 @@ interface ListMcpsResponse {
 
 interface ListSkillsResponse {
   skills: SkillInfo[];
+}
+
+interface ListMarketplaceSkillsResponse {
+  skills: MarketplaceEntry[];
 }
 
 interface ListProvidersResponse {
@@ -682,6 +688,65 @@ export async function listSkills(): Promise<SkillInfo[]> {
 
   const data: ListSkillsResponse = await response.json();
   return data.skills;
+}
+
+/**
+ * 拉取商城 Skill 清单（后端代理 GitHub raw）。
+ * @returns 商城条目数组
+ */
+export async function listMarketplaceSkills(): Promise<MarketplaceEntry[]> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/marketplace/skills`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to list marketplace skills: ${response.status}`
+    );
+  }
+  const data: ListMarketplaceSkillsResponse = await response.json();
+  return data.skills;
+}
+
+/**
+ * 安装一个商城 Skill（后端下载到本地 skills 目录并入池）。
+ * @param name - Skill 文件夹名（= frontmatter name = ID）
+ */
+export async function installMarketplaceSkill(name: string): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/marketplace/skills/${encodeURIComponent(name)}/install`,
+    { method: 'POST' }
+  );
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to install skill: ${response.status}`
+    );
+  }
+}
+
+/**
+ * 卸载一个本地 Skill（删文件夹）。阶段 5 用。
+ * @param name - Skill 文件夹名
+ */
+export async function uninstallSkill(name: string): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/marketplace/skills/${encodeURIComponent(name)}`,
+    { method: 'DELETE' }
+  );
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to uninstall skill: ${response.status}`
+    );
+  }
 }
 
 /**

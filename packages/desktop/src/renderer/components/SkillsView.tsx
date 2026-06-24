@@ -5,7 +5,7 @@
  * 两段式布局：上半「已分配」+ 下半「技能库」，放弃下拉菜单。
  */
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Sparkles } from 'lucide-react';
+import { Plus, X, Sparkles, Store } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { listSkills, type SkillInfo } from '../lib/api';
 import { useAgentStore } from '../stores/agentStore';
@@ -72,6 +72,13 @@ export const SkillsView: React.FC = () => {
           {t('skills.viewTitle')}
         </h1>
         <div className="flex-1" />
+        <button
+          onClick={() => setActiveNav('marketplace')}
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-blue-200 text-blue-600 bg-background hover:bg-blue-50 transition-colors text-[13px]"
+        >
+          <Store className="w-4 h-4" />
+          {t('marketplace.entry')}
+        </button>
         <button
           onClick={handleSave}
           disabled={isSaving}
