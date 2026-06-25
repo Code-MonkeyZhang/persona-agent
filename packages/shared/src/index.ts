@@ -33,4 +33,6 @@ export type { TtsModel, ClonedVoice, VoiceOption, TtsConfig } from './tts.js';
 export {
   MarketplaceEntrySchema,
   type MarketplaceEntry,
+  McpMarketplaceEntrySchema,
+  type McpMarketplaceEntry,
 } from './marketplace.js';

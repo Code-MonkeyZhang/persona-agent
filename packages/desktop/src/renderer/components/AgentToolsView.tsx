@@ -5,7 +5,7 @@
  * 两段式布局：上半「已分配」+ 下半「可用 MCP」，放弃下拉菜单。
  */
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Wrench } from 'lucide-react';
+import { Plus, X, Wrench, Store } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { listMcpServers, type McpServerInfo } from '../lib/api';
 import { useAgentStore } from '../stores/agentStore';
@@ -82,6 +82,13 @@ export const AgentToolsView: React.FC = () => {
           {t('tools.title')}
         </h1>
         <div className="flex-1" />
+        <button
+          onClick={() => setActiveNav('mcp-marketplace')}
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-blue-200 text-blue-600 bg-background hover:bg-blue-50 transition-colors text-[13px]"
+        >
+          <Store className="w-4 h-4" />
+          {t('mcpMarketplace.browse')}
+        </button>
         <button
           onClick={handleSave}
           disabled={isSaving}

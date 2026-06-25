@@ -20,6 +20,7 @@ import type {
   ProviderStatus,
   SkillInfo,
   MarketplaceEntry,
+  McpMarketplaceEntry,
   ClonedVoice,
   TtsConfig,
   TtsModel,
@@ -77,6 +78,7 @@ export type {
   ProviderStatus,
   SkillInfo,
   MarketplaceEntry,
+  McpMarketplaceEntry,
   ClonedVoice,
   TtsConfig,
   TtsModel,
@@ -93,6 +95,22 @@ interface ListSkillsResponse {
 
 interface ListMarketplaceSkillsResponse {
   skills: MarketplaceEntry[];
+}
+
+/** GET /mcps 每条多了 logoUrl（后端拼的 CDN 地址） */
+export interface McpMarketplaceItem extends McpMarketplaceEntry {
+  logoUrl: string;
+}
+
+interface ListMarketplaceMcpsResponse {
+  mcps: McpMarketplaceItem[];
+}
+
+/** install 端点的返回（多了连接状态） */
+interface InstallMcpResponse {
+  success: boolean;
+  name: string;
+  status: string;
 }
 
 interface ListProvidersResponse {
@@ -745,6 +763,68 @@ export async function uninstallSkill(name: string): Promise<void> {
     throw new Error(
       (data as { error?: string }).error ||
         `Failed to uninstall skill: ${response.status}`
+    );
+  }
+}
+
+/**
+ * 拉取 MCP 商城清单。
+ * @returns 商城条目数组（每条含 logoUrl）
+ */
+export async function listMarketplaceMcps(): Promise<McpMarketplaceItem[]> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/marketplace/mcps`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to list marketplace MCPs: ${response.status}`
+    );
+  }
+  const data: ListMarketplaceMcpsResponse = await response.json();
+  return data.mcps;
+}
+
+/**
+ * 安装一个商城 MCP（一键安装，无表单）。
+ * @param name MCP 文件夹名
+ */
+export async function installMarketplaceMcp(
+  name: string
+): Promise<InstallMcpResponse> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/marketplace/mcps/${encodeURIComponent(name)}/install`,
+    { method: 'POST' }
+  );
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to install MCP: ${response.status}`
+    );
+  }
+  return response.json();
+}
+
+/**
+ * 卸载一个 MCP。
+ * @param name MCP 文件夹名
+ */
+export async function uninstallMcp(name: string): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/marketplace/mcps/${encodeURIComponent(name)}`,
+    { method: 'DELETE' }
+  );
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to uninstall MCP: ${response.status}`
     );
   }
 }

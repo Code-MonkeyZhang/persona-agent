@@ -28,6 +28,9 @@ mock.module('../src/util/paths.js', () => ({
 mock.module('../src/util/logger.js', () => ({
   Logger: {
     log: () => {},
+    initialize: () => '',
+    setEnabled: () => {},
+    setSessionManagers: () => {},
   },
 }));
 
@@ -80,8 +83,10 @@ describe('folderNameOf', () => {
 
 describe('downloadSkill', () => {
   const realFetch = globalThis.fetch;
-  /** CDN URL 里 skill 文件夹的标记，用于切出相对文件名 */
+  /** 下载 URL 里 skill 文件夹的标记，用于切出相对文件名 */
   const MARKER = '/skills/test-skill/';
+  /** Trees API 响应里的路径前缀（无前导斜杠） */
+  const TREE_PREFIX = 'skills/test-skill';
 
   beforeAll(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'marketplace-test-'));
@@ -101,8 +106,8 @@ describe('downloadSkill', () => {
 
   /**
    * 造一个按 URL 分流的 fetch mock：
-    * - data.jsdelivr.com → 返回 names 指定的文件清单
-    * - cdn.jsdelivr.net → 按 cdnResponses[相对文件名] 返回，默认 200 'ok'
+   * - api.github.com → 返回 names 指定的文件清单（GitHub Trees API 格式）
+   * - raw.githubusercontent.com → 按 cdnResponses[相对文件名] 返回，默认 200 'ok'
    */
   function mockFetch(
     names: string[],
@@ -110,14 +115,17 @@ describe('downloadSkill', () => {
   ) {
     globalThis.fetch = mock(async (url: string | URL | Request) => {
       const u = url.toString();
-      if (u.includes('data.jsdelivr.com')) {
-        const files = names.map((n) => ({ name: `${MARKER}${n}` }));
-        return new Response(JSON.stringify({ files }), {
+      if (u.includes('api.github.com')) {
+        const tree = names.map((n) => ({
+          path: `${TREE_PREFIX}/${n}`,
+          type: 'blob',
+        }));
+        return new Response(JSON.stringify({ tree, truncated: false }), {
           status: 200,
           headers: { 'content-type': 'application/json' },
         });
       }
-      // CDN：切出相对文件名
+      // CDN 下载：切出相对文件名
       const idx = u.indexOf(MARKER);
       const rel = idx >= 0 ? u.slice(idx + MARKER.length) : '';
       const cfg = cdnResponses[rel] ?? { body: 'ok' };
@@ -139,12 +147,17 @@ describe('downloadSkill', () => {
   });
 
   it('rejects path traversal and leaves nothing outside the skill folder', async () => {
-    // jsDelivr 列表返回一个越界的相对路径，下载器必须拒绝
+    // Trees API 返回一个越界的相对路径，下载器必须拒绝
     globalThis.fetch = mock(async (url: string | URL | Request) => {
       const u = url.toString();
-      if (u.includes('data.jsdelivr.com')) {
+      if (u.includes('api.github.com')) {
         return new Response(
-          JSON.stringify({ files: [{ name: `${MARKER}../../evil.txt` }] }),
+          JSON.stringify({
+            tree: [
+              { path: `${TREE_PREFIX}/../../evil.txt`, type: 'blob' },
+            ],
+            truncated: false,
+          }),
           { status: 200, headers: { 'content-type': 'application/json' } }
         );
       }

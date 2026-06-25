@@ -1,10 +1,10 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { getSkillsDir } from '../util/paths.js';
+import { getSkillsDir, getMcpServersDir } from '../util/paths.js';
 import { cdnUrl } from './config.js';
-import { listPackageFiles } from './jsdelivr.js';
+import { listPackageFiles } from './repo-tree.js';
 import { folderNameOf } from './util.js';
-import type { MarketplaceEntry } from '@persona/shared';
+import type { MarketplaceEntry, McpMarketplaceEntry } from '@persona/shared';
 
 /** 并发下载上限 */
 const CONCURRENCY = 8;
@@ -31,6 +31,13 @@ export async function downloadPackage(
   fs.mkdirSync(destDir, { recursive: true });
 
   const files = await listPackageFiles(remotePath);
+
+  if (files.length === 0) {
+    fs.rmSync(destDir, { recursive: true, force: true });
+    throw new Error(
+      `未找到 ${remotePath} 下的文件，商城数据可能正在同步中，请稍后再试`
+    );
+  }
 
   const written: string[] = [];
   const errors: Error[] = [];
@@ -91,6 +98,19 @@ export async function downloadSkill(entry: MarketplaceEntry): Promise<string> {
   const skillsDir = getSkillsDir();
   const folderName = folderNameOf(entry);
   return downloadPackage(entry.path, path.join(skillsDir, folderName));
+}
+
+/**
+ * 下载一个商城 MCP 到本地 mcp/servers 目录（downloadPackage 的薄封装）。
+ *
+ * @param entry MCP 清单条目（提供 path）
+ * @returns MCP 文件夹的绝对路径
+ * @throws 扫描失败、路径越界、下载或写入失败时抛出
+ */
+export async function downloadMcp(entry: McpMarketplaceEntry): Promise<string> {
+  const serversDir = getMcpServersDir();
+  const folderName = folderNameOf(entry);
+  return downloadPackage(entry.path, path.join(serversDir, folderName));
 }
 
 /**

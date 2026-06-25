@@ -26,6 +26,7 @@ import { AgentEditor } from './components/AgentEditor';
 import { AgentToolsView } from './components/AgentToolsView';
 import { SkillsView } from './components/SkillsView';
 import { MarketplaceView } from './components/MarketplaceView';
+import { McpMarketplaceView } from './components/McpMarketplaceView';
 import { CompanionPanel } from './components/CompanionPanel';
 import { ToastContainer } from './components/Toast';
 import { WebSocketProvider } from './components/WebSocketProvider';
@@ -273,6 +274,7 @@ function AppContent() {
                 {activeNav === 'tools' && <AgentToolsView />}
                 {activeNav === 'skills' && <SkillsView />}
                 {activeNav === 'marketplace' && <MarketplaceView />}
+                {activeNav === 'mcp-marketplace' && <McpMarketplaceView />}
               </div>
             </>
           )}
