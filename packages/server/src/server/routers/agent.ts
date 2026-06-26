@@ -26,6 +26,21 @@ import { asyncHandler, getParam, requireParam } from './utils.js';
 
 export type SessionManagersMap = Map<string, SessionManager>;
 
+/**
+ * 为新 Agent 注册 SessionManager 并创建初始聊天 Session。
+ * @param agentId Agent ID
+ * @param sessionManagers 全局 SessionManager 映射
+ */
+export function registerSessionManager(
+  agentId: string,
+  sessionManagers: SessionManagersMap
+): void {
+  const sessionStore = new SessionStore(agentId);
+  const sessionManager = new SessionManager(sessionStore, agentId);
+  sessionManagers.set(agentId, sessionManager);
+  sessionManager.createChatSession();
+}
+
 export function createAgentRouter(
   sessionManagers?: SessionManagersMap
 ): Router {
@@ -71,12 +86,7 @@ export function createAgentRouter(
 
       // register new agent in SessionManager map
       if (sessionManagers) {
-        const sessionStore = new SessionStore(agent.id);
-        const sessionManager = new SessionManager(sessionStore, agent.id);
-        sessionManagers.set(agent.id, sessionManager);
-
-        // 自动创建聊天 Session
-        sessionManager.createChatSession();
+        registerSessionManager(agent.id, sessionManagers);
       }
 
       Logger.log('AGENT', `Created agent: ${agent.id}`);

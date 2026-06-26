@@ -25,6 +25,11 @@ export function mcpManifestUrl(): string {
   return cdnUrl('mcp', 'index.json');
 }
 
+/** Agent 清单的 GitHub raw 地址 */
+export function agentManifestUrl(): string {
+  return cdnUrl('agents', 'index.json');
+}
+
 export function listApiUrl(): string {
   return LIST_API;
 }

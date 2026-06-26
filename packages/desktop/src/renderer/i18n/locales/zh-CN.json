@@ -177,6 +177,15 @@
   "mcpMarketplace.uninstallSuccess": "{{name}} 已卸载",
   "mcpMarketplace.uninstallFailed": "卸载失败",
 
+  "agentMarketplace.title": "Agent 商城",
+  "agentMarketplace.desc": "浏览和安装精选 Agent",
+  "agentMarketplace.homepage": "主页",
+  "agentMarketplace.install": "安装",
+  "agentMarketplace.installing": "安装中…",
+  "agentMarketplace.installed": "已安装",
+  "agentMarketplace.installSuccess": "{{name}} 安装成功",
+  "agentMarketplace.loadFailed": "加载商城失败",
+
   "tools.title": "工具",
   "tools.assignedTo": "已分配给 {{name}}",
   "tools.available": "可用 MCP",

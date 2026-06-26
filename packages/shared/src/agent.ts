@@ -28,6 +28,12 @@ export const AgentConfigSchema = z.object({
   dreamIntervalMinutes: z.number().int().min(1).default(120),
   voiceId: z.string().optional(),
   voiceLanguage: z.string().optional(),
+  /**
+   * 商城来源标识, 格式 `owner/repo/template-folder`, 如 `Code-MonkeyZhang/persona-agent-marketplace/arona`。
+   * 仅从商城安装时写入，手动创建的 Agent 没有此字段。
+   * 用于商城卡片"已安装"判定和重复安装拦截。
+   */
+  marketplaceSource: z.string().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });

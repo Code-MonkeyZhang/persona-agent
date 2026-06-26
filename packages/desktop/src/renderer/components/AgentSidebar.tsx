@@ -4,7 +4,13 @@
  * 选中态使用 framer-motion 共享布局动画，切换 Agent 时白色卡片和蓝色竖条弹性滑动。
  */
 import React, { useState } from 'react';
-import { Settings, Plus, Loader2, Bot } from 'lucide-react';
+import {
+  Settings,
+  Plus,
+  Loader2,
+  Compass,
+  MonitorSmartphone,
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { useAgentStore } from '../stores/agentStore';
@@ -35,9 +41,9 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = ({
   const { currentView, setView, openAgentEditor } = useViewStore();
   const [serverModalOpen, setServerModalOpen] = useState(false);
 
-  /** 点击 Agent 头像切换到对应 Agent，如果在设置视图则同时切回聊天 */
+  /** 点击 Agent 头像切换到对应 Agent，如果在非聊天视图则同时切回聊天 */
   const handleAgentClick = async (id: string) => {
-    if (currentView === 'settings') {
+    if (currentView !== 'chat') {
       setView('chat');
     }
     await switchAgent(id);
@@ -102,21 +108,29 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = ({
 
       <div className="border-t border-border p-2 flex flex-col gap-1">
         <button
+          onClick={() => setView('agent-marketplace')}
+          className={cn(
+            'w-full flex flex-col items-center py-2 rounded transition-colors',
+            currentView === 'agent-marketplace'
+              ? 'bg-background shadow-inner'
+              : 'text-muted-foreground hover:bg-muted'
+          )}
+        >
+          <Compass className="w-5 h-5" />
+        </button>
+        <button
           onClick={() => setServerModalOpen(true)}
           className={cn(
             'w-full flex flex-col items-center py-2 rounded transition-colors',
-            connectionStatus === 'connected' &&
-              'text-green-500 hover:bg-green-50',
-            connectionStatus === 'connecting' &&
-              'text-yellow-500 hover:bg-yellow-50',
-            connectionStatus === 'disconnected' &&
-              'text-red-400 hover:bg-red-50'
+            'text-muted-foreground hover:bg-muted'
           )}
         >
           {connectionStatus === 'connecting' ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <Loader2 className="w-5 h-5 animate-spin text-yellow-500" />
+          ) : connectionStatus === 'connected' ? (
+            <MonitorSmartphone className="w-5 h-5 text-green-500" />
           ) : (
-            <Bot className="w-5 h-5" />
+            <MonitorSmartphone className="w-5 h-5 text-red-400" />
           )}
         </button>
         <ServerManagerModal
@@ -129,7 +143,7 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = ({
           className={cn(
             'w-full flex flex-col items-center py-2 rounded transition-colors',
             currentView === 'settings'
-              ? 'text-blue-500 bg-blue-50'
+              ? 'bg-background shadow-inner'
               : 'text-muted-foreground hover:bg-muted'
           )}
         >

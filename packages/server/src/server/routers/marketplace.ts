@@ -8,6 +8,8 @@
  * - GET    /api/marketplace/mcps                 - 拉取 MCP 清单
  * - POST   /api/marketplace/mcps/:name/install   - 下载安装 MCP
  * - DELETE /api/marketplace/mcps/:name           - 卸载 MCP
+ * - GET    /api/marketplace/agents               - 拉取 Agent 清单
+ * - POST   /api/marketplace/agents/:name/install - 下载安装 Agent
  */
 
 import * as fs from 'node:fs';
@@ -15,17 +17,27 @@ import * as path from 'node:path';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { asyncHandler, getParam } from './utils.js';
-import { fetchManifest, fetchMcpManifest } from '../../marketplace/manifest.js';
+import {
+  fetchManifest,
+  fetchMcpManifest,
+  fetchAgentManifest,
+} from '../../marketplace/manifest.js';
 import { downloadSkill } from '../../marketplace/downloader.js';
 import { isSafeSkillName, folderNameOf } from '../../marketplace/util.js';
 import { getSkillsDir } from '../../util/paths.js';
 import { getSkill, hasSkill } from '../../skill/index.js';
 import { installMcp, uninstallMcp } from '../../marketplace/mcp-installer.js';
-import { cdnUrl } from '../../marketplace/config.js';
+import { installAgentFromMarketplace } from '../../marketplace/agent-installer.js';
+import { cdnUrl, REPO_OWNER, REPO_NAME } from '../../marketplace/config.js';
+import { listAgentConfigs } from '../../agent/index.js';
 import { getMcpServer } from '../../mcp/index.js';
 import { Logger } from '../../util/logger.js';
+import type { SessionManagersMap } from './agent.js';
+import { registerSessionManager } from './agent.js';
 
-export function createMarketplaceRouter(): Router {
+export function createMarketplaceRouter(
+  sessionManagers?: SessionManagersMap
+): Router {
   const router = Router();
 
   /** GET /api/marketplace/skills - 拉取 Skill 清单 */
@@ -122,7 +134,7 @@ export function createMarketplaceRouter(): Router {
 
   // --- MCP 商城 ---
 
-  /** GET /api/marketplace/mcps - 拉取 MCP 清单（每条附带 logoUrl） */
+  /** GET /api/marketplace/mcps - 拉取 MCP 清单, 每条附带 logoUrl; 无 logo 时为 undefined, 前端用扳手兜底 */
   router.get(
     '/mcps',
     asyncHandler(
@@ -132,7 +144,7 @@ export function createMarketplaceRouter(): Router {
         const mcps = await fetchMcpManifest();
         const withLogos = mcps.map((e) => ({
           ...e,
-          logoUrl: cdnUrl(e.path, e.logo),
+          logoUrl: e.logo ? cdnUrl(e.path, e.logo) : undefined,
         }));
         res.json({ mcps: withLogos });
       }
@@ -204,6 +216,84 @@ export function createMarketplaceRouter(): Router {
       res.json({ success: true, name });
     } catch (error) {
       Logger.log('MARKETPLACE', `Error uninstalling MCP '${name}'`, error);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: message });
+    }
+  });
+
+  // --- Agent 商城 ---
+
+  /** GET /api/marketplace/agents - 拉取 Agent 清单, 卡片图固定取自 assets/avatar.png, 与聊天头像共用 */
+  router.get(
+    '/agents',
+    asyncHandler(
+      'MARKETPLACE',
+      'Error listing marketplace agents',
+      async (_req, res) => {
+        const agents = await fetchAgentManifest();
+        const withLogos = agents.map((e) => ({
+          ...e,
+          logoUrl: cdnUrl(e.path, 'assets/avatar.png'),
+          source: `${REPO_OWNER}/${REPO_NAME}/${folderNameOf(e)}`,
+        }));
+        res.json({ agents: withLogos });
+      }
+    )
+  );
+
+  /**
+   * POST /api/marketplace/agents/:name/install
+   * 下载 Agent 商品包 → 创建新 Agent 实体 → 复制资产 → 注册 SessionManager。
+   * 安装后前端刷新 agent 列表并切换到新 Agent。
+   *
+   * 状态码：400 名字非法 / 404 清单无此条目 / 409 已安装 / 500 安装失败
+   *
+   * 同一模板只能安装一次——已安装时返回 409，前端商城卡片也会显示"已安装"禁用按钮。
+   */
+  router.post('/agents/:name/install', async (req: Request, res: Response) => {
+    try {
+      const name = getParam(req.params['name']);
+      if (!name || !isSafeSkillName(name)) {
+        res.status(400).json({ error: 'Invalid agent name' });
+        return;
+      }
+
+      // 重拉清单，按文件夹名找到条目
+      const manifest = await fetchAgentManifest();
+      const entry = manifest.find((e) => folderNameOf(e) === name);
+      if (!entry) {
+        res
+          .status(404)
+          .json({ error: `Agent "${name}" not found in marketplace` });
+        return;
+      }
+
+      // 重名拦截：同一模板只能装一次, marketplaceSource 唯一
+      const source = `${REPO_OWNER}/${REPO_NAME}/${name}`;
+      const alreadyInstalled = listAgentConfigs().some(
+        (a) => a.marketplaceSource === source
+      );
+      if (alreadyInstalled) {
+        Logger.log('MARKETPLACE', `Agent '${name}' already installed`);
+        res.status(409).json({ error: `Agent "${name}" already installed` });
+        return;
+      }
+
+      // 下载 + 创建 Agent + 复制资产
+      const agent = await installAgentFromMarketplace(entry);
+
+      // 注册 SessionManager + 创建初始聊天 Session, 和 POST /api/agents 的逻辑一致
+      if (sessionManagers) {
+        registerSessionManager(agent.id, sessionManagers);
+      }
+
+      Logger.log(
+        'MARKETPLACE',
+        `Installed agent from marketplace: ${agent.id}`
+      );
+      res.status(201).json({ success: true, agent });
+    } catch (error) {
+      Logger.log('MARKETPLACE', 'Error installing agent', error);
       const message = error instanceof Error ? error.message : 'Unknown error';
       res.status(500).json({ error: message });
     }

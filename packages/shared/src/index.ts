@@ -35,4 +35,6 @@ export {
   type MarketplaceEntry,
   McpMarketplaceEntrySchema,
   type McpMarketplaceEntry,
+  AgentMarketplaceEntrySchema,
+  type AgentMarketplaceEntry,
 } from './marketplace.js';

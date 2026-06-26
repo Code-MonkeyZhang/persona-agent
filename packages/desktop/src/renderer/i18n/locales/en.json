@@ -177,6 +177,15 @@
   "mcpMarketplace.uninstallSuccess": "{{name}} uninstalled",
   "mcpMarketplace.uninstallFailed": "Uninstall failed",
 
+  "agentMarketplace.title": "Agent Store",
+  "agentMarketplace.desc": "Browse and install featured Agents",
+  "agentMarketplace.homepage": "Homepage",
+  "agentMarketplace.install": "Install",
+  "agentMarketplace.installing": "Installing…",
+  "agentMarketplace.installed": "Installed",
+  "agentMarketplace.installSuccess": "{{name}} installed successfully",
+  "agentMarketplace.loadFailed": "Failed to load marketplace",
+
   "tools.title": "Tools",
   "tools.assignedTo": "Assigned to {{name}}",
   "tools.available": "Available MCP",

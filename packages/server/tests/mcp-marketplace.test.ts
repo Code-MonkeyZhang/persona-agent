@@ -177,7 +177,7 @@ describe('McpMarketplaceEntrySchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects entry without logo', () => {
+  it('accepts entry without logo (optional)', () => {
     const result = McpMarketplaceEntrySchema.safeParse({
       name: 'Test',
       description: 'd',
@@ -186,7 +186,7 @@ describe('McpMarketplaceEntrySchema', () => {
       version: '1.0.0',
       path: 'mcp/test',
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 });
 

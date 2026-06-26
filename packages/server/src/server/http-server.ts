@@ -87,7 +87,7 @@ app.use('/api/auth', createAuthRouter());
 app.use('/api/config', createConfigRouter());
 app.use('/api/skills', createSkillRouter());
 app.use('/api/mcp', createMcpRouter());
-app.use('/api/marketplace', createMarketplaceRouter());
+app.use('/api/marketplace', createMarketplaceRouter(sessionManagers));
 app.use('/api/tunnel', createTunnelRouter());
 app.use('/api/agents', createAgentRouter(sessionManagers));
 app.use('/api/agents/:agentId/assets', createAssetsRouter());

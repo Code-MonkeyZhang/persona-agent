@@ -5,7 +5,7 @@
  * 两段式布局：上半「已分配」+ 下半「技能库」，放弃下拉菜单。
  */
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Sparkles, Store } from 'lucide-react';
+import { Plus, X, Sparkles, Compass } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { listSkills, type SkillInfo } from '../lib/api';
 import { useAgentStore } from '../stores/agentStore';
@@ -64,7 +64,7 @@ export const SkillsView: React.FC = () => {
     skills.find((s) => s.name === name);
 
   return (
-    <div className="h-full w-full flex flex-col bg-muted">
+    <div className="h-full w-full flex flex-col bg-general-bg">
       <div className="shrink-0 flex items-center gap-2 px-5 h-14 border-b border-border bg-muted">
         <BackButton onClick={() => setActiveNav('chat')} />
         <Sparkles className="w-4 h-4 text-muted-foreground" />
@@ -76,7 +76,7 @@ export const SkillsView: React.FC = () => {
           onClick={() => setActiveNav('marketplace')}
           className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-blue-200 text-blue-600 bg-background hover:bg-blue-50 transition-colors text-[13px]"
         >
-          <Store className="w-4 h-4" />
+          <Compass className="w-4 h-4" />
           {t('marketplace.entry')}
         </button>
         <button

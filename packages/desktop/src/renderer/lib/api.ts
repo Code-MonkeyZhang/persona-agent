@@ -21,6 +21,7 @@ import type {
   SkillInfo,
   MarketplaceEntry,
   McpMarketplaceEntry,
+  AgentMarketplaceEntry,
   ClonedVoice,
   TtsConfig,
   TtsModel,
@@ -79,6 +80,7 @@ export type {
   SkillInfo,
   MarketplaceEntry,
   McpMarketplaceEntry,
+  AgentMarketplaceEntry,
   ClonedVoice,
   TtsConfig,
   TtsModel,
@@ -97,9 +99,9 @@ interface ListMarketplaceSkillsResponse {
   skills: MarketplaceEntry[];
 }
 
-/** GET /mcps 每条多了 logoUrl（后端拼的 CDN 地址） */
+/** GET /mcps 每条多了 logoUrl, 后端拼的 CDN 地址, 无 logo 时为 undefined */
 export interface McpMarketplaceItem extends McpMarketplaceEntry {
-  logoUrl: string;
+  logoUrl?: string;
 }
 
 interface ListMarketplaceMcpsResponse {
@@ -111,6 +113,16 @@ interface InstallMcpResponse {
   success: boolean;
   name: string;
   status: string;
+}
+
+/** GET /agents 每条多了 logoUrl 和 source, logoUrl 是后端拼的 raw URL, source 是商城来源标识 */
+export interface AgentMarketplaceItem extends AgentMarketplaceEntry {
+  logoUrl?: string;
+  source: string;
+}
+
+interface ListMarketplaceAgentsResponse {
+  agents: AgentMarketplaceItem[];
 }
 
 interface ListProvidersResponse {
@@ -827,6 +839,52 @@ export async function uninstallMcp(name: string): Promise<void> {
         `Failed to uninstall MCP: ${response.status}`
     );
   }
+}
+
+/**
+ * 拉取 Agent 商城清单。
+ * @returns 商城条目数组, 每条含 logoUrl
+ */
+export async function listMarketplaceAgents(): Promise<AgentMarketplaceItem[]> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/marketplace/agents`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to list marketplace agents: ${response.status}`
+    );
+  }
+  const data: ListMarketplaceAgentsResponse = await response.json();
+  return data.agents;
+}
+
+/**
+ * 从商城安装一个 Agent。
+ * 后端会下载商品包、创建新 Agent、复制资产、注册 SessionManager。
+ * @param name Agent 文件夹名
+ * @returns 新创建的 AgentConfig, 含新 ID
+ */
+export async function installMarketplaceAgent(
+  name: string
+): Promise<AgentConfig> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/marketplace/agents/${encodeURIComponent(name)}/install`,
+    { method: 'POST' }
+  );
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to install agent: ${response.status}`
+    );
+  }
+  const data: { agent: AgentConfig } = await response.json();
+  return data.agent;
 }
 
 /**

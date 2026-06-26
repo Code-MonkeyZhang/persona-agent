@@ -16,14 +16,9 @@ import { useAgentStore } from '../stores/agentStore';
 import { useViewStore } from '../stores/viewStore';
 import { toast } from '../stores/toastStore';
 import { logger } from '../lib/logger';
+import { folderNameOf } from '../lib/marketplace';
 import { BackButton } from './ui/BackButton';
 import { ListState } from './ListState';
-
-/** 取清单条目的文件夹名 */
-function folderNameOf(entry: MarketplaceEntry): string {
-  const parts = entry.path.split('/');
-  return parts[parts.length - 1];
-}
 
 export const MarketplaceView: React.FC = () => {
   const { t } = useTranslation();
@@ -142,6 +137,9 @@ export const MarketplaceView: React.FC = () => {
                     <div className="min-w-0">
                       <div className="text-[13px] font-medium text-foreground truncate">
                         {entry.name}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground/70 truncate">
+                        @{entry.author}
                       </div>
                       <div className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed mt-0.5">
                         {entry.description}

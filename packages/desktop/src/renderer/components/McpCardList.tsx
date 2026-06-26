@@ -5,18 +5,21 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ExternalLink, Trash2 } from 'lucide-react';
+import { ExternalLink, Trash2, Wrench } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   listMcpServers,
+  listMarketplaceMcps,
   startMcpOAuth,
   getMcpOAuthStatus,
   uninstallMcp,
   type McpServerInfo,
 } from '../lib/api';
 import { logger } from '../lib/logger';
+import { folderNameOf } from '../lib/marketplace';
 import { toast } from '../stores/toastStore';
 import { ListState } from './ListState';
+import { MarketplaceLogo } from './MarketplaceLogo';
 import { StatusDot } from './ui/StatusDot';
 
 const POLL_INTERVAL_MS = 2000;
@@ -38,6 +41,9 @@ function getStatusColor(status: McpServerInfo['status']) {
 export const McpCardList: React.FC = () => {
   const { t } = useTranslation();
   const [mcps, setMcps] = useState<McpServerInfo[]>([]);
+  const [logoMap, setLogoMap] = useState<Map<string, string | undefined>>(
+    new Map()
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authorizing, setAuthorizing] = useState<string | null>(null);
@@ -57,8 +63,23 @@ export const McpCardList: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await listMcpServers();
-      setMcps(data);
+      const [localRes, marketRes] = await Promise.allSettled([
+        listMcpServers(),
+        listMarketplaceMcps(),
+      ]);
+      if (localRes.status === 'rejected') throw localRes.reason;
+      setMcps(localRes.value);
+      if (marketRes.status === 'fulfilled') {
+        setLogoMap(
+          new Map(marketRes.value.map((e) => [folderNameOf(e), e.logoUrl]))
+        );
+      } else {
+        logger.warn(
+          'Failed to load marketplace manifest for MCP logos',
+          marketRes.reason
+        );
+        setLogoMap(new Map());
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('mcp.loadFailed'));
     } finally {
@@ -187,7 +208,11 @@ export const McpCardList: React.FC = () => {
                   key={mcp.name}
                   className="group flex items-center gap-2 px-3 py-3 rounded-xl border border-[#eee] bg-[#fafafa] text-left"
                 >
-                  <StatusDot color={getStatusColor(mcp.status)} />
+                  <MarketplaceLogo
+                    logoUrl={logoMap.get(mcp.name)}
+                    name={mcp.name}
+                    fallbackIcon={Wrench}
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="text-[13px] font-medium text-[#333] truncate">
                       {mcp.name}
@@ -196,6 +221,7 @@ export const McpCardList: React.FC = () => {
                       {mcp.error || statusText}
                     </div>
                   </div>
+                  <StatusDot color={getStatusColor(mcp.status)} />
                   {mcp.status === 'needs_auth' && (
                     <div className="shrink-0">
                       <button

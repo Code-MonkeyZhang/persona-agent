@@ -5,8 +5,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-/** 全局视图：设置页与聊天页互斥切换 */
-type ViewType = 'chat' | 'settings';
+/** 全局视图：设置页、Agent 商城与聊天页互斥切换 */
+type ViewType = 'chat' | 'settings' | 'agent-marketplace';
 
 /** MainView 内部导航，在 chat 视图下按 activeNav 切换右侧内容区 */
 type MainNav =
