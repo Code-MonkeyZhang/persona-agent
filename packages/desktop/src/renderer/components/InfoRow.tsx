@@ -24,9 +24,11 @@ export const InfoRow: React.FC<InfoRowProps> = ({
 }) => {
   return (
     <div className="flex items-center gap-2 text-[14px]">
-      <span className="text-[#666]">{icon}</span>
-      <span className="text-[#666]">{label}</span>
-      <span className="ml-auto font-mono text-[13px] text-[#333]">{value}</span>
+      <span className="text-muted-foreground">{icon}</span>
+      <span className="text-muted-foreground">{label}</span>
+      <span className="ml-auto font-mono text-[13px] text-foreground">
+        {value}
+      </span>
       {copyable && <CopyButton text={value} />}
     </div>
   );

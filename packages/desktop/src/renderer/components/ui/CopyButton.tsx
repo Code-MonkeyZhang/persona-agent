@@ -45,7 +45,7 @@ export const CopyButton = React.forwardRef<HTMLButtonElement, CopyButtonProps>(
       <button
         ref={ref}
         onClick={handleCopy}
-        className={className ?? 'text-[#999] hover:text-[#333]'}
+        className={className ?? 'text-muted-foreground hover:text-foreground'}
         {...buttonProps}
       >
         {children ? (

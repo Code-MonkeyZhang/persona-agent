@@ -27,7 +27,7 @@ function PathRow({ label, path }: { label: string; path: string }) {
     <SettingRow label={label} desc={path} descClassName="font-mono truncate">
       <button
         onClick={handleOpen}
-        className="h-7 w-7 flex items-center justify-center rounded-md text-[#999] hover:text-[#333] hover:bg-[#f5f5f5] transition-colors"
+        className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
       >
         <FolderOpen className="w-3.5 h-3.5" />
       </button>
@@ -59,31 +59,31 @@ export const ConfigForm: React.FC = () => {
 
   return (
     <div className="p-5 flex flex-col gap-4">
-      <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
-        <h3 className="text-[14px] font-bold text-[#333] mb-3">
+      <div className="rounded-xl border border-border bg-white px-4 py-4">
+        <h3 className="text-[14px] font-bold text-foreground mb-3">
           {t('config.basic')}
         </h3>
         <SettingRow
           label={t('config.language')}
           desc={t('config.languageDesc')}
         >
-          <div className="flex rounded-lg border border-[#e8e8e8] overflow-hidden">
+          <div className="flex rounded-lg border border-border overflow-hidden">
             <button
               onClick={() => i18n.changeLanguage('zh-CN')}
               className={`px-3 py-1 text-[13px] leading-[18px] transition-colors ${
                 i18n.language === 'zh-CN'
-                  ? 'bg-[#333] text-white'
-                  : 'bg-white text-[#666] hover:bg-[#f5f5f5]'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-white text-muted-foreground hover:bg-secondary'
               }`}
             >
               中文
             </button>
             <button
               onClick={() => i18n.changeLanguage('en')}
-              className={`px-3 py-1 text-[13px] leading-[18px] transition-colors border-l border-[#e8e8e8] ${
+              className={`px-3 py-1 text-[13px] leading-[18px] transition-colors border-l border-border ${
                 i18n.language === 'en'
-                  ? 'bg-[#333] text-white'
-                  : 'bg-white text-[#666] hover:bg-[#f5f5f5]'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-white text-muted-foreground hover:bg-secondary'
               }`}
             >
               English
@@ -104,8 +104,8 @@ export const ConfigForm: React.FC = () => {
         </SettingRow>
       </div>
 
-      <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
-        <h3 className="text-[14px] font-bold text-[#333] mb-3">
+      <div className="rounded-xl border border-border bg-white px-4 py-4">
+        <h3 className="text-[14px] font-bold text-foreground mb-3">
           {t('config.storagePaths')}
         </h3>
         {STORAGE_PATHS.map((item, i) => (

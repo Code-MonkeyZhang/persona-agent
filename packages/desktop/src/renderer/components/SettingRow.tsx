@@ -35,13 +35,13 @@ export function SettingRow({
   return (
     <div className="flex items-center justify-between min-h-[32px] gap-4">
       <div className="min-w-0">
-        <div className="flex items-center gap-1.5 text-[14px] text-[#333] leading-[18px]">
+        <div className="flex items-center gap-1.5 text-[14px] text-foreground leading-[18px]">
           {label}
           {tooltip && <HelpTooltip text={tooltip} />}
         </div>
         {desc && (
           <div
-            className={`text-[12px] text-[#999] mt-0.5 ${descClassName ?? ''}`}
+            className={`text-[12px] text-muted-foreground mt-0.5 ${descClassName ?? ''}`}
           >
             {desc}
           </div>
@@ -56,5 +56,5 @@ export function SettingRow({
  * 设置项之间的细分割线
  */
 export function SettingDivider() {
-  return <hr className="my-2 border-t-[0.5px] border-[#e8e8e8]" />;
+  return <hr className="my-2 border-t-[0.5px] border-border" />;
 }

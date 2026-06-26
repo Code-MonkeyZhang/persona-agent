@@ -39,13 +39,13 @@ export const ListState: React.FC<ListStateProps> = ({
   if (error) {
     return (
       <div className="p-5">
-        <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4 text-center">
+        <div className="rounded-xl border border-border bg-white px-4 py-4 text-center">
           <p className="text-red-500">
             {t('common.loadFailed')}: {error}
           </p>
           <button
             onClick={onRetry}
-            className="mt-2 text-[13px] text-[#666] hover:text-[#333]"
+            className="mt-2 text-[13px] text-muted-foreground hover:text-foreground"
           >
             {t('common.retry')}
           </button>

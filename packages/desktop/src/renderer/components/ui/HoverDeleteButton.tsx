@@ -12,7 +12,7 @@ const variantStyles: Record<Variant, string> = {
   /** 图片卡片上的删除按钮，深色半透明背景 */
   dark: 'bg-black/40 hover:bg-black/60 text-white',
   /** 标签卡片上的删除按钮，浅色半透明背景 */
-  light: 'bg-black/5 hover:bg-black/10 text-[#999]',
+  light: 'bg-black/5 hover:bg-black/10 text-muted-foreground',
 };
 
 interface HoverDeleteButtonProps {

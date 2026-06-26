@@ -75,7 +75,7 @@ export const SettingsPage: React.FC = () => {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center bg-general-bg">
-        <div className="text-[#999]">{t('common.loading')}</div>
+        <div className="text-muted-foreground">{t('common.loading')}</div>
       </div>
     );
   }
@@ -92,10 +92,10 @@ export const SettingsPage: React.FC = () => {
 
   return (
     <div className="h-full w-full flex bg-general-bg">
-      <div className="w-52 border-r border-[#e8e8e8] bg-white flex flex-col shrink-0">
+      <div className="w-52 border-r border-border bg-white flex flex-col shrink-0">
         <div className="px-4 py-4 flex items-center gap-2">
           <BackButton onClick={handleClose} />
-          <h1 className="text-[16px] font-bold text-[#333]">
+          <h1 className="text-[16px] font-bold text-foreground">
             {t('settings.title')}
           </h1>
         </div>
@@ -108,8 +108,8 @@ export const SettingsPage: React.FC = () => {
               className={cn(
                 'w-full flex items-center gap-2.5 px-3 py-2 text-[13px] rounded-lg transition-colors',
                 activeTab === tab.key
-                  ? 'bg-[#f0f0f0] text-[#333] font-medium'
-                  : 'text-[#666] hover:bg-[#f9f9f9]'
+                  ? 'bg-secondary text-foreground font-medium'
+                  : 'text-muted-foreground hover:bg-secondary/80'
               )}
             >
               {tab.icon}

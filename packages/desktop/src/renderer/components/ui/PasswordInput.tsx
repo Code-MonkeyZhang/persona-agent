@@ -23,7 +23,7 @@ export const PasswordInput = React.forwardRef<
         ref={ref}
         type={show ? 'text' : 'password'}
         className={cn(
-          'w-64 h-8 px-3 text-[13px] border border-[#e0e0e0] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#999] pr-10',
+          'w-64 h-8 px-3 text-[13px] border border-input rounded-lg focus:outline-none focus:ring-1 focus:ring-muted-foreground pr-10',
           className
         )}
         {...props}
@@ -31,7 +31,7 @@ export const PasswordInput = React.forwardRef<
       <button
         type="button"
         onClick={() => setShow(!show)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#999] hover:text-[#333]"
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
       >
         {show ? (
           <EyeOff className="w-3.5 h-3.5" />

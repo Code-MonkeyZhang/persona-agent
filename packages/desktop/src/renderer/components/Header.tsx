@@ -64,7 +64,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewChat }) => {
                 !voiceConfigured
                   ? 'border-border text-muted-foreground cursor-not-allowed'
                   : voiceEnabled
-                    ? 'border-blue-200 bg-[#e0efff] text-blue-600 hover:bg-[#d0e7ff]'
+                    ? 'border-primary/20 bg-primary/10 text-primary hover:bg-primary/15'
                     : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
               title={t('header.voice')}
@@ -76,7 +76,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewChat }) => {
               onClick={toggleCompanion}
               className={`inline-flex items-center justify-center h-8 px-3 text-xs rounded-xl border transition-colors ${
                 visible
-                  ? 'border-blue-200 bg-[#e0efff] text-blue-600 hover:bg-[#d0e7ff]'
+                  ? 'border-primary/20 bg-primary/10 text-primary hover:bg-primary/15'
                   : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
               title={

@@ -79,8 +79,8 @@ export const InputBox: React.FC<InputBoxProps> = ({
         className={cn(
           'relative flex flex-col rounded-2xl transition-all duration-200',
           isFocused
-            ? 'ring-1 ring-[#222]/20 bg-white'
-            : 'bg-[#f5f5f5] hover:bg-[#f0f0f0]'
+            ? 'ring-1 ring-foreground/20 bg-background'
+            : 'bg-secondary hover:bg-secondary/80'
         )}
       >
         {/* 文本输入区域 */}
@@ -94,7 +94,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
             onBlur={() => setIsFocused(false)}
             placeholder={t('inputBox.placeholder')}
             rows={1}
-            className="w-full bg-transparent resize-none focus:outline-none text-[15px] text-[#333] placeholder:text-[#b0b0b0] min-h-[24px]"
+            className="w-full bg-transparent resize-none focus:outline-none text-[15px] text-foreground placeholder:text-placeholder min-h-[24px]"
             style={{ maxHeight: '200px' }}
           />
         </div>

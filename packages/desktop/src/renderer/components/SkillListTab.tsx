@@ -69,23 +69,25 @@ export const SkillListTab: React.FC = () => {
     <>
       <ListState isLoading={isLoading} error={error} onRetry={loadSkills}>
         <div className="p-5">
-          <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
+          <div className="rounded-xl border border-border bg-white px-4 py-4">
             <div className="flex items-center justify-between mb-1">
-              <h3 className="text-[14px] font-bold text-[#333]">Skills</h3>
+              <h3 className="text-[14px] font-bold text-foreground">Skills</h3>
               <button
                 onClick={() =>
                   window.api?.openPath('~/.local/share/persona-agent/skills/')
                 }
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] text-[#555] border border-[#ddd] bg-white hover:bg-[#f0f0f0] hover:border-[#bbb] transition-colors shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] text-muted-foreground border border-border bg-white hover:bg-secondary transition-colors shadow-sm"
               >
                 <FolderOpen className="w-4 h-4" />
                 {t('common.openDirectory')}
               </button>
             </div>
-            <p className="text-[12px] text-[#999] mb-4">{t('skills.desc')}</p>
+            <p className="text-[12px] text-muted-foreground mb-4">
+              {t('skills.desc')}
+            </p>
 
             {skills.length === 0 ? (
-              <div className="text-[#ccc] text-[13px] py-4 text-center">
+              <div className="text-placeholder text-[13px] py-4 text-center">
                 {t('skills.empty')}
               </div>
             ) : (
@@ -93,21 +95,21 @@ export const SkillListTab: React.FC = () => {
                 {skills.map((skill) => (
                   <div
                     key={skill.name}
-                    className="group flex items-center gap-2 px-3 py-3 rounded-xl border border-[#eee] bg-[#fafafa] text-left"
+                    className="group flex items-center gap-2 px-3 py-3 rounded-xl border border-card-border bg-card-bg text-left"
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="text-[13px] font-medium text-[#333] truncate">
+                      <div className="text-[13px] font-medium text-foreground truncate">
                         {skill.name}
                       </div>
                       {skill.description && (
-                        <div className="text-[11px] text-[#999] truncate mt-0.5">
+                        <div className="text-[11px] text-muted-foreground truncate mt-0.5">
                           {skill.description}
                         </div>
                       )}
                     </div>
                     <button
                       onClick={() => setUninstallTarget(skill)}
-                      className="shrink-0 flex items-center gap-1 h-7 px-2.5 text-[11px] rounded-lg border border-[#ddd] text-[#666] hover:bg-[#f0f0f0] hover:text-red-500 transition-colors"
+                      className="shrink-0 flex items-center gap-1 h-7 px-2.5 text-[11px] rounded-lg border border-border text-muted-foreground hover:bg-secondary hover:text-red-500 transition-colors"
                     >
                       <Trash2 className="w-3 h-3" />
                       {t('marketplace.uninstall')}
@@ -130,10 +132,10 @@ export const SkillListTab: React.FC = () => {
             className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-6 p-5 flex flex-col gap-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-[15px] font-bold text-[#333]">
+            <h3 className="text-[15px] font-bold text-foreground">
               {t('marketplace.uninstall')}
             </h3>
-            <p className="text-[13px] text-[#666] leading-relaxed">
+            <p className="text-[13px] text-muted-foreground leading-relaxed">
               {t('marketplace.uninstallConfirm', {
                 name: uninstallTarget.name,
               })}
@@ -142,7 +144,7 @@ export const SkillListTab: React.FC = () => {
               <button
                 onClick={() => setUninstallTarget(null)}
                 disabled={isUninstalling}
-                className="h-8 px-4 rounded-lg text-[13px] text-[#555] border border-[#ddd] hover:bg-[#f0f0f0] disabled:opacity-50 transition-colors"
+                className="h-8 px-4 rounded-lg text-[13px] text-muted-foreground border border-border hover:bg-secondary disabled:opacity-50 transition-colors"
               >
                 {t('common.cancel')}
               </button>

@@ -124,13 +124,13 @@ export const ProviderConfigPanel: React.FC = () => {
     <ScrollArea className="h-full">
       <div className="p-5 flex flex-col gap-4">
         <div
-          className="rounded-xl border border-[#e8e8e8] bg-white overflow-hidden flex"
+          className="rounded-xl border border-border bg-white overflow-hidden flex"
           style={{ minHeight: 'calc(100vh - 120px)' }}
         >
           {/* 左栏: 供应商列表 */}
-          <div className="w-56 shrink-0 border-r border-[#f0f0f0] py-3 flex flex-col">
+          <div className="w-56 shrink-0 border-r border-border py-3 flex flex-col">
             <div className="px-4 pb-2 mb-1">
-              <span className="text-[13px] font-medium text-[#999]">
+              <span className="text-[13px] font-medium text-muted-foreground">
                 {t('provider.selectProvider')}
               </span>
             </div>
@@ -142,8 +142,8 @@ export const ProviderConfigPanel: React.FC = () => {
                   className={cn(
                     'w-full px-3 py-2 text-left text-[13px] rounded-lg transition-colors flex items-center justify-between',
                     selectedProvider === provider.id
-                      ? 'bg-[#f0f0f0] text-[#333] font-medium'
-                      : 'text-[#666] hover:bg-[#f9f9f9]'
+                      ? 'bg-secondary text-foreground font-medium'
+                      : 'text-muted-foreground hover:bg-secondary/80'
                   )}
                 >
                   <span>{provider.name}</span>
@@ -158,10 +158,10 @@ export const ProviderConfigPanel: React.FC = () => {
             {currentProvider ? (
               <>
                 <div className="mb-4">
-                  <h3 className="text-[14px] font-bold text-[#333] mb-1">
+                  <h3 className="text-[14px] font-bold text-foreground mb-1">
                     {currentProvider.name}
                   </h3>
-                  <p className="text-[12px] text-[#999]">
+                  <p className="text-[12px] text-muted-foreground">
                     {t('provider.configDesc', { name: currentProvider.name })}
                   </p>
                 </div>
@@ -180,7 +180,7 @@ export const ProviderConfigPanel: React.FC = () => {
                       variant="outline"
                       onClick={handleVerify}
                       disabled={verifyingProvider === currentProvider.id}
-                      className="rounded-lg border-[#e0e0e0] h-8 text-[13px] px-3"
+                      className="rounded-lg border-input h-8 text-[13px] px-3"
                     >
                       {verifyingProvider === currentProvider.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -208,17 +208,17 @@ export const ProviderConfigPanel: React.FC = () => {
                 )}
 
                 {/* 模型列表: 内嵌分隔线而非独立卡片 */}
-                <div className="mt-4 pt-4 border-t border-[#f0f0f0]">
-                  <h3 className="text-[14px] font-bold text-[#333] mb-3">
+                <div className="mt-4 pt-4 border-t border-border">
+                  <h3 className="text-[14px] font-bold text-foreground mb-3">
                     {t('provider.availableModels')}
                   </h3>
-                  <div className="flex flex-col divide-y divide-[#f0f0f0]">
+                  <div className="flex flex-col divide-y divide-border">
                     {currentProvider.models.map((model) => (
                       <div
                         key={model}
                         className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0"
                       >
-                        <span className="font-mono text-[13px] text-[#333]">
+                        <span className="font-mono text-[13px] text-foreground">
                           {model}
                         </span>
                         {currentProvider.hasAuth && (
@@ -232,14 +232,14 @@ export const ProviderConfigPanel: React.FC = () => {
                 {currentProvider.hasAuth && (
                   <button
                     onClick={handleDelete}
-                    className="text-[12px] text-[#ccc] hover:text-red-400 transition-colors mt-4"
+                    className="text-[12px] text-placeholder hover:text-red-400 transition-colors mt-4"
                   >
                     {t('provider.deleteApiKey')}
                   </button>
                 )}
               </>
             ) : (
-              <div className="flex items-center justify-center h-full text-[#999]">
+              <div className="flex items-center justify-center h-full text-muted-foreground">
                 {t('provider.selectToConfigure')}
               </div>
             )}

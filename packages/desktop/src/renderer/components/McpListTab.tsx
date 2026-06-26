@@ -14,22 +14,24 @@ export const McpListTab: React.FC = () => {
 
   return (
     <div className="p-5">
-      <div className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4">
+      <div className="rounded-xl border border-border bg-white px-4 py-4">
         <div className="flex items-center justify-between mb-1">
-          <h3 className="text-[14px] font-bold text-[#333]">
+          <h3 className="text-[14px] font-bold text-foreground">
             {t('mcp.title')}
           </h3>
           <button
             onClick={() =>
               window.api?.openPath('~/.local/share/persona-agent/mcp/')
             }
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] text-[#555] border border-[#ddd] bg-white hover:bg-[#f0f0f0] hover:border-[#bbb] transition-colors shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] text-muted-foreground border border-border bg-white hover:bg-secondary transition-colors shadow-sm"
           >
             <FolderOpen className="w-4 h-4" />
             {t('common.openDirectory')}
           </button>
         </div>
-        <p className="text-[12px] text-[#999] mb-4">{t('mcp.desc')}</p>
+        <p className="text-[12px] text-muted-foreground mb-4">
+          {t('mcp.desc')}
+        </p>
         <McpCardList />
       </div>
     </div>

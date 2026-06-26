@@ -62,10 +62,10 @@ export const ServerManagerModal: React.FC<ServerManagerModalProps> = ({
         >
           <div className="px-6 pt-6 pb-0">
             <div className="flex items-center justify-between">
-              <h3 className="text-[#333]">{t('server.title')}</h3>
+              <h3 className="text-foreground">{t('server.title')}</h3>
               <button
                 onClick={onClose}
-                className="p-1 hover:bg-[#f0f0f0] rounded text-[#999]"
+                className="p-1 hover:bg-secondary rounded text-muted-foreground"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -78,7 +78,7 @@ export const ServerManagerModal: React.FC<ServerManagerModalProps> = ({
               config={config}
             />
 
-            <div className="border-t border-[#f0f0f0]" />
+            <div className="border-t border-border" />
 
             <TunnelSection connectionStatus={connectionStatus} />
           </div>
@@ -110,7 +110,7 @@ function ServerSection({
   }, [connectionStatus]);
 
   return (
-    <div className="flex items-center gap-3 rounded-[16px] border border-[#f0f0f0] p-4 bg-white">
+    <div className="flex items-center gap-3 rounded-[16px] border border-border p-4 bg-white">
       <div className="relative">
         {connectionStatus === 'connecting' ? (
           <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
@@ -125,10 +125,10 @@ function ServerSection({
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-[15px] text-[#333]">
+        <div className="font-medium text-[15px] text-foreground">
           {t('server.agentServer')}
         </div>
-        <div className="flex items-center gap-1.5 text-[14px] text-[#666]">
+        <div className="flex items-center gap-1.5 text-[14px] text-muted-foreground">
           <StatusDot color={config.dotColor} />
           <span className={config.color}>{t(config.labelKey)}</span>
         </div>
@@ -136,7 +136,7 @@ function ServerSection({
       {connectionStatus === 'connected' && serverUrl && (
         <div className="flex items-center gap-2 shrink-0">
           <Globe className="w-4 h-4 text-blue-500" />
-          <code className="text-[13px] bg-[#f7f8fa] px-2 py-1 rounded-[12px] text-[#333]">
+          <code className="text-[13px] bg-secondary px-2 py-1 rounded-[12px] text-foreground">
             {serverUrl}
           </code>
           <CopyButton text={serverUrl} />
@@ -180,16 +180,16 @@ function TunnelSection({
       <div>
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-medium text-[14px] text-[#333]">
+            <p className="font-medium text-[14px] text-foreground">
               {t('server.remoteAccess')}
             </p>
-            <p className="text-[13px] text-[#999]">
+            <p className="text-[13px] text-muted-foreground">
               {t('server.connectFirst')}
             </p>
           </div>
           <button
             disabled
-            className="px-3 py-1.5 rounded-xl text-[13px] bg-[#222]/10 text-[#333] opacity-50 cursor-not-allowed"
+            className="px-3 py-1.5 rounded-xl text-[13px] bg-foreground/10 text-foreground opacity-50 cursor-not-allowed"
           >
             {t('server.startTunnel')}
           </button>
@@ -202,10 +202,12 @@ function TunnelSection({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="font-medium text-[14px] text-[#333]">
+          <p className="font-medium text-[14px] text-foreground">
             {t('server.remoteAccess')}
           </p>
-          <p className="text-[13px] text-[#999]">{t('server.tunnelDesc')}</p>
+          <p className="text-[13px] text-muted-foreground">
+            {t('server.tunnelDesc')}
+          </p>
         </div>
         <button
           onClick={handleToggle}
@@ -213,7 +215,7 @@ function TunnelSection({
           className={`px-3 py-1.5 rounded-xl text-[13px] transition-colors ${
             status === 'running'
               ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30'
-              : 'bg-[#222]/10 text-[#333] hover:bg-[#222]/20'
+              : 'bg-foreground/10 text-foreground hover:bg-foreground/20'
           } disabled:opacity-50`}
         >
           {status === 'starting'
@@ -225,9 +227,9 @@ function TunnelSection({
       </div>
 
       {status === 'starting' && (
-        <div className="rounded-[16px] border border-[#f0f0f0] p-3 flex items-center gap-2">
+        <div className="rounded-[16px] border border-border p-3 flex items-center gap-2">
           <Loader2 className="w-4 h-4 animate-spin text-yellow-500" />
-          <span className="text-[14px] text-[#666]">
+          <span className="text-[14px] text-muted-foreground">
             {t('server.tunnelConnectingMsg')}
           </span>
         </div>

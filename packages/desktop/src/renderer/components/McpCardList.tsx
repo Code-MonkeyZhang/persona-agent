@@ -187,7 +187,7 @@ export const McpCardList: React.FC = () => {
     <>
       <ListState isLoading={isLoading} error={error} onRetry={loadMcps}>
         {mcps.length === 0 ? (
-          <div className="text-[#ccc] text-[13px] py-4 text-center">
+          <div className="text-placeholder text-[13px] py-4 text-center">
             {t('mcp.empty')}
           </div>
         ) : (
@@ -206,7 +206,7 @@ export const McpCardList: React.FC = () => {
               return (
                 <div
                   key={mcp.name}
-                  className="group flex items-center gap-2 px-3 py-3 rounded-xl border border-[#eee] bg-[#fafafa] text-left"
+                  className="group flex items-center gap-2 px-3 py-3 rounded-xl border border-card-border bg-card-bg text-left"
                 >
                   <MarketplaceLogo
                     logoUrl={logoMap.get(mcp.name)}
@@ -214,10 +214,10 @@ export const McpCardList: React.FC = () => {
                     fallbackIcon={Wrench}
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-medium text-[#333] truncate">
+                    <div className="text-[13px] font-medium text-foreground truncate">
                       {mcp.name}
                     </div>
-                    <div className="text-[11px] text-[#999] truncate">
+                    <div className="text-[11px] text-muted-foreground truncate">
                       {mcp.error || statusText}
                     </div>
                   </div>
@@ -227,10 +227,10 @@ export const McpCardList: React.FC = () => {
                       <button
                         onClick={() => handleAuthorize(mcp.name)}
                         disabled={isLoading}
-                        className="h-7 px-2.5 text-[11px] rounded-full border border-[#d0d0d0] text-[#666] hover:text-[#333] hover:border-[#999] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="h-7 px-2.5 text-[11px] rounded-full border border-input text-muted-foreground hover:text-foreground hover:border-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {isLoading ? (
-                          <span className="w-2.5 h-2.5 border-2 border-[#999] border-t-transparent rounded-full animate-spin" />
+                          <span className="w-2.5 h-2.5 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
                         ) : (
                           <span className="flex items-center gap-1">
                             <ExternalLink className="w-3 h-3" />
@@ -242,7 +242,7 @@ export const McpCardList: React.FC = () => {
                   )}
                   <button
                     onClick={() => setUninstallTarget(mcp)}
-                    className="shrink-0 h-7 px-2.5 text-[11px] rounded-full border border-[#d0d0d0] text-[#999] hover:text-red-500 hover:border-red-300 transition-colors flex items-center gap-1"
+                    className="shrink-0 h-7 px-2.5 text-[11px] rounded-full border border-input text-muted-foreground hover:text-red-500 hover:border-red-300 transition-colors flex items-center gap-1"
                   >
                     <Trash2 className="w-3 h-3" />
                     {t('mcpMarketplace.uninstall')}
@@ -264,10 +264,10 @@ export const McpCardList: React.FC = () => {
             className="w-[320px] bg-white rounded-2xl shadow-xl p-5"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-[15px] font-bold text-[#333] mb-1">
+            <h3 className="text-[15px] font-bold text-foreground mb-1">
               {t('mcpMarketplace.confirmUninstallTitle')}
             </h3>
-            <p className="text-[13px] text-[#777] mb-4">
+            <p className="text-[13px] text-muted-foreground mb-4">
               {t('mcpMarketplace.confirmUninstallDesc', {
                 name: uninstallTarget.name,
               })}
@@ -276,7 +276,7 @@ export const McpCardList: React.FC = () => {
               <button
                 onClick={() => setUninstallTarget(null)}
                 disabled={isUninstalling}
-                className="flex-1 py-2 text-[13px] text-[#666] border border-[#ddd] rounded-lg hover:bg-[#f5f5f5] disabled:opacity-50"
+                className="flex-1 py-2 text-[13px] text-muted-foreground border border-border rounded-lg hover:bg-secondary disabled:opacity-50"
               >
                 {t('common.cancel')}
               </button>
