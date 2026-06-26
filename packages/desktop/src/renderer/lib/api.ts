@@ -513,9 +513,10 @@ export async function updateConfig(config: AppConfig): Promise<void> {
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
+    const errorData = await response.json().catch(() => ({}));
     throw new Error(
-      errorData.message || `Failed to update config: ${response.status}`
+      (errorData as { error?: string }).error ||
+        `Failed to update config: ${response.status}`
     );
   }
 }

@@ -8,10 +8,11 @@
  */
 
 import { Router } from 'express';
-import type { Request, Response } from 'express';
 import { startTunnel, stopTunnel, getTunnelStatus } from '../tunnel-service.js';
 import { httpServer } from '../index.js';
 import { Logger } from '../../util/logger.js';
+import { asyncHandler } from './utils.js';
+import { AppError } from '../../util/errors.js';
 
 export function createTunnelRouter(): Router {
   const router = Router();
@@ -20,8 +21,9 @@ export function createTunnelRouter(): Router {
    * POST /api/tunnel/start
    * Start the cloudflared tunnel. Returns immediately with current status.
    */
-  router.post('/start', async (_req: Request, res: Response) => {
-    try {
+  router.post(
+    '/start',
+    asyncHandler('TUNNEL', 'Failed to handle /start', async (_req, res) => {
       const current = getTunnelStatus();
 
       if (current.status === 'running') {
@@ -36,12 +38,7 @@ export function createTunnelRouter(): Router {
 
       const addr = httpServer.address();
       if (!addr || typeof addr === 'string') {
-        res.status(500).json({
-          success: false,
-          error: 'SERVER_NOT_READY',
-          message: 'Server is not listening',
-        });
-        return;
+        throw new AppError(500, 'Server is not listening');
       }
 
       // Fire-and-forget: startTunnel runs async, client polls /status
@@ -50,41 +47,26 @@ export function createTunnelRouter(): Router {
       });
 
       res.status(202).json({ success: true, status: 'starting' });
-    } catch (error) {
-      Logger.log('TUNNEL', 'Failed to handle /start', error);
-      res.status(500).json({
-        success: false,
-        error: 'TUNNEL_START_ERROR',
-        message:
-          error instanceof Error ? error.message : 'Failed to start tunnel',
-      });
-    }
-  });
+    })
+  );
 
   /**
    * POST /api/tunnel/stop
    * Stop the running cloudflared tunnel.
    */
-  router.post('/stop', async (_req: Request, res: Response) => {
-    try {
+  router.post(
+    '/stop',
+    asyncHandler('TUNNEL', 'Failed to handle /stop', async (_req, res) => {
       await stopTunnel();
       res.json({ success: true });
-    } catch (error) {
-      Logger.log('TUNNEL', 'Failed to handle /stop', error);
-      res.status(500).json({
-        success: false,
-        error: 'TUNNEL_STOP_ERROR',
-        message:
-          error instanceof Error ? error.message : 'Failed to stop tunnel',
-      });
-    }
-  });
+    })
+  );
 
   /**
    * GET /api/tunnel/status
    * Return the current tunnel state for client polling.
    */
-  router.get('/status', (_req: Request, res: Response) => {
+  router.get('/status', (_req, res) => {
     const current = getTunnelStatus();
     res.json({
       success: true,

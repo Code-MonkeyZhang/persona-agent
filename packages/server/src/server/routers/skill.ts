@@ -9,6 +9,7 @@
 import { Router } from 'express';
 import { listSkills, getSkill } from '../../skill/index.js';
 import { asyncHandler, getParam, requireParam } from './utils.js';
+import { AppError } from '../../util/errors.js';
 
 export function createSkillRouter(): Router {
   const router = Router();
@@ -26,14 +27,10 @@ export function createSkillRouter(): Router {
   router.get(
     '/:name',
     asyncHandler('SKILL', 'Error getting skill', (req, res) => {
-      const name = getParam(req.params['name']);
-      if (!requireParam(name, 'Skill name', res)) return;
+      const name = requireParam(getParam(req.params['name']), 'Skill name');
 
       const skill = getSkill(name);
-      if (!skill) {
-        res.status(404).json({ error: 'Skill not found' });
-        return;
-      }
+      if (!skill) throw new AppError(404, 'Skill not found');
 
       res.json({ skill });
     })

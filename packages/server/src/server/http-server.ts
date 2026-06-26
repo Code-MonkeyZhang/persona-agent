@@ -5,9 +5,10 @@
 
 import express from 'express';
 import cors from 'cors';
-import type { Request, Response } from 'express';
+import type { Request, Response, ErrorRequestHandler } from 'express';
 import { createServer as createHttpServer } from 'http';
 import { Logger } from '../util/logger.js';
+import { AppError } from '../util/errors.js';
 import { createProviderRouter, createAuthRouter } from './routers/auth.js';
 import { createAgentRouter, type SessionManagersMap } from './routers/agent.js';
 import { createSessionRouter } from './routers/session.js';
@@ -101,6 +102,27 @@ app.use('/api/tts', createTtsRouter());
 app.use('/api/voices', createVoiceRouter());
 
 const httpServer = createHttpServer(app);
+
+/**
+ * 全局错误处理中间件 —— 兜底未 被 asyncHandler 捕获的异常（multer 文件校验、
+ * 同步抛出等）。asyncHandler 自身已处理大部分路由异常，这里仅作为安全网。
+ */
+const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
+  if (err instanceof AppError) {
+    res.status(err.statusCode).json({ error: err.message });
+    return;
+  }
+  if (err.name === 'MulterError') {
+    res.status(400).json({ error: err.message });
+    return;
+  }
+  Logger.log('HTTP', `${req.method} ${req.path} → unhandled error`, err);
+  res.status(500).json({
+    error: err instanceof Error ? err.message : 'Internal server error',
+  });
+};
+
+app.use(errorHandler);
 
 // Initialize WebSocket server
 if (!isWebSocketInitialized()) {

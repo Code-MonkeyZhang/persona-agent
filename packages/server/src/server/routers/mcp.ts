@@ -9,15 +9,14 @@
  */
 
 import { Router } from 'express';
-import type { Request, Response } from 'express';
 import {
   listMcpServers,
   getMcpServer,
   startOAuthFlow,
   getOAuthStatus,
 } from '../../mcp/index.js';
-import { Logger } from '../../util/logger.js';
 import { asyncHandler, getParam, requireParam } from './utils.js';
+import { AppError, errorMessage } from '../../util/errors.js';
 
 export function createMcpRouter(): Router {
   const router = Router();
@@ -39,14 +38,10 @@ export function createMcpRouter(): Router {
   router.get(
     '/:name',
     asyncHandler('MCP', 'Error getting MCP server', (req, res) => {
-      const name = getParam(req.params['name']);
-      if (!requireParam(name, 'Server name', res)) return;
+      const name = requireParam(getParam(req.params['name']), 'Server name');
 
       const entry = getMcpServer(name);
-      if (!entry) {
-        res.status(404).json({ error: 'MCP server not found' });
-        return;
-      }
+      if (!entry) throw new AppError(404, 'MCP server not found');
 
       const server = {
         name: entry.name,
@@ -59,60 +54,47 @@ export function createMcpRouter(): Router {
     })
   );
 
-  router.post('/:name/oauth/authorize', async (req: Request, res: Response) => {
-    try {
-      const name = getParam(req.params['name']);
-      if (!name) {
-        res.status(400).json({ error: 'Server name is required' });
-        return;
+  router.post(
+    '/:name/oauth/authorize',
+    asyncHandler('MCP', 'Error starting OAuth flow', async (req, res) => {
+      const name = requireParam(getParam(req.params['name']), 'Server name');
+
+      try {
+        const result = await startOAuthFlow(name);
+        res.json(result);
+      } catch (error) {
+        const message = errorMessage(error);
+        if (message.includes('not found')) {
+          throw new AppError(404, message);
+        }
+        if (
+          message.includes('cannot start OAuth') ||
+          message.includes('already in progress')
+        ) {
+          throw new AppError(400, message);
+        }
+        throw error;
       }
+    })
+  );
 
-      const result = await startOAuthFlow(name);
-      res.json(result);
-    } catch (error) {
-      Logger.log('MCP', 'Error starting OAuth flow', error);
+  router.get(
+    '/:name/oauth/status',
+    asyncHandler('MCP', 'Error getting OAuth status', (req, res) => {
+      const name = requireParam(getParam(req.params['name']), 'Server name');
 
-      const message = error instanceof Error ? error.message : 'Unknown error';
-
-      if (message.includes('not found')) {
-        res.status(404).json({ error: message });
-        return;
+      try {
+        const status = getOAuthStatus(name);
+        res.json(status);
+      } catch (error) {
+        const message = errorMessage(error);
+        if (message.includes('not found')) {
+          throw new AppError(404, message);
+        }
+        throw error;
       }
-      if (
-        message.includes('cannot start OAuth') ||
-        message.includes('already in progress')
-      ) {
-        res.status(400).json({ error: message });
-        return;
-      }
-
-      res.status(500).json({ error: message });
-    }
-  });
-
-  router.get('/:name/oauth/status', (req: Request, res: Response) => {
-    try {
-      const name = getParam(req.params['name']);
-      if (!name) {
-        res.status(400).json({ error: 'Server name is required' });
-        return;
-      }
-
-      const status = getOAuthStatus(name);
-      res.json(status);
-    } catch (error) {
-      Logger.log('MCP', 'Error getting OAuth status', error);
-
-      const message = error instanceof Error ? error.message : 'Unknown error';
-
-      if (message.includes('not found')) {
-        res.status(404).json({ error: message });
-        return;
-      }
-
-      res.status(500).json({ error: message });
-    }
-  });
+    })
+  );
 
   return router;
 }

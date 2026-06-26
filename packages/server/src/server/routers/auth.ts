@@ -20,6 +20,7 @@ import type { KnownProvider, Provider, Auth } from '../../auth/index.js';
 import { getModels, completeSimple } from '@earendil-works/pi-ai';
 import { Logger } from '../../util/logger.js';
 import { asyncHandler, getParam, requireParam } from './utils.js';
+import { AppError } from '../../util/errors.js';
 
 /**
  * Creates router for provider management.
@@ -58,14 +59,13 @@ export function createAuthRouter(): Router {
   router.get(
     '/:provider',
     asyncHandler('AUTH', 'Error getting auth', (req, res) => {
-      const provider = getParam(req.params['provider']);
-      if (!requireParam(provider, 'Provider', res)) return;
+      const provider = requireParam(
+        getParam(req.params['provider']),
+        'Provider'
+      );
 
       const auth = getAuth(provider as Provider);
-      if (!auth) {
-        res.status(404).json({ error: 'Auth not found for provider' });
-        return;
-      }
+      if (!auth) throw new AppError(404, 'Auth not found for provider');
 
       res.json({
         provider,
@@ -78,16 +78,14 @@ export function createAuthRouter(): Router {
   router.put(
     '/:provider',
     asyncHandler('AUTH', 'Error setting auth', (req, res) => {
-      const provider = getParam(req.params['provider']);
-      if (!requireParam(provider, 'Provider', res)) return;
+      const provider = requireParam(
+        getParam(req.params['provider']),
+        'Provider'
+      );
 
       const input = req.body as Auth;
-      if (!input.apiKey) {
-        res.status(400).json({
-          error: 'Missing required field: apiKey',
-        });
-        return;
-      }
+      if (!input.apiKey)
+        throw new AppError(400, 'Missing required field: apiKey');
 
       const auth = setAuth(provider as Provider, input);
       Logger.log('AUTH', `Set auth for provider: ${provider}`);
@@ -102,14 +100,13 @@ export function createAuthRouter(): Router {
   router.delete(
     '/:provider',
     asyncHandler('AUTH', 'Error deleting auth', (req, res) => {
-      const provider = getParam(req.params['provider']);
-      if (!requireParam(provider, 'Provider', res)) return;
+      const provider = requireParam(
+        getParam(req.params['provider']),
+        'Provider'
+      );
 
       const existing = getAuth(provider as Provider);
-      if (!existing) {
-        res.status(404).json({ error: 'Auth not found for provider' });
-        return;
-      }
+      if (!existing) throw new AppError(404, 'Auth not found for provider');
 
       deleteAuth(provider as Provider);
       Logger.log('AUTH', `Deleted auth for provider: ${provider}`);
@@ -126,8 +123,10 @@ export function createAuthRouter(): Router {
   router.post(
     '/:provider/verify',
     asyncHandler('AUTH', 'Error verifying auth', async (req, res) => {
-      const provider = getParam(req.params['provider']);
-      if (!requireParam(provider, 'Provider', res)) return;
+      const provider = requireParam(
+        getParam(req.params['provider']),
+        'Provider'
+      );
 
       // use api key from req, if not use api key from storage
       const input = (req.body || {}) as { apiKey?: string };

@@ -354,8 +354,8 @@ describe('Chat Module Integration Tests', () => {
         );
 
         expect(response.status).toBe(500);
-        const data = (await response.json()) as { success: boolean };
-        expect(data.success).toBe(false);
+        const data = (await response.json()) as { error: string };
+        expect(data.error).toBeDefined();
       });
     });
 
@@ -393,8 +393,7 @@ describe('Chat Module Integration Tests', () => {
           );
 
           expect(response.status).toBe(500);
-          const data = (await response.json()) as { success: boolean; error?: string };
-          expect(data.success).toBe(false);
+          const data = (await response.json()) as { error: string };
           expect(data.error).toContain('API key');
         },
         TEST_CONFIG.timeout

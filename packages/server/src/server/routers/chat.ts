@@ -3,11 +3,10 @@
  */
 
 import { Router } from 'express';
-import type { Request, Response } from 'express';
 import type { SessionManagersMap } from './agent.js';
 import { processChat } from '../services/chat-service.js';
-import { Logger } from '../../util/logger.js';
-import { getParam } from './utils.js';
+import { asyncHandler, getParam, requireParam } from './utils.js';
+import { AppError } from '../../util/errors.js';
 
 export function createChatRouter(sessionManagers: SessionManagersMap): Router {
   const router = Router({ mergeParams: true });
@@ -27,22 +26,14 @@ export function createChatRouter(sessionManagers: SessionManagersMap): Router {
    * - URL: POST /api/agents/my-agent/sessions/session-123/chat
    * - Body: { "content": "你好，请帮我写一段代码" }
    */
-  router.post('/', async (req: Request, res: Response) => {
-    try {
-      const agentId = getParam(req.params['agentId']);
-      const sessionId = getParam(req.params['sessionId']);
-      // 参数校验
-      if (!agentId) {
-        res.status(400).json({ success: false, error: 'Agent ID is required' });
-        return;
-      }
-
-      if (!sessionId) {
-        res
-          .status(400)
-          .json({ success: false, error: 'Session ID is required' });
-        return;
-      }
+  router.post(
+    '/',
+    asyncHandler('CHAT', 'Error processing chat', async (req, res) => {
+      const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
+      const sessionId = requireParam(
+        getParam(req.params['sessionId']),
+        'Session ID'
+      );
 
       const { content, voiceEnabled } = req.body as {
         content?: unknown;
@@ -50,17 +41,15 @@ export function createChatRouter(sessionManagers: SessionManagersMap): Router {
       };
       // 验证接受的信息是字符串 TODO: 如果要支持多模态, 这个东西必须改掉
       if (!content || typeof content !== 'string') {
-        res.status(400).json({ success: false, error: 'Content is required' });
-        return;
+        throw new AppError(400, 'Content is required');
       }
 
       const sessionManager = sessionManagers.get(agentId);
       if (!sessionManager) {
-        res.status(404).json({
-          success: false,
-          error: `Session manager not found for agent: ${agentId}`,
-        });
-        return;
+        throw new AppError(
+          404,
+          `Session manager not found for agent: ${agentId}`
+        );
       }
 
       const result = await processChat({
@@ -71,19 +60,13 @@ export function createChatRouter(sessionManagers: SessionManagersMap): Router {
         sessionManager,
       });
 
-      if (result.success) {
-        res.json({ success: true });
-      } else {
-        res.status(500).json({ success: false, error: result.error });
+      if (!result.success) {
+        throw new AppError(500, result.error ?? 'Chat failed');
       }
-    } catch (error) {
-      Logger.log('CHAT', 'Error processing chat', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+
+      res.json({ success: true });
+    })
+  );
 
   return router;
 }

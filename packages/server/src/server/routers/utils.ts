@@ -2,9 +2,9 @@
  * @fileoverview Shared utilities for router handlers.
  */
 
-import type { Request, Response } from 'express';
+import type { Request, Response, RequestHandler } from 'express';
 import { Logger } from '../../util/logger.js';
-import { errorMessage } from '../../util/errors.js';
+import { errorMessage, AppError } from '../../util/errors.js';
 
 /** Helper to extract string param from Express req.params */
 export function getParam(
@@ -14,9 +14,13 @@ export function getParam(
 }
 
 /**
- * 包装路由处理函数，统一处理 try/catch、日志记录和 500 错误响应。
+ * 包装路由处理函数，统一捕获异常并格式化错误响应。
  *
- * 替代每个 handler 中手写的 `try { ... } catch (error) { Logger.log(...); res.status(500).json(...) }` 样板。
+ * - `AppError`（业务错误）使用其自带的 statusCode，4xx 不记日志、5xx 记日志。
+ * - 其他异常统一返回 500 并记录日志。
+ *
+ * asyncHandler 自行捕获并响应，不依赖全局 error middleware，
+ * 因此在测试中单独挂载 router 也能正常工作。
  *
  * @param category - Logger 日志分类标签
  * @param message - 错误描述
@@ -27,11 +31,16 @@ export function asyncHandler(
   category: string,
   message: string,
   handler: (req: Request, res: Response) => void | Promise<void>
-): (req: Request, res: Response) => Promise<void> {
+): RequestHandler {
   return async (req, res) => {
     try {
       await handler(req, res);
     } catch (error) {
+      if (error instanceof AppError) {
+        Logger.log(category, message, error);
+        res.status(error.statusCode).json({ error: error.message });
+        return;
+      }
       Logger.log(category, message, error);
       res.status(500).json({ error: errorMessage(error) });
     }
@@ -39,24 +48,16 @@ export function asyncHandler(
 }
 
 /**
- * 检查必填参数是否存在。不存在时自动发送 400 响应。
+ * 校验必填参数。缺失时抛出 `AppError(400)`，存在时返回收窄后的 string。
  *
- * 使用方式：`if (!requireParam(id, 'Agent ID', res)) return;`
- * 返回 true 时 TypeScript 会将 value 收窄为 string 类型。
+ * 使用方式：`const id = requireParam(getParam(req.params['id']), 'Agent ID');`
  *
  * @param value - 参数值
- * @param name - 参数显示名称
- * @param res - Express 响应对象
- * @returns true 表示参数存在，false 表示已发送 400 响应
+ * @param name - 参数显示名称（用于错误消息）
+ * @returns 收窄为 string 类型的参数值
+ * @throws {AppError} 参数缺失时抛出 400
  */
-export function requireParam(
-  value: string | undefined,
-  name: string,
-  res: Response
-): value is string {
-  if (!value) {
-    res.status(400).json({ error: `${name} is required` });
-    return false;
-  }
-  return true;
+export function requireParam(value: string | undefined, name: string): string {
+  if (!value) throw new AppError(400, `${name} is required`);
+  return value;
 }

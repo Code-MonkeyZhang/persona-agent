@@ -8,32 +8,25 @@
  */
 
 import { Router } from 'express';
-import type { Request, Response } from 'express';
 import { loadTtsConfig, saveTtsConfig } from '../../tts/store.js';
 import { TTS_MODELS } from '../../tts/types.js';
-import { Logger } from '../../util/logger.js';
+import { asyncHandler } from './utils.js';
+import { AppError } from '../../util/errors.js';
 
 export function createTtsRouter(): Router {
   const router = Router();
 
-  router.get('/config', (_req: Request, res: Response) => {
-    try {
+  router.get(
+    '/config',
+    asyncHandler('TTS', 'Failed to load TTS config', (_req, res) => {
       const config = loadTtsConfig();
-      res.json({
-        success: true,
-        config,
-      });
-    } catch (error) {
-      Logger.log('TTS', 'Failed to load TTS config', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+      res.json({ config });
+    })
+  );
 
-  router.put('/config', (req: Request, res: Response) => {
-    try {
+  router.put(
+    '/config',
+    asyncHandler('TTS', 'Failed to save TTS config', (req, res) => {
       const { apiKey, model, summaryThreshold } = req.body as {
         apiKey?: unknown;
         model?: unknown;
@@ -44,33 +37,21 @@ export function createTtsRouter(): Router {
 
       if (apiKey !== undefined) {
         if (typeof apiKey !== 'string') {
-          res.status(400).json({
-            success: false,
-            error: 'apiKey must be a string',
-          });
-          return;
+          throw new AppError(400, 'apiKey must be a string');
         }
         config.apiKey = apiKey;
       }
 
       if (model !== undefined) {
         if (typeof model !== 'string') {
-          res.status(400).json({
-            success: false,
-            error: 'model must be a string',
-          });
-          return;
+          throw new AppError(400, 'model must be a string');
         }
         config.model = model;
       }
 
       if (summaryThreshold !== undefined) {
         if (typeof summaryThreshold !== 'number') {
-          res.status(400).json({
-            success: false,
-            error: 'summaryThreshold must be a number',
-          });
-          return;
+          throw new AppError(400, 'summaryThreshold must be a number');
         }
         config.summaryThreshold = summaryThreshold;
       }
@@ -78,17 +59,11 @@ export function createTtsRouter(): Router {
       saveTtsConfig(config);
 
       res.json({ success: true });
-    } catch (error) {
-      Logger.log('TTS', 'Failed to save TTS config', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
-  router.get('/models', (_req: Request, res: Response) => {
-    res.json({ success: true, models: TTS_MODELS });
+  router.get('/models', (_req, res) => {
+    res.json({ models: TTS_MODELS });
   });
 
   return router;

@@ -330,8 +330,9 @@ describe('Agent Module Integration Tests', () => {
         });
 
         expect(response.status).toBe(400);
-        const data = (await response.json()) as { error: unknown };
-        expect(Array.isArray(data.error)).toBe(true);
+        const data = (await response.json()) as { error: string };
+        expect(typeof data.error).toBe('string');
+        expect(data.error.length).toBeGreaterThan(0);
       });
 
       /** 测试：创建 Agent 时注册 Session 管理器 */

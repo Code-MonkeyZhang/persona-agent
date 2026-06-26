@@ -22,6 +22,7 @@ import {
 } from '../../util/paths.js';
 import { Logger } from '../../util/logger.js';
 import { asyncHandler, getParam, requireParam } from './utils.js';
+import { AppError } from '../../util/errors.js';
 
 const IMAGE_EXTENSIONS = /\.(png|jpg|jpeg|gif|webp)$/i;
 
@@ -41,7 +42,7 @@ const upload = multer({
     if (ALLOWED_MIME_TYPES.has(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(`Unsupported image format: ${file.mimetype}`));
+      cb(new AppError(400, `Unsupported image format: ${file.mimetype}`));
     }
   },
 });
@@ -77,8 +78,7 @@ export function createAssetsRouter(): Router {
   router.get(
     '/pose',
     asyncHandler('ASSETS', 'Error listing poses', (req, res) => {
-      const agentId = getParam(req.params['agentId']);
-      if (!requireParam(agentId, 'Agent ID', res)) return;
+      const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
 
       const poseDir = getAgentAssetsPoseDir(agentId);
       if (!fs.existsSync(poseDir)) {
@@ -106,18 +106,13 @@ export function createAssetsRouter(): Router {
   router.get(
     '/pose/:name',
     asyncHandler('ASSETS', 'Error getting pose', (req, res) => {
-      const agentId = getParam(req.params['agentId']);
-      if (!requireParam(agentId, 'Agent ID', res)) return;
-      const poseName = getParam(req.params['name']);
-      if (!requireParam(poseName, 'Pose name', res)) return;
+      const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
+      const poseName = requireParam(getParam(req.params['name']), 'Pose name');
 
       const poseDir = getAgentAssetsPoseDir(agentId);
       const matched = findPoseFile(poseDir, poseName);
 
-      if (!matched) {
-        res.status(404).json({ error: `Pose not found: ${poseName}` });
-        return;
-      }
+      if (!matched) throw new AppError(404, `Pose not found: ${poseName}`);
 
       const filePath = path.join(poseDir, matched);
       const ext = path.extname(matched).toLowerCase();
@@ -141,15 +136,10 @@ export function createAssetsRouter(): Router {
     '/pose/:name',
     upload.single('pose'),
     asyncHandler('ASSETS', 'Error uploading pose', (req, res) => {
-      const agentId = getParam(req.params['agentId']);
-      if (!requireParam(agentId, 'Agent ID', res)) return;
-      const poseName = getParam(req.params['name']);
-      if (!requireParam(poseName, 'Pose name', res)) return;
+      const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
+      const poseName = requireParam(getParam(req.params['name']), 'Pose name');
 
-      if (!req.file) {
-        res.status(400).json({ error: 'No file uploaded' });
-        return;
-      }
+      if (!req.file) throw new AppError(400, 'No file uploaded');
 
       const poseDir = getAgentAssetsPoseDir(agentId);
       if (!fs.existsSync(poseDir)) {
@@ -175,18 +165,13 @@ export function createAssetsRouter(): Router {
   router.delete(
     '/pose/:name',
     asyncHandler('ASSETS', 'Error deleting pose', (req, res) => {
-      const agentId = getParam(req.params['agentId']);
-      if (!requireParam(agentId, 'Agent ID', res)) return;
-      const poseName = getParam(req.params['name']);
-      if (!requireParam(poseName, 'Pose name', res)) return;
+      const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
+      const poseName = requireParam(getParam(req.params['name']), 'Pose name');
 
       const poseDir = getAgentAssetsPoseDir(agentId);
       const matched = findPoseFile(poseDir, poseName);
 
-      if (!matched) {
-        res.status(404).json({ error: `Pose not found: ${poseName}` });
-        return;
-      }
+      if (!matched) throw new AppError(404, `Pose not found: ${poseName}`);
 
       fs.unlinkSync(path.join(poseDir, matched));
 
@@ -206,29 +191,24 @@ export function createAssetsRouter(): Router {
   router.put(
     '/pose/:oldName/rename',
     asyncHandler('ASSETS', 'Error renaming pose', (req, res) => {
-      const agentId = getParam(req.params['agentId']);
-      if (!requireParam(agentId, 'Agent ID', res)) return;
-      const oldName = getParam(req.params['oldName']);
-      if (!requireParam(oldName, 'Old name', res)) return;
+      const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
+      const oldName = requireParam(getParam(req.params['oldName']), 'Old name');
       const newName: string | undefined = req.body?.name;
-      if (!requireParam(newName, 'New name', res)) return;
+      const newNameChecked = requireParam(newName, 'New name');
 
       const poseDir = getAgentAssetsPoseDir(agentId);
       const matched = findPoseFile(poseDir, oldName);
 
-      if (!matched) {
-        res.status(404).json({ error: `Pose not found: ${oldName}` });
-        return;
-      }
+      if (!matched) throw new AppError(404, `Pose not found: ${oldName}`);
 
       const ext = path.extname(matched);
       const oldPath = path.join(poseDir, matched);
-      const newPath = path.join(poseDir, `${newName}${ext}`);
+      const newPath = path.join(poseDir, `${newNameChecked}${ext}`);
       fs.renameSync(oldPath, newPath);
 
       Logger.log(
         'ASSETS',
-        `Renamed pose "${oldName}" to "${newName}" for agent: ${agentId}`
+        `Renamed pose "${oldName}" to "${newNameChecked}" for agent: ${agentId}`
       );
       res.json({ success: true });
     })
@@ -244,22 +224,17 @@ export function createAssetsRouter(): Router {
   router.get(
     '/background',
     asyncHandler('ASSETS', 'Error getting background', (req, res) => {
-      const agentId = getParam(req.params['agentId']);
-      if (!requireParam(agentId, 'Agent ID', res)) return;
+      const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
 
       const bgDir = getAgentAssetsBackgroundsDir(agentId);
       if (!fs.existsSync(bgDir)) {
-        res.status(404).json({ error: 'No background found' });
-        return;
+        throw new AppError(404, 'No background found');
       }
 
       const files = fs.readdirSync(bgDir);
       const matched = files.find((f) => IMAGE_EXTENSIONS.test(f));
 
-      if (!matched) {
-        res.status(404).json({ error: 'No background found' });
-        return;
-      }
+      if (!matched) throw new AppError(404, 'No background found');
 
       const filePath = path.join(bgDir, matched);
       const ext = path.extname(matched).toLowerCase();
@@ -282,13 +257,9 @@ export function createAssetsRouter(): Router {
     '/background',
     upload.single('background'),
     asyncHandler('ASSETS', 'Error uploading background', (req, res) => {
-      const agentId = getParam(req.params['agentId']);
-      if (!requireParam(agentId, 'Agent ID', res)) return;
+      const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
 
-      if (!req.file) {
-        res.status(400).json({ error: 'No file uploaded' });
-        return;
-      }
+      if (!req.file) throw new AppError(400, 'No file uploaded');
 
       const bgDir = getAgentAssetsBackgroundsDir(agentId);
       if (!fs.existsSync(bgDir)) {
@@ -319,22 +290,17 @@ export function createAssetsRouter(): Router {
   router.delete(
     '/background',
     asyncHandler('ASSETS', 'Error deleting background', (req, res) => {
-      const agentId = getParam(req.params['agentId']);
-      if (!requireParam(agentId, 'Agent ID', res)) return;
+      const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
 
       const bgDir = getAgentAssetsBackgroundsDir(agentId);
       if (!fs.existsSync(bgDir)) {
-        res.status(404).json({ error: 'No background found' });
-        return;
+        throw new AppError(404, 'No background found');
       }
 
       const matched = fs
         .readdirSync(bgDir)
         .find((f) => IMAGE_EXTENSIONS.test(f));
-      if (!matched) {
-        res.status(404).json({ error: 'No background found' });
-        return;
-      }
+      if (!matched) throw new AppError(404, 'No background found');
 
       fs.unlinkSync(path.join(bgDir, matched));
 

@@ -8,15 +8,15 @@
  */
 
 import { Router } from 'express';
-import type { Request, Response } from 'express';
 import multer from 'multer';
 import {
   getAllVoices,
   addClonedVoice,
   removeClonedVoice,
 } from '../../tts/voices.js';
-import { getParam } from './utils.js';
+import { asyncHandler, getParam } from './utils.js';
 import { Logger } from '../../util/logger.js';
+import { AppError } from '../../util/errors.js';
 
 const VOICE_ID_REGEX = /^[a-zA-Z][a-zA-Z0-9_-]{7,255}$/;
 
@@ -34,7 +34,7 @@ const upload = multer({
     if (ALLOWED_AUDIO_MIME.has(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(`Unsupported audio format: ${file.mimetype}`));
+      cb(new AppError(400, `Unsupported audio format: ${file.mimetype}`));
     }
   },
 });
@@ -42,18 +42,13 @@ const upload = multer({
 export function createVoiceRouter(): Router {
   const router = Router();
 
-  router.get('/', (_req: Request, res: Response) => {
-    try {
+  router.get(
+    '/',
+    asyncHandler('VOICE', 'Failed to get voices', (_req, res) => {
       const voices = getAllVoices();
-      res.json({ success: true, voices });
-    } catch (error) {
-      Logger.log('VOICE', 'Failed to get voices', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+      res.json({ voices });
+    })
+  );
 
   /**
    * POST /api/voices/clone
@@ -64,73 +59,48 @@ export function createVoiceRouter(): Router {
   router.post(
     '/clone',
     upload.single('file'),
-    async (req: Request, res: Response) => {
-      try {
-        if (!req.file) {
-          res
-            .status(400)
-            .json({ success: false, error: 'No audio file uploaded' });
-          return;
-        }
-
-        const voiceId = req.body['voice_id'] as string | undefined;
-        const name = req.body['name'] as string | undefined;
-
-        if (!voiceId || !VOICE_ID_REGEX.test(voiceId)) {
-          res.status(400).json({
-            success: false,
-            error:
-              'voice_id must start with a letter, 8-256 chars (letters, digits, -, _)',
-          });
-          return;
-        }
-
-        if (!name || typeof name !== 'string' || name.trim().length === 0) {
-          res.status(400).json({
-            success: false,
-            error: 'name is required',
-          });
-          return;
-        }
-
-        await addClonedVoice(
-          req.file.buffer,
-          req.file.originalname,
-          voiceId,
-          name.trim()
-        );
-
-        Logger.log('VOICE', `Cloned voice: ${voiceId}`);
-        res.json({ success: true });
-      } catch (error) {
-        Logger.log('VOICE', 'Voice clone failed', error);
-        res.status(500).json({
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
+    asyncHandler('VOICE', 'Voice clone failed', async (req, res) => {
+      if (!req.file) {
+        throw new AppError(400, 'No audio file uploaded');
       }
-    }
+
+      const voiceId = req.body['voice_id'] as string | undefined;
+      const name = req.body['name'] as string | undefined;
+
+      if (!voiceId || !VOICE_ID_REGEX.test(voiceId)) {
+        throw new AppError(
+          400,
+          'voice_id must start with a letter, 8-256 chars (letters, digits, -, _)'
+        );
+      }
+
+      if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        throw new AppError(400, 'name is required');
+      }
+
+      await addClonedVoice(
+        req.file.buffer,
+        req.file.originalname,
+        voiceId,
+        name.trim()
+      );
+
+      Logger.log('VOICE', `Cloned voice: ${voiceId}`);
+      res.json({ success: true });
+    })
   );
 
-  router.delete('/clone/:voiceId', async (req: Request, res: Response) => {
-    try {
+  router.delete(
+    '/clone/:voiceId',
+    asyncHandler('VOICE', 'Voice delete failed', async (req, res) => {
       const voiceId = getParam(req.params['voiceId']);
-      if (!voiceId) {
-        res.status(400).json({ success: false, error: 'voiceId is required' });
-        return;
-      }
+      if (!voiceId) throw new AppError(400, 'voiceId is required');
 
       await removeClonedVoice(voiceId);
       Logger.log('VOICE', `Deleted voice: ${voiceId}`);
       res.json({ success: true });
-    } catch (error) {
-      Logger.log('VOICE', 'Voice delete failed', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+    })
+  );
 
   return router;
 }

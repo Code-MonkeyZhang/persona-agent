@@ -13,6 +13,7 @@ import * as path from 'node:path';
 import { getAgentAssetsDir } from '../../util/paths.js';
 import { Logger } from '../../util/logger.js';
 import { asyncHandler, getParam, requireParam } from './utils.js';
+import { AppError } from '../../util/errors.js';
 import { processAvatar } from '../../lib/avatar-processor.js';
 
 const AVATAR_FILENAME = 'avatar.png';
@@ -25,7 +26,7 @@ const upload = multer({
     if (ALLOWED_MIME_TYPES.has(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(`Unsupported image format: ${file.mimetype}`));
+      cb(new AppError(400, `Unsupported image format: ${file.mimetype}`));
     }
   },
 });
@@ -55,13 +56,11 @@ export function createAvatarRouter(): Router {
   router.get(
     '/',
     asyncHandler('AVATAR', 'Error getting avatar', (req, res) => {
-      const agentId = getParam(req.params['agentId']);
-      if (!requireParam(agentId, 'Agent ID', res)) return;
+      const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
 
       const avatarPath = getAvatarPath(agentId);
       if (!fs.existsSync(avatarPath)) {
-        res.status(404).json({ error: 'Avatar not found' });
-        return;
+        throw new AppError(404, 'Avatar not found');
       }
 
       res.setHeader('Content-Type', 'image/png');
@@ -82,13 +81,9 @@ export function createAvatarRouter(): Router {
     '/',
     upload.single('avatar'),
     asyncHandler('AVATAR', 'Error uploading avatar', async (req, res) => {
-      const agentId = getParam(req.params['agentId']);
-      if (!requireParam(agentId, 'Agent ID', res)) return;
+      const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
 
-      if (!req.file) {
-        res.status(400).json({ error: 'No file uploaded' });
-        return;
-      }
+      if (!req.file) throw new AppError(400, 'No file uploaded');
 
       const assetsDir = getAgentAssetsDir(agentId);
       if (!fs.existsSync(assetsDir)) {

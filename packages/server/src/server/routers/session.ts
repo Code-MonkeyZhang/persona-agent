@@ -10,11 +10,12 @@
  */
 
 import { Router } from 'express';
-import type { Request, Response } from 'express';
+import type { Request } from 'express';
 import { SessionManager } from '../../session/index.js';
 import { Logger } from '../../util/logger.js';
 import type { SessionManagersMap } from './agent.js';
 import { asyncHandler, getParam, requireParam } from './utils.js';
+import { AppError } from '../../util/errors.js';
 
 export function createSessionRouter(
   sessionManagers: SessionManagersMap
@@ -22,18 +23,14 @@ export function createSessionRouter(
   const router = Router({ mergeParams: true });
 
   /** Helper to get manager for the current route */
-  function getSessionManager(
-    req: Request,
-    res: Response
-  ): SessionManager | null {
-    const agentId = getParam(req.params['agentId']);
-    if (!requireParam(agentId, 'Agent ID', res)) return null;
+  function getSessionManager(req: Request): SessionManager {
+    const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
     const manager = sessionManagers.get(agentId);
     if (!manager) {
-      res
-        .status(404)
-        .json({ error: `Session manager not found for agent: ${agentId}` });
-      return null;
+      throw new AppError(
+        404,
+        `Session manager not found for agent: ${agentId}`
+      );
     }
     return manager;
   }
@@ -42,8 +39,7 @@ export function createSessionRouter(
   router.get(
     '/',
     asyncHandler('SESSION', 'Error listing sessions', (req, res) => {
-      const manager = getSessionManager(req, res);
-      if (!manager) return;
+      const manager = getSessionManager(req);
       const sessions = manager.listSessions();
       res.json({ sessions });
     })
@@ -53,10 +49,8 @@ export function createSessionRouter(
   router.post(
     '/',
     asyncHandler('SESSION', 'Error creating session', (req, res) => {
-      const manager = getSessionManager(req, res);
-      if (!manager) return;
-      const agentId = getParam(req.params['agentId']);
-      if (!requireParam(agentId, 'Agent ID', res)) return;
+      const manager = getSessionManager(req);
+      const agentId = getParam(req.params['agentId'])!;
       const { title } = req.body;
 
       const session = manager.createSession({ title });
@@ -73,16 +67,11 @@ export function createSessionRouter(
   router.get(
     '/:id',
     asyncHandler('SESSION', 'Error getting session', (req, res) => {
-      const manager = getSessionManager(req, res);
-      if (!manager) return;
-      const id = getParam(req.params['id']);
-      if (!requireParam(id, 'Session ID', res)) return;
+      const manager = getSessionManager(req);
+      const id = requireParam(getParam(req.params['id']), 'Session ID');
       const session = manager.getSession(id);
 
-      if (!session) {
-        res.status(404).json({ error: 'Session not found' });
-        return;
-      }
+      if (!session) throw new AppError(404, 'Session not found');
 
       res.json({ session });
     })
@@ -92,22 +81,16 @@ export function createSessionRouter(
   router.put(
     '/:id',
     asyncHandler('SESSION', 'Error updating session', (req, res) => {
-      const manager = getSessionManager(req, res);
-      if (!manager) return;
-      const id = getParam(req.params['id']);
-      if (!requireParam(id, 'Session ID', res)) return;
+      const manager = getSessionManager(req);
+      const id = requireParam(getParam(req.params['id']), 'Session ID');
       const { workspacePath, title, model } = req.body;
 
       let session = manager.getSession(id);
-      if (!session) {
-        res.status(404).json({ error: 'Session not found' });
-        return;
-      }
+      if (!session) throw new AppError(404, 'Session not found');
 
       // 聊天 Session 不允许改标题
       if (title !== undefined && id.startsWith('chat')) {
-        res.status(403).json({ error: 'Cannot rename chat session' });
-        return;
+        throw new AppError(403, 'Cannot rename chat session');
       }
 
       if (workspacePath !== undefined) {
@@ -125,8 +108,7 @@ export function createSessionRouter(
         title === undefined &&
         model === undefined
       ) {
-        res.status(400).json({ error: 'No valid fields to update' });
-        return;
+        throw new AppError(400, 'No valid fields to update');
       }
 
       res.json({ session });
@@ -137,23 +119,17 @@ export function createSessionRouter(
   router.delete(
     '/:id',
     asyncHandler('SESSION', 'Error deleting session', (req, res) => {
-      const manager = getSessionManager(req, res);
-      if (!manager) return;
-      const id = getParam(req.params['id']);
-      if (!requireParam(id, 'Session ID', res)) return;
+      const manager = getSessionManager(req);
+      const id = requireParam(getParam(req.params['id']), 'Session ID');
 
       // 聊天 Session 不允许删除
       if (id.startsWith('chat')) {
-        res.status(403).json({ error: 'Cannot delete chat session' });
-        return;
+        throw new AppError(403, 'Cannot delete chat session');
       }
 
       const deleted = manager.deleteSession(id);
 
-      if (!deleted) {
-        res.status(404).json({ error: 'Session not found' });
-        return;
-      }
+      if (!deleted) throw new AppError(404, 'Session not found');
 
       Logger.log('SESSION', `Deleted session: ${id}`);
       res.json({ success: true });

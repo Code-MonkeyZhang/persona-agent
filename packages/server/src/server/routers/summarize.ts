@@ -8,11 +8,10 @@
  */
 
 import { Router } from 'express';
-import type { Request, Response } from 'express';
 import type { SessionManagersMap } from './agent.js';
 import { summarizeText } from '../services/summarize-service.js';
-import { Logger } from '../../util/logger.js';
-import { getParam } from './utils.js';
+import { asyncHandler, getParam, requireParam } from './utils.js';
+import { AppError } from '../../util/errors.js';
 
 export function createSummarizeRouter(
   sessionManagers: SessionManagersMap
@@ -23,58 +22,37 @@ export function createSummarizeRouter(
    * POST /api/agents/:agentId/sessions/:sessionId/summarize
    *
    * Request body: { "text": "long assistant message..." }
-   * Response:     { "success": true, "summary": "..." }
-   *               { "success": false, "error": "..." }
+   * Response:     { "summary": "..." }
    */
-  router.post('/', async (req: Request, res: Response) => {
-    try {
-      const agentId = getParam(req.params['agentId']);
-      const sessionId = getParam(req.params['sessionId']);
-
-      if (!agentId) {
-        res.status(400).json({ success: false, error: 'Agent ID is required' });
-        return;
-      }
-      if (!sessionId) {
-        res
-          .status(400)
-          .json({ success: false, error: 'Session ID is required' });
-        return;
-      }
+  router.post(
+    '/',
+    asyncHandler('SUMMARIZE', 'Error in summarize route', async (req, res) => {
+      const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
+      const sessionId = requireParam(
+        getParam(req.params['sessionId']),
+        'Session ID'
+      );
 
       const { text } = req.body as { text?: unknown };
       if (!text || typeof text !== 'string') {
-        res.status(400).json({
-          success: false,
-          error: 'text is required and must be a string',
-        });
-        return;
+        throw new AppError(400, 'text is required and must be a string');
       }
 
       const sessionManager = sessionManagers.get(agentId);
       if (!sessionManager) {
-        res.status(404).json({
-          success: false,
-          error: `Session manager not found for agent: ${agentId}`,
-        });
-        return;
+        throw new AppError(
+          404,
+          `Session manager not found for agent: ${agentId}`
+        );
       }
 
       const session = sessionManager.getSession(sessionId);
       if (!session) {
-        res.status(404).json({
-          success: false,
-          error: `Session not found: ${sessionId}`,
-        });
-        return;
+        throw new AppError(404, `Session not found: ${sessionId}`);
       }
 
       if (!session.model) {
-        res.status(400).json({
-          success: false,
-          error: 'Session has no model configured',
-        });
-        return;
+        throw new AppError(400, 'Session has no model configured');
       }
 
       const summary = await summarizeText(
@@ -84,22 +62,12 @@ export function createSummarizeRouter(
       );
 
       if (!summary) {
-        res.status(500).json({
-          success: false,
-          error: 'Summarization failed',
-        });
-        return;
+        throw new AppError(500, 'Summarization failed');
       }
 
-      res.json({ success: true, summary });
-    } catch (error) {
-      Logger.log('SUMMARIZE', 'Error in summarize route', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
+      res.json({ summary });
+    })
+  );
 
   return router;
 }

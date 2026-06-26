@@ -23,6 +23,7 @@ import { SessionStore } from '../../session/store.js';
 import { SessionManager } from '../../session/session-manager.js';
 import { Logger } from '../../util/logger.js';
 import { asyncHandler, getParam, requireParam } from './utils.js';
+import { AppError } from '../../util/errors.js';
 
 export type SessionManagersMap = Map<string, SessionManager>;
 
@@ -59,14 +60,10 @@ export function createAgentRouter(
   router.get(
     '/:id',
     asyncHandler('AGENT', 'Error getting agent', (req, res) => {
-      const id = getParam(req.params['id']);
-      if (!requireParam(id, 'Agent ID', res)) return;
+      const id = requireParam(getParam(req.params['id']), 'Agent ID');
 
       const agent = getAgentConfig(id);
-      if (!agent) {
-        res.status(404).json({ error: 'Agent not found' });
-        return;
-      }
+      if (!agent) throw new AppError(404, 'Agent not found');
 
       res.json({ agent });
     })
@@ -77,10 +74,8 @@ export function createAgentRouter(
     '/',
     asyncHandler('AGENT', 'Error creating agent', (req, res) => {
       const result = AgentConfigInputSchema.safeParse(req.body);
-      if (!result.success) {
-        res.status(400).json({ error: result.error.issues });
-        return;
-      }
+      if (!result.success)
+        throw new AppError(400, JSON.stringify(result.error.issues));
 
       const agent = createAgentConfig(result.data);
 
@@ -98,20 +93,14 @@ export function createAgentRouter(
   router.put(
     '/:id',
     asyncHandler('AGENT', 'Error updating agent', (req, res) => {
-      const id = getParam(req.params['id']);
-      if (!requireParam(id, 'Agent ID', res)) return;
+      const id = requireParam(getParam(req.params['id']), 'Agent ID');
 
       const existing = getAgentConfig(id);
-      if (!existing) {
-        res.status(404).json({ error: 'Agent not found' });
-        return;
-      }
+      if (!existing) throw new AppError(404, 'Agent not found');
 
       const result = AgentConfigUpdateSchema.safeParse(req.body);
-      if (!result.success) {
-        res.status(400).json({ error: result.error.issues });
-        return;
-      }
+      if (!result.success)
+        throw new AppError(400, JSON.stringify(result.error.issues));
 
       const agent = updateAgentConfig(id, result.data);
       Logger.log('AGENT', `Updated agent: ${id}`);
@@ -123,14 +112,10 @@ export function createAgentRouter(
   router.delete(
     '/:id',
     asyncHandler('AGENT', 'Error deleting agent', (req, res) => {
-      const id = getParam(req.params['id']);
-      if (!requireParam(id, 'Agent ID', res)) return;
+      const id = requireParam(getParam(req.params['id']), 'Agent ID');
 
       const existing = getAgentConfig(id);
-      if (!existing) {
-        res.status(404).json({ error: 'Agent not found' });
-        return;
-      }
+      if (!existing) throw new AppError(404, 'Agent not found');
 
       deleteAgentConfig(id);
 

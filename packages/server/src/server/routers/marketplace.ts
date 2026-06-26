@@ -15,8 +15,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Router } from 'express';
-import type { Request, Response } from 'express';
 import { asyncHandler, getParam } from './utils.js';
+import { AppError } from '../../util/errors.js';
 import {
   fetchManifest,
   fetchMcpManifest,
@@ -60,30 +60,27 @@ export function createMarketplaceRouter(
    *
    * 状态码：400 名字非法 / 409 已装过 / 404 清单无此条目 / 500 下载失败或 SKILL.md 无法解析。
    */
-  router.post('/skills/:name/install', async (req: Request, res: Response) => {
-    try {
+  router.post(
+    '/skills/:name/install',
+    asyncHandler('MARKETPLACE', 'Error installing skill', async (req, res) => {
       const name = getParam(req.params['name']);
       if (!name || !isSafeSkillName(name)) {
-        res.status(400).json({ error: 'Invalid skill name' });
-        return;
+        throw new AppError(400, 'Invalid skill name');
       }
 
       // 重名拒绝：hasSkill 按名懒加载，能发现已存在的
       if (hasSkill(name)) {
-        res.status(409).json({
-          error: `Skill "${name}" already installed, please uninstall first`,
-        });
-        return;
+        throw new AppError(
+          409,
+          `Skill "${name}" already installed, please uninstall first`
+        );
       }
 
       // 重拉清单，按文件夹名找到条目
       const manifest = await fetchManifest();
       const entry = manifest.find((e) => folderNameOf(e) === name);
       if (!entry) {
-        res
-          .status(404)
-          .json({ error: `Skill "${name}" not found in marketplace` });
-        return;
+        throw new AppError(404, `Skill "${name}" not found in marketplace`);
       }
 
       // 下载
@@ -94,43 +91,36 @@ export function createMarketplaceRouter(
       const loaded = getSkill(name);
       if (!loaded) {
         fs.rmSync(skillDir, { recursive: true });
-        res
-          .status(500)
-          .json({ error: '下载的 SKILL.md 无法解析，请向作者反馈' });
-        return;
+        throw new AppError(500, '下载的 SKILL.md 无法解析，请向作者反馈');
       }
 
       res.json({ success: true, name });
-    } catch (error) {
-      Logger.log('MARKETPLACE', 'Error installing skill', error);
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      res.status(500).json({ error: message });
-    }
-  });
+    })
+  );
 
   /**
    * DELETE /api/marketplace/skills/:name
    * 删除本地 skill 文件夹；池子在下次访问时自动移除该条目。
    */
-  router.delete('/skills/:name', async (req: Request, res: Response) => {
-    try {
-      const name = getParam(req.params['name']);
-      if (!name || !isSafeSkillName(name)) {
-        res.status(400).json({ error: 'Invalid skill name' });
-        return;
-      }
+  router.delete(
+    '/skills/:name',
+    asyncHandler(
+      'MARKETPLACE',
+      'Error uninstalling skill',
+      async (req, res) => {
+        const name = getParam(req.params['name']);
+        if (!name || !isSafeSkillName(name)) {
+          throw new AppError(400, 'Invalid skill name');
+        }
 
-      const skillDir = path.join(getSkillsDir(), name);
-      if (fs.existsSync(skillDir)) {
-        fs.rmSync(skillDir, { recursive: true });
+        const skillDir = path.join(getSkillsDir(), name);
+        if (fs.existsSync(skillDir)) {
+          fs.rmSync(skillDir, { recursive: true });
+        }
+        res.json({ success: true, name });
       }
-      res.json({ success: true, name });
-    } catch (error) {
-      Logger.log('MARKETPLACE', 'Error uninstalling skill', error);
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      res.status(500).json({ error: message });
-    }
-  });
+    )
+  );
 
   // --- MCP 商城 ---
 
@@ -158,30 +148,27 @@ export function createMarketplaceRouter(
    *
    * 状态码：400 名字非法 / 409 已装过 / 404 清单无此条目 / 500 下载失败或 mcp.json 无法解析
    */
-  router.post('/mcps/:name/install', async (req: Request, res: Response) => {
-    const name = getParam(req.params['name']);
-    try {
+  router.post(
+    '/mcps/:name/install',
+    asyncHandler('MARKETPLACE', 'Error installing MCP', async (req, res) => {
+      const name = getParam(req.params['name']);
       if (!name || !isSafeSkillName(name)) {
-        res.status(400).json({ error: 'Invalid MCP name' });
-        return;
+        throw new AppError(400, 'Invalid MCP name');
       }
 
       // 重名拒绝
       if (getMcpServer(name)) {
-        res.status(409).json({
-          error: `MCP "${name}" already installed, please uninstall first`,
-        });
-        return;
+        throw new AppError(
+          409,
+          `MCP "${name}" already installed, please uninstall first`
+        );
       }
 
       // 重拉清单，按文件夹名找到条目
       const manifest = await fetchMcpManifest();
       const entry = manifest.find((e) => folderNameOf(e) === name);
       if (!entry) {
-        res
-          .status(404)
-          .json({ error: `MCP "${name}" not found in marketplace` });
-        return;
+        throw new AppError(404, `MCP "${name}" not found in marketplace`);
       }
 
       await installMcp(entry);
@@ -193,33 +180,25 @@ export function createMarketplaceRouter(
         name,
         status: server?.status ?? 'disconnected',
       });
-    } catch (error) {
-      Logger.log('MARKETPLACE', `Error installing MCP '${name}'`, error);
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      res.status(500).json({ error: message });
-    }
-  });
+    })
+  );
 
   /**
    * DELETE /api/marketplace/mcps/:name
    * 断连 + 从池移除 → 从 mcp.json 删 → 删代码目录。
    */
-  router.delete('/mcps/:name', async (req: Request, res: Response) => {
-    const name = getParam(req.params['name']);
-    try {
+  router.delete(
+    '/mcps/:name',
+    asyncHandler('MARKETPLACE', 'Error uninstalling MCP', async (req, res) => {
+      const name = getParam(req.params['name']);
       if (!name || !isSafeSkillName(name)) {
-        res.status(400).json({ error: 'Invalid MCP name' });
-        return;
+        throw new AppError(400, 'Invalid MCP name');
       }
 
       await uninstallMcp(name);
       res.json({ success: true, name });
-    } catch (error) {
-      Logger.log('MARKETPLACE', `Error uninstalling MCP '${name}'`, error);
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      res.status(500).json({ error: message });
-    }
-  });
+    })
+  );
 
   // --- Agent 商城 ---
 
@@ -250,22 +229,19 @@ export function createMarketplaceRouter(
    *
    * 同一模板只能安装一次——已安装时返回 409，前端商城卡片也会显示"已安装"禁用按钮。
    */
-  router.post('/agents/:name/install', async (req: Request, res: Response) => {
-    try {
+  router.post(
+    '/agents/:name/install',
+    asyncHandler('MARKETPLACE', 'Error installing agent', async (req, res) => {
       const name = getParam(req.params['name']);
       if (!name || !isSafeSkillName(name)) {
-        res.status(400).json({ error: 'Invalid agent name' });
-        return;
+        throw new AppError(400, 'Invalid agent name');
       }
 
       // 重拉清单，按文件夹名找到条目
       const manifest = await fetchAgentManifest();
       const entry = manifest.find((e) => folderNameOf(e) === name);
       if (!entry) {
-        res
-          .status(404)
-          .json({ error: `Agent "${name}" not found in marketplace` });
-        return;
+        throw new AppError(404, `Agent "${name}" not found in marketplace`);
       }
 
       // 重名拦截：同一模板只能装一次, marketplaceSource 唯一
@@ -275,8 +251,7 @@ export function createMarketplaceRouter(
       );
       if (alreadyInstalled) {
         Logger.log('MARKETPLACE', `Agent '${name}' already installed`);
-        res.status(409).json({ error: `Agent "${name}" already installed` });
-        return;
+        throw new AppError(409, `Agent "${name}" already installed`);
       }
 
       // 下载 + 创建 Agent + 复制资产
@@ -292,12 +267,8 @@ export function createMarketplaceRouter(
         `Installed agent from marketplace: ${agent.id}`
       );
       res.status(201).json({ success: true, agent });
-    } catch (error) {
-      Logger.log('MARKETPLACE', 'Error installing agent', error);
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      res.status(500).json({ error: message });
-    }
-  });
+    })
+  );
 
   return router;
 }
