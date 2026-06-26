@@ -1,18 +1,18 @@
 /**
- * @fileoverview 轻量 token 估算与消息文本化工具（CJK 感知的 chars/4 启发式）。
+ * @fileoverview 轻量 token 估算与消息文本化工具。
  */
 
 import type { ContentBlock, Message } from '../../schema/index.js';
 
-/** CJK / 全角字符的 token 权重（约 1.5 token/字） */
+/** CJK / 全角字符的 token 权重 */
 const CJK_WEIGHT = 1.5;
-/** ASCII 字符的 token 权重（约 0.25 token/字符，即 4 字符 ≈ 1 token） */
+/** ASCII 字符的 token 权重 */
 const ASCII_WEIGHT = 0.25;
 
 /**
  * 估算一段文本的 token 数量。
  *
- * CJK / 全角范围按 {@link CJK_WEIGHT} 计，其余（主要是 ASCII）按 {@link ASCII_WEIGHT} 计，
+ * CJK / 全角范围按 {@link CJK_WEIGHT} 计，其余按 {@link ASCII_WEIGHT} 计，
  * 两者相加向上取整。
  *
  * @param text - 待估算的文本
@@ -27,7 +27,7 @@ export function estimateTokens(text: string): number {
 }
 
 /**
- * 判断单个字符是否属于 CJK / 全角范围（粗粒度，估算用，无需精确）。
+ * 判断单个字符是否属于 CJK / 全角范围。
  */
 function isCjk(ch: string): boolean {
   const code = ch.codePointAt(0)!;
@@ -44,8 +44,8 @@ function isCjk(ch: string): boolean {
 /**
  * 提取单条消息的纯文本内容。
  *
- * `content` 可能是字符串或 {@link ContentBlock} 数组（多模态预留），
- * 此处只取文本部分；assistant 的 thinking（内部推理）不计入。
+ * `content` 可能是字符串或 {@link ContentBlock} 数组，
+ * 此处只取文本部分；assistant 的 thinking 不计入。
  */
 function messageContentText(msg: Message): string {
   if (typeof msg.content === 'string') return msg.content;
@@ -56,16 +56,16 @@ function messageContentText(msg: Message): string {
 }
 
 /**
- * 把单条消息格式化为 `role: content` 文本（供压缩输入拼接）。
+ * 把单条消息格式化为 `role: content` 文本。
  *
- * 仅保留对话事实（用户说了什么、助手回了什么），忽略 thinking 与 tool_calls。
+ * 仅保留对话事实，忽略 thinking 与 tool_calls。
  */
 export function messageToText(msg: Message): string {
   return `${msg.role}: ${messageContentText(msg)}`;
 }
 
 /**
- * 估算单条消息的 token 数（含 role 前缀）。
+ * 估算单条消息的 token 数。
  */
 export function estimateMessageTokens(msg: Message): number {
   return estimateTokens(`${msg.role}: ${messageContentText(msg)}`);

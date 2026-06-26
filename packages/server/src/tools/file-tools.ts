@@ -32,7 +32,7 @@ type EditFileInput = {
  * 相对于工作区目录解析文件路径。
  *
  * @param workspaceDir - 相对路径的基础目录
- * @param targetPath - 要解析的路径（绝对或相对）
+ * @param targetPath - 要解析的路径
  * @returns 绝对路径
  */
 function resolvePath(workspaceDir: string, targetPath: string): string {

@@ -1,7 +1,7 @@
 /**
  * 消息的核心类型定义。
  *
- * Message 联合（system / user / assistant）描述 server↔desktop 之间传递的消息格式。
+ * Message 联合描述 server↔desktop 之间传递的消息格式。
  * ToolResultMessage 不在此联合中——它是 agent 内部运行状态，不上线，保留在 server。
  * TODO: 如果支持多模态这些都要改
  */

@@ -1,6 +1,6 @@
 /**
  * @file components/Markdown.tsx
- * @description Markdown 渲染组件，基于 react-markdown 封装自定义渲染器（代码块、链接、表格）
+ * @description Markdown 渲染组件，基于 react-markdown 封装自定义渲染器
  */
 
 import { useMemo, type ReactNode } from 'react';
@@ -31,7 +31,7 @@ interface MarkdownProps {
 }
 
 /**
- * Markdown 渲染组件，自动识别围栏代码块并交给 CodeBlock 渲染（含语言标签、复制、折叠），
+ * Markdown 渲染组件，自动识别围栏代码块并交给 CodeBlock 渲染，
  * 内联代码使用 .inline-code 样式，链接强制新窗口打开，表格外层加横向滚动容器
  */
 export function Markdown({ content, className }: MarkdownProps) {

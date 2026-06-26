@@ -59,7 +59,7 @@ interface Feedback {
 
 /**
  * 验证音频文件时长是否在 10s-5min 范围内
- * @returns 时长（秒）
+ * @returns 时长
  */
 function getAudioDuration(file: File): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -137,9 +137,9 @@ export const VoiceConfigPanel: React.FC = () => {
 
   /**
    * 验证并保存 API Key：
-   * 1. 用输入的 Key 调一次 synthesize 合成测试文本
-   * 2. 验证通过：保存 Key 到服务端 + 显示成功提示
-   * 3. 验证失败：显示错误提示，不保存
+   * - 用输入的 Key 调一次 synthesize 合成测试文本
+   * - 验证通过：保存 Key 到服务端 + 显示成功提示
+   * - 验证失败：显示错误提示，不保存
    */
   const handleSaveKey = async () => {
     const key = inputKey.trim();
@@ -239,10 +239,10 @@ export const VoiceConfigPanel: React.FC = () => {
 
   /**
    * 提交克隆音色：
-   * 1. 前端自动生成 voice_id
-   * 2. 校验文件格式、大小、时长
-   * 3. 调服务端克隆接口
-   * 4. 刷新克隆列表
+   * - 前端自动生成 voice_id
+   * - 校验文件格式、大小、时长
+   * - 调服务端克隆接口
+   * - 刷新克隆列表
    */
   const handleClone = async () => {
     if (!cloneName.trim()) {

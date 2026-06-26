@@ -1,11 +1,11 @@
 /**
  * @file components/AgentToolsView.tsx
- * @description Agent 工具视图（MCP 分配），独立于 AgentEditor，采用草稿+保存模式。
+ * @description Agent 工具视图，独立于 AgentEditor，采用草稿+保存模式。
  * 从 currentAgent.mcpNames 初始化草稿，保存后调 updateAgentMcpNames 写入后端。
  * 两段式布局：上半「已分配」+ 下半「可用 MCP」，放弃下拉菜单。
  */
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Wrench } from 'lucide-react';
+import { Plus, X, Wrench, Compass } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { listMcpServers, type McpServerInfo } from '../lib/api';
 import { useAgentStore } from '../stores/agentStore';
@@ -66,7 +66,7 @@ export const AgentToolsView: React.FC = () => {
   const getStatusColor = (mcp?: McpServerInfo): string =>
     mcp?.status === 'connected' ? 'bg-green-500' : 'bg-gray-300';
 
-  /** 根据 MCP 信息返回副标题文本（工具数 / 未连接） */
+  /** 根据 MCP 信息返回副标题文本 */
   const getSubtitle = (mcp?: McpServerInfo): string => {
     if (!mcp) return t('mcp.disconnected');
     if (mcp.toolCount > 0) return t('mcp.toolsCount', { count: mcp.toolCount });
@@ -74,7 +74,7 @@ export const AgentToolsView: React.FC = () => {
   };
 
   return (
-    <div className="h-full w-full flex flex-col bg-muted">
+    <div className="h-full w-full flex flex-col bg-general-bg">
       <div className="shrink-0 flex items-center gap-2 px-5 h-14 border-b border-border bg-muted">
         <BackButton onClick={() => setActiveNav('chat')} />
         <Wrench className="w-4 h-4 text-muted-foreground" />
@@ -82,6 +82,13 @@ export const AgentToolsView: React.FC = () => {
           {t('tools.title')}
         </h1>
         <div className="flex-1" />
+        <button
+          onClick={() => setActiveNav('mcp-marketplace')}
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-blue-200 text-blue-600 bg-background hover:bg-blue-50 transition-colors text-[13px]"
+        >
+          <Compass className="w-4 h-4" />
+          {t('mcpMarketplace.browse')}
+        </button>
         <button
           onClick={handleSave}
           disabled={isSaving}
@@ -140,7 +147,7 @@ export const AgentToolsView: React.FC = () => {
               )}
             </CollapsibleSection>
 
-            {/* 可用 MCP（未分配） */}
+            {/* 可用 MCP */}
             <CollapsibleSection
               title={t('tools.available')}
               count={availableMcps.length}

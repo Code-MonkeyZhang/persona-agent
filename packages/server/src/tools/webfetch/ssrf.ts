@@ -1,8 +1,8 @@
 /**
- * @fileoverview SSRF（服务端请求伪造）防护模块。
+ * @fileoverview SSRF 防护模块。
  *
  * 通过 URL 协议白名单、主机名黑名单、DNS 解析后私有 IP 检查来防止 SSRF 攻击。
- * 不依赖外部 IP 解析库（如 ipaddr.js），使用手写 CIDR 范围检查。
+ * 不依赖外部 IP 解析库，使用手写 CIDR 范围检查。
  */
 
 import { lookup as dnsLookup } from 'node:dns/promises';
@@ -23,7 +23,7 @@ const BLOCKED_HOSTNAMES = new Set([
 const BLOCKED_SUFFIXES = ['.localhost', '.local', '.internal'];
 
 /**
- * 检查主机名是否在黑名单中（localhost、.local、.internal 等）。
+ * 检查主机名是否在黑名单中。
  */
 export function isBlockedHostname(hostname: string): boolean {
   const normalized = hostname.toLowerCase().trim();

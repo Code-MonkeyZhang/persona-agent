@@ -8,12 +8,17 @@
 
 import { Logger } from '../util/logger.js';
 import { loadMcpConfig } from './config.js';
-import { connectAllServers } from './loader.js';
+import { connectAllServers, connectOne } from './loader.js';
 import { MCPServerConnection } from './connection.js';
 import { McpOAuthProvider } from './oauth/provider.js';
 import { startCallbackServer } from './oauth/callback.js';
 import { getOAuthTokensPath } from '../util/paths.js';
-import type { McpServerEntry, McpToolMeta, McpConnection } from './types.js';
+import type {
+  McpServerEntry,
+  McpToolMeta,
+  McpConnection,
+  McpServerConfig,
+} from './types.js';
 import type { Tool } from '../tools/base.js';
 
 const OAUTH_TIMEOUT_MS = 5 * 60 * 1000;
@@ -155,11 +160,11 @@ export function getMcpPromptInfo(
  * Start the OAuth flow for a server that requires authentication.
  *
  * This method:
- * 1. Starts a local callback server on a random port
- * 2. Creates a new connection with an OAuth provider
- * 3. Triggers the SDK's built-in OAuth discovery + PKCE flow
- * 4. Returns the authorization URL for the frontend to open in a browser
- * 5. In the background: waits for callback → finishAuth → reconnect → update status
+ * - Starts a local callback server on a random port
+ * - Creates a new connection with an OAuth provider
+ * - Triggers the SDK's built-in OAuth discovery + PKCE flow
+ * - Returns the authorization URL for the frontend to open in a browser
+ * - In the background: waits for callback → finishAuth → reconnect → update status
  *
  * The frontend should:
  * - Call shell.openExternal(authorizationUrl) to open the browser
@@ -344,4 +349,89 @@ export function getOAuthStatus(name: string): {
     oauthUrl: entry.oauthUrl,
     error: entry.error,
   };
+}
+
+/**
+ * 运行时添加一个 MCP 服务器并连接（商城安装后调用）。
+ *
+ * 注册 entry（status=connecting）→ connectOne 连接 → 按结果更新状态。
+ * 连接结果可能是 connected / needs_auth / disconnected——都不抛异常，
+ * 由调用方根据返回后 getMcpServer(name) 的 status 决定怎么提示用户。
+ *
+ * @param name server 名字
+ * @param config server 配置（占位符已替换完毕）
+ * @throws 如果同名 server 已存在于池中
+ */
+export async function addServer(
+  name: string,
+  config: McpServerConfig
+): Promise<void> {
+  if (serverEntries.has(name)) {
+    throw new Error(`MCP server '${name}' already exists in pool`);
+  }
+
+  Logger.log('MCP', `Adding server '${name}' to pool at runtime`);
+
+  serverEntries.set(name, {
+    name,
+    config,
+    status: 'connecting',
+    tools: [],
+  });
+
+  const result = await connectOne(name, config);
+
+  if (result.serverConn) {
+    serverConnections.set(name, result.serverConn);
+  }
+
+  const entry = serverEntries.get(name);
+  if (!entry) return;
+
+  if (result.connection) {
+    connections.set(name, result.connection);
+    entry.status = 'connected';
+    entry.tools = result.tools;
+    entry.error = undefined;
+    Logger.log(
+      'MCP',
+      `Server '${name}' connected at runtime (${result.tools.length} tools)`
+    );
+  } else if (result.needsAuth) {
+    entry.status = 'needs_auth';
+    entry.oauthUrl = result.oauthUrl;
+    entry.error = undefined;
+    Logger.log('MCP', `Server '${name}' requires OAuth authentication`);
+  } else {
+    entry.status = 'disconnected';
+    entry.error = result.error ?? 'Unknown error';
+    Logger.log('MCP', `Server '${name}' failed to connect: ${entry.error}`);
+  }
+}
+
+/**
+ * 运行时移除一个 MCP 服务器（商城卸载时调用）。
+ *
+ * 断开连接 → 清理 connections / serverConnections / pendingOAuth / serverEntries。
+ * 如果 server 不存在于池中，静默跳过（幂等）。
+ *
+ * @param name server 名字
+ */
+export async function removeServer(name: string): Promise<void> {
+  const conn = connections.get(name);
+  if (conn) {
+    await conn.disconnect().catch(() => {});
+    connections.delete(name);
+  }
+
+  const serverConn = serverConnections.get(name);
+  if (serverConn) {
+    await serverConn.disconnect().catch(() => {});
+    serverConnections.delete(name);
+  }
+
+  pendingOAuth.delete(name);
+  serverEntries.delete(name);
+
+  Logger.log('MCP', `Server '${name}' removed from pool`);
 }

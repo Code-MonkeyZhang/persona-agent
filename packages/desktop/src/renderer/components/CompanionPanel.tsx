@@ -3,11 +3,11 @@
  *
  * 以全屏覆盖层的形式展示 AI 陪伴角色，叠加在聊天区域之上。
  * 面板包含：
- * - 背景图 + 角色立绘（支持表情切换）
- * - 底部 Agent 回复气泡（显示最后一条 assistant 消息，带入场动画，上下箭头指示溢出）
- * - 底部输入框 + 发送按钮（毛玻璃风格，直接调用主聊天发送逻辑）
+ * - 背景图 + 角色立绘
+ * - 底部 Agent 回复气泡
+ * - 底部输入框 + 发送按钮
  *
- * 面板的滑入/滑出动画由 framer-motion 驱动，父组件（App.tsx）通过
+ * 面板的滑入/滑出动画由 framer-motion 驱动，父组件通过
  * AnimatePresence 控制挂载/卸载，面板根元素 motion.div 提供自动退出动画。
  * 关闭面板由 Header 中的「形象」按钮统一控制，面板内不再提供关闭按钮。
  */
@@ -79,7 +79,7 @@ export function CompanionPanel({
 
   /**
    * 挂载时检测该 Agent 是否有姿态资源，
-   * 结果存储到 hasAssets 状态中（null=加载中, false=无资源, true=有资源）
+   * 结果存储到 hasAssets 状态中
    */
   useEffect(() => {
     if (!agentId) return;
@@ -111,7 +111,7 @@ export function CompanionPanel({
     return null;
   }, [messages]);
 
-  /** 根据气泡容器的滚动位置更新 canScrollUp / canScrollDown 状态（1px 容差避免浮点精度问题） */
+  /** 根据气泡容器的滚动位置更新 canScrollUp / canScrollDown 状态 */
   const updateScrollState = useCallback(() => {
     const el = bubbleRef.current;
     if (!el) return;

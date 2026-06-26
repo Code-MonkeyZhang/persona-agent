@@ -24,7 +24,7 @@ export function getServerUrl(): string | null {
 /**
  * 轮询 /health 端点等待后端服务启动就绪
  * @param url - 服务地址
- * @param maxAttempts - 最大重试次数（默认 30，每次间隔 500ms，总计约 15s）
+ * @param maxAttempts - 最大重试次数
  * @throws 超时未就绪时抛出错误
  */
 export async function waitForServer(
@@ -49,7 +49,7 @@ export async function waitForServer(
 /**
  * 清理上次桌面端异常退出后可能残留的服务器进程。
  * macOS/Linux 使用 killall，Windows 使用 taskkill。
- * 命令失败时静默忽略（没有残留进程时命令会返回非零退出码）。
+ * 命令失败时静默忽略。
  */
 export function killOrphanProcesses(): void {
   try {

@@ -2,8 +2,8 @@
  * @fileoverview Tests for Cloudflare Tunnel integration.
  *
  * Covers two layers:
- * 1. Tunnel-service core (state machine, spawn, URL parsing)
- * 2. Tunnel REST API router (POST /start, POST /stop, GET /status)
+ * - Tunnel-service core (state machine, spawn, URL parsing)
+ * - Tunnel REST API router (POST /start, POST /stop, GET /status)
  */
 
 import {
@@ -164,7 +164,7 @@ describe('Cloudflare Tunnel Integration', () => {
   });
 
   // ================================================================
-  // 1. Tunnel-service core logic
+  // - Tunnel-service core logic
   // ================================================================
   describe('Tunnel Service', () => {
     it('startTunnel throws if cloudflared binary is missing', async () => {
@@ -288,7 +288,7 @@ describe('Cloudflare Tunnel Integration', () => {
   });
 
   // ================================================================
-  // 2. Tunnel REST API
+  // - Tunnel REST API
   // ================================================================
   describe('Tunnel REST API', () => {
     it('POST /start returns 202 and starts tunnel', async () => {

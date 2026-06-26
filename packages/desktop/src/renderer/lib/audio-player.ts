@@ -13,7 +13,7 @@ class AudioPlayer {
   }
 
   /**
-   * 播放音频，自动停掉当前正在播放的音频（替换式）
+   * 播放音频，自动停掉当前正在播放的音频
    * @param audio - MP3 格式的音频数据
    */
   play(audio: ArrayBuffer): void {

@@ -19,6 +19,9 @@ import type {
   McpOAuthStatus,
   ProviderStatus,
   SkillInfo,
+  MarketplaceEntry,
+  McpMarketplaceEntry,
+  AgentMarketplaceEntry,
   ClonedVoice,
   TtsConfig,
   TtsModel,
@@ -75,6 +78,9 @@ export type {
   McpOAuthStatus,
   ProviderStatus,
   SkillInfo,
+  MarketplaceEntry,
+  McpMarketplaceEntry,
+  AgentMarketplaceEntry,
   ClonedVoice,
   TtsConfig,
   TtsModel,
@@ -87,6 +93,36 @@ interface ListMcpsResponse {
 
 interface ListSkillsResponse {
   skills: SkillInfo[];
+}
+
+interface ListMarketplaceSkillsResponse {
+  skills: MarketplaceEntry[];
+}
+
+/** GET /mcps 每条多了 logoUrl, 后端拼的 CDN 地址, 无 logo 时为 undefined */
+export interface McpMarketplaceItem extends McpMarketplaceEntry {
+  logoUrl?: string;
+}
+
+interface ListMarketplaceMcpsResponse {
+  mcps: McpMarketplaceItem[];
+}
+
+/** install 端点的返回（多了连接状态） */
+interface InstallMcpResponse {
+  success: boolean;
+  name: string;
+  status: string;
+}
+
+/** GET /agents 每条多了 logoUrl 和 source, logoUrl 是后端拼的 raw URL, source 是商城来源标识 */
+export interface AgentMarketplaceItem extends AgentMarketplaceEntry {
+  logoUrl?: string;
+  source: string;
+}
+
+interface ListMarketplaceAgentsResponse {
+  agents: AgentMarketplaceItem[];
 }
 
 interface ListProvidersResponse {
@@ -259,7 +295,7 @@ export class WebSocketClient {
 
 /**
  * 构造一条带有自动生成 ID 和当前时间戳的 UIMessage 对象。
- * @param type - 消息类型（user、assistant、error 等）
+ * @param type - 消息类型
  * @param content - 消息文本内容
  * @param extra - 可选的额外字段，合并到消息对象中
  * @returns 完整的 UIMessage 对象
@@ -326,7 +362,7 @@ export async function createSession(
 }
 
 /**
- * 根据 ID 获取指定 agent 下的完整会话（含消息）。
+ * 根据 ID 获取指定 agent 下的完整会话。
  * @param agentId - 所属 Agent ID
  * @param id - 会话 ID
  * @returns 包含消息的完整会话对象
@@ -385,7 +421,7 @@ interface UpdateSessionInput {
 }
 
 /**
- * 更新指定会话的部分字段（标题、工作区路径、模型等）。
+ * 更新指定会话的部分字段。
  * @param agentId - 所属 Agent ID
  * @param id - 会话 ID
  * @param input - 要更新的字段
@@ -682,6 +718,173 @@ export async function listSkills(): Promise<SkillInfo[]> {
 
   const data: ListSkillsResponse = await response.json();
   return data.skills;
+}
+
+/**
+ * 拉取商城 Skill 清单。
+ * @returns 商城条目数组
+ */
+export async function listMarketplaceSkills(): Promise<MarketplaceEntry[]> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/marketplace/skills`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to list marketplace skills: ${response.status}`
+    );
+  }
+  const data: ListMarketplaceSkillsResponse = await response.json();
+  return data.skills;
+}
+
+/**
+ * 安装一个商城 Skill。
+ * @param name - Skill 文件夹名
+ */
+export async function installMarketplaceSkill(name: string): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/marketplace/skills/${encodeURIComponent(name)}/install`,
+    { method: 'POST' }
+  );
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to install skill: ${response.status}`
+    );
+  }
+}
+
+/**
+ * 卸载一个本地 Skill。阶段 5 用。
+ * @param name - Skill 文件夹名
+ */
+export async function uninstallSkill(name: string): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/marketplace/skills/${encodeURIComponent(name)}`,
+    { method: 'DELETE' }
+  );
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to uninstall skill: ${response.status}`
+    );
+  }
+}
+
+/**
+ * 拉取 MCP 商城清单。
+ * @returns 商城条目数组（每条含 logoUrl）
+ */
+export async function listMarketplaceMcps(): Promise<McpMarketplaceItem[]> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/marketplace/mcps`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to list marketplace MCPs: ${response.status}`
+    );
+  }
+  const data: ListMarketplaceMcpsResponse = await response.json();
+  return data.mcps;
+}
+
+/**
+ * 安装一个商城 MCP（一键安装，无表单）。
+ * @param name MCP 文件夹名
+ */
+export async function installMarketplaceMcp(
+  name: string
+): Promise<InstallMcpResponse> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/marketplace/mcps/${encodeURIComponent(name)}/install`,
+    { method: 'POST' }
+  );
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to install MCP: ${response.status}`
+    );
+  }
+  return response.json();
+}
+
+/**
+ * 卸载一个 MCP。
+ * @param name MCP 文件夹名
+ */
+export async function uninstallMcp(name: string): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/marketplace/mcps/${encodeURIComponent(name)}`,
+    { method: 'DELETE' }
+  );
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to uninstall MCP: ${response.status}`
+    );
+  }
+}
+
+/**
+ * 拉取 Agent 商城清单。
+ * @returns 商城条目数组, 每条含 logoUrl
+ */
+export async function listMarketplaceAgents(): Promise<AgentMarketplaceItem[]> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/marketplace/agents`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to list marketplace agents: ${response.status}`
+    );
+  }
+  const data: ListMarketplaceAgentsResponse = await response.json();
+  return data.agents;
+}
+
+/**
+ * 从商城安装一个 Agent。
+ * 后端会下载商品包、创建新 Agent、复制资产、注册 SessionManager。
+ * @param name Agent 文件夹名
+ * @returns 新创建的 AgentConfig, 含新 ID
+ */
+export async function installMarketplaceAgent(
+  name: string
+): Promise<AgentConfig> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/marketplace/agents/${encodeURIComponent(name)}/install`,
+    { method: 'POST' }
+  );
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to install agent: ${response.status}`
+    );
+  }
+  const data: { agent: AgentConfig } = await response.json();
+  return data.agent;
 }
 
 /**

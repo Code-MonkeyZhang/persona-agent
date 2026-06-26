@@ -1,11 +1,11 @@
 /**
  * @file components/SkillsView.tsx
- * @description Agent 技能视图（Skill 分配），独立于 AgentEditor，采用草稿+保存模式。
+ * @description Agent 技能视图，独立于 AgentEditor，采用草稿+保存模式。
  * 从 currentAgent.skillNames 初始化草稿，保存后调 updateAgentSkillNames 写入后端。
  * 两段式布局：上半「已分配」+ 下半「技能库」，放弃下拉菜单。
  */
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Sparkles } from 'lucide-react';
+import { Plus, X, Sparkles, Compass } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { listSkills, type SkillInfo } from '../lib/api';
 import { useAgentStore } from '../stores/agentStore';
@@ -59,12 +59,12 @@ export const SkillsView: React.FC = () => {
     }
   };
 
-  /** 根据 ID 查找技能信息（从已加载列表中解析） */
+  /** 根据 ID 查找技能信息 */
   const resolveSkill = (name: string): SkillInfo | undefined =>
     skills.find((s) => s.name === name);
 
   return (
-    <div className="h-full w-full flex flex-col bg-muted">
+    <div className="h-full w-full flex flex-col bg-general-bg">
       <div className="shrink-0 flex items-center gap-2 px-5 h-14 border-b border-border bg-muted">
         <BackButton onClick={() => setActiveNav('chat')} />
         <Sparkles className="w-4 h-4 text-muted-foreground" />
@@ -72,6 +72,13 @@ export const SkillsView: React.FC = () => {
           {t('skills.viewTitle')}
         </h1>
         <div className="flex-1" />
+        <button
+          onClick={() => setActiveNav('marketplace')}
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-blue-200 text-blue-600 bg-background hover:bg-blue-50 transition-colors text-[13px]"
+        >
+          <Compass className="w-4 h-4" />
+          {t('marketplace.entry')}
+        </button>
         <button
           onClick={handleSave}
           disabled={isSaving}
@@ -129,7 +136,7 @@ export const SkillsView: React.FC = () => {
               )}
             </CollapsibleSection>
 
-            {/* 技能库（未分配） */}
+            {/* 技能库 */}
             <CollapsibleSection
               title={t('skills.library')}
               count={librarySkills.length}

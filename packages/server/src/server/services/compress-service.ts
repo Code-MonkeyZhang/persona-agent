@@ -1,5 +1,5 @@
 /**
- * @fileoverview 上下文压缩服务：聊天 Session 的异步摘要压缩（fire-and-forget）。
+ * @fileoverview 上下文压缩服务：聊天 Session 的异步摘要压缩。
  */
 
 import { Logger } from '../../util/logger.js';
@@ -25,19 +25,19 @@ export interface CompressionOptions {
   agentId: string;
   sessionId: string;
   sessionManager: SessionManager;
-  /** 压缩触发阈值（百分比 1–100）：未摘要 token 超过 contextWindow 的该比例才触发 */
+  /** 压缩触发阈值：未摘要 token 超过 contextWindow 的该比例才触发 */
   threshold: number;
-  /** 模型上下文窗口大小（token） */
+  /** 模型上下文窗口大小 */
   contextWindow: number;
   provider: string;
   modelId: string;
 }
 
-/** 防并发重入：正在压缩的 sessionId 集合（单用户桌面端低风险，加守卫很便宜） */
+/** 防并发重入：正在压缩的 sessionId 集合 */
 const inflight = new Set<string>();
 
 /**
- * 触发一次压缩（fire-and-forget，内部吞掉所有异常，绝不影响主聊天流程）。
+ * 触发一次压缩。
  *
  * LLM 失败时用 [RAW] 原文兜底并仍推进指针，原文从不删除，数据绝不丢失。
  */
@@ -120,11 +120,10 @@ export async function runCompression(opts: CompressionOptions): Promise<void> {
 }
 
 /**
- * 选定压缩批次的结束下标（在 unsummarized 中的相对位置，exclusive）。
+ * 选定压缩批次的结束下标。
  *
  * 压缩掉最老的若干完整对话轮，使剩余未摘要消息的估算 token 降到阈值以下。
- * "完整轮"以 assistant 消息为边界——批次必须结束在 assistant 消息上（下一条是 user
- * 或到达末尾），避免把半截对话拆开。
+ * "完整轮"以 assistant 消息为边界——批次必须结束在 assistant 消息上，避免把半截对话拆开。
  *
  * @param unsummarized - 未摘要的原始消息
  * @param unsummarizedTokens - 未摘要消息的估算 token 总数

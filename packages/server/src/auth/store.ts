@@ -10,7 +10,7 @@ import { readJsonFile } from '../util/fs-helpers.js';
 import type { Auth, AuthStore, Provider, KnownProvider } from './types.js';
 import type { ProviderStatus } from '@persona/shared';
 
-// 线上形状已迁移至 @persona/shared（id 用 string，不引 pi-ai 的 Provider 枚举）
+// 线上形状已迁移至 @persona/shared
 export type { ProviderStatus };
 
 /**

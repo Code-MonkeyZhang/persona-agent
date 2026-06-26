@@ -19,7 +19,7 @@ interface PreviewLabels {
 
 /**
  * 语音试听 hook，管理试听状态并提供 preview 方法。
- * @returns playingId - 正在试听的音色 ID（null 表示空闲）
+ * @returns playingId - 正在试听的音色 ID
  * @returns preview - 试听指定音色
  */
 export function useVoicePreview() {

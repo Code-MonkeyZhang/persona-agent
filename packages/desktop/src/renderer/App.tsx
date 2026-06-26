@@ -2,13 +2,19 @@
  * @file App.tsx
  * @description Electron前端渲染进程根组件
  *
- * 布局自上而下：TitleBar（全宽状态条）+ 下方横向布局（AgentSidebar + 内容区）。
- * currentView 决定顶层视图（'settings' → 设置页面，否则进入主布局）。
+ * 布局自上而下：TitleBar + 下方横向布局。
+ * currentView 决定顶层视图。
  * 主布局内部由 viewStore.activeNav 驱动 MainContent 区域切换：
- * - 'chat'           → 对话区（Header + MessageList + InputBox + CompanionPanel）
- * - 'agent-settings' → Agent 编辑页面（AgentEditor）
- * - 'tools'          → MCP 工具分配视图（AgentToolsView）
- * - 'skills'         → Skill 分配视图（SkillsView）
+ * - 'chat'             → 对话区
+ * - 'agent-settings'   → Agent 编辑页面
+ * - 'tools'            → MCP 工具分配视图
+ * - 'skills'           → Skill 分配视图
+ * - 'marketplace'      → Skill 商城
+ * - 'mcp-marketplace'  → MCP 商城
+ *
+ * currentView 还可切换到全屏视图（替换 SessionSidebar + 内容区）：
+ * - 'settings'           → 设置页
+ * - 'agent-marketplace'  → Agent 商城
  *
  * Session 栏折叠状态由 viewStore.sessionSidebarCollapsed 管理，
  * 折叠开关位于 TitleBar，不再需要独立的悬浮按钮。
@@ -25,6 +31,9 @@ import { SettingsPage } from './components/SettingsPage';
 import { AgentEditor } from './components/AgentEditor';
 import { AgentToolsView } from './components/AgentToolsView';
 import { SkillsView } from './components/SkillsView';
+import { MarketplaceView } from './components/MarketplaceView';
+import { McpMarketplaceView } from './components/McpMarketplaceView';
+import { AgentMarketplaceView } from './components/AgentMarketplaceView';
 import { CompanionPanel } from './components/CompanionPanel';
 import { ToastContainer } from './components/Toast';
 import { WebSocketProvider } from './components/WebSocketProvider';
@@ -222,6 +231,8 @@ function AppContent() {
         <div className="flex-1 flex min-h-0 min-w-0">
           {currentView === 'settings' ? (
             <SettingsPage />
+          ) : currentView === 'agent-marketplace' ? (
+            <AgentMarketplaceView />
           ) : (
             <>
               <SessionSidebar />
@@ -271,6 +282,8 @@ function AppContent() {
                 )}
                 {activeNav === 'tools' && <AgentToolsView />}
                 {activeNav === 'skills' && <SkillsView />}
+                {activeNav === 'marketplace' && <MarketplaceView />}
+                {activeNav === 'mcp-marketplace' && <McpMarketplaceView />}
               </div>
             </>
           )}
@@ -282,7 +295,7 @@ function AppContent() {
 }
 
 /**
- * 应用根组件，渲染主聊天界面（设置页面通过视图切换在 AppContent 内部处理）
+ * 应用根组件，渲染主聊天界面
  */
 function App() {
   return (

@@ -1,7 +1,7 @@
 /**
  * @fileoverview HTML 安全清洗、格式转换、响应体流式读取。
  *
- * - sanitizeHtml: 移除隐藏元素（display:none, visibility:hidden, opacity:0, hidden class 等）
+ * - sanitizeHtml: 移除隐藏元素
  * - stripInvisibleUnicode: 移除零宽字符等不可见 Unicode
  * - htmlToMarkdown: 用 turndown 将清洗后的 HTML 转为 Markdown
  * - markdownToText: 剥离 Markdown 语法，只保留纯文本
@@ -229,7 +229,7 @@ function popDroppedElement(dropStack: string[], tagName: string): void {
  * 从 HTML 中移除隐藏元素。
  *
  * 使用简易 HTML tokenizer 逐标签扫描。当一个开标签被判定为隐藏时，
- * 其所有子内容被丢弃，直到匹配的闭标签出现（dropStack 机制）。
+ * 其所有子内容被丢弃，直到匹配的闭标签出现。
  */
 function removeMarkedElements(html: string): string {
   let output = '';

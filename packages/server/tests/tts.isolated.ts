@@ -2,9 +2,9 @@
  * @fileoverview TTS 功能集成测试
  *
  * 覆盖范围：
- * 1. cleanText 纯函数单元测试
- * 2. TTS 路由集成测试（models、config、voices）
- * 3. 聊天 TTS WebSocket 事件流集成测试（speak_ready / speak_error）
+ * - cleanText 纯函数单元测试
+ * - TTS 路由集成测试
+ * - 聊天 TTS WebSocket 事件流集成测试
  *
  * Mock 策略：
  * - 文件系统：mock paths.js 到临时目录

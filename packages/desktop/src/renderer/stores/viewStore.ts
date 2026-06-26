@@ -1,19 +1,25 @@
 /**
  * @file src/renderer/stores/viewStore.ts
- * @description 主窗口视图状态管理，控制全局视图切换（聊天/设置）以及 MainView 内部导航、侧边栏折叠
+ * @description 主窗口视图状态管理，控制全局视图切换以及 MainView 内部导航、侧边栏折叠
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-/** 全局视图：设置页与聊天页互斥切换（Agent 编辑器在聊天页内按 activeNav 切换，不再独立） */
-type ViewType = 'chat' | 'settings';
+/** 全局视图：设置页、Agent 商城与聊天页互斥切换 */
+type ViewType = 'chat' | 'settings' | 'agent-marketplace';
 
 /** MainView 内部导航，在 chat 视图下按 activeNav 切换右侧内容区 */
-type MainNav = 'chat' | 'agent-settings' | 'tools' | 'skills';
+type MainNav =
+  | 'chat'
+  | 'agent-settings'
+  | 'tools'
+  | 'skills'
+  | 'marketplace'
+  | 'mcp-marketplace';
 
 interface ViewStore {
   currentView: ViewType;
-  /** 当前编辑的 Agent ID（null = 新建模式） */
+  /** 当前编辑的 Agent ID */
   editingAgentId: string | null;
   /** MainView 内部导航 */
   activeNav: MainNav;
@@ -47,7 +53,7 @@ export const useViewStore = create<ViewStore>()(
         set((s) => ({ sessionsCollapsed: !s.sessionsCollapsed })),
 
       /**
-       * 打开 Agent 编辑器，仅切换 activeNav（Session 栏保持可见）。
+       * 打开 Agent 编辑器，仅切换 activeNav。
        * currentView 不变，始终是 'chat'。
        */
       openAgentEditor: (agentId) =>

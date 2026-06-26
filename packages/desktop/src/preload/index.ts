@@ -6,8 +6,8 @@
  * - 系统文件夹选择器
  * - 后端服务地址查询
  * - 日志代理写入
- * - 窗口控制（最小化/最大化/关闭/状态监听）
- * - 网络代理请求（绕过 CORS 限制）
+ * - 窗口控制
+ * - 网络代理请求
  */
 import { contextBridge, ipcRenderer } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
@@ -35,7 +35,7 @@ const api: WindowAPI = {
 
   /**
    * 让前端通过主进程写入日志 的传递
-   * @param level - 日志级别（info/warn/error 等）
+   * @param level - 日志级别
    * @param args - 日志内容
    */
   log: (level, ...args) => ipcRenderer.invoke(IPC.LOG, level, ...args),
@@ -43,8 +43,8 @@ const api: WindowAPI = {
   /**
    * 通过主进程代理发起 HTTP 请求，绕过渲染进程的 CORS 限制
    * @param url - 请求目标 URL
-   * @param options - 请求参数（方法、请求头、请求体）
-   * @returns 响应对象，包含状态码、响应头和 body（ArrayBuffer）
+   * @param options - 请求参数
+   * @returns 响应对象，包含状态码、响应头和 body
    */
   proxyFetch: (url, options) =>
     ipcRenderer.invoke(IPC.PROXY_FETCH, url, options),

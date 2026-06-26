@@ -17,6 +17,7 @@ import { createVoiceRouter } from './routers/voice.js';
 import { createConfigRouter } from './routers/config.js';
 import { createSkillRouter } from './routers/skill.js';
 import { createMcpRouter } from './routers/mcp.js';
+import { createMarketplaceRouter } from './routers/marketplace.js';
 import { createTunnelRouter } from './routers/tunnel.js';
 import { createAssetsRouter } from './routers/assets.js';
 import { createAvatarRouter } from './routers/avatar.js';
@@ -58,7 +59,7 @@ const sessionManagers: SessionManagersMap = new Map();
 
 /**
  * 给所有Agent创建对应的SessionStore, 然后保存在SessionManagersMap映射关系。
- * 同时为每个 Agent 补建聊天 Session（旧 Agent 升级用）。
+ * 同时为每个 Agent 补建聊天 Session。
  */
 function initSessionManagers(): void {
   const agentConfigs = listAgentConfigs();
@@ -86,6 +87,7 @@ app.use('/api/auth', createAuthRouter());
 app.use('/api/config', createConfigRouter());
 app.use('/api/skills', createSkillRouter());
 app.use('/api/mcp', createMcpRouter());
+app.use('/api/marketplace', createMarketplaceRouter(sessionManagers));
 app.use('/api/tunnel', createTunnelRouter());
 app.use('/api/agents', createAgentRouter(sessionManagers));
 app.use('/api/agents/:agentId/assets', createAssetsRouter());

@@ -81,7 +81,7 @@ interface ChatStore {
   wsClient: WebSocketClient | null;
 
   setCurrentSessionId: (id: string | null) => void;
-  /** 为指定 session 初始化聊天状态（从后端加载的历史消息） */
+  /** 为指定 session 初始化聊天状态 */
   initSessionState: (sessionId: string, messages: UIMessage[]) => void;
   /** 清除指定 session 的聊天状态 */
   clearSessionState: (sessionId: string) => void;
@@ -181,7 +181,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       return { sessionStates: newStates, lastUserMessage: content };
     });
 
-    // 同步更新会话预览（用于 Session 栏 chat 入口的消息预览）
+    // 同步更新会话预览
     useSessionStore
       .getState()
       .updateSessionPreview(sessionId, extractPreview(content));
@@ -220,7 +220,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   /**
    * 处理 WebSocket 推送消息，按 sessionId 路由到对应 session 的状态。
-   * 所有 session 作用域事件（step_complete / complete / error 等）均通过 msg.sessionId 定位 Map entry。
+   * 所有 session 作用域事件均通过 msg.sessionId 定位 Map entry。
    */
   handleWsMessage: (msg: ServerMessage) => {
     switch (msg.type) {

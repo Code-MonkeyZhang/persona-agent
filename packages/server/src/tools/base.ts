@@ -17,7 +17,7 @@ export interface ToolResult {
 
 /**
  * 带额外元数据的工具结果类型。
- * 用于需要返回结构化数据的工具（如 Bash）。
+ * 用于需要返回结构化数据的工具。
  */
 export type ToolResultWithMeta<
   TMeta extends Record<string, unknown> = Record<string, never>,
@@ -26,8 +26,8 @@ export type ToolResultWithMeta<
 /**
  * 工具接口 - 所有工具必须实现此接口。
  *
- * @template Input - 输入参数类型（继承自ToolInput）
- * @template Output - 执行结果类型（继承自ToolResult）
+ * @template Input - 输入参数类型
+ * @template Output - 执行结果类型
  */
 export interface Tool<
   Input extends ToolInput = ToolInput,

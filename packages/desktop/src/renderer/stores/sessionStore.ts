@@ -54,7 +54,7 @@ interface SessionStore {
   updateSessionTitleLocally: (sessionId: string, title: string) => void;
   convertSessionMessages: (messages: Message[]) => UIMessage[];
 
-  /** 按 sessionId 映射的消息预览文本（30 字截断），持久化到 localStorage */
+  /** 按 sessionId 映射的消息预览文本，持久化到 localStorage */
   sessionPreviews: Record<string, string>;
   updateSessionPreview: (sessionId: string, preview: string) => void;
 }
@@ -344,8 +344,8 @@ export const useSessionStore = create<SessionStore>()(
 
       /**
        * 将服务端返回的 Message 数组转换为客户端 UIMessage 格式，提取 thinking 和 tool_calls 为 Thought 数组。
-       * @param messages - 服务端返回的原始消息数组（shared Message 联合）
-       * @returns 转换后的客户端 UIMessage 数组（UI 视图模型）
+       * @param messages - 服务端返回的原始消息数组
+       * @returns 转换后的客户端 UIMessage 数组
        */
       convertSessionMessages: (messages: Message[]): UIMessage[] => {
         return messages.map((msg, index): UIMessage => {
@@ -402,7 +402,7 @@ export const useSessionStore = create<SessionStore>()(
       /**
        * 更新指定会话的消息预览，同步写入 localStorage 以便重启后保留。
        * @param sessionId - 会话 ID
-       * @param preview - 预览文本（已截断）
+       * @param preview - 预览文本
        */
       updateSessionPreview: (sessionId: string, preview: string) => {
         set((state) => ({

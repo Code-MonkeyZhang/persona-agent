@@ -1,8 +1,8 @@
 /**
  * @file components/SessionSidebar.tsx
  * @description 会话列表侧边栏，展示当前 Agent 的常驻聊天入口、任务会话列表及底部资源入口。
- * 信息架构（自上而下）：Header（Agent 编辑入口）→ 聊天入口 → 分隔线 → 「会话」折叠头 →
- * 平铺会话列表 → 底部资源入口（工具/技能）。
+ * 信息架构：Header → 聊天入口 → 分隔线 → 工具/技能 → 分隔线 →
+ * 「会话」折叠头 → 平铺会话列表（钉底）。
  * 折叠状态由 viewStore 管理，开关位于 TitleBar。
  * 整体收起/展开使用 framer-motion AnimatePresence 做宽度过渡动画。
  */
@@ -131,7 +131,7 @@ export const SessionSidebar: React.FC = () => {
         >
           {/* 内部固定 216px，防止动画过程中内容被挤压 */}
           <div className="w-[216px] h-full bg-background border-r border-border flex flex-col">
-            {/* ① Header：Agent 信息块，整块可点击进入编辑 */}
+            {/* - Header：Agent 信息块，整块可点击进入编辑 */}
             <div className="h-14 px-4 border-b border-border flex items-center shrink-0">
               <button
                 onClick={() => currentAgent && openAgentEditor(currentAgent.id)}
@@ -156,9 +156,9 @@ export const SessionSidebar: React.FC = () => {
               </button>
             </div>
 
-            {/* ② 上半固定区：聊天入口 + 分隔线 + 「会话」折叠头 */}
+            {/* - 上半固定区：聊天入口 + 分隔线 + 工具 + 技能 */}
             <div className="px-2 shrink-0">
-              {/* 聊天（常驻陪伴）入口，钉顶单独渲染 */}
+              {/* 聊天入口，钉顶单独渲染 */}
               {chatSession && (
                 <div className="pt-2">
                   <button
@@ -191,79 +191,77 @@ export const SessionSidebar: React.FC = () => {
               {/* 分隔线 */}
               <div className="mx-1 my-2 border-t border-border" />
 
-              {/* 「会话」折叠头 */}
-              <div className="pt-1">
-                <button
-                  onClick={toggleSessionsCollapsed}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition-colors"
-                >
-                  <MessagesSquare className="w-4 h-4 text-muted-foreground" />
-                  <span className="flex-1 text-left text-sm text-muted-foreground truncate">
-                    {t('sessionSidebar.sessions')}
-                  </span>
-                  <ChevronDown
-                    className={cn(
-                      'w-4 h-4 text-muted-foreground transition-transform duration-150',
-                      sessionsCollapsed && '-rotate-90'
-                    )}
-                  />
-                </button>
-              </div>
+              {/* 工具入口 */}
+              <NavItem
+                icon={Wrench}
+                label={t('sessionSidebar.tools')}
+                active={activeNav === 'tools'}
+                onClick={() => setActiveNav('tools')}
+              />
+
+              {/* 技能入口 */}
+              <NavItem
+                icon={Sparkles}
+                label={t('sessionSidebar.skills')}
+                active={activeNav === 'skills'}
+                onClick={() => setActiveNav('skills')}
+              />
             </div>
 
-            {/* ③ 下半区：会话列表（可滚动 + 折叠动画）+ 底部资源入口（钉底） */}
-            <div className="flex-1 min-h-0 flex flex-col">
-              {/* 普通会话列表，平铺无分组，折叠时 flex-grow 0→1 动画 */}
-              <div
-                className={cn(
-                  'min-h-0 hover-scroll px-2',
-                  sessionsCollapsed ? 'overflow-hidden' : 'overflow-y-auto'
-                )}
-                style={{
-                  flexGrow: sessionsCollapsed ? 0 : 1,
-                  flexBasis: 0,
-                  transition: 'flex-grow 0.3s ease-in-out',
-                }}
+            {/* - 下半区：「会话」折叠头 + 会话列表，钉底 */}
+            <div className="shrink-0 px-2 pt-1">
+              {/* 「会话」折叠头 */}
+              <button
+                onClick={toggleSessionsCollapsed}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition-colors"
               >
-                <div className="pb-1">
-                  {regularSessions.length === 0 ? (
-                    <div className="px-5 py-3 text-xs text-muted-foreground">
-                      {currentAgent
-                        ? t('sessionSidebar.noTaskSessions')
-                        : t('common.noAgent')}
-                    </div>
-                  ) : (
-                    regularSessions.map((session) => (
-                      <SessionItem
-                        key={session.id}
-                        session={session}
-                        isActive={
-                          currentSession?.id === session.id &&
-                          activeNav === 'chat'
-                        }
-                        onSelect={handleSelectSession}
-                        onDelete={handleDeleteSession}
-                        onRename={handleRenameSession}
-                      />
-                    ))
+                <MessagesSquare className="w-4 h-4 text-muted-foreground" />
+                <span className="flex-1 text-left text-sm text-muted-foreground truncate">
+                  {t('sessionSidebar.sessions')}
+                </span>
+                <ChevronDown
+                  className={cn(
+                    'w-4 h-4 text-muted-foreground transition-transform duration-150',
+                    sessionsCollapsed && '-rotate-90'
                   )}
-                </div>
-              </div>
+                />
+              </button>
+            </div>
 
-              {/* 底部资源入口，钉底不随列表滚动 */}
-              <div className="shrink-0 px-2 pb-2 pt-1 space-y-0.5">
-                <NavItem
-                  icon={Wrench}
-                  label={t('sessionSidebar.tools')}
-                  active={activeNav === 'tools'}
-                  onClick={() => setActiveNav('tools')}
-                />
-                <NavItem
-                  icon={Sparkles}
-                  label={t('sessionSidebar.skills')}
-                  active={activeNav === 'skills'}
-                  onClick={() => setActiveNav('skills')}
-                />
+            {/* 普通会话列表，平铺无分组，折叠时 flex-grow 1→0 动画，占据底部剩余空间 */}
+            <div
+              className={cn(
+                'min-h-0 hover-scroll px-2',
+                sessionsCollapsed ? 'overflow-hidden' : 'overflow-y-auto'
+              )}
+              style={{
+                flexGrow: sessionsCollapsed ? 0 : 1,
+                flexBasis: 0,
+                transition: 'flex-grow 0.3s ease-in-out',
+              }}
+            >
+              <div className="pb-1">
+                {regularSessions.length === 0 ? (
+                  <div className="px-5 py-3 text-xs text-muted-foreground">
+                    {currentAgent
+                      ? t('sessionSidebar.noTaskSessions')
+                      : t('common.noAgent')}
+                  </div>
+                ) : (
+                  regularSessions.map((session) => (
+                    <SessionItem
+                      key={session.id}
+                      session={session}
+                      isActive={
+                        currentSession?.id === session.id &&
+                        activeNav === 'chat'
+                      }
+                      onSelect={handleSelectSession}
+                      onDelete={handleDeleteSession}
+                      onRename={handleRenameSession}
+                    />
+                  ))
+                )}
               </div>
             </div>
           </div>

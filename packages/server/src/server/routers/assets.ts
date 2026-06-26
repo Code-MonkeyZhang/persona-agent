@@ -47,7 +47,7 @@ const upload = multer({
 });
 
 /**
- * 根据 URL 中的 name 在 pose 目录中查找匹配的文件名（不含扩展名匹配）。
+ * 根据 URL 中的 name 在 pose 目录中查找匹配的文件名。
  * @returns 匹配到的完整文件名，未找到返回 undefined
  */
 function findPoseFile(poseDir: string, name: string): string | undefined {
@@ -98,7 +98,7 @@ export function createAssetsRouter(): Router {
   /**
    * GET /pose/:name — 获取指定名称的立绘图片文件。
    *
-   * 根据 URL 中的 name 参数在 pose 目录中匹配文件名（不含扩展名），
+   * 根据 URL 中的 name 参数在 pose 目录中匹配文件名，
    * 找到后以流式响应返回图片，自动设置对应的 Content-Type。
    *
    * @returns 图片文件流，或 404/400/500 错误 JSON
@@ -132,7 +132,7 @@ export function createAssetsRouter(): Router {
   /**
    * POST /pose/:name — 上传立绘图片。
    *
-   * 以 URL 中的 name 作为文件名（扩展名取自上传文件），保存到 pose 目录。
+   * 以 URL 中的 name 作为文件名，保存到 pose 目录。
    * 同名文件已存在时覆盖。
    *
    * @returns JSON: `{ success: true }`
@@ -168,7 +168,7 @@ export function createAssetsRouter(): Router {
   /**
    * DELETE /pose/:name — 删除指定名称的立绘图片。
    *
-   * 在 pose 目录中查找匹配的文件（忽略扩展名）并删除。
+   * 在 pose 目录中查找匹配的文件并删除。
    *
    * @returns JSON: `{ success: true }`
    */

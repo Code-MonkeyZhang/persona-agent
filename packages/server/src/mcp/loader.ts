@@ -27,7 +27,7 @@ export interface ConnectResult {
  * Connect to a single MCP server and return its connection result.
  * For remote servers (URL-based), creates an OAuth provider for authentication.
  */
-async function connectOne(
+export async function connectOne(
   name: string,
   config: McpServerConfig
 ): Promise<ConnectResult> {

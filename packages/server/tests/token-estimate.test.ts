@@ -1,5 +1,5 @@
 /**
- * @fileoverview token-estimate 纯函数单元测试（随默认 `bun test` 运行）。
+ * @fileoverview token-estimate 纯函数单元测试。
  */
 
 import { describe, it, expect } from 'bun:test';

@@ -41,10 +41,10 @@ export function cleanText(text: string): string {
 /**
  * Process text for TTS playback.
  *
- * 1. Always applies rule-based cleaning.
- * 2. If text is within threshold AND no target language → returns cleaned text immediately.
- * 3. Otherwise calls the session's LLM once (compress to threshold + translate if needed).
- * 4. On LLM failure, falls back to cleaned text.
+ * - Always applies rule-based cleaning.
+ * - If text is within threshold AND no target language → returns cleaned text immediately.
+ * - Otherwise calls the session's LLM once (compress to threshold + translate if needed).
+ * - On LLM failure, falls back to cleaned text.
  *
  * @param text - Raw assistant message text
  * @param options - Processing options

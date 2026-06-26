@@ -1,6 +1,6 @@
 /**
  * @file src/renderer/components/thought-utils.ts
- * @description 思考过程（thought）显示相关的工具函数，包括图标映射、颜色映射、标签映射和工具输入格式化
+ * @description 思考过程显示相关的工具函数，包括图标映射、颜色映射、标签映射和工具输入格式化
  */
 
 import { Lightbulb, Braces, XCircle, Zap, type LucideIcon } from 'lucide-react';

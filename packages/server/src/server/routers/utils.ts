@@ -18,8 +18,8 @@ export function getParam(
  *
  * 替代每个 handler 中手写的 `try { ... } catch (error) { Logger.log(...); res.status(500).json(...) }` 样板。
  *
- * @param category - Logger 日志分类标签（如 'AGENT'、'SESSION'）
- * @param message - 错误描述（如 'Error listing agents'）
+ * @param category - Logger 日志分类标签
+ * @param message - 错误描述
  * @param handler - 实际业务逻辑函数
  * @returns 可直接传给 router.get() / router.post() 等的处理函数
  */
@@ -45,7 +45,7 @@ export function asyncHandler(
  * 返回 true 时 TypeScript 会将 value 收窄为 string 类型。
  *
  * @param value - 参数值
- * @param name - 参数显示名称（如 'Agent ID'）
+ * @param name - 参数显示名称
  * @param res - Express 响应对象
  * @returns true 表示参数存在，false 表示已发送 400 响应
  */

@@ -74,7 +74,7 @@ export const SettingsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center bg-[#f7f7f7]">
+      <div className="h-full flex items-center justify-center bg-general-bg">
         <div className="text-[#999]">{t('common.loading')}</div>
       </div>
     );
@@ -82,7 +82,7 @@ export const SettingsPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="h-full flex items-center justify-center bg-[#f7f7f7]">
+      <div className="h-full flex items-center justify-center bg-general-bg">
         <div className="text-red-500">
           {t('settings.loadError')}：{error}
         </div>
@@ -91,7 +91,7 @@ export const SettingsPage: React.FC = () => {
   }
 
   return (
-    <div className="h-full w-full flex bg-[#f7f7f7]">
+    <div className="h-full w-full flex bg-general-bg">
       <div className="w-52 border-r border-[#e8e8e8] bg-white flex flex-col shrink-0">
         <div className="px-4 py-4 flex items-center gap-2">
           <BackButton onClick={handleClose} />

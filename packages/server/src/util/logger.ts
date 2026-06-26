@@ -108,6 +108,12 @@ export class Logger {
       return data;
     }
 
+    // Error 对象的 message / stack 是不可枚举属性，
+    // 用 { ...data } 展开会丢失。直接返回让 log() 的 Error 分支处理。
+    if (data instanceof Error) {
+      return data;
+    }
+
     const logData = data as LogData;
     const result: Record<string, unknown> = { ...logData };
 

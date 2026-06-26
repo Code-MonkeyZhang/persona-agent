@@ -141,7 +141,7 @@ export class SessionManager {
   }
 
   /**
-   * 更新聊天 Session 的压缩进度指针（原始消息已压缩到的下标）。
+   * 更新聊天 Session 的压缩进度指针。
    *
    * 压缩完成后由 compress-service 调用，推进 `summarizedUpTo`；
    * 仅重写 JSONL 首行元数据，消息行不受影响。

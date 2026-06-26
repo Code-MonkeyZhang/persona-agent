@@ -7,17 +7,17 @@ import { useState, useRef, useCallback } from 'react';
 import type { KeyboardEvent, ChangeEvent } from 'react';
 
 interface UseChatInputOptions {
-  /** textarea 最大高度（px） */
+  /** textarea 最大高度 */
   maxHeight: number;
-  /** Enter 发送回调（组件负责校验和实际发送逻辑） */
+  /** Enter 发送回调 */
   onSend: () => void;
 }
 
 /**
  * 聊天输入框 hook，统一封装 InputBox 和 CompanionPanel 中重复的 textarea 逻辑：
- * - 输入值管理（state + setter）
+ * - 输入值管理
  * - 根据内容自动撑高，上限 maxHeight
- * - IME 兼容的 Enter 发送（Shift+Enter 换行，输入法组合状态不触发）
+ * - IME 兼容的 Enter 发送
  * - reset 清空输入框并重置高度
  *
  * @returns input - 当前输入值；setInput - 直接设置输入值；
@@ -57,7 +57,7 @@ export function useChatInput({ maxHeight, onSend }: UseChatInputOptions) {
 
   /**
    * 键盘事件处理：输入法组合状态不拦截，
-   * Enter 发送（Shift+Enter 换行）
+   * Enter 发送
    */
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.nativeEvent.isComposing) return;
