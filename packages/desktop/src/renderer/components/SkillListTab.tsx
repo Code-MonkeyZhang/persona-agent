@@ -1,167 +1,66 @@
 /**
  * @file src/renderer/components/SkillListTab.tsx
- * @description Skills 列表标签页，展示后端已注册的技能模块名称和描述，并支持卸载
- * 使用 2 列网格卡片的 Demo 视觉风格
+ * @description 设置页 Skills 标签页外壳：标题 + "打开目录"按钮 + 管理行列表。
+ * 已装列表与卸载逻辑在 useMarketplaceStore，行渲染用 ManageRow（行内二次确认）。
  */
 
-import React, { useEffect, useState } from 'react';
-import { FolderOpen, Trash2, Loader2 } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { FolderOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { listSkills, uninstallSkill, type SkillInfo } from '../lib/api';
-import { toast } from '../stores/toastStore';
+import { useMarketplaceStore } from '../stores/marketplaceStore';
 import { ListState } from './ListState';
+import { ManageRow } from './cards/ManageRow';
 
-/**
- * Skills 列表标签页组件，从后端加载可用技能列表并展示名称和描述，支持卸载
- */
 export const SkillListTab: React.FC = () => {
   const { t } = useTranslation();
-  const [skills, setSkills] = useState<SkillInfo[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  /** 待卸载的 Skill */
-  const [uninstallTarget, setUninstallTarget] = useState<SkillInfo | null>(
-    null
-  );
-  const [isUninstalling, setIsUninstalling] = useState(false);
+  const skills = useMarketplaceStore((s) => s.skillsManage);
+  const isLoading = useMarketplaceStore((s) => s.skillsManageLoading);
+  const error = useMarketplaceStore((s) => s.skillsManageError);
+  const loadSkillManage = useMarketplaceStore((s) => s.loadSkillManage);
+  const uninstallSkillItem = useMarketplaceStore((s) => s.uninstallSkillItem);
 
   useEffect(() => {
-    loadSkills();
-  }, []);
-
-  /**
-   * 从后端拉取 Skills 列表并更新本地状态
-   */
-  const loadSkills = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await listSkills();
-      setSkills(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('skills.loadFailed'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  /**
-   * 确认卸载：调后端删除该 Skill 的本地文件夹，成功后刷新列表并提示
-   */
-  const handleConfirmUninstall = async () => {
-    if (!uninstallTarget) return;
-    setIsUninstalling(true);
-    try {
-      await uninstallSkill(uninstallTarget.name);
-      await loadSkills();
-      toast.success(
-        t('marketplace.uninstallSuccess', { name: uninstallTarget.name })
-      );
-      setUninstallTarget(null);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('common.loadFailed'));
-    } finally {
-      setIsUninstalling(false);
-    }
-  };
+    loadSkillManage();
+  }, [loadSkillManage]);
 
   return (
-    <>
-      <ListState isLoading={isLoading} error={error} onRetry={loadSkills}>
-        <div className="p-5">
-          <div className="rounded-xl border border-border bg-white px-4 py-4">
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="text-[14px] font-bold text-foreground">Skills</h3>
-              <button
-                onClick={() =>
-                  window.api?.openPath('~/.local/share/persona-agent/skills/')
-                }
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] text-muted-foreground border border-border bg-white hover:bg-secondary transition-colors shadow-sm"
-              >
-                <FolderOpen className="w-4 h-4" />
-                {t('common.openDirectory')}
-              </button>
-            </div>
-            <p className="text-[12px] text-muted-foreground mb-4">
-              {t('skills.desc')}
-            </p>
-
-            {skills.length === 0 ? (
-              <div className="text-placeholder text-[13px] py-4 text-center">
-                {t('skills.empty')}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2.5">
-                {skills.map((skill) => (
-                  <div
-                    key={skill.name}
-                    className="group flex items-center gap-2 px-3 py-3 rounded-xl border border-card-border bg-card-bg text-left"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[13px] font-medium text-foreground truncate">
-                        {skill.name}
-                      </div>
-                      {skill.description && (
-                        <div className="text-[11px] text-muted-foreground truncate mt-0.5">
-                          {skill.description}
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setUninstallTarget(skill)}
-                      className="shrink-0 flex items-center gap-1 h-7 px-2.5 text-[11px] rounded-lg border border-border text-muted-foreground hover:bg-secondary hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      {t('marketplace.uninstall')}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+    <ListState isLoading={isLoading} error={error} onRetry={loadSkillManage}>
+      <div className="p-5">
+        <div className="rounded-xl border border-border bg-white px-4 py-4">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-[14px] font-bold text-foreground">Skills</h3>
+            <button
+              onClick={() =>
+                window.api?.openPath('~/.local/share/persona-agent/skills/')
+              }
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] text-muted-foreground border border-border bg-white hover:bg-secondary transition-colors shadow-sm"
+            >
+              <FolderOpen className="w-4 h-4" />
+              {t('common.openDirectory')}
+            </button>
           </div>
-        </div>
-      </ListState>
+          <p className="text-[12px] text-muted-foreground mb-4">
+            {t('skills.desc')}
+          </p>
 
-      {/* 卸载二次确认弹窗 */}
-      {uninstallTarget && (
-        <div
-          className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center"
-          onClick={() => !isUninstalling && setUninstallTarget(null)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-6 p-5 flex flex-col gap-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-[15px] font-bold text-foreground">
-              {t('marketplace.uninstall')}
-            </h3>
-            <p className="text-[13px] text-muted-foreground leading-relaxed">
-              {t('marketplace.uninstallConfirm', {
-                name: uninstallTarget.name,
-              })}
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setUninstallTarget(null)}
-                disabled={isUninstalling}
-                className="h-8 px-4 rounded-lg text-[13px] text-muted-foreground border border-border hover:bg-secondary disabled:opacity-50 transition-colors"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={handleConfirmUninstall}
-                disabled={isUninstalling}
-                className="h-8 px-4 rounded-lg text-[13px] text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 flex items-center gap-1 transition-colors"
-              >
-                {isUninstalling && (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                )}
-                {t('marketplace.uninstall')}
-              </button>
+          {skills.length === 0 ? (
+            <div className="text-placeholder text-[13px] py-4 text-center">
+              {t('skills.empty')}
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2.5">
+              {skills.map((skill) => (
+                <ManageRow
+                  key={skill.name}
+                  type="skill"
+                  skill={skill}
+                  onUninstall={() => uninstallSkillItem(skill.name)}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      )}
-    </>
+      </div>
+    </ListState>
   );
 };

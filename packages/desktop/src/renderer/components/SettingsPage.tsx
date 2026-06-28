@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Key, Speech, Plug, Settings, Sparkles } from 'lucide-react';
+import { Key, Speech, Wrench, Settings, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ProviderConfigPanel } from './ProviderConfigPanel';
 import { ConfigForm } from './ConfigForm';
@@ -40,7 +40,7 @@ const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   {
     key: 'mcp',
     label: 'settings.tabs.mcp',
-    icon: <Plug className="w-4 h-4" />,
+    icon: <Wrench className="w-4 h-4" />,
   },
   {
     key: 'skills',

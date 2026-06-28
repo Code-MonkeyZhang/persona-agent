@@ -2,19 +2,21 @@
  * @file components/AgentToolsView.tsx
  * @description Agent 工具视图，独立于 AgentEditor，采用草稿+保存模式。
  * 从 currentAgent.mcpNames 初始化草稿，保存后调 updateAgentMcpNames 写入后端。
- * 两段式布局：上半「已分配」+ 下半「可用 MCP」，放弃下拉菜单。
+ * 两段式布局：上半「已分配」+ 下半「可用 MCP」，行渲染统一用 AssignRow。
+ *
+ * 商城入口已收口到左下角罗盘，本页不再提供"浏览商城"按钮；要装新的 MCP 去罗盘。
  */
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Wrench, Compass } from 'lucide-react';
+import { Wrench } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { listMcpServers, type McpServerInfo } from '../lib/api';
 import { useAgentStore } from '../stores/agentStore';
 import { useViewStore } from '../stores/viewStore';
 import { logger } from '../lib/logger';
 import { ScrollArea } from './ui/ScrollArea';
-import { StatusDot } from './ui/StatusDot';
 import { BackButton } from './ui/BackButton';
 import { CollapsibleSection } from './ui/CollapsibleSection';
+import { AssignRow } from './cards/AssignRow';
 
 export const AgentToolsView: React.FC = () => {
   const { t } = useTranslation();
@@ -50,6 +52,9 @@ export const AgentToolsView: React.FC = () => {
     setIsSaving(true);
     try {
       await updateAgentMcpNames(currentAgent.id, selectedMcpIds);
+      logger.info(
+        `[Tools] Saved MCP assignment for ${currentAgent.id}: ${selectedMcpIds.join(', ')}`
+      );
       setActiveNav('chat');
     } catch (err) {
       logger.error('Failed to save MCP names:', err);
@@ -58,20 +63,9 @@ export const AgentToolsView: React.FC = () => {
     }
   };
 
-  /** 根据 name 查找 MCP 信息 */
+  /** 根据 name 查找 MCP 信息（已分配项可能按名引用，未必加载到详情） */
   const resolveMcp = (name: string): McpServerInfo | undefined =>
     mcps.find((m) => m.name === name);
-
-  /** 根据 MCP 状态返回状态点颜色 */
-  const getStatusColor = (mcp?: McpServerInfo): string =>
-    mcp?.status === 'connected' ? 'bg-green-500' : 'bg-gray-300';
-
-  /** 根据 MCP 信息返回副标题文本 */
-  const getSubtitle = (mcp?: McpServerInfo): string => {
-    if (!mcp) return t('mcp.disconnected');
-    if (mcp.toolCount > 0) return t('mcp.toolsCount', { count: mcp.toolCount });
-    return mcp.status === 'connected' ? 'connected' : t('mcp.disconnected');
-  };
 
   return (
     <div className="h-full w-full flex flex-col bg-general-bg">
@@ -82,13 +76,6 @@ export const AgentToolsView: React.FC = () => {
           {t('tools.title')}
         </h1>
         <div className="flex-1" />
-        <button
-          onClick={() => setActiveNav('mcp-marketplace')}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-blue-200 text-blue-600 bg-background hover:bg-blue-50 transition-colors text-[13px]"
-        >
-          <Compass className="w-4 h-4" />
-          {t('mcpMarketplace.browse')}
-        </button>
         <button
           onClick={handleSave}
           disabled={isSaving}
@@ -113,36 +100,20 @@ export const AgentToolsView: React.FC = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2.5 pt-1 pb-2">
-                  {selectedMcpIds.map((mcpId) => {
-                    const mcp = resolveMcp(mcpId);
-                    return (
-                      <div
-                        key={mcpId}
-                        className="group relative flex items-center gap-2.5 px-3 py-3 rounded-xl border border-border bg-background hover:bg-muted transition-all"
-                      >
-                        <StatusDot color={getStatusColor(mcp)} />
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[13px] font-medium text-foreground truncate">
-                            {mcpId}
-                          </div>
-                          <div className="text-[11px] text-muted-foreground truncate">
-                            {getSubtitle(mcp)}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() =>
-                            setSelectedMcpIds(
-                              selectedMcpIds.filter((id) => id !== mcpId)
-                            )
-                          }
-                          className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-muted-foreground/60 hover:bg-black/5 hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
-                          title={t('tools.remove')}
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    );
-                  })}
+                  {selectedMcpIds.map((mcpId) => (
+                    <AssignRow
+                      key={mcpId}
+                      type="mcp"
+                      variant="assigned"
+                      name={mcpId}
+                      mcp={resolveMcp(mcpId)}
+                      onAction={() =>
+                        setSelectedMcpIds(
+                          selectedMcpIds.filter((id) => id !== mcpId)
+                        )
+                      }
+                    />
+                  ))}
                 </div>
               )}
             </CollapsibleSection>
@@ -161,29 +132,16 @@ export const AgentToolsView: React.FC = () => {
               ) : (
                 <div className="grid grid-cols-2 gap-2.5 pt-1 pb-2">
                   {availableMcps.map((mcp) => (
-                    <div
+                    <AssignRow
                       key={mcp.name}
-                      className="group relative flex items-center gap-2.5 px-3 py-3 rounded-xl border border-border bg-background hover:bg-muted transition-all"
-                    >
-                      <StatusDot color={getStatusColor(mcp)} />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-medium text-foreground truncate">
-                          {mcp.name}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground truncate">
-                          {getSubtitle(mcp)}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() =>
-                          setSelectedMcpIds([...selectedMcpIds, mcp.name])
-                        }
-                        className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                        title={t('tools.assign')}
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    </div>
+                      type="mcp"
+                      variant="available"
+                      name={mcp.name}
+                      mcp={mcp}
+                      onAction={() =>
+                        setSelectedMcpIds([...selectedMcpIds, mcp.name])
+                      }
+                    />
                   ))}
                 </div>
               )}

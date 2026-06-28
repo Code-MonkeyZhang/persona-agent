@@ -2,10 +2,12 @@
  * @file components/SkillsView.tsx
  * @description Agent 技能视图，独立于 AgentEditor，采用草稿+保存模式。
  * 从 currentAgent.skillNames 初始化草稿，保存后调 updateAgentSkillNames 写入后端。
- * 两段式布局：上半「已分配」+ 下半「技能库」，放弃下拉菜单。
+ * 两段式布局：上半「已分配」+ 下半「技能库」，行渲染统一用 AssignRow。
+ *
+ * 商城入口已收口到左下角罗盘，本页不再提供"技能商城"按钮；要装新的技能去罗盘。
  */
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Sparkles, Compass } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { listSkills, type SkillInfo } from '../lib/api';
 import { useAgentStore } from '../stores/agentStore';
@@ -14,6 +16,7 @@ import { logger } from '../lib/logger';
 import { ScrollArea } from './ui/ScrollArea';
 import { BackButton } from './ui/BackButton';
 import { CollapsibleSection } from './ui/CollapsibleSection';
+import { AssignRow } from './cards/AssignRow';
 
 export const SkillsView: React.FC = () => {
   const { t } = useTranslation();
@@ -51,6 +54,9 @@ export const SkillsView: React.FC = () => {
     setIsSaving(true);
     try {
       await updateAgentSkillNames(currentAgent.id, selectedSkillIds);
+      logger.info(
+        `[Skills] Saved skill assignment for ${currentAgent.id}: ${selectedSkillIds.join(', ')}`
+      );
       setActiveNav('chat');
     } catch (err) {
       logger.error('Failed to save skill names:', err);
@@ -72,13 +78,6 @@ export const SkillsView: React.FC = () => {
           {t('skills.viewTitle')}
         </h1>
         <div className="flex-1" />
-        <button
-          onClick={() => setActiveNav('marketplace')}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-blue-200 text-blue-600 bg-background hover:bg-blue-50 transition-colors text-[13px]"
-        >
-          <Compass className="w-4 h-4" />
-          {t('marketplace.entry')}
-        </button>
         <button
           onClick={handleSave}
           disabled={isSaving}
@@ -106,30 +105,18 @@ export const SkillsView: React.FC = () => {
                   {selectedSkillIds.map((skillId) => {
                     const skill = resolveSkill(skillId);
                     return (
-                      <div
+                      <AssignRow
                         key={skillId}
-                        className="group relative flex items-center gap-2.5 px-3 py-3 rounded-xl border border-border bg-background hover:bg-muted transition-all"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[13px] font-medium text-foreground truncate">
-                            {skill?.name || skillId}
-                          </div>
-                          <div className="text-[11px] text-muted-foreground truncate">
-                            {skill?.description || ''}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() =>
-                            setSelectedSkillIds(
-                              selectedSkillIds.filter((id) => id !== skillId)
-                            )
-                          }
-                          className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-muted-foreground/60 hover:bg-black/5 hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
-                          title={t('skills.remove')}
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                        type="skill"
+                        variant="assigned"
+                        name={skill?.name || skillId}
+                        description={skill?.description}
+                        onAction={() =>
+                          setSelectedSkillIds(
+                            selectedSkillIds.filter((id) => id !== skillId)
+                          )
+                        }
+                      />
                     );
                   })}
                 </div>
@@ -150,28 +137,16 @@ export const SkillsView: React.FC = () => {
               ) : (
                 <div className="grid grid-cols-2 gap-2.5 pt-1 pb-2">
                   {librarySkills.map((skill) => (
-                    <div
+                    <AssignRow
                       key={skill.name}
-                      className="group relative flex items-center gap-2.5 px-3 py-3 rounded-xl border border-border bg-background hover:bg-muted transition-all"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-medium text-foreground truncate">
-                          {skill.name}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground truncate">
-                          {skill.description || ''}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() =>
-                          setSelectedSkillIds([...selectedSkillIds, skill.name])
-                        }
-                        className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                        title={t('skills.assign')}
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    </div>
+                      type="skill"
+                      variant="available"
+                      name={skill.name}
+                      description={skill.description}
+                      onAction={() =>
+                        setSelectedSkillIds([...selectedSkillIds, skill.name])
+                      }
+                    />
                   ))}
                 </div>
               )}

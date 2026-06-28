@@ -108,10 +108,10 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = ({
 
       <div className="border-t border-border p-2 flex flex-col gap-1">
         <button
-          onClick={() => setView('agent-marketplace')}
+          onClick={() => setView('marketplace')}
           className={cn(
             'w-full flex flex-col items-center py-2 rounded transition-colors',
-            currentView === 'agent-marketplace'
+            currentView === 'marketplace'
               ? 'bg-background shadow-inner'
               : 'text-muted-foreground hover:bg-muted'
           )}

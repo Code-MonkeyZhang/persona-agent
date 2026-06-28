@@ -9,12 +9,10 @@
  * - 'agent-settings'   → Agent 编辑页面
  * - 'tools'            → MCP 工具分配视图
  * - 'skills'           → Skill 分配视图
- * - 'marketplace'      → Skill 商城
- * - 'mcp-marketplace'  → MCP 商城
  *
  * currentView 还可切换到全屏视图（替换 SessionSidebar + 内容区）：
- * - 'settings'           → 设置页
- * - 'agent-marketplace'  → Agent 商城
+ * - 'settings'    → 设置页
+ * - 'marketplace' → 商城浏览页（罗盘进入，唯一安装入口）
  *
  * Session 栏折叠状态由 viewStore.sessionSidebarCollapsed 管理，
  * 折叠开关位于 TitleBar，不再需要独立的悬浮按钮。
@@ -32,8 +30,6 @@ import { AgentEditor } from './components/AgentEditor';
 import { AgentToolsView } from './components/AgentToolsView';
 import { SkillsView } from './components/SkillsView';
 import { MarketplaceView } from './components/MarketplaceView';
-import { McpMarketplaceView } from './components/McpMarketplaceView';
-import { AgentMarketplaceView } from './components/AgentMarketplaceView';
 import { CompanionPanel } from './components/CompanionPanel';
 import { ToastContainer } from './components/Toast';
 import { WebSocketProvider } from './components/WebSocketProvider';
@@ -231,8 +227,8 @@ function AppContent() {
         <div className="flex-1 flex min-h-0 min-w-0">
           {currentView === 'settings' ? (
             <SettingsPage />
-          ) : currentView === 'agent-marketplace' ? (
-            <AgentMarketplaceView />
+          ) : currentView === 'marketplace' ? (
+            <MarketplaceView />
           ) : (
             <>
               <SessionSidebar />
@@ -282,8 +278,6 @@ function AppContent() {
                 )}
                 {activeNav === 'tools' && <AgentToolsView />}
                 {activeNav === 'skills' && <SkillsView />}
-                {activeNav === 'marketplace' && <MarketplaceView />}
-                {activeNav === 'mcp-marketplace' && <McpMarketplaceView />}
               </div>
             </>
           )}

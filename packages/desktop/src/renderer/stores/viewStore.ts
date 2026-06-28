@@ -5,17 +5,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-/** 全局视图：设置页、Agent 商城与聊天页互斥切换 */
-type ViewType = 'chat' | 'settings' | 'agent-marketplace';
+/** 全局视图：设置页、商城与聊天页互斥切换 */
+type ViewType = 'chat' | 'settings' | 'marketplace';
 
 /** MainView 内部导航，在 chat 视图下按 activeNav 切换右侧内容区 */
-type MainNav =
-  | 'chat'
-  | 'agent-settings'
-  | 'tools'
-  | 'skills'
-  | 'marketplace'
-  | 'mcp-marketplace';
+type MainNav = 'chat' | 'agent-settings' | 'tools' | 'skills';
 
 interface ViewStore {
   currentView: ViewType;
