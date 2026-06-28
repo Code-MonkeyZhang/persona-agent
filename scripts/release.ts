@@ -58,6 +58,7 @@ const changedFiles = [
   "package.json",
   "packages/server/package.json",
   "packages/desktop/package.json",
+  "packages/shared/package.json",
 ];
 
 console.log("About to release:\n");
@@ -74,7 +75,7 @@ const answer = await new Promise<string>((resolve) => {
 
 if (answer.toLowerCase() !== "y") {
   console.log("\nAborted. Reverting version bump...");
-  run("git checkout -- package.json packages/server/package.json packages/desktop/package.json");
+  run("git checkout -- package.json packages/server/package.json packages/desktop/package.json packages/shared/package.json");
   console.log("Version bump reverted.");
   process.exit(0);
 }

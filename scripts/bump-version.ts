@@ -15,6 +15,7 @@ const files = [
   'package.json',
   'packages/server/package.json',
   'packages/desktop/package.json',
+  'packages/shared/package.json',
 ];
 
 const rootDir = resolve(import.meta.dirname, '..');
@@ -31,4 +32,4 @@ for (const file of files) {
   console.log(`${file}: ${oldVersion} → ${version}`);
 }
 
-console.log(`\nDone. All three package.json updated to v${version}.`);
+console.log(`\nDone. All ${files.length} package.json files updated to v${version}.`);
