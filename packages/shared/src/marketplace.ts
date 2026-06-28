@@ -9,7 +9,6 @@ export const MarketplaceEntrySchema = z.object({
   description: z.string(),
   author: z.string(),
   homepage: z.string().url(),
-  version: z.string(),
   path: z.string().min(1),
 });
 
@@ -19,7 +18,7 @@ export type MarketplaceEntry = z.infer<typeof MarketplaceEntrySchema>;
 
 /**
  * MCP 商城清单条目。
- * 公共基座 name/description/author/homepage/version/path + 可选的 logo 字段。
+ * 公共基座 name/description/author/homepage/path + 可选的 logo 字段。
  * logo 缺失时前端用扳手图标兜底，不会阻塞上架。
  * 清单里没有 mcpConfig / source / userConfig 字段——
  * MCP 配置在商品文件夹的 mcp.json 文件里（不在清单中），

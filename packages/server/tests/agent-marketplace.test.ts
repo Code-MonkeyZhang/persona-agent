@@ -104,7 +104,6 @@ function makeEntry(folder = 'test-agent'): AgentMarketplaceEntry {
     description: 'desc',
     author: 'a',
     homepage: 'https://example.com',
-    version: '1.0.0',
     path: `agents/${folder}`,
   };
 }

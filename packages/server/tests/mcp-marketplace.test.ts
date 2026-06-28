@@ -118,7 +118,6 @@ function makeEntry(folder = 'test-mcp'): McpMarketplaceEntry {
     description: 'desc',
     author: 'a',
     homepage: 'https://example.com',
-    version: '1.0.0',
     path: `mcp/${folder}`,
     logo: 'logo.svg',
   };
@@ -170,7 +169,6 @@ describe('McpMarketplaceEntrySchema', () => {
       description: 'd',
       author: 'a',
       homepage: 'https://example.com',
-      version: '1.0.0',
       path: 'mcp/test',
       logo: 'logo.svg',
     });
@@ -183,7 +181,6 @@ describe('McpMarketplaceEntrySchema', () => {
       description: 'd',
       author: 'a',
       homepage: 'https://example.com',
-      version: '1.0.0',
       path: 'mcp/test',
     });
     expect(result.success).toBe(true);

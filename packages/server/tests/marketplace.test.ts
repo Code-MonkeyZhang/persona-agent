@@ -44,7 +44,6 @@ function makeEntry(folder = 'test-skill'): MarketplaceEntry {
     description: 'desc',
     author: 'a',
     homepage: 'https://example.com',
-    version: '1.0.0',
     path: `skills/${folder}`,
   };
 }
