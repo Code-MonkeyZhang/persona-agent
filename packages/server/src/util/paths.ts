@@ -9,6 +9,7 @@
  * ├── agents/
  * │   └── {agentId}/
  * │       ├── config.json
+ * │       ├── systemPrompt.md
  * │       ├── assets/
  * │       │   ├── avatar.png
  * │       │   ├── voice.aac
@@ -71,6 +72,10 @@ export function getAgentDir(agentId: string): string {
 
 export function getAgentConfigPath(agentId: string): string {
   return path.join(getAgentDir(agentId), 'config.json');
+}
+
+export function getAgentSystemPromptPath(agentId: string): string {
+  return path.join(getAgentDir(agentId), 'systemPrompt.md');
 }
 
 export function getAgentSessionsDir(agentId: string): string {

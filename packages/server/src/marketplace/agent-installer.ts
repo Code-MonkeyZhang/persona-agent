@@ -62,6 +62,13 @@ export async function installAgentFromMarketplace(
       unknown
     >;
 
+    // - 读 systemPrompt.md 注入 raw，config.json 不再包含该字段
+    const promptPath = path.join(tempDir, 'systemPrompt.md');
+    if (fs.existsSync(promptPath)) {
+      raw['systemPrompt'] = fs.readFileSync(promptPath, 'utf-8');
+      Logger.log('MARKETPLACE', `Loaded systemPrompt.md for '${name}'`);
+    }
+
     // - 防御性清理：即使作者失误包含了系统字段也不影响
     delete raw['id'];
     delete raw['createdAt'];

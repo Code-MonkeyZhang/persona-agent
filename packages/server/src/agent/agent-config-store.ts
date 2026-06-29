@@ -10,6 +10,7 @@
  * Each agent is stored in its own directory:
  * agents/{agentId}/
  * ├── config.json
+ * ├── systemPrompt.md
  * ├── assets/
  * │   ├── pose/
  * │   └── backgrounds/
@@ -20,10 +21,12 @@
 import * as fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { readJsonFile } from '../util/fs-helpers.js';
+import { Logger } from '../util/logger.js';
 import {
   getAgentsDir,
   getAgentDir,
   getAgentConfigPath,
+  getAgentSystemPromptPath,
   getAgentAssetsDir,
   getAgentAssetsPoseDir,
   getAgentAssetsBackgroundsDir,
@@ -38,10 +41,30 @@ import {
 } from './types.js';
 
 /** Atomic write to prevent data corruption */
-function writeJsonAtomic(filePath: string, data: unknown): void {
+function writeFileAtomic(filePath: string, content: string): void {
   const tmpPath = `${filePath}.tmp`;
-  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2));
+  fs.writeFileSync(tmpPath, content);
   fs.renameSync(tmpPath, filePath);
+}
+
+/** Serialize a value as JSON and write it atomically */
+function writeJsonAtomic(filePath: string, data: unknown): void {
+  writeFileAtomic(filePath, JSON.stringify(data, null, 2));
+}
+
+/**
+ * Read an agent's system prompt from systemPrompt.md.
+ * Returns undefined when the file does not exist.
+ */
+function readSystemPrompt(agentId: string): string | undefined {
+  const filePath = getAgentSystemPromptPath(agentId);
+  if (!fs.existsSync(filePath)) return undefined;
+  return fs.readFileSync(filePath, 'utf-8');
+}
+
+/** Write an agent's system prompt to systemPrompt.md atomically */
+function writeSystemPrompt(agentId: string, content: string): void {
+  writeFileAtomic(getAgentSystemPromptPath(agentId), content);
 }
 
 /** Check if an agent exists */
@@ -55,9 +78,21 @@ export function hasAgentConfig(id: string): boolean {
  * @returns The agent config object, or undefined if not found or invalid.
  */
 export function getAgentConfig(id: string): AgentConfig | undefined {
-  const parsed = readJsonFile<unknown>(getAgentConfigPath(id), null);
-  if (parsed === null) return undefined;
-  const result = AgentConfigSchema.safeParse(parsed);
+  const onDisk = readJsonFile<Record<string, unknown> | null>(
+    getAgentConfigPath(id),
+    null
+  );
+  if (onDisk === null) return undefined;
+
+  // systemPrompt 单独存于 systemPrompt.md；缺失时回退 config.json 残留值兼容旧数据
+  const fromMd = readSystemPrompt(id);
+  const fallback =
+    typeof onDisk['systemPrompt'] === 'string'
+      ? onDisk['systemPrompt']
+      : undefined;
+  const systemPrompt = fromMd ?? fallback;
+
+  const result = AgentConfigSchema.safeParse({ ...onDisk, systemPrompt });
   return result.success ? result.data : undefined;
 }
 
@@ -105,7 +140,7 @@ function generateAgentId(timestamp: number = Date.now()): string {
 /**
  * Create a new agent config.
  * Creates the directory structure:
- * agents/{agentId}/ with config.json, assets/, assets/pose/,
+ * agents/{agentId}/ with config.json, systemPrompt.md, assets/, assets/pose/,
  * assets/backgrounds/, sessions/, memory/
  *
  * @param input - Agent configuration input
@@ -133,7 +168,12 @@ export function createAgentConfig(input: AgentConfigInput): AgentConfig {
   fs.mkdirSync(getAgentSessionsDir(id), { recursive: true });
   fs.mkdirSync(getAgentMemoryDir(id), { recursive: true });
 
-  writeJsonAtomic(getAgentConfigPath(id), config);
+  // systemPrompt 单独写入 systemPrompt.md，config.json 不再包含该字段
+  const { systemPrompt, ...onDisk } = config;
+  writeJsonAtomic(getAgentConfigPath(id), onDisk);
+  writeSystemPrompt(id, systemPrompt);
+
+  Logger.log('AGENT', `Created agent config: ${id}`);
   return config;
 }
 
@@ -165,7 +205,14 @@ export function updateAgentConfig(
     updatedAt: Date.now(),
   };
 
-  writeJsonAtomic(getAgentConfigPath(id), updated);
+  // systemPrompt 单独持久化；config.json 不再包含该字段
+  const { systemPrompt, ...onDisk } = updated;
+  writeJsonAtomic(getAgentConfigPath(id), onDisk);
+  if (input.systemPrompt !== undefined) {
+    writeSystemPrompt(id, systemPrompt);
+  }
+
+  Logger.log('AGENT', `Updated agent config: ${id}`);
   return updated;
 }
 

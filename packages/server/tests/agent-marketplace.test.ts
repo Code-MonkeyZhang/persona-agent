@@ -37,6 +37,9 @@ let agentsDir: string;
 /** 控制 downloadPackage 造的 config.json 内容，null 表示不写 */
 let mockConfigContent: Record<string, unknown> | null;
 
+/** 控制 downloadPackage 造的 systemPrompt.md 内容，null 表示不写 */
+let mockSystemPrompt: string | null;
+
 /** 控制 downloadPackage 是否创建 assets 目录（avatar + pose/default） */
 let mockCreateAssets: boolean;
 
@@ -47,6 +50,8 @@ mock.module('../src/util/paths.js', () => ({
   getAgentsDir: () => agentsDir,
   getAgentDir: (id: string) => path.join(agentsDir, id),
   getAgentConfigPath: (id: string) => path.join(agentsDir, id, 'config.json'),
+  getAgentSystemPromptPath: (id: string) =>
+    path.join(agentsDir, id, 'systemPrompt.md'),
   getAgentAssetsDir: (id: string) => path.join(agentsDir, id, 'assets'),
   getAgentAssetsPoseDir: (id: string) =>
     path.join(agentsDir, id, 'assets', 'pose'),
@@ -78,6 +83,9 @@ mock.module('../src/marketplace/downloader.js', () => ({
         path.join(destDir, 'config.json'),
         JSON.stringify(mockConfigContent)
       );
+    }
+    if (mockSystemPrompt !== null) {
+      fs.writeFileSync(path.join(destDir, 'systemPrompt.md'), mockSystemPrompt);
     }
     if (mockCreateAssets) {
       const assetsDir = path.join(destDir, 'assets');
@@ -113,7 +121,6 @@ function validConfig(): Record<string, unknown> {
   return {
     name: 'Test Agent',
     description: '测试角色',
-    systemPrompt: '你是一个测试角色',
     defaultModel: { provider: 'deepseek', model: 'deepseek-chat' },
     maxSteps: 30,
   };
@@ -156,6 +163,7 @@ describe('installAgentFromMarketplace', () => {
     fs.mkdirSync(agentsDir, { recursive: true });
     // 重置 mock 控制变量
     mockConfigContent = validConfig();
+    mockSystemPrompt = '你是一个测试角色';
     mockCreateAssets = true;
     mockVoiceSampleFile = null;
   });
