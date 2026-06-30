@@ -59,10 +59,16 @@ export const getOAuthTokensPath = () =>
 
 /**
  * Returns the path to the cloudflared binary.
- * Located in the same directory as the running server executable (via process.execPath).
+ * - Priority: PERSONA_CLOUDFLARED_BIN_PATH env var (set by desktop main process)
+ * - Fallback: same directory as the running server executable
  */
-export const getCloudflaredBinPath = () =>
-  path.join(path.dirname(process.execPath), 'cloudflared');
+export const getCloudflaredBinPath = () => {
+  const envPath = process.env['PERSONA_CLOUDFLARED_BIN_PATH'];
+  if (envPath) return envPath;
+  const binName =
+    process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared';
+  return path.join(path.dirname(process.execPath), binName);
+};
 
 // --- Per-agent paths ---
 

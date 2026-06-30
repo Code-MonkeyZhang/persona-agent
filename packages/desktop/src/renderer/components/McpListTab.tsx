@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { useMarketplaceStore } from '../stores/marketplaceStore';
 import { ListState } from './ListState';
 import { ManageRow } from './cards/ManageRow';
+import { dataPath } from '../lib/platform';
 
 export const McpListTab: React.FC = () => {
   const { t } = useTranslation();
@@ -36,9 +37,7 @@ export const McpListTab: React.FC = () => {
               {t('mcp.title')}
             </h3>
             <button
-              onClick={() =>
-                window.api?.openPath('~/.local/share/persona-agent/mcp/')
-              }
+              onClick={() => window.api?.openPath(dataPath('mcp'))}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] text-muted-foreground border border-border bg-white hover:bg-secondary transition-colors shadow-sm"
             >
               <FolderOpen className="w-4 h-4" />

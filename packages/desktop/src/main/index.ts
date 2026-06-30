@@ -25,6 +25,7 @@ import type { ProxyFetchOptions, SelectFolderOptions } from '@shared/types/api';
 const isMac = process.platform === 'darwin';
 const isWin = process.platform === 'win32';
 const BINARY_NAME = isWin ? 'persona-agent-server.exe' : 'persona-agent-server';
+const CLOUDFLARED_NAME = isWin ? 'cloudflared.exe' : 'cloudflared';
 
 let serverProcess: ChildProcess | null = null;
 
@@ -149,9 +150,14 @@ app.whenReady().then(async () => {
     return shell.openExternal(url);
   });
 
-  ipcMain.handle(IPC.OPEN_PATH, (_event, filePath: string) => {
+  ipcMain.handle(IPC.OPEN_PATH, async (_event, filePath: string) => {
     const resolved = filePath.replace(/^~/, homedir());
-    return shell.openPath(resolved);
+    log.info('[openPath] input:', filePath, 'resolved:', resolved);
+    const result = await shell.openPath(resolved);
+    if (result) {
+      log.error('[openPath] failed:', result);
+    }
+    return result;
   });
 
   await startServer();
@@ -187,6 +193,18 @@ function getBinaryPath(): string {
     return join(__dirname, '../../../server/dist', BINARY_NAME);
   }
   return join(process.resourcesPath, 'bin', BINARY_NAME);
+}
+
+/**
+ * 返回 cloudflared 二进制路径。
+ * dev 模式下位于 packages/server/bin，生产模式位于 resources/bin。
+ * 通过环境变量传递给 server 进程。
+ */
+function getCloudflaredPath(): string {
+  if (is.dev) {
+    return join(__dirname, '../../../server/bin', CLOUDFLARED_NAME);
+  }
+  return join(process.resourcesPath, 'bin', CLOUDFLARED_NAME);
 }
 
 /**
@@ -233,11 +251,14 @@ async function startServer(): Promise<void> {
 
   const url = `http://localhost:${port}`;
   const binaryPath = getBinaryPath();
+  const cloudflaredPath = getCloudflaredPath();
   log.info(`Starting server from: ${binaryPath} on port ${port}`);
+  log.info(`Cloudflared path: ${cloudflaredPath}`);
 
   serverProcess = spawn(binaryPath, [String(port)], {
     stdio: 'pipe',
     windowsHide: true,
+    env: { ...process.env, PERSONA_CLOUDFLARED_BIN_PATH: cloudflaredPath },
   });
 
   serverProcess.on('error', (err) => {

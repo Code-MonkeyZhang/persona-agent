@@ -11,13 +11,13 @@ import { useConfigStore } from '../stores/configStore';
 import { Switch } from './ui/Switch';
 import { SettingRow, SettingDivider } from './SettingRow';
 import { EnvironmentCard } from './EnvironmentCard';
-import { isWin } from '../lib/platform';
+import { isWin, dataPath } from '../lib/platform';
 
 const STORAGE_PATHS = [
-  { labelKey: 'config.agentDir', path: '~/.local/share/persona-agent/agents/' },
-  { labelKey: 'config.skillDir', path: '~/.local/share/persona-agent/skills/' },
-  { labelKey: 'config.mcpDir', path: '~/.local/share/persona-agent/mcp/' },
-  { labelKey: 'config.logDir', path: '~/.local/share/persona-agent/logs/' },
+  { labelKey: 'config.agentDir', dir: 'agents' },
+  { labelKey: 'config.skillDir', dir: 'skills' },
+  { labelKey: 'config.mcpDir', dir: 'mcp' },
+  { labelKey: 'config.logDir', dir: 'logs' },
 ] as const;
 
 function PathRow({ label, path }: { label: string; path: string }) {
@@ -113,7 +113,7 @@ export const ConfigForm: React.FC = () => {
         {STORAGE_PATHS.map((item, i) => (
           <React.Fragment key={item.labelKey}>
             {i > 0 && <SettingDivider />}
-            <PathRow label={t(item.labelKey)} path={item.path} />
+            <PathRow label={t(item.labelKey)} path={dataPath(item.dir)} />
           </React.Fragment>
         ))}
       </div>
