@@ -54,6 +54,8 @@ mock.module('../src/util/paths.js', () => ({
   getMcpServersDir: () => serversDir,
   getOAuthTokensPath: () => path.join(tempDir, 'tokens.json'),
   getSkillsDir: () => path.join(tempDir, 'skills'),
+  getRuntimesDir: () => path.join(tempDir, 'runtimes'),
+  getUvBinPath: () => path.join(tempDir, 'runtimes', 'uv'),
 }));
 
 mock.module('../src/util/logger.js', () => ({
@@ -97,6 +99,13 @@ mock.module('../src/marketplace/downloader.js', () => ({
   // downloader.ts 里的其他导出，给 marketplace.test.ts 用（同进程不冲突）
   downloadSkill: async () => '',
   downloadPackage: async () => '',
+}));
+
+mock.module('../src/util/uv-runtime.js', () => ({
+  detectUv: () => ({ ok: true, source: 'app', path: '/fake/uv', version: 'uv 0.7' }),
+  syncDeps: async () => {},
+  invalidateUvCache: () => {},
+  getUvAssetName: () => 'uv-aarch64-apple-darwin.tar.gz',
 }));
 
 // ─── 导入被测模块 ───────────────────────────────────────────

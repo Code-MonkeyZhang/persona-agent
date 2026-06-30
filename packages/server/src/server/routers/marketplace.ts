@@ -179,6 +179,7 @@ export function createMarketplaceRouter(
         success: true,
         name,
         status: server?.status ?? 'disconnected',
+        error: server?.error,
       });
     })
   );

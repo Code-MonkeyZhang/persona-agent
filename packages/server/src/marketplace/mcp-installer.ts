@@ -14,6 +14,8 @@ import { folderNameOf } from './util.js';
 import { saveMcpServer, deleteMcpServer } from '../mcp/config.js';
 import { addServer, removeServer } from '../mcp/pool.js';
 import { Logger } from '../util/logger.js';
+import { AppError } from '../util/errors.js';
+import { detectUv, syncDeps } from '../util/uv-runtime.js';
 import type { McpMarketplaceEntry } from '@persona/shared';
 import type { McpServerConfig } from '../mcp/types.js';
 
@@ -37,17 +39,29 @@ function substitutePlaceholders(
 /**
  * 安装一个 MCP 商城商品。
  *
- * 流程：下载文件夹 → 读 mcp.json → 替换 ${SERVERS_DIR} → 写用户配置 → 连接池注册。
+ * 流程：运行时拦截 → 下载文件夹 → 读 mcp.json → 替换 ${SERVERS_DIR}
+ *       → uv sync 预装依赖 → 写用户配置 → 连接池注册。
  * 不自动分配给 Agent——分配是前端在 AgentToolsView 里做的事。
  *
  * @param entry MCP 清单条目
- * @throws mcp.json 解析失败、下载失败时抛出（mcp.json 失败会回滚已下载的文件）
+ * @throws uv 缺失、mcp.json 解析失败、下载失败、uv sync 失败时抛出
  */
 export async function installMcp(entry: McpMarketplaceEntry): Promise<void> {
   const name = folderNameOf(entry);
   const serversDir = getMcpServersDir();
 
   Logger.log('MARKETPLACE', `Installing MCP '${name}'`);
+
+  // ⑦ 下载前运行时拦截：自研型 MCP 需要 uv，没装就不下载任何东西
+  if (entry.runtime === 'uv') {
+    const uv = detectUv();
+    if (!uv.ok) {
+      throw new AppError(
+        400,
+        '未检测到 uv 运行时，请先前往 设置 → 通用 → 环境 一键下载'
+      );
+    }
+  }
 
   // ① 下载整个商品文件夹到 servers/<name>/
   const mcpDir = await downloadMcp(entry);
@@ -74,7 +88,14 @@ export async function installMcp(entry: McpMarketplaceEntry): Promise<void> {
   saveMcpServer(name, config);
   Logger.log('MARKETPLACE', `Saved config for '${name}' to user mcp.json`);
 
-  // ⑤ 注册到连接池并连接（不抛异常——连接失败不回滚，用户在 UI 上能看到状态）
+  // ⑤ uv sync 预装依赖（command 为 uv 的 MCP 才需要）
+  //    预装后 addServer 时 uv run 直接启动，不会超 60s 连接超时
+  if (config.command === 'uv') {
+    Logger.log('MARKETPLACE', `Pre-installing dependencies for '${name}'`);
+    await syncDeps(mcpDir);
+  }
+
+  // ⑥ 注册到连接池并连接（不抛异常——连接失败不回滚，用户在 UI 上能看到状态）
   await addServer(name, config);
   Logger.log('MARKETPLACE', `MCP '${name}' installed successfully`);
 }

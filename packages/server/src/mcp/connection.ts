@@ -181,7 +181,11 @@ export class MCPServerConnection {
    *
    * @returns Connection result with success status and optional auth requirement
    */
-  async connect(): Promise<{ success: boolean; needsAuth?: boolean }> {
+  async connect(): Promise<{
+    success: boolean;
+    needsAuth?: boolean;
+    error?: string;
+  }> {
     const connectTimeoutMs = this.getConnectTimeoutSec() * 1000;
     const transport = this.createTransport();
     const client = new Client({
@@ -245,7 +249,15 @@ export class MCPServerConnection {
         `Failed to connect MCP server '${this.name}': ${message}`
       );
       await this.disconnect();
-      return { success: false };
+
+      // spawn 找不到可执行文件时会产生 ENOENT，引导用户装 uv
+      const isENOENT =
+        (error as NodeJS.ErrnoException)?.code === 'ENOENT' ||
+        message.includes('ENOENT');
+      const errorText = isENOENT
+        ? '未检测到 uv 运行时，请前往 设置 → 通用 → 环境 一键下载'
+        : `Connection failed: ${message}`;
+      return { success: false, error: errorText };
     }
   }
 

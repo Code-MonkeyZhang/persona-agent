@@ -11,7 +11,7 @@ import { useConfigStore } from '../stores/configStore';
 import { Switch } from './ui/Switch';
 import { SettingRow, SettingDivider } from './SettingRow';
 import { EnvironmentCard } from './EnvironmentCard';
-import { isWin, dataPath } from '../lib/platform';
+import { dataPath } from '../lib/platform';
 
 const STORAGE_PATHS = [
   { labelKey: 'config.agentDir', dir: 'agents' },
@@ -118,7 +118,7 @@ export const ConfigForm: React.FC = () => {
         ))}
       </div>
 
-      {isWin && <EnvironmentCard />}
+      <EnvironmentCard />
     </div>
   );
 };

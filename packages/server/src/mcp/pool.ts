@@ -284,7 +284,7 @@ async function handleOAuthCallback(
     const connectResult = await serverConn.connect();
 
     if (!connectResult.success) {
-      throw new Error('Reconnection failed after OAuth');
+      throw new Error(connectResult.error ?? 'Reconnection failed after OAuth');
     }
 
     const tools = buildToolMetaList(name, serverConn);

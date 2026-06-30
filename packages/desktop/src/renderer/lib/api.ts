@@ -113,6 +113,7 @@ interface InstallMcpResponse {
   success: boolean;
   name: string;
   status: string;
+  error?: string;
 }
 
 /** GET /agents 每条多了 logoUrl 和 source, logoUrl 是后端拼的 raw URL, source 是商城来源标识 */
@@ -539,6 +540,45 @@ export async function getBashStatus(): Promise<BashStatus> {
   const data = await response.json();
   const bash = data?.requirements?.bash;
   return bash ?? { ok: false, path: null };
+}
+
+export interface UvStatus {
+  ok: boolean;
+  source: 'app' | 'system' | null;
+  path: string | null;
+  version?: string;
+}
+
+/** 查询 uv 运行时状态。 */
+export async function getUvStatus(): Promise<UvStatus> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/runtimes`);
+  if (!response.ok) return { ok: false, source: null, path: null };
+  const data = await response.json();
+  return (
+    (data as { uv?: UvStatus }).uv ?? {
+      ok: false,
+      source: null,
+      path: null,
+    }
+  );
+}
+
+/** 一键安装 uv 运行时（下载二进制 + Python 解释器）。 */
+export async function installUv(): Promise<UvStatus> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/runtimes/uv/install`, {
+    method: 'POST',
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to install uv: ${response.status}`
+    );
+  }
+  const data = await response.json();
+  return (data as { uv: UvStatus }).uv;
 }
 
 /**
