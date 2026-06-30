@@ -5,7 +5,7 @@
  * 后台命令可通过 bash_output 监控，通过 bash_kill 终止。
  */
 
-import { exec, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import type { ChildProcessWithoutNullStreams } from 'node:child_process';
 import type { Tool, ToolResultWithMeta } from './base.js';
 
@@ -49,22 +49,6 @@ function formatBashContent(result: BashOutputResult): string {
     output += `${output ? '\n' : ''}[exit_code]:\n${result.exit_code}`;
   }
   return output || '(no output)';
-}
-
-/**
- * Pick OS-appropriate shell and args for the command.
- */
-function buildShellCommand(command: string): { shell: string; args: string[] } {
-  if (process.platform === 'win32') {
-    return {
-      shell: 'powershell.exe',
-      args: ['-NoProfile', '-Command', command],
-    };
-  }
-  return {
-    shell: '/bin/bash',
-    args: ['-lc', command],
-  };
 }
 
 class BackgroundShell {
@@ -253,6 +237,12 @@ function buildResult(
 }
 
 export class BashTool implements Tool<BashInput, BashOutputResult> {
+  /**
+   * @param shellPath - bash 可执行文件路径，由 findGitBash() 在工厂层解析后传入。
+   *                    为空时 execute 返回软门禁错误，不执行任何命令。
+   */
+  constructor(private shellPath?: string) {}
+
   public name = 'bash';
   public description =
     'Execute bash commands in foreground or background.\n\n' +
@@ -301,86 +291,173 @@ export class BashTool implements Tool<BashInput, BashOutputResult> {
   async execute(params: BashInput): Promise<BashOutputResult> {
     const timeout = Math.min(Math.max(params.timeout ?? 120, 1), 600);
     const runInBackground = params.run_in_background ?? false;
-    const { shell, args } = buildShellCommand(params.command);
 
-    if (runInBackground) {
-      const bashId = Math.random().toString(16).slice(2, 10);
-      const process = spawn(shell, args, { stdio: 'pipe' });
-      const bgShell = new BackgroundShell(
-        bashId,
-        params.command,
-        process,
-        Date.now()
-      );
-      BackgroundShellManager.add(bgShell);
-
-      process.stdout.on('data', (data: Buffer) =>
-        bgShell.handleStreamData(data, true)
-      );
-      process.stderr.on('data', (data: Buffer) =>
-        bgShell.handleStreamData(data, false)
-      );
-      process.on('close', (code) => {
-        bgShell.finalizeBuffers();
-        bgShell.updateStatus(code);
-      });
-      process.on('error', () => {
-        bgShell.status = 'error';
-      });
-
+    if (!this.shellPath) {
       return buildResult({
-        success: true,
-        stdout: `Background command started with ID: ${bashId}`,
+        success: false,
+        error:
+          '当前系统未检测到 Git Bash。请前往 设置 → 通用 → 环境 安装 Git Bash，安装完成后重启 Persona。',
+        stdout: '',
         stderr: '',
-        exit_code: 0,
-        bash_id: bashId,
-        content:
-          `Command started in background. Use bash_output to monitor (bash_id='${bashId}').\n\n` +
-          `Command: ${params.command}\nBash ID: ${bashId}`,
+        exit_code: -1,
+        bash_id: null,
       });
     }
 
-    return await new Promise<BashOutputResult>((resolve) => {
-      exec(
-        params.command,
-        {
-          timeout: timeout * 1000,
-          maxBuffer: 10 * 1024 * 1024,
-          shell,
-        },
-        (error, stdout, stderr) => {
-          if (error) {
-            const exitCode =
-              typeof (error as { code?: number }).code === 'number'
-                ? ((error as { code?: number }).code ?? -1)
-                : -1;
-            const errorMsg =
-              error.killed && error.signal === 'SIGTERM'
-                ? `Command timed out after ${timeout} seconds`
-                : `Command failed with exit code ${exitCode}`;
-            resolve(
-              buildResult({
-                success: false,
-                error: stderr ? `${errorMsg}\n${stderr.trim()}` : errorMsg,
-                stdout: stdout ?? '',
-                stderr: stderr ?? errorMsg,
-                exit_code: exitCode,
-                bash_id: null,
-              })
-            );
-            return;
+    if (runInBackground) {
+      return this.executeBackground(params);
+    }
+
+    return this.executeForeground(params, timeout);
+  }
+
+  /**
+   * 后台执行命令，立即返回 bash_id，输出通过 bash_output / bash_kill 管理。
+   */
+  private executeBackground(params: BashInput): BashOutputResult {
+    const bashId = Math.random().toString(16).slice(2, 10);
+    const child = spawn(this.shellPath!, ['-lc', params.command], {
+      stdio: 'pipe',
+    });
+    const bgShell = new BackgroundShell(
+      bashId,
+      params.command,
+      child,
+      Date.now()
+    );
+    BackgroundShellManager.add(bgShell);
+
+    child.stdout.on('data', (data: Buffer) =>
+      bgShell.handleStreamData(data, true)
+    );
+    child.stderr.on('data', (data: Buffer) =>
+      bgShell.handleStreamData(data, false)
+    );
+    child.on('close', (code) => {
+      bgShell.finalizeBuffers();
+      bgShell.updateStatus(code);
+    });
+    child.on('error', () => {
+      bgShell.status = 'error';
+    });
+
+    return buildResult({
+      success: true,
+      stdout: `Background command started with ID: ${bashId}`,
+      stderr: '',
+      exit_code: 0,
+      bash_id: bashId,
+      content:
+        `Command started in background. Use bash_output to monitor (bash_id='${bashId}').\n\n` +
+        `Command: ${params.command}\nBash ID: ${bashId}`,
+    });
+  }
+
+  /**
+   * 前台执行命令，等待完成并返回全部输出。
+   * 手动管理 maxBuffer（10MB）和超时检测。
+   */
+  private async executeForeground(
+    params: BashInput,
+    timeout: number
+  ): Promise<BashOutputResult> {
+    const MAX_BYTES = 10 * 1024 * 1024;
+
+    return new Promise<BashOutputResult>((resolve) => {
+      let stdout = '';
+      let stderr = '';
+      let totalBytes = 0;
+      let truncated = false;
+
+      const child = spawn(this.shellPath!, ['-lc', params.command], {
+        stdio: 'pipe',
+        timeout: timeout * 1000,
+      });
+
+      child.stdout.on('data', (data: Buffer) => {
+        totalBytes += data.length;
+        if (totalBytes > MAX_BYTES) {
+          if (!truncated) {
+            truncated = true;
+            child.kill('SIGTERM');
           }
+          return;
+        }
+        stdout += data;
+      });
+
+      child.stderr.on('data', (data: Buffer) => {
+        totalBytes += data.length;
+        if (totalBytes > MAX_BYTES) {
+          if (!truncated) {
+            truncated = true;
+            child.kill('SIGTERM');
+          }
+          return;
+        }
+        stderr += data;
+      });
+
+      child.on('error', () => {
+        resolve(
+          buildResult({
+            success: false,
+            error: 'Failed to spawn shell process',
+            stdout,
+            stderr,
+            exit_code: -1,
+            bash_id: null,
+          })
+        );
+      });
+
+      child.on('close', (code, signal) => {
+        if (truncated) {
+          stdout += '\n[output truncated: exceeded 10MB limit]';
+        }
+
+        const timedOut = signal === 'SIGTERM' && code === null && !truncated;
+
+        if (timedOut) {
           resolve(
             buildResult({
-              success: true,
-              stdout: stdout ?? '',
-              stderr: stderr ?? '',
-              exit_code: 0,
+              success: false,
+              error: `Command timed out after ${timeout} seconds`,
+              stdout,
+              stderr,
+              exit_code: -1,
               bash_id: null,
             })
           );
+          return;
         }
-      );
+
+        const exitCode = code ?? -1;
+        if (exitCode !== 0) {
+          const errorMsg = `Command failed with exit code ${exitCode}`;
+          resolve(
+            buildResult({
+              success: false,
+              error: stderr ? `${errorMsg}\n${stderr.trim()}` : errorMsg,
+              stdout,
+              stderr,
+              exit_code: exitCode,
+              bash_id: null,
+            })
+          );
+          return;
+        }
+
+        resolve(
+          buildResult({
+            success: true,
+            stdout,
+            stderr,
+            exit_code: 0,
+            bash_id: null,
+          })
+        );
+      });
     });
   }
 }

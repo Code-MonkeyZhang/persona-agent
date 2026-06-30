@@ -76,6 +76,13 @@
   "config.skillDir": "Skills Directory",
   "config.mcpDir": "MCP Config",
   "config.logDir": "Logs Directory",
+  "config.environment": "Environment",
+  "config.gitBash": "Command-line tool (Git Bash)",
+  "config.gitBashReady": "Ready",
+  "config.gitBashMissing": "Not detected",
+  "config.gitBashDownload": "Download",
+  "config.gitBashHint": "Please restart Persona after installation",
+  "config.gitBashChecking": "Checking...",
 
   "provider.enterApiKey": "Please enter API Key",
   "provider.confirmDeleteKey": "Are you sure you want to delete {{name}}'s API Key?",

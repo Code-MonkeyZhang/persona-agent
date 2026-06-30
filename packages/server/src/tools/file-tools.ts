@@ -29,6 +29,30 @@ type EditFileInput = {
 };
 
 /**
+ * 将 MSYS/Git Bash 风格的 POSIX 路径转换为 Windows 路径。
+ * 纯正则实现，不依赖运行平台（供测试直接调用）。
+ *
+ * 转换规则（顺序执行，互斥）：
+ * - /cygdrive/c/foo → C:/foo
+ * - /mnt/c/foo → C:/foo
+ * - /c/foo、/c:/foo → C:/foo
+ */
+export function windowsPathCore(p: string): string {
+  return p
+    .replace(/^\/cygdrive\/([a-zA-Z])/, (_, l: string) => `${l.toUpperCase()}:`)
+    .replace(/^\/mnt\/([a-zA-Z])/, (_, l: string) => `${l.toUpperCase()}:`)
+    .replace(/^\/([a-zA-Z]):?\//, (_, l: string) => `${l.toUpperCase()}:/`);
+}
+
+/**
+ * 平台感知的路径规整：非 win32 原值返回，win32 上委托 windowsPathCore。
+ */
+export function windowsPath(p: string): string {
+  if (process.platform !== 'win32') return p;
+  return windowsPathCore(p);
+}
+
+/**
  * 相对于工作区目录解析文件路径。
  *
  * @param workspaceDir - 相对路径的基础目录
@@ -36,10 +60,11 @@ type EditFileInput = {
  * @returns 绝对路径
  */
 function resolvePath(workspaceDir: string, targetPath: string): string {
-  if (path.isAbsolute(targetPath)) {
-    return targetPath;
+  const normalized = windowsPath(targetPath);
+  if (path.isAbsolute(normalized)) {
+    return normalized;
   }
-  return path.resolve(workspaceDir, targetPath);
+  return path.resolve(workspaceDir, normalized);
 }
 
 /**

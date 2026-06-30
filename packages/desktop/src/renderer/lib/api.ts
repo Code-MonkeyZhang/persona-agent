@@ -521,6 +521,26 @@ export async function updateConfig(config: AppConfig): Promise<void> {
   }
 }
 
+export interface BashStatus {
+  ok: boolean;
+  path: string | null;
+}
+
+/**
+ * 查询 server 端 Git Bash 检测结果（通过 /health 端点）。
+ * @returns bash 可用性及路径
+ */
+export async function getBashStatus(): Promise<BashStatus> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/health`);
+  if (!response.ok) {
+    return { ok: false, path: null };
+  }
+  const data = await response.json();
+  const bash = data?.requirements?.bash;
+  return bash ?? { ok: false, path: null };
+}
+
 /**
  * 获取所有 agent 列表。
  * @returns agent 数组

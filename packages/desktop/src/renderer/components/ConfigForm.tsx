@@ -10,6 +10,8 @@ import { useTranslation } from 'react-i18next';
 import { useConfigStore } from '../stores/configStore';
 import { Switch } from './ui/Switch';
 import { SettingRow, SettingDivider } from './SettingRow';
+import { EnvironmentCard } from './EnvironmentCard';
+import { isWin } from '../lib/platform';
 
 const STORAGE_PATHS = [
   { labelKey: 'config.agentDir', path: '~/.local/share/persona-agent/agents/' },
@@ -115,6 +117,8 @@ export const ConfigForm: React.FC = () => {
           </React.Fragment>
         ))}
       </div>
+
+      {isWin && <EnvironmentCard />}
     </div>
   );
 };

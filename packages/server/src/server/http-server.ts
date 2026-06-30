@@ -30,6 +30,7 @@ import { initSkillPool } from '../skill/index.js';
 import { initMcpPool } from '../mcp/index.js';
 import { SessionStore } from '../session/store.js';
 import { SessionManager } from '../session/session-manager.js';
+import { findGitBash } from '../util/git-bash-detector.js';
 
 const app = express();
 app.use(cors());
@@ -49,9 +50,16 @@ app.get('/api/status', (_req: Request, res: Response) => {
 });
 
 app.get('/health', (_req: Request, res: Response) => {
+  const bashPath = findGitBash();
   res.json({
     alive: true,
     timestamp: Date.now(),
+    requirements: {
+      bash: {
+        ok: bashPath !== null,
+        path: bashPath,
+      },
+    },
   });
 });
 

@@ -19,6 +19,7 @@ import {
   WebFetchTool,
 } from '../tools/index.js';
 import { ShowPoseTool, GetCurrentPoseTool } from '../tools/pose-tools.js';
+import { findGitBash } from '../util/git-bash-detector.js';
 import { MemoryStore } from './memory/memory-store.js';
 import type { AgentConfig, AgentRunConfig } from './types.js';
 import type { Session } from '../session/types.js';
@@ -60,9 +61,18 @@ function buildSystemPrompt(
   provider: string,
   modelId: string,
   skills?: Skill[],
-  mcpNames?: string[]
+  mcpNames?: string[],
+  bashPath?: string | null
 ): string {
   const platform = process.platform;
+  let platformLine: string;
+  if (platform === 'win32') {
+    platformLine = bashPath
+      ? 'win32 (commands run via Git Bash — use Unix syntax: &&, pipes, /dev/null; use Windows-native paths like C:\\Users\\... for file tools)'
+      : 'win32 (Git Bash not detected — bash tool is unavailable)';
+  } else {
+    platformLine = platform;
+  }
   // TODO: 写的很杂, 这个迟早要改
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -76,7 +86,7 @@ function buildSystemPrompt(
 
 ## Environment
 
-- Platform: ${platform}
+- Platform: ${platformLine}
 - Date: ${date}
 - Model: ${provider}/${modelId}
 - Working directory: ${workspaceDir}`;
@@ -132,6 +142,8 @@ export function createAgentRunConfig(
   const provider = modelConfig.provider as KnownProvider;
   const modelId = modelConfig.model;
 
+  const resolvedBashPath = findGitBash();
+
   const auth = getAuth(provider);
   if (!auth) {
     throw new Error(`No API key configured for provider: ${provider}`);
@@ -153,7 +165,8 @@ export function createAgentRunConfig(
     provider,
     modelId,
     skills,
-    agentConfig.mcpNames
+    agentConfig.mcpNames,
+    resolvedBashPath
   );
 
   // 聊天 Session：在系统提示词末尾追加长期记忆与近期未整理的摘要
@@ -177,7 +190,7 @@ export function createAgentRunConfig(
     new ReadTool(workspaceDir),
     new WriteTool(workspaceDir),
     new EditTool(workspaceDir),
-    new BashTool(),
+    new BashTool(resolvedBashPath ?? undefined),
     new BashOutputTool(),
     new BashKillTool(),
     new WebFetchTool(),

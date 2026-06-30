@@ -76,6 +76,13 @@
   "config.skillDir": "技能目录",
   "config.mcpDir": "MCP 配置",
   "config.logDir": "日志目录",
+  "config.environment": "环境",
+  "config.gitBash": "命令行工具 (Git Bash)",
+  "config.gitBashReady": "已就绪",
+  "config.gitBashMissing": "未检测到",
+  "config.gitBashDownload": "前往下载",
+  "config.gitBashHint": "安装完成后请重启 Persona 生效",
+  "config.gitBashChecking": "检测中...",
 
   "provider.enterApiKey": "请输入 API Key",
   "provider.confirmDeleteKey": "确定要删除 {{name}} 的 API Key 吗？",
