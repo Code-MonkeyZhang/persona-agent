@@ -7,27 +7,27 @@
 }
 
 /* ============================================
-   Generic hover-scroll: scrollbar hidden by
-   default, visible on hover. Apply to any
-   scroll container.
+   Generic hover-scroll: scrollbar gutter is
+   always reserved to avoid layout shift, thumb
+   is transparent by default and fades in on
+   hover. Apply to any scroll container.
    ============================================ */
 
 .hover-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.hover-scroll:hover::-webkit-scrollbar {
-  display: block;
   width: 6px;
 }
 
-.hover-scroll:hover::-webkit-scrollbar-track {
+.hover-scroll::-webkit-scrollbar-track {
   background: transparent;
+}
+
+.hover-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
 }
 
 .hover-scroll:hover::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.15);
-  border-radius: 3px;
 }
 
 .hover-scroll:hover::-webkit-scrollbar-thumb:hover {
