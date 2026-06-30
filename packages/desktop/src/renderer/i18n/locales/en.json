@@ -236,6 +236,7 @@
 
   "companion.noAppearance": "This Agent has no companion appearance configured",
   "companion.uploadPoseHint": "Please upload pose images in the Agent editor's Appearance section",
+  "companion.poseLoadError": "Failed to load pose image",
   "companion.thinking": "Thinking...",
   "companion.inputPlaceholder": "Type a message...",
   "companion.configureVoiceFirst": "Please configure voice in the Agent editor first",

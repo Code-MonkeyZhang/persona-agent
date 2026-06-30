@@ -19,6 +19,7 @@ import { useCompanionStore } from '../stores/companionStore';
 import { useChatStore } from '../stores/chatStore';
 import { useChatInput } from '../hooks/useChatInput';
 import { getPoseImageUrl, getBackgroundImageUrl, listPoses } from '../lib/api';
+import { logger } from '../lib/logger';
 import { Markdown } from './Markdown';
 
 /**
@@ -78,8 +79,10 @@ export function CompanionPanel({
   });
 
   /**
-   * 挂载时检测该 Agent 是否有姿态资源，
-   * 结果存储到 hasAssets 状态中
+   * 挂载时检测该 Agent 的立绘资源并解析初始显示立绘。
+   * - 拉取立绘列表，优先选 default，没有则取按名排序的首项
+   * - 先 setPose 再 setHasAssets，避免渲染初期请求不存在的立绘而误触 poseError
+   * - hasAssets 决定面板显示资源态还是空态
    */
   useEffect(() => {
     if (!agentId) return;
@@ -90,7 +93,25 @@ export function CompanionPanel({
     setHasAssets(null);
     listPoses(agentId)
       .then((poses) => {
-        if (!cancelled) setHasAssets(poses.length > 0);
+        if (cancelled) return;
+        if (poses.length === 0) {
+          setHasAssets(false);
+          return;
+        }
+        const sorted = [...poses].sort((a, b) => {
+          if (a === 'default') return -1;
+          if (b === 'default') return 1;
+          return a.localeCompare(b);
+        });
+        const effective = sorted[0];
+        if (effective !== 'default') {
+          logger.info(
+            `No default pose for agent ${agentId}, falling back to "${effective}"`
+          );
+        }
+        useCompanionStore.getState().setPose(effective);
+        setPoseError(false);
+        setHasAssets(true);
       })
       .catch(() => {
         if (!cancelled) setHasAssets(false);
@@ -99,6 +120,11 @@ export function CompanionPanel({
       cancelled = true;
     };
   }, [agentId]);
+
+  /** currentPose 变化时清除加载错误，确保切换立绘后能重新尝试渲染 */
+  useEffect(() => {
+    setPoseError(false);
+  }, [currentPose]);
 
   /**
    * 从全局聊天消息流中倒序查找最后一条 assistant 类型的消息，
@@ -176,6 +202,13 @@ export function CompanionPanel({
           className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[1] h-[85%] object-contain object-bottom translate-y-[-8%]"
           onError={() => setPoseError(true)}
         />
+      )}
+      {hasAssets === true && poseError && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <p className="text-[14px] text-muted-foreground">
+            {t('companion.poseLoadError')}
+          </p>
+        </div>
       )}
 
       <div className="relative z-10 flex-1" />

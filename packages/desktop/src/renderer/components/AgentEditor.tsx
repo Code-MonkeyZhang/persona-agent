@@ -444,8 +444,19 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     e.target.value = '';
   };
 
+  /**
+   * 处理立绘上传，加入待保存列表。
+   * 若当前尚无名为 default 的立绘，自动将本次上传命名为 default，
+   * 保证陪伴面板始终有默认立绘可显示；否则沿用文件名并去重。
+   */
   const handlePoseAdd = (file: File, dataUrl: string, name: string) => {
-    const finalName = generatePoseName(name);
+    const hasDefault = poseImages.some(
+      (p) => p.status !== 'deleted' && p.name === 'default'
+    );
+    const finalName = hasDefault ? generatePoseName(name) : 'default';
+    if (!hasDefault) {
+      logger.info(`Auto-named new pose to default (original: ${name})`);
+    }
     setPoseImages((prev) => [
       ...prev,
       { name: finalName, file, previewUrl: dataUrl, status: 'added' },

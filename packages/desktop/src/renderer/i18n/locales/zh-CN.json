@@ -236,6 +236,7 @@
 
   "companion.noAppearance": "该 Agent 还未配置陪伴形象",
   "companion.uploadPoseHint": "请在 Agent 编辑器的「形象」栏中上传立绘图片",
+  "companion.poseLoadError": "立绘加载失败",
   "companion.thinking": "思考中...",
   "companion.inputPlaceholder": "输入信息...",
   "companion.configureVoiceFirst": "请先在 Agent 编辑器中配置音色",
