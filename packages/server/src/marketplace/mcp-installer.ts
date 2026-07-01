@@ -61,6 +61,10 @@ export async function installMcp(entry: McpMarketplaceEntry): Promise<void> {
   if (entry.runtime === 'uv') {
     const uv = await detectUv();
     if (!uv.ok) {
+      Logger.log(
+        'MARKETPLACE',
+        `Blocked install of '${name}': uv runtime missing`
+      );
       throw new AppError(
         400,
         '未检测到 uv 运行时，请先前往 设置 → 通用 → 环境 一键下载'

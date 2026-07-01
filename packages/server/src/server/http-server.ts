@@ -40,6 +40,7 @@ import * as nodePath from 'node:path';
 const runtimesDir = getRuntimesDir();
 process.env['PATH'] =
   runtimesDir + nodePath.delimiter + (process.env['PATH'] ?? '');
+Logger.log('SERVER', `Injected runtimes dir into PATH: ${runtimesDir}`);
 
 const app = express();
 app.use(cors());

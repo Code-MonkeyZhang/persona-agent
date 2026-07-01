@@ -257,6 +257,12 @@ export class MCPServerConnection {
       const isENOENT =
         (error as NodeJS.ErrnoException)?.code === 'ENOENT' ||
         message.includes('ENOENT');
+      if (isENOENT) {
+        Logger.log(
+          'MCP',
+          `ENOENT for '${this.name}', likely missing runtime binary`
+        );
+      }
       const errorText = isENOENT
         ? '未检测到 uv 运行时，请前往 设置 → 通用 → 环境 一键下载'
         : `Connection failed: ${message}`;

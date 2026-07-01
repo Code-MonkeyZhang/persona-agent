@@ -141,57 +141,65 @@ export async function installUv(): Promise<void> {
   const runtimesDir = getRuntimesDir();
   fs.mkdirSync(runtimesDir, { recursive: true });
 
-  const assetName = getUvAssetName();
-  const isZip = assetName.endsWith('.zip');
+  try {
+    const assetName = getUvAssetName();
+    const isZip = assetName.endsWith('.zip');
 
-  // 下载压缩包
-  const archivePath = path.join(runtimesDir, assetName);
-  Logger.log('UV', `Downloading ${assetName}`);
-  await downloadFile(UV_RELEASE_URL + assetName, archivePath);
+    // 下载压缩包
+    const archivePath = path.join(runtimesDir, assetName);
+    Logger.log('UV', `Downloading ${assetName}`);
+    await downloadFile(UV_RELEASE_URL + assetName, archivePath);
 
-  // sha256 校验
-  Logger.log('UV', 'Verifying sha256');
-  const expectedHash = await fetchSha256(
-    UV_RELEASE_URL + assetName + '.sha256'
-  );
-  const actualHash = hashFile(archivePath);
-  if (actualHash !== expectedHash) {
-    fs.rmSync(archivePath, { force: true });
-    throw new Error(
-      `uv sha256 mismatch: expected ${expectedHash}, got ${actualHash}`
+    // sha256 校验
+    Logger.log('UV', 'Verifying sha256');
+    const expectedHash = await fetchSha256(
+      UV_RELEASE_URL + assetName + '.sha256'
     );
-  }
-
-  // 解压
-  Logger.log('UV', `Extracting ${isZip ? 'zip' : 'tar.gz'}`);
-  extractArchive(archivePath, runtimesDir, isZip);
-  fs.rmSync(archivePath, { force: true });
-
-  // 从子目录移出 uv 二进制，解压后会带 uv-<platform>/ 子目录
-  moveUvOutOfSubdir(runtimesDir);
-
-  // 设置可执行权限
-  const uvPath = getUvBinPath();
-  if (process.platform !== 'win32') {
-    fs.chmodSync(uvPath, 0o755);
-  }
-
-  // macOS 去 quarantine
-  if (process.platform === 'darwin') {
-    try {
-      execSync(`xattr -d com.apple.quarantine "${uvPath}"`, {
-        stdio: 'pipe',
-        timeout: 5000,
-      });
-    } catch {
-      // 没有 quarantine 属性时 xattr 会报错，忽略
+    const actualHash = hashFile(archivePath);
+    if (actualHash !== expectedHash) {
+      fs.rmSync(archivePath, { force: true });
+      throw new Error(
+        `uv sha256 mismatch: expected ${expectedHash}, got ${actualHash}`
+      );
     }
-  }
 
-  // 拉取 Python 解释器
-  Logger.log('UV', 'Installing Python interpreter');
-  await runUvCommand(uvPath, ['python', 'install'], INSTALL_TIMEOUT_MS);
-  Logger.log('UV', 'Python interpreter installed');
+    // 解压
+    Logger.log('UV', `Extracting ${isZip ? 'zip' : 'tar.gz'}`);
+    extractArchive(archivePath, runtimesDir, isZip);
+    fs.rmSync(archivePath, { force: true });
+
+    // 从子目录移出 uv 二进制，解压后会带 uv-<platform>/ 子目录
+    moveUvOutOfSubdir(runtimesDir);
+
+    // 设置可执行权限
+    const uvPath = getUvBinPath();
+    if (process.platform !== 'win32') {
+      fs.chmodSync(uvPath, 0o755);
+    }
+
+    // macOS 去 quarantine
+    if (process.platform === 'darwin') {
+      try {
+        execSync(`xattr -d com.apple.quarantine "${uvPath}"`, {
+          stdio: 'pipe',
+          timeout: 5000,
+        });
+      } catch {
+        // 没有 quarantine 属性时 xattr 会报错，忽略
+      }
+    }
+
+    // 拉取 Python 解释器
+    Logger.log('UV', 'Installing Python interpreter');
+    await runUvCommand(uvPath, ['python', 'install'], INSTALL_TIMEOUT_MS);
+    Logger.log('UV', 'Python interpreter installed');
+  } catch (err) {
+    Logger.log(
+      'UV',
+      `Installation failed: ${err instanceof Error ? err.message : err}`
+    );
+    throw err;
+  }
 
   invalidateUvCache();
   Logger.log('UV', 'uv installation complete');
@@ -290,7 +298,15 @@ function moveUvOutOfSubdir(runtimesDir: string): void {
 export async function syncDeps(mcpDir: string): Promise<void> {
   const uvPath = getUvBinPath();
   Logger.log('UV', `Running uv sync in ${mcpDir}`);
-  await runUvCommand(uvPath, ['sync'], SYNC_TIMEOUT_MS, mcpDir);
+  try {
+    await runUvCommand(uvPath, ['sync'], SYNC_TIMEOUT_MS, mcpDir);
+  } catch (err) {
+    Logger.log(
+      'UV',
+      `uv sync failed for ${mcpDir}: ${err instanceof Error ? err.message : err}`
+    );
+    throw err;
+  }
   Logger.log('UV', `uv sync completed for ${mcpDir}`);
 }
 
