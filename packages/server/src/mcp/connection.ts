@@ -156,7 +156,10 @@ export class MCPServerConnection {
         command: this.command,
         args: this.args,
         cwd: this.cwd,
-        env: Object.keys(this.env).length > 0 ? this.env : undefined,
+        // 注入 Python UTF-8 环境变量，避免中文 Windows 下 GBK 编码无法处理
+        // MCP 服务启动横幅里的 Unicode 字符而崩溃。必须在此注入而非全局设置，
+        // 因为 MCP SDK 的 getDefaultEnvironment 白名单不含这两个变量。
+        env: { PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8', ...this.env },
         stderr: 'pipe',
       });
     }

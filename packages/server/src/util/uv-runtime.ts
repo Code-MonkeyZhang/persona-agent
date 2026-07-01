@@ -48,7 +48,7 @@ export function getUvAssetName(): string {
 // detectUv — 模块级缓存，照 git-bash-detector 模式
 // ---------------------------------------------------------------------------
 
-let cached: UvStatus | undefined;
+let cached: Promise<UvStatus> | undefined;
 
 /** 清除检测缓存，installUv 成功后调用。 */
 export function invalidateUvCache(): void {
@@ -62,23 +62,23 @@ export function invalidateUvCache(): void {
  *
  * @returns uv 状态（是否可用、来源、版本）
  */
-export function detectUv(): UvStatus {
+export async function detectUv(): Promise<UvStatus> {
   if (cached !== undefined) return cached;
   cached = detect();
   return cached;
 }
 
-function detect(): UvStatus {
+async function detect(): Promise<UvStatus> {
   const appPath = getUvBinPath();
   if (fs.existsSync(appPath)) {
-    const version = tryGetVersion(appPath);
+    const version = await tryGetVersion(appPath);
     if (version) {
       Logger.log('UV', `Detected uv (app) at ${appPath}, version ${version}`);
       return { ok: true, source: 'app', path: appPath, version };
     }
   }
 
-  const systemVersion = tryGetVersion('uv');
+  const systemVersion = await tryGetVersion('uv');
   if (systemVersion) {
     Logger.log('UV', `Detected uv (system), version ${systemVersion}`);
     return { ok: true, source: 'system', path: null, version: systemVersion };
@@ -88,18 +88,43 @@ function detect(): UvStatus {
   return { ok: false, source: null, path: null };
 }
 
-/** 跑 `<bin> --version`，返回版本号字符串；失败返回 null。 */
-function tryGetVersion(bin: string): string | null {
-  try {
-    const output = execSync(`"${bin}" --version`, {
-      encoding: 'utf8',
-      timeout: 5000,
-      windowsHide: true,
-    }).trim();
-    return output || null;
-  } catch {
-    return null;
-  }
+/**
+ * 跑 `<bin> --version`，返回版本号字符串；失败返回 null。
+ *
+ * 用异步 spawn（与 installUv 的 runUvCommand 同模式）启动进程并收集 stdout，
+ * 避免 Bun 在 Windows 下 spawnSync/execFileSync 偶发误报 ETIMEDOUT 的缺陷。
+ */
+async function tryGetVersion(bin: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    let proc: ChildProcess;
+    try {
+      proc = spawn(bin, ['--version'], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true,
+      });
+    } catch {
+      resolve(null);
+      return;
+    }
+
+    let stdout = '';
+    const timer = setTimeout(() => {
+      proc.kill();
+      resolve(null);
+    }, 5000);
+
+    proc.stdout?.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString();
+    });
+    proc.on('error', () => {
+      clearTimeout(timer);
+      resolve(null);
+    });
+    proc.on('exit', (code: number | null) => {
+      clearTimeout(timer);
+      resolve(code === 0 ? stdout.trim() || null : null);
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------

@@ -17,7 +17,7 @@ export function createRuntimesRouter(): Router {
   router.get(
     '/',
     asyncHandler('RUNTIMES', 'Error listing runtimes', async (_req, res) => {
-      res.json({ uv: detectUv() });
+      res.json({ uv: await detectUv() });
     })
   );
 
@@ -26,7 +26,7 @@ export function createRuntimesRouter(): Router {
     '/uv/install',
     asyncHandler('RUNTIMES', 'Error installing uv', async (_req, res) => {
       await installUv();
-      res.json({ uv: detectUv() });
+      res.json({ uv: await detectUv() });
     })
   );
 

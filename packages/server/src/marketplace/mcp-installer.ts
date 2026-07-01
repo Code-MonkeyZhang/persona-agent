@@ -24,15 +24,20 @@ import type { McpServerConfig } from '../mcp/types.js';
  *
  * ${SERVERS_DIR} → servers 目录的绝对路径（自研代码型用）
  *
- * 实现方式：JSON.stringify → replaceAll → JSON.parse。
+ * 实现方式：先转义 serversDir，再 JSON.stringify → replaceAll → JSON.parse。
  * 这样一次性处理所有嵌套位置（command / args / cwd / env / headers 等），
  * 不需要递归遍历对象。
+ *
+ * serversDir 经 JSON.stringify 转义并去掉首尾引号后，得到可安全嵌入
+ * JSON 字符串字面量的形式，使 Windows 路径的反斜杠被正确处理，避免
+ * \U 等非法转义导致 JSON.parse 失败。
  */
 function substitutePlaceholders(
   config: McpServerConfig,
   serversDir: string
 ): McpServerConfig {
-  const str = JSON.stringify(config).replaceAll('${SERVERS_DIR}', serversDir);
+  const escaped = JSON.stringify(serversDir).slice(1, -1);
+  const str = JSON.stringify(config).replaceAll('${SERVERS_DIR}', escaped);
   return JSON.parse(str) as McpServerConfig;
 }
 
@@ -54,7 +59,7 @@ export async function installMcp(entry: McpMarketplaceEntry): Promise<void> {
 
   // ⑦ 下载前运行时拦截：自研型 MCP 需要 uv，没装就不下载任何东西
   if (entry.runtime === 'uv') {
-    const uv = detectUv();
+    const uv = await detectUv();
     if (!uv.ok) {
       throw new AppError(
         400,
