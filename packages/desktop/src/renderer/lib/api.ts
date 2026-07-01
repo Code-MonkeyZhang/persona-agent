@@ -108,7 +108,7 @@ interface ListMarketplaceMcpsResponse {
   mcps: McpMarketplaceItem[];
 }
 
-/** install 端点的返回（多了连接状态） */
+/** install 端点的返回，多了连接状态 */
 interface InstallMcpResponse {
   success: boolean;
   name: string;
@@ -528,7 +528,7 @@ export interface BashStatus {
 }
 
 /**
- * 查询 server 端 Git Bash 检测结果（通过 /health 端点）。
+ * 查询 server 端 Git Bash 检测结果，通过 /health 端点。
  * @returns bash 可用性及路径
  */
 export async function getBashStatus(): Promise<BashStatus> {
@@ -564,7 +564,7 @@ export async function getUvStatus(): Promise<UvStatus> {
   );
 }
 
-/** 一键安装 uv 运行时（下载二进制 + Python 解释器）。 */
+/** 一键安装 uv 运行时，下载二进制 + Python 解释器。 */
 export async function installUv(): Promise<UvStatus> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(`${baseUrl}/api/runtimes/uv/install`, {
@@ -842,7 +842,7 @@ export async function uninstallSkill(name: string): Promise<void> {
 
 /**
  * 拉取 MCP 商城清单。
- * @returns 商城条目数组（每条含 logoUrl）
+ * @returns 商城条目数组，每条含 logoUrl
  */
 export async function listMarketplaceMcps(): Promise<McpMarketplaceItem[]> {
   const baseUrl = await getBaseUrl();
@@ -862,7 +862,7 @@ export async function listMarketplaceMcps(): Promise<McpMarketplaceItem[]> {
 }
 
 /**
- * 安装一个商城 MCP（一键安装，无表单）。
+ * 安装一个商城 MCP，一键安装无表单。
  * @param name MCP 文件夹名
  */
 export async function installMarketplaceMcp(

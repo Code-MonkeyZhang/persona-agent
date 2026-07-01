@@ -122,8 +122,8 @@ app.use('/api/voices', createVoiceRouter());
 const httpServer = createHttpServer(app);
 
 /**
- * 全局错误处理中间件 —— 兜底未 被 asyncHandler 捕获的异常（multer 文件校验、
- * 同步抛出等）。asyncHandler 自身已处理大部分路由异常，这里仅作为安全网。
+ * 全局错误处理中间件 —— 兜底未被 asyncHandler 捕获的异常，如 multer 文件校验、
+ * 同步抛出等。asyncHandler 自身已处理大部分路由异常，这里仅作为安全网。
  */
 const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   if (err instanceof AppError) {

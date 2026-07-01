@@ -73,7 +73,7 @@ export const getCloudflaredBinPath = () => {
 };
 
 /**
- * 应用内一键下载的 uv 二进制路径（runtimes/uv 或 runtimes/uv.exe）。
+ * 应用内一键下载的 uv 二进制路径，runtimes/uv 或 runtimes/uv.exe。
  */
 export const getUvBinPath = () =>
   path.join(getRuntimesDir(), process.platform === 'win32' ? 'uv.exe' : 'uv');

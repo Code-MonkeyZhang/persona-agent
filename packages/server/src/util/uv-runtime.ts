@@ -1,7 +1,7 @@
 /**
- * @fileoverview uv 运行时管理 — 检测、一键下载（含 Python 解释器）、依赖预装。
+ * @fileoverview uv 运行时管理：检测、一键下载、依赖预装。
  *
- * detectUv 检测 uv 是否可用（应用内安装或系统 PATH）。
+ * detectUv 检测 uv 是否可用，查应用内安装或系统 PATH。
  * installUv 下载 uv 二进制 + sha256 校验 + 解压 + uv python install。
  * syncDeps 在 MCP 目录跑 uv sync 预装依赖，避免首次连接超时。
  */
@@ -16,9 +16,9 @@ import { Logger } from './logger.js';
 const UV_RELEASE_URL =
   'https://github.com/astral-sh/uv/releases/latest/download/';
 
-/** uv 安装 + Python 拉取的超时（秒） */
+/** uv 安装 + Python 拉取的超时，单位毫秒 */
 const INSTALL_TIMEOUT_MS = 180_000;
-/** uv sync 依赖预装的超时（秒） */
+/** uv sync 依赖预装的超时，单位毫秒 */
 const SYNC_TIMEOUT_MS = 300_000;
 
 export interface UvStatus {
@@ -60,7 +60,7 @@ export function invalidateUvCache(): void {
  *
  * 优先查应用内 runtimes/uv，其次系统 PATH。
  *
- * @returns uv 状态（是否可用、来源、版本）
+ * @returns uv 状态：是否可用、来源、版本
  */
 export async function detectUv(): Promise<UvStatus> {
   if (cached !== undefined) return cached;
@@ -91,8 +91,8 @@ async function detect(): Promise<UvStatus> {
 /**
  * 跑 `<bin> --version`，返回版本号字符串；失败返回 null。
  *
- * 用异步 spawn（与 installUv 的 runUvCommand 同模式）启动进程并收集 stdout，
- * 避免 Bun 在 Windows 下 spawnSync/execFileSync 偶发误报 ETIMEDOUT 的缺陷。
+ * 用异步 spawn 启动进程并收集 stdout，避免 Bun 在 Windows 下
+ * spawnSync/execFileSync 偶发误报 ETIMEDOUT 的缺陷。
  */
 async function tryGetVersion(bin: string): Promise<string | null> {
   return new Promise((resolve) => {
@@ -127,10 +127,6 @@ async function tryGetVersion(bin: string): Promise<string | null> {
   });
 }
 
-// ---------------------------------------------------------------------------
-// installUv — 下载 + 校验 + 解压 + python install
-// ---------------------------------------------------------------------------
-
 /**
  * 一键安装 uv 运行时。
  *
@@ -148,12 +144,12 @@ export async function installUv(): Promise<void> {
   const assetName = getUvAssetName();
   const isZip = assetName.endsWith('.zip');
 
-  // 1. 下载压缩包
+  // 下载压缩包
   const archivePath = path.join(runtimesDir, assetName);
   Logger.log('UV', `Downloading ${assetName}`);
   await downloadFile(UV_RELEASE_URL + assetName, archivePath);
 
-  // 2. sha256 校验
+  // sha256 校验
   Logger.log('UV', 'Verifying sha256');
   const expectedHash = await fetchSha256(
     UV_RELEASE_URL + assetName + '.sha256'
@@ -166,21 +162,21 @@ export async function installUv(): Promise<void> {
     );
   }
 
-  // 3. 解压
+  // 解压
   Logger.log('UV', `Extracting ${isZip ? 'zip' : 'tar.gz'}`);
   extractArchive(archivePath, runtimesDir, isZip);
   fs.rmSync(archivePath, { force: true });
 
-  // 4. 从子目录移出 uv 二进制（uv tarball/zip 解压出 uv-<platform>/ 子目录）
+  // 从子目录移出 uv 二进制，解压后会带 uv-<platform>/ 子目录
   moveUvOutOfSubdir(runtimesDir);
 
-  // 5. 权限
+  // 设置可执行权限
   const uvPath = getUvBinPath();
   if (process.platform !== 'win32') {
     fs.chmodSync(uvPath, 0o755);
   }
 
-  // 6. macOS 去 quarantine
+  // macOS 去 quarantine
   if (process.platform === 'darwin') {
     try {
       execSync(`xattr -d com.apple.quarantine "${uvPath}"`, {
@@ -192,7 +188,7 @@ export async function installUv(): Promise<void> {
     }
   }
 
-  // 7. 拉取 Python 解释器
+  // 拉取 Python 解释器
   Logger.log('UV', 'Installing Python interpreter');
   await runUvCommand(uvPath, ['python', 'install'], INSTALL_TIMEOUT_MS);
   Logger.log('UV', 'Python interpreter installed');
@@ -228,7 +224,7 @@ function hashFile(filePath: string): string {
 /**
  * 解压压缩包到目标目录。
  *
- * tar.gz 用系统 tar，zip（Windows）优先用 bsdtar（Win10+），失败回退 Expand-Archive。
+ * tar.gz 用系统 tar；Windows zip 优先 bsdtar，失败回退 Expand-Archive。
  */
 function extractArchive(
   archivePath: string,
@@ -282,17 +278,13 @@ function moveUvOutOfSubdir(runtimesDir: string): void {
   throw new Error(`uv binary not found after extraction in ${runtimesDir}`);
 }
 
-// ---------------------------------------------------------------------------
-// syncDeps — 在 MCP 目录跑 uv sync
-// ---------------------------------------------------------------------------
-
 /**
  * 在指定 MCP 目录运行 uv sync 预装依赖。
  *
  * Python 解释器在 installUv 时已拉好，这里只建 venv + 装项目依赖。
- * 失败不删目录（uv 有缓存，方便重试）。
+ * 失败不删目录，uv 有缓存方便重试。
  *
- * @param mcpDir MCP 项目目录（含 pyproject.toml / uv.lock）
+ * @param mcpDir MCP 项目目录，含 pyproject.toml / uv.lock
  * @throws uv sync 非零退出时抛出带 stderr 的错误
  */
 export async function syncDeps(mcpDir: string): Promise<void> {
@@ -312,7 +304,7 @@ export async function syncDeps(mcpDir: string): Promise<void> {
  * @param uvPath uv 二进制路径
  * @param args 子命令参数
  * @param timeoutMs 超时毫秒
- * @param cwd 工作目录（可选）
+ * @param cwd 工作目录，可选
  * @throws 非零退出、超时、spawn 失败时抛出
  */
 function runUvCommand(

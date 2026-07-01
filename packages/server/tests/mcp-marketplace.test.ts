@@ -3,18 +3,18 @@
  *
  * 覆盖：
  * - McpMarketplaceEntrySchema 校验
- * - saveMcpServer / deleteMcpServer（配置读写）
- * - addServer / removeServer（连接池运行时增删）
- * - installMcp / uninstallMcp（安装/卸载编排 + ${SERVERS_DIR} 替换 + 回滚）
+ * - saveMcpServer / deleteMcpServer，配置读写
+ * - addServer / removeServer，连接池运行时增删
+ * - installMcp / uninstallMcp，安装/卸载编排 + ${SERVERS_DIR} 替换 + 回滚
  *
  * 所有测试在同一个文件里，共享同一套 mock，避免 mock.module 跨文件冲突。
  *
  * Mock 策略：
  * - paths.ts → 指向临时目录
  * - logger.ts → 静音
- * - loader.ts → connectOne 返回可控结果（给 pool 测试用）
- * - downloader.ts → downloadMcp 在临时目录造文件（给 installer 测试用）
- * 其余模块（pool.ts / config.ts / mcp-installer.ts）使用真实实现。
+ * - loader.ts → connectOne 返回可控结果，给 pool 测试用
+ * - downloader.ts → downloadMcp 在临时目录造文件，给 installer 测试用
+ * 其余模块 pool.ts / config.ts / mcp-installer.ts 使用真实实现。
  */
 
 import {
@@ -40,13 +40,13 @@ let serversDir: string;
 
 // ─── Mock 控制 ──────────────────────────────────────────────
 
-/** 控制 connectOne 的返回值（pool 测试用） */
+/** 控制 connectOne 的返回值，pool 测试用 */
 let mockConnectResult: Record<string, unknown>;
 
-/** 控制 downloadMcp 造的 mcp.json 内容（installer 测试用），null 表示不写 */
+/** 控制 downloadMcp 造的 mcp.json 内容，installer 测试用，null 表示不写 */
 let mockMcpJsonContent: Record<string, unknown> | null;
 
-/** 控制 downloadMcp 是否模拟 CDN 返回空文件（installer 测试用） */
+/** 控制 downloadMcp 是否模拟 CDN 返回空文件，installer 测试用 */
 let mockDownloadEmpty: boolean;
 
 mock.module('../src/util/paths.js', () => ({
@@ -85,9 +85,9 @@ mock.module('../src/marketplace/downloader.js', () => ({
         `未找到 ${entry.path} 下的文件，商城数据可能正在同步中，请稍后再试`
       );
     }
-    // 总是创建目录（和真实 downloadPackage 行为一致）
+    // 总是创建目录，和真实 downloadPackage 行为一致
     fs.mkdirSync(dir, { recursive: true });
-    // mockMcpJsonContent 为 null 时只造目录不写 mcp.json（模拟解析失败）
+    // mockMcpJsonContent 为 null 时只造目录不写 mcp.json，模拟解析失败
     if (mockMcpJsonContent !== null) {
       fs.writeFileSync(
         path.join(dir, 'mcp.json'),
@@ -96,7 +96,7 @@ mock.module('../src/marketplace/downloader.js', () => ({
     }
     return dir;
   },
-  // downloader.ts 里的其他导出，给 marketplace.test.ts 用（同进程不冲突）
+  // downloader.ts 里的其他导出，给 marketplace.test.ts 用，同进程不冲突
   downloadSkill: async () => '',
   downloadPackage: async () => '',
 }));

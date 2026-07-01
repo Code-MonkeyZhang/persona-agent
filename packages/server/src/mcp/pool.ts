@@ -352,14 +352,14 @@ export function getOAuthStatus(name: string): {
 }
 
 /**
- * 运行时添加一个 MCP 服务器并连接（商城安装后调用）。
+ * 运行时添加一个 MCP 服务器并连接，商城安装后调用。
  *
- * 注册 entry（status=connecting）→ connectOne 连接 → 按结果更新状态。
+ * 注册 entry，status=connecting，connectOne 连接，按结果更新状态。
  * 连接结果可能是 connected / needs_auth / disconnected——都不抛异常，
  * 由调用方根据返回后 getMcpServer(name) 的 status 决定怎么提示用户。
  *
  * @param name server 名字
- * @param config server 配置（占位符已替换完毕）
+ * @param config server 配置，占位符已替换完毕
  * @throws 如果同名 server 已存在于池中
  */
 export async function addServer(
@@ -410,10 +410,10 @@ export async function addServer(
 }
 
 /**
- * 运行时移除一个 MCP 服务器（商城卸载时调用）。
+ * 运行时移除一个 MCP 服务器，商城卸载时调用。
  *
  * 断开连接 → 清理 connections / serverConnections / pendingOAuth / serverEntries。
- * 如果 server 不存在于池中，静默跳过（幂等）。
+ * 如果 server 不存在于池中，静默跳过，幂等。
  *
  * @param name server 名字
  */

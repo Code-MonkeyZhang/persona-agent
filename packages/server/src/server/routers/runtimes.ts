@@ -3,7 +3,7 @@
  *
  * Routes:
  * - GET  /api/runtimes            - 查询运行时状态
- * - POST /api/runtimes/uv/install - 一键安装 uv（含 Python 解释器）
+ * - POST /api/runtimes/uv/install - 一键安装 uv，含 Python 解释器
  */
 
 import { Router } from 'express';
@@ -21,7 +21,7 @@ export function createRuntimesRouter(): Router {
     })
   );
 
-  /** POST /api/runtimes/uv/install - 一键安装 uv（下载 + Python 解释器） */
+  /** POST /api/runtimes/uv/install - 一键安装 uv，下载二进制 + Python 解释器 */
   router.post(
     '/uv/install',
     asyncHandler('RUNTIMES', 'Error installing uv', async (_req, res) => {
