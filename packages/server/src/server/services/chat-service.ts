@@ -89,29 +89,35 @@ function saveStepMessages(
 export async function processChat(request: ChatRequest): Promise<ChatResponse> {
   const { agentId, sessionId, content, voiceEnabled, sessionManager } = request;
 
-  const session = sessionManager.getSession(sessionId);
-  // TODO: 这个已经在外面查过了, 是不是不用再查一遍了? 或者这个本来就应该放在这里check?
-  if (!session) {
-    const errorMsg = `Session not found: ${sessionId}`;
+  /**
+   * 持久化错误消息并广播 error + complete 事件
+   * - 落盘 { role: 'error', content } 到 session JSONL
+   * - 广播 WS error + complete，通知前端
+   */
+  const emitError = (errorContent: string): ChatResponse => {
+    sessionManager.appendMessage(sessionId, {
+      role: 'error',
+      content: errorContent,
+    });
+    Logger.log('CHAT', 'Error persisted', { sessionId, error: errorContent });
     broadcastToSession(sessionId, {
       type: 'error',
       sessionId,
-      message: errorMsg,
+      message: errorContent,
     });
     broadcastToSession(sessionId, { type: 'complete', sessionId });
-    return { success: false, error: errorMsg };
+    return { success: false, error: errorContent };
+  };
+
+  const session = sessionManager.getSession(sessionId);
+  // TODO: 这个已经在外面查过了, 是不是不用再查一遍了? 或者这个本来就应该放在这里check?
+  if (!session) {
+    return emitError(`Session not found: ${sessionId}`);
   }
 
   const agentConfig = getAgentConfig(agentId);
   if (!agentConfig) {
-    const errorMsg = `Agent not found: ${agentId}`;
-    broadcastToSession(sessionId, {
-      type: 'error',
-      sessionId,
-      message: errorMsg,
-    });
-    broadcastToSession(sessionId, { type: 'complete', sessionId });
-    return { success: false, error: errorMsg };
+    return emitError(`Agent not found: ${agentId}`);
   }
 
   //TODO: 这里不应该使用当前目录作为兜底, 应该在 persona-agent data directory 中有一个空的 workspace 作为默认工作目录
@@ -157,6 +163,8 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
 
     let historyLength = agent.messages.length;
     agent.addUserMessage(content);
+    saveStepMessages(sessionManager, sessionId, agent, historyLength);
+    historyLength = agent.messages.length;
     Logger.log('CHAT', 'User message added', { agentId, sessionId, content });
 
     // Fire-and-forget: auto-generate title base on the first user message
@@ -312,14 +320,12 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
         }
 
         case 'error': {
-          flushCurrentStep();
-          broadcastToSession(sessionId, {
-            type: 'error',
+          Logger.log('CHAT', 'Stream error, discarding partial step', {
             sessionId,
-            message: event.error,
+            stepIndex: currentStep?.stepIndex,
+            partialContentLength: currentStep?.content.length ?? 0,
           });
-          broadcastToSession(sessionId, { type: 'complete', sessionId });
-          return { success: false, error: event.error };
+          return emitError(event.error);
         }
       }
     }
@@ -353,14 +359,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     return { success: true };
   } catch (error) {
     const err = error as Error;
-    Logger.log('CHAT', 'Error', { agentId, sessionId, error: err.message });
-    broadcastToSession(sessionId, {
-      type: 'error',
-      sessionId,
-      message: err.message,
-    });
-    broadcastToSession(sessionId, { type: 'complete', sessionId });
-    return { success: false, error: err.message };
+    return emitError(err.message);
   }
 }
 

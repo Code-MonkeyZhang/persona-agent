@@ -7,6 +7,7 @@ export type {
   SystemMessage,
   UserMessage,
   AssistantMessage,
+  ErrorMessage,
   ToolCall,
   ToolResultMessage,
   Message,

@@ -52,4 +52,14 @@ export interface AssistantMessage {
   tool_calls?: ToolCall[];
 }
 
-export type Message = SystemMessage | UserMessage | AssistantMessage;
+/** 错误消息，持久化 API 调用失败等信息，占助手槽位注入模型上下文 */
+export interface ErrorMessage {
+  role: 'error';
+  content: string;
+}
+
+export type Message =
+  | SystemMessage
+  | UserMessage
+  | AssistantMessage
+  | ErrorMessage;

@@ -19,7 +19,8 @@ import type { Tool } from '../tools/index.js';
 
 /**
  * 将内部Message数组转换为pi-ai Message数组。
- * 处理用户、助手和工具消息。
+ * 处理用户、助手、错误和工具消息。
+ * 错误消息映射为助手消息，占助手槽位以维持角色交替。
  *
  * @param messages - 内部消息对象数组
  * @returns pi-ai格式的消息数组
@@ -96,6 +97,24 @@ export function convertMessages(messages: Message[]): PiAiMessage[] {
           }
         }
       }
+    } else if (msg.role === 'error') {
+      result.push({
+        role: 'assistant',
+        content: [{ type: 'text', text: msg.content }],
+        api: 'openai-completions',
+        provider: 'openai',
+        model: '',
+        usage: {
+          input: 0,
+          output: 0,
+          cacheRead: 0,
+          cacheWrite: 0,
+          totalTokens: 0,
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+        },
+        stopReason: 'stop',
+        timestamp: Date.now(),
+      });
     }
   }
 

@@ -22,6 +22,7 @@ export type {
   UserMessage,
   ToolCall,
   AssistantMessage,
+  ErrorMessage,
   Message,
 } from './schema.js';
 export type { SessionMeta, Session } from './session.js';

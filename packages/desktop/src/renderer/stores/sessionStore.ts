@@ -343,13 +343,19 @@ export const useSessionStore = create<SessionStore>()(
       },
 
       /**
-       * 将服务端返回的 Message 数组转换为客户端 UIMessage 格式，提取 thinking 和 tool_calls 为 Thought 数组。
+       * 将服务端返回的 Message 数组转换为客户端 UIMessage 格式。
+       * error 消息映射为红色气泡，提取 thinking 和 tool_calls 为 Thought 数组。
        * @param messages - 服务端返回的原始消息数组
        * @returns 转换后的客户端 UIMessage 数组
        */
       convertSessionMessages: (messages: Message[]): UIMessage[] => {
         return messages.map((msg, index): UIMessage => {
-          const type = msg.role === 'user' ? 'user' : 'assistant';
+          const type =
+            msg.role === 'user'
+              ? 'user'
+              : msg.role === 'error'
+                ? 'error'
+                : 'assistant';
 
           /**
            * Build thoughts array from thinking and tool_calls

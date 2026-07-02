@@ -10,6 +10,7 @@ export type {
   UserMessage,
   ToolCall,
   AssistantMessage,
+  ErrorMessage,
   Message,
 } from '@persona/shared';
 
