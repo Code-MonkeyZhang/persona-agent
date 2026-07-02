@@ -156,7 +156,10 @@ export class MCPServerConnection {
         command: this.command,
         args: this.args,
         cwd: this.cwd,
-        env: Object.keys(this.env).length > 0 ? this.env : undefined,
+        // 注入 Python UTF-8 环境变量，避免中文 Windows 下 GBK 编码无法处理
+        // MCP 服务启动横幅里的 Unicode 字符而崩溃。必须在此注入而非全局设置，
+        // 因为 MCP SDK 的 getDefaultEnvironment 白名单不含这两个变量。
+        env: { PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8', ...this.env },
         stderr: 'pipe',
       });
     }
@@ -181,7 +184,11 @@ export class MCPServerConnection {
    *
    * @returns Connection result with success status and optional auth requirement
    */
-  async connect(): Promise<{ success: boolean; needsAuth?: boolean }> {
+  async connect(): Promise<{
+    success: boolean;
+    needsAuth?: boolean;
+    error?: string;
+  }> {
     const connectTimeoutMs = this.getConnectTimeoutSec() * 1000;
     const transport = this.createTransport();
     const client = new Client({
@@ -245,7 +252,21 @@ export class MCPServerConnection {
         `Failed to connect MCP server '${this.name}': ${message}`
       );
       await this.disconnect();
-      return { success: false };
+
+      // spawn 找不到可执行文件时会产生 ENOENT，引导用户装 uv
+      const isENOENT =
+        (error as NodeJS.ErrnoException)?.code === 'ENOENT' ||
+        message.includes('ENOENT');
+      if (isENOENT) {
+        Logger.log(
+          'MCP',
+          `ENOENT for '${this.name}', likely missing runtime binary`
+        );
+      }
+      const errorText = isENOENT
+        ? '未检测到 uv 运行时，请前往 设置 → 通用 → 环境 一键下载'
+        : `Connection failed: ${message}`;
+      return { success: false, error: errorText };
     }
   }
 

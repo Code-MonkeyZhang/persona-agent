@@ -18,14 +18,17 @@ export type MarketplaceEntry = z.infer<typeof MarketplaceEntrySchema>;
 
 /**
  * MCP 商城清单条目。
- * 公共基座 name/description/author/homepage/path + 可选的 logo 字段。
+ * 公共基座 name/description/author/homepage/path + 可选的 logo 和 runtime 字段。
  * logo 缺失时前端用扳手图标兜底，不会阻塞上架。
+ * runtime 标识自研型 MCP 需要的运行时，如 'uv'，用于安装前拦截检测；
+ * 缺失表示远程型 MCP，不需要运行时。
  * 清单里没有 mcpConfig / source / userConfig 字段——
- * MCP 配置在商品文件夹的 mcp.json 文件里（不在清单中），
- * 需要 API Key 等 env 值由用户装完后自行在设置页填（不归商城管）。
+ * MCP 配置在商品文件夹的 mcp.json 文件里，不在清单中，
+ * 需要 API Key 等 env 值由用户装完后自行在设置页填，不归商城管。
  */
 export const McpMarketplaceEntrySchema = MarketplaceEntrySchema.extend({
   logo: z.string().optional(),
+  runtime: z.enum(['uv']).optional(),
 });
 
 export type McpMarketplaceEntry = z.infer<typeof McpMarketplaceEntrySchema>;

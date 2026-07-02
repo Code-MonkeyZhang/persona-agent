@@ -67,7 +67,7 @@ export async function connectOne(
     }
 
     if (!result.success) {
-      return { name, tools: [], error: 'Connection failed' };
+      return { name, tools: [], error: result.error ?? 'Connection failed' };
     }
 
     const tools: McpToolMeta[] = serverConn.tools.map((tool) => ({

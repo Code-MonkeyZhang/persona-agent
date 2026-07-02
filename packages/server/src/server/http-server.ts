@@ -20,6 +20,7 @@ import { createSkillRouter } from './routers/skill.js';
 import { createMcpRouter } from './routers/mcp.js';
 import { createMarketplaceRouter } from './routers/marketplace.js';
 import { createTunnelRouter } from './routers/tunnel.js';
+import { createRuntimesRouter } from './routers/runtimes.js';
 import { createAssetsRouter } from './routers/assets.js';
 import { createAvatarRouter } from './routers/avatar.js';
 import { initWebSocket, isWebSocketInitialized } from './websocket-server.js';
@@ -31,6 +32,15 @@ import { initMcpPool } from '../mcp/index.js';
 import { SessionStore } from '../session/store.js';
 import { SessionManager } from '../session/session-manager.js';
 import { findGitBash } from '../util/git-bash-detector.js';
+import { getRuntimesDir } from '../util/paths.js';
+import * as nodePath from 'node:path';
+
+// 将 runtimes 目录注入 PATH，使 MCP 子进程能按名字 "uv" 找到二进制。
+// 必须在 initMcpPool 之前执行，因为 MCP 连接时会 spawn 子进程。
+const runtimesDir = getRuntimesDir();
+process.env['PATH'] =
+  runtimesDir + nodePath.delimiter + (process.env['PATH'] ?? '');
+Logger.log('SERVER', `Injected runtimes dir into PATH: ${runtimesDir}`);
 
 const app = express();
 app.use(cors());
@@ -97,6 +107,7 @@ app.use('/api/config', createConfigRouter());
 app.use('/api/skills', createSkillRouter());
 app.use('/api/mcp', createMcpRouter());
 app.use('/api/marketplace', createMarketplaceRouter(sessionManagers));
+app.use('/api/runtimes', createRuntimesRouter());
 app.use('/api/tunnel', createTunnelRouter());
 app.use('/api/agents', createAgentRouter(sessionManagers));
 app.use('/api/agents/:agentId/assets', createAssetsRouter());
@@ -112,8 +123,8 @@ app.use('/api/voices', createVoiceRouter());
 const httpServer = createHttpServer(app);
 
 /**
- * 全局错误处理中间件 —— 兜底未 被 asyncHandler 捕获的异常（multer 文件校验、
- * 同步抛出等）。asyncHandler 自身已处理大部分路由异常，这里仅作为安全网。
+ * 全局错误处理中间件 —— 兜底未被 asyncHandler 捕获的异常，如 multer 文件校验、
+ * 同步抛出等。asyncHandler 自身已处理大部分路由异常，这里仅作为安全网。
  */
 const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   if (err instanceof AppError) {

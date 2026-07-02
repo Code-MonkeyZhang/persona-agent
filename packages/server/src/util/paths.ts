@@ -24,6 +24,7 @@
  * ├── mcp/
  * │   ├── mcp.json
  * │   └── servers/
+ * ├── runtimes/
  * ├── workspace/
  * └── logs/
  */
@@ -44,6 +45,7 @@ export const getAgentsDir = () => path.join(APP_DIR, 'agents');
 export const getSkillsDir = () => path.join(APP_DIR, 'skills');
 export const getMcpDir = () => path.join(APP_DIR, 'mcp');
 export const getMcpServersDir = () => path.join(getMcpDir(), 'servers');
+export const getRuntimesDir = () => path.join(APP_DIR, 'runtimes');
 export const getWorkspaceDir = () => path.join(APP_DIR, 'workspace');
 export const getLogsDir = () => path.join(APP_DIR, 'logs');
 
@@ -69,6 +71,12 @@ export const getCloudflaredBinPath = () => {
     process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared';
   return path.join(path.dirname(process.execPath), binName);
 };
+
+/**
+ * 应用内一键下载的 uv 二进制路径，runtimes/uv 或 runtimes/uv.exe。
+ */
+export const getUvBinPath = () =>
+  path.join(getRuntimesDir(), process.platform === 'win32' ? 'uv.exe' : 'uv');
 
 // --- Per-agent paths ---
 

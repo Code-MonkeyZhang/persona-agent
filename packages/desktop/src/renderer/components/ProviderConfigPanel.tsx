@@ -120,20 +120,23 @@ export const ProviderConfigPanel: React.FC = () => {
     );
   }
 
+  /**
+   * 固定高度卡片布局，左右两栏各自独立滚动
+   * - 外层 h-full overflow-hidden 接通父级高度链并禁止整页滚动
+   * - 卡片 h-full 填满可用高度；左右栏作为 flex 子项加 min-h-0 后才能在内部出滚动条
+   * - 每栏用 shrink-0 钉住标题与操作区，列表区用 ScrollArea（flex-1 min-h-0）独立滚动，滚动条覆盖不占位
+   */
   return (
-    <ScrollArea className="h-full">
-      <div className="p-5 flex flex-col gap-4">
-        <div
-          className="rounded-xl border border-border bg-white overflow-hidden flex"
-          style={{ minHeight: 'calc(100vh - 120px)' }}
-        >
-          {/* 左栏: 供应商列表 */}
-          <div className="w-56 shrink-0 border-r border-border py-3 flex flex-col">
-            <div className="px-4 pb-2 mb-1">
-              <span className="text-[13px] font-medium text-muted-foreground">
-                {t('provider.selectProvider')}
-              </span>
-            </div>
+    <div className="h-full overflow-hidden p-5">
+      <div className="rounded-xl border border-border bg-white overflow-hidden flex h-full">
+        {/* 左栏: 供应商列表 */}
+        <div className="w-56 shrink-0 border-r border-border py-3 flex flex-col min-h-0">
+          <div className="px-4 pb-2 mb-1 shrink-0">
+            <span className="text-[13px] font-medium text-muted-foreground">
+              {t('provider.selectProvider')}
+            </span>
+          </div>
+          <ScrollArea className="flex-1 min-h-0">
             <div className="px-2 flex flex-col gap-0.5">
               {providers.map((provider) => (
                 <button
@@ -151,12 +154,15 @@ export const ProviderConfigPanel: React.FC = () => {
                 </button>
               ))}
             </div>
-          </div>
+          </ScrollArea>
+        </div>
 
-          {/* 右栏: 配置详情 */}
-          <div className="flex-1 min-w-0 px-5 py-4 flex flex-col">
-            {currentProvider ? (
-              <>
+        {/* 右栏: 配置详情 */}
+        <div className="flex-1 min-w-0 px-5 py-4 flex flex-col min-h-0">
+          {currentProvider ? (
+            <>
+              {/* 固定区: 标题、API Key 与状态提示 */}
+              <div className="shrink-0">
                 <div className="mb-4">
                   <h3 className="text-[14px] font-bold text-foreground mb-1">
                     {currentProvider.name}
@@ -206,46 +212,46 @@ export const ProviderConfigPanel: React.FC = () => {
                     {verifyStatus.error}
                   </p>
                 )}
-
-                {/* 模型列表: 内嵌分隔线而非独立卡片 */}
-                <div className="mt-4 pt-4 border-t border-border">
-                  <h3 className="text-[14px] font-bold text-foreground mb-3">
-                    {t('provider.availableModels')}
-                  </h3>
-                  <div className="flex flex-col divide-y divide-border">
-                    {currentProvider.models.map((model) => (
-                      <div
-                        key={model}
-                        className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0"
-                      >
-                        <span className="font-mono text-[13px] text-foreground">
-                          {model}
-                        </span>
-                        {currentProvider.hasAuth && (
-                          <Check className="w-3.5 h-3.5 text-green-500" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {currentProvider.hasAuth && (
-                  <button
-                    onClick={handleDelete}
-                    className="text-[12px] text-placeholder hover:text-red-400 transition-colors mt-4"
-                  >
-                    {t('provider.deleteApiKey')}
-                  </button>
-                )}
-              </>
-            ) : (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                {t('provider.selectToConfigure')}
               </div>
-            )}
-          </div>
+
+              {/* 模型列表: 内嵌分隔线而非独立卡片，区域独立滚动 */}
+              <ScrollArea className="mt-4 pt-4 border-t border-border flex-1 min-h-0">
+                <h3 className="text-[14px] font-bold text-foreground mb-3">
+                  {t('provider.availableModels')}
+                </h3>
+                <div className="flex flex-col divide-y divide-border">
+                  {currentProvider.models.map((model) => (
+                    <div
+                      key={model}
+                      className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0"
+                    >
+                      <span className="font-mono text-[13px] text-foreground">
+                        {model}
+                      </span>
+                      {currentProvider.hasAuth && (
+                        <Check className="w-3.5 h-3.5 text-green-500" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+
+              {currentProvider.hasAuth && (
+                <button
+                  onClick={handleDelete}
+                  className="text-[12px] text-placeholder hover:text-red-400 transition-colors mt-4 shrink-0"
+                >
+                  {t('provider.deleteApiKey')}
+                </button>
+              )}
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              {t('provider.selectToConfigure')}
+            </div>
+          )}
         </div>
       </div>
-    </ScrollArea>
+    </div>
   );
 };
