@@ -91,40 +91,18 @@ async function detect(): Promise<UvStatus> {
 /**
  * 跑 `<bin> --version`，返回版本号字符串；失败返回 null。
  *
- * 用异步 spawn 启动进程并收集 stdout，避免 Bun 在 Windows 下
- * spawnSync/execFileSync 偶发误报 ETIMEDOUT 的缺陷。
+ * 用异步 spawn 避免 Bun 在 Windows 下 spawnSync/execFileSync
+ * 偶发误报 ETIMEDOUT 的缺陷。
  */
 async function tryGetVersion(bin: string): Promise<string | null> {
-  return new Promise((resolve) => {
-    let proc: ChildProcess;
-    try {
-      proc = spawn(bin, ['--version'], {
-        stdio: ['ignore', 'pipe', 'pipe'],
-        windowsHide: true,
-      });
-    } catch {
-      resolve(null);
-      return;
-    }
-
-    let stdout = '';
-    const timer = setTimeout(() => {
-      proc.kill();
-      resolve(null);
-    }, 5000);
-
-    proc.stdout?.on('data', (chunk: Buffer) => {
-      stdout += chunk.toString();
+  try {
+    const result = await spawnAndCollect(bin, ['--version'], {
+      timeoutMs: 5000,
     });
-    proc.on('error', () => {
-      clearTimeout(timer);
-      resolve(null);
-    });
-    proc.on('exit', (code: number | null) => {
-      clearTimeout(timer);
-      resolve(code === 0 ? stdout.trim() || null : null);
-    });
-  });
+    return result.code === 0 ? result.stdout.trim() || null : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -311,29 +289,29 @@ export async function syncDeps(mcpDir: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// 通用 spawn 包装 — 照 tunnel-service.ts 模板
+// spawnAndCollect — 通用进程启动与输出收集
 // ---------------------------------------------------------------------------
 
 /**
- * spawn 一个 uv 子命令，收集 stderr，等待退出。
+ * spawn 一个进程，同时收集 stdout 和 stderr，等待退出。
  *
- * @param uvPath uv 二进制路径
- * @param args 子命令参数
- * @param timeoutMs 超时毫秒
- * @param cwd 工作目录，可选
- * @throws 非零退出、超时、spawn 失败时抛出
+ * @param bin 可执行文件路径
+ * @param args 参数数组
+ * @param opts.timeoutMs 超时毫秒，超时后 kill 进程并 reject
+ * @param opts.cwd 工作目录，可选
+ * @returns 退出码、stdout、stderr
+ * @throws spawn 失败或超时时抛出
  */
-function runUvCommand(
-  uvPath: string,
+function spawnAndCollect(
+  bin: string,
   args: string[],
-  timeoutMs: number,
-  cwd?: string
-): Promise<void> {
+  opts: { timeoutMs: number; cwd?: string }
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     let proc: ChildProcess;
     try {
-      proc = spawn(uvPath, args, {
-        cwd,
+      proc = spawn(bin, args, {
+        cwd: opts.cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
       });
@@ -342,14 +320,20 @@ function runUvCommand(
       return;
     }
 
+    let stdout = '';
     let stderr = '';
     const timer = setTimeout(() => {
       proc.kill();
       reject(
-        new Error(`uv ${args.join(' ')} timed out after ${timeoutMs / 1000}s`)
+        new Error(
+          `'${bin} ${args.join(' ')}' timed out after ${opts.timeoutMs / 1000}s`
+        )
       );
-    }, timeoutMs);
+    }, opts.timeoutMs);
 
+    proc.stdout?.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString();
+    });
     proc.stderr?.on('data', (chunk: Buffer) => {
       stderr += chunk.toString();
     });
@@ -361,16 +345,25 @@ function runUvCommand(
 
     proc.on('exit', (code: number | null) => {
       clearTimeout(timer);
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(
-          new Error(
-            `uv ${args.join(' ')} exited with code ${code}` +
-              (stderr ? `\n${stderr}` : '')
-          )
-        );
-      }
+      resolve({ code, stdout, stderr });
     });
   });
+}
+
+/**
+ * 跑一个 uv 子命令，非零退出时抛出带 stderr 的错误。
+ */
+async function runUvCommand(
+  uvPath: string,
+  args: string[],
+  timeoutMs: number,
+  cwd?: string
+): Promise<void> {
+  const result = await spawnAndCollect(uvPath, args, { timeoutMs, cwd });
+  if (result.code !== 0) {
+    throw new Error(
+      `uv ${args.join(' ')} exited with code ${result.code}` +
+        (result.stderr ? `\n${result.stderr}` : '')
+    );
+  }
 }

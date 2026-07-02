@@ -27,6 +27,21 @@ import { isWin } from '../lib/platform';
 
 const GIT_BASH_DOWNLOAD_URL = 'https://git-scm.com/download/win';
 
+/** 状态行里的小型操作按钮，带图标 + 文字 */
+const ActionButton: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}> = ({ icon, label, onClick }) => (
+  <button
+    onClick={onClick}
+    className="ml-2 flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[12px] text-foreground hover:bg-secondary transition-colors"
+  >
+    {icon}
+    {label}
+  </button>
+);
+
 // ---------------------------------------------------------------------------
 // EnvironmentCard — 容器，组装 Git Bash 行 + uv 行
 // ---------------------------------------------------------------------------
@@ -99,13 +114,11 @@ const GitBashRow: React.FC = () => {
         <div className="flex items-center gap-1.5 text-orange-500">
           <AlertCircle className="w-4 h-4" />
           <span className="text-[13px]">{t('config.gitBashMissing')}</span>
-          <button
+          <ActionButton
+            icon={<ExternalLink className="w-3 h-3" />}
+            label={t('config.gitBashDownload')}
             onClick={() => window.api?.openExternal(GIT_BASH_DOWNLOAD_URL)}
-            className="ml-2 flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[12px] text-foreground hover:bg-secondary transition-colors"
-          >
-            <ExternalLink className="w-3 h-3" />
-            {t('config.gitBashDownload')}
-          </button>
+          />
         </div>
       )}
       {status === 'loading' && (
@@ -181,13 +194,11 @@ const UvRow: React.FC = () => {
         <div className="flex items-center gap-1.5 text-orange-500">
           <AlertCircle className="w-4 h-4" />
           <span className="text-[13px]">{t('config.uvMissing')}</span>
-          <button
+          <ActionButton
+            icon={<Download className="w-3 h-3" />}
+            label={t('config.uvDownload')}
             onClick={handleInstall}
-            className="ml-2 flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[12px] text-foreground hover:bg-secondary transition-colors"
-          >
-            <Download className="w-3 h-3" />
-            {t('config.uvDownload')}
-          </button>
+          />
         </div>
       )}
       {state === 'installing' && (
@@ -200,13 +211,11 @@ const UvRow: React.FC = () => {
         <div className="flex items-center gap-1.5 text-red-500">
           <AlertCircle className="w-4 h-4" />
           <span className="text-[13px]">{t('config.uvInstallFailed')}</span>
-          <button
+          <ActionButton
+            icon={<RotateCcw className="w-3 h-3" />}
+            label={t('config.uvRetry')}
             onClick={handleInstall}
-            className="ml-2 flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[12px] text-foreground hover:bg-secondary transition-colors"
-          >
-            <RotateCcw className="w-3 h-3" />
-            {t('config.uvRetry')}
-          </button>
+          />
         </div>
       )}
       {state === 'loading' && (
