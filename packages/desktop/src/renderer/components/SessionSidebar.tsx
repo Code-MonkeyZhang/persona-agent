@@ -213,7 +213,7 @@ export const SessionSidebar: React.FC = () => {
               {/* 「会话」折叠头 */}
               <button
                 onClick={toggleSessionsCollapsed}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted transition-colors"
               >
                 <MessagesSquare className="w-4 h-4 text-muted-foreground" />
                 <span className="flex-1 text-left text-sm text-muted-foreground truncate">
@@ -242,7 +242,7 @@ export const SessionSidebar: React.FC = () => {
             >
               <div className="pb-1">
                 {regularSessions.length === 0 ? (
-                  <div className="px-5 py-3 text-xs text-muted-foreground">
+                  <div className="px-7 py-3 text-xs text-muted-foreground">
                     {currentAgent
                       ? t('sessionSidebar.noTaskSessions')
                       : t('common.noAgent')}
