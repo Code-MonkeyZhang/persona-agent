@@ -32,15 +32,15 @@ let agentsDir: string;
 let currentAgentId: string;
 
 mock.module('../src/util/paths.js', () => ({
-  getAgentsDir: () => agentsDir,
-  getAgentDir: (id: string) => `${agentsDir}/${id}`,
-  getAgentConfigPath: (id: string) => `${agentsDir}/${id}/config.json`,
-  getAgentSystemPromptPath: (id: string) => `${agentsDir}/${id}/systemPrompt.md`,
-  getAgentSessionsDir: (id: string) => `${agentsDir}/${id}/sessions`,
-  getAgentAssetsDir: (id: string) => `${agentsDir}/${id}/assets`,
-  getAgentAssetsBodyDir: (id: string) => `${agentsDir}/${id}/assets/body`,
-  getAgentAssetsBackgroundsDir: (id: string) => `${agentsDir}/${id}/assets/backgrounds`,
-  getAgentMemoryDir: (id: string) => `${agentsDir}/${id}/memory`,
+  getAgentsDir: () => path.join(agentsDir),
+  getAgentDir: (id: string) => path.join(agentsDir, id),
+  getAgentConfigPath: (id: string) => path.join(agentsDir, id, 'config.json'),
+  getAgentSystemPromptPath: (id: string) => path.join(agentsDir, id, 'systemPrompt.md'),
+  getAgentSessionsDir: (id: string) => path.join(agentsDir, id, 'sessions'),
+  getAgentAssetsDir: (id: string) => path.join(agentsDir, id, 'assets'),
+  getAgentAssetsPoseDir: (id: string) => path.join(agentsDir, id, 'assets', 'pose'),
+  getAgentAssetsBackgroundsDir: (id: string) => path.join(agentsDir, id, 'assets', 'backgrounds'),
+  getAgentMemoryDir: (id: string) => path.join(agentsDir, id, 'memory'),
 }));
 
 import { createSessionRouter } from '../src/server/routers/session.js';
