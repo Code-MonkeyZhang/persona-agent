@@ -101,7 +101,8 @@ export class AgentCore {
       // Accumulate content chunk
       const eventStream = stream(this.runConfig.model, context, {
         apiKey: this.runConfig.apiKey,
-      });
+        thinkingEnabled: true,
+      } as Record<string, unknown>);
 
       for await (const event of eventStream) {
         if (event.type === 'thinking_delta') {

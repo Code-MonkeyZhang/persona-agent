@@ -49,10 +49,9 @@
 
   "thoughtProcess.collapse": "收起",
   "thoughtProcess.expand": "展开",
-  "thoughtProcess.hideRawJson": "隐藏原始 JSON",
-  "thoughtProcess.showRawJson": "显示原始 JSON",
-  "thoughtProcess.hide": "隐藏",
-  "thoughtProcess.result": "结果",
+  "thoughtProcess.thinking": "思考",
+  "thoughtProcess.toolCall": "工具调用",
+  "thoughtProcess.error": "错误",
   "thoughtProcess.showThinking": "显示思考过程",
   "thoughtProcess.compact": "紧凑",
   "thoughtProcess.full": "完整",

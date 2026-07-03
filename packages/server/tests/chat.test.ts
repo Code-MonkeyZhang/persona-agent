@@ -55,15 +55,15 @@ let authPath: string;
 
 /** Mock 路径模块，使用临时目录 */
 mock.module('../src/util/paths.js', () => ({
-  getAgentsDir: () => agentsDir,
-  getAgentDir: (id: string) => `${agentsDir}/${id}`,
-  getAgentConfigPath: (id: string) => `${agentsDir}/${id}/config.json`,
-  getAgentSystemPromptPath: (id: string) => `${agentsDir}/${id}/systemPrompt.md`,
-  getAgentAssetsDir: (id: string) => `${agentsDir}/${id}/assets`,
-  getAgentAssetsBodyDir: (id: string) => `${agentsDir}/${id}/assets/body`,
-  getAgentAssetsBackgroundsDir: (id: string) => `${agentsDir}/${id}/assets/backgrounds`,
-  getAgentSessionsDir: (id: string) => `${agentsDir}/${id}/sessions`,
-  getAgentMemoryDir: (id: string) => `${agentsDir}/${id}/memory`,
+  getAgentsDir: () => path.join(agentsDir),
+  getAgentDir: (id: string) => path.join(agentsDir, id),
+  getAgentConfigPath: (id: string) => path.join(agentsDir, id, 'config.json'),
+  getAgentSystemPromptPath: (id: string) => path.join(agentsDir, id, 'systemPrompt.md'),
+  getAgentAssetsDir: (id: string) => path.join(agentsDir, id, 'assets'),
+  getAgentAssetsPoseDir: (id: string) => path.join(agentsDir, id, 'assets', 'pose'),
+  getAgentAssetsBackgroundsDir: (id: string) => path.join(agentsDir, id, 'assets', 'backgrounds'),
+  getAgentSessionsDir: (id: string) => path.join(agentsDir, id, 'sessions'),
+  getAgentMemoryDir: (id: string) => path.join(agentsDir, id, 'memory'),
   getAuthPath: () => authPath,
 }));
 
@@ -472,6 +472,76 @@ describe('Chat Module Integration Tests', () => {
         expect(receivedEvents).toContain('subscribed');
         expect(receivedEvents).toContain('step_complete');
         expect(receivedEvents).toContain('complete');
+      },
+      TEST_CONFIG.timeout
+    );
+
+    /** 测试：step_complete 事件包含 thinking 内容 */
+    it(
+      'should include thinking content in step_complete events',
+      async () => {
+        const stepThinking: string[] = [];
+
+        await new Promise<void>((resolve, reject) => {
+          ws = new WebSocket(WS_URL);
+
+          ws.on('open', () => {
+            ws.send(JSON.stringify({
+              type: 'subscribe',
+              payload: { sessionId },
+            }));
+          });
+
+          ws.on('message', (data: Buffer) => {
+            const msg = JSON.parse(data.toString()) as {
+              type: string;
+              thinking?: string;
+            };
+
+            if (msg.type === 'step_complete' && msg.thinking) {
+              stepThinking.push(msg.thinking);
+            }
+
+            if (msg.type === 'complete') {
+              ws.close();
+              resolve();
+            }
+          });
+
+          ws.on('error', reject);
+
+          ws.on('close', () => {
+            if (stepThinking.length === 0) {
+              reject(new Error('No step_complete with thinking received'));
+            }
+          });
+
+          setTimeout(() => {
+            fetch(
+              `${BASE_URL}/api/agents/${agentId}/sessions/${sessionId}/chat`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  content: '3+5=? Please reason step by step.',
+                }),
+              }
+            ).catch(reject);
+          }, 100);
+        });
+
+        expect(stepThinking.length).toBeGreaterThan(0);
+        expect(stepThinking[0].length).toBeGreaterThan(0);
+
+        /** 验证 thinking 也持久化到了 session */
+        const sessionResponse = await fetch(
+          `${BASE_URL}/api/agents/${agentId}/sessions/${sessionId}`
+        );
+        const { session } = (await sessionResponse.json()) as { session: Session };
+        const assistantMsg = session.messages.find(
+          (m) => m.role === 'assistant' && (m as { thinking?: string }).thinking
+        );
+        expect(assistantMsg).toBeDefined();
       },
       TEST_CONFIG.timeout
     );

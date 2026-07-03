@@ -13,7 +13,7 @@ import {
   deleteSession,
   updateSession,
 } from '../lib/api';
-import type { UIMessage } from '../types/chat';
+import type { UIMessage, Thought } from '../types/chat';
 import type { Message } from '@persona/shared';
 import { deleteScrollPosition } from './scrollPositionCache';
 
@@ -344,29 +344,48 @@ export const useSessionStore = create<SessionStore>()(
 
       /**
        * 将服务端返回的 Message 数组转换为客户端 UIMessage 格式。
-       * error 消息映射为红色气泡，提取 thinking 和 tool_calls 为 Thought 数组。
+       * 连续的 assistant 消息按轮次分组合并为一条 UIMessage：
+       * - thoughts 全部拼接，保留原始顺序
+       * - content 取最后一条非空值（即最终回答）
+       * - user / error 消息作为天然分隔点打断分组
+       * - system 消息直接跳过
        * @param messages - 服务端返回的原始消息数组
        * @returns 转换后的客户端 UIMessage 数组
        */
       convertSessionMessages: (messages: Message[]): UIMessage[] => {
-        return messages.map((msg, index): UIMessage => {
-          const type =
-            msg.role === 'user'
-              ? 'user'
-              : msg.role === 'error'
-                ? 'error'
-                : 'assistant';
+        const result: UIMessage[] = [];
+        let pendingThoughts: Thought[] = [];
+        let pendingContent = '';
+        let pendingStartIndex = -1;
 
-          /**
-           * Build thoughts array from thinking and tool_calls
-           */
-          const thoughts: UIMessage['thoughts'] = [];
+        /** 将缓冲区中的 assistant 消息合并为一条 UIMessage 产出 */
+        const flushPending = () => {
+          if (pendingStartIndex === -1) return;
+          result.push({
+            id: `session-msg-${pendingStartIndex}`,
+            type: 'assistant',
+            content: pendingContent,
+            timestamp: new Date(),
+            thoughts: pendingThoughts.length > 0 ? pendingThoughts : undefined,
+          });
+          pendingThoughts = [];
+          pendingContent = '';
+          pendingStartIndex = -1;
+        };
 
-          // thinking / tool_calls 只存在于 AssistantMessage
+        for (let i = 0; i < messages.length; i++) {
+          const msg = messages[i];
+
+          if (msg.role === 'system') {
+            continue;
+          }
+
           if (msg.role === 'assistant') {
+            if (pendingStartIndex === -1) pendingStartIndex = i;
+
             if (msg.thinking) {
-              thoughts.push({
-                id: `thought-${index}-thinking`,
+              pendingThoughts.push({
+                id: `thought-${i}-thinking`,
                 type: 'thinking',
                 timestamp: new Date(),
                 content: msg.thinking,
@@ -375,8 +394,8 @@ export const useSessionStore = create<SessionStore>()(
 
             if (msg.tool_calls && msg.tool_calls.length > 0) {
               msg.tool_calls.forEach((tc, tcIndex) => {
-                thoughts.push({
-                  id: `thought-${index}-tool-${tcIndex}`,
+                pendingThoughts.push({
+                  id: `thought-${i}-tool-${tcIndex}`,
                   type: 'tool_use',
                   timestamp: new Date(),
                   toolName: tc.function.name,
@@ -390,19 +409,24 @@ export const useSessionStore = create<SessionStore>()(
                 });
               });
             }
+
+            if (msg.content) {
+              pendingContent = msg.content;
+            }
+          } else {
+            flushPending();
+
+            result.push({
+              id: `session-msg-${i}`,
+              type: msg.role === 'user' ? 'user' : 'error',
+              content: typeof msg.content === 'string' ? msg.content : '',
+              timestamp: new Date(),
+            });
           }
+        }
+        flushPending();
 
-          // UserMessage.content 可能是 string | ContentBlock[]，持久化用户消息恒为 string
-          const content = typeof msg.content === 'string' ? msg.content : '';
-
-          return {
-            id: `session-msg-${index}`,
-            type,
-            content,
-            timestamp: new Date(),
-            thoughts: thoughts.length > 0 ? thoughts : undefined,
-          };
-        });
+        return result;
       },
 
       /**

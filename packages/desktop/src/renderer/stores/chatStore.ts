@@ -68,6 +68,8 @@ function extractPreview(content: string): string {
 interface SessionChatState {
   messages: UIMessage[];
   isLoading: boolean;
+  /** 当前轮次正在积累的 assistant 消息 ID，null 表示无活跃流式消息 */
+  streamingMessageId: string | null;
 }
 
 interface ChatStore {
@@ -111,7 +113,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   initSessionState: (sessionId: string, messages: UIMessage[]) => {
     set((state) => {
       const newStates = new Map(state.sessionStates);
-      newStates.set(sessionId, { messages, isLoading: false });
+      newStates.set(sessionId, {
+        messages,
+        isLoading: false,
+        streamingMessageId: null,
+      });
       return { sessionStates: newStates };
     });
   },
@@ -149,6 +155,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const sessionState = newStates.get(sessionId) || {
           messages: [],
           isLoading: false,
+          streamingMessageId: null,
         };
         newStates.set(sessionId, {
           messages: [
@@ -160,6 +167,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             ),
           ],
           isLoading: false,
+          streamingMessageId: null,
         });
         return { sessionStates: newStates };
       });
@@ -173,10 +181,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const sessionState = newStates.get(sessionId) || {
         messages: [],
         isLoading: false,
+        streamingMessageId: null,
       };
       newStates.set(sessionId, {
         messages: [...sessionState.messages, createMessage('user', content)],
         isLoading: true,
+        streamingMessageId: null,
       });
       return { sessionStates: newStates, lastUserMessage: content };
     });
@@ -230,7 +240,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       case 'step_complete': {
         const sessionId = msg.sessionId;
-        const thoughts = cycleToThoughts(msg);
+        const newThoughts = cycleToThoughts(msg);
 
         if (msg.toolCalls) {
           for (const tc of msg.toolCalls) {
@@ -248,23 +258,49 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const currentSnap = get();
         const sessionState = currentSnap.sessionStates.get(sessionId);
         if (sessionState) {
-          set((state) => {
-            const newStates = new Map(state.sessionStates);
-            newStates.set(sessionId, {
-              ...sessionState,
-              messages: [
-                ...sessionState.messages,
-                {
-                  id: crypto.randomUUID(),
-                  type: 'assistant' as const,
-                  content: msg.content || '',
-                  timestamp: new Date(),
-                  thoughts,
-                },
-              ],
+          const streamingId = sessionState.streamingMessageId;
+
+          if (streamingId) {
+            // 后续步骤：追加 thoughts 到已有的流式消息，content 仅在非空时覆盖
+            set((state) => {
+              const newStates = new Map(state.sessionStates);
+              newStates.set(sessionId, {
+                ...sessionState,
+                messages: sessionState.messages.map((m) =>
+                  m.id === streamingId
+                    ? {
+                        ...m,
+                        thoughts: [...(m.thoughts || []), ...newThoughts],
+                        content: msg.content || m.content,
+                      }
+                    : m
+                ),
+              });
+              return { sessionStates: newStates };
             });
-            return { sessionStates: newStates };
-          });
+          } else {
+            // 首步：创建新消息并记下 streamingMessageId
+            const newId = crypto.randomUUID();
+            set((state) => {
+              const newStates = new Map(state.sessionStates);
+              newStates.set(sessionId, {
+                ...sessionState,
+                streamingMessageId: newId,
+                messages: [
+                  ...sessionState.messages,
+                  {
+                    id: newId,
+                    type: 'assistant' as const,
+                    content: msg.content || '',
+                    timestamp: new Date(),
+                    thoughts: newThoughts,
+                  },
+                ],
+              });
+              return { sessionStates: newStates };
+            });
+          }
+
           // 同步更新会话预览
           useSessionStore
             .getState()
@@ -279,7 +315,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           const newStates = new Map(state.sessionStates);
           const sessionState = newStates.get(sessionId);
           if (sessionState) {
-            newStates.set(sessionId, { ...sessionState, isLoading: false });
+            newStates.set(sessionId, {
+              ...sessionState,
+              isLoading: false,
+              streamingMessageId: null,
+            });
           }
           return { sessionStates: newStates };
         });
@@ -319,6 +359,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 createMessage('error', msg.message),
               ],
               isLoading: false,
+              streamingMessageId: null,
             });
           }
           return { sessionStates: newStates };

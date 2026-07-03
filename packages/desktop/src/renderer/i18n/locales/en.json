@@ -49,10 +49,9 @@
 
   "thoughtProcess.collapse": "Collapse",
   "thoughtProcess.expand": "Expand",
-  "thoughtProcess.hideRawJson": "Hide raw JSON",
-  "thoughtProcess.showRawJson": "Show raw JSON",
-  "thoughtProcess.hide": "Hide",
-  "thoughtProcess.result": "Result",
+  "thoughtProcess.thinking": "Thinking",
+  "thoughtProcess.toolCall": "Tool Call",
+  "thoughtProcess.error": "Error",
   "thoughtProcess.showThinking": "Show Thinking",
   "thoughtProcess.compact": "Compact",
   "thoughtProcess.full": "Full",

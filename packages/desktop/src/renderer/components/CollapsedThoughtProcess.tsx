@@ -5,21 +5,17 @@
 
 import { useState, memo } from 'react';
 import {
-  Lightbulb,
   XCircle,
   ChevronRight,
   ChevronUp,
   ChevronDown,
-  Braces,
   CheckCircle,
   AlertTriangle,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
-  truncateText,
   getThoughtIcon,
   getThoughtColor,
-  getThoughtLabel,
   getToolFriendlyFormat,
 } from './thought-utils';
 import type { Thought } from '../types/chat';
@@ -38,13 +34,17 @@ const ThoughtItem = memo(function ThoughtItem({
   thought: Thought;
 }) {
   const { t } = useTranslation();
-  const [showRawJson, setShowRawJson] = useState(false);
-  const [showResult, setShowResult] = useState(true);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
 
   const color = getThoughtColor(thought.type, thought.isError);
   const Icon = getThoughtIcon(thought.type, thought.toolName);
   const hasToolResult = thought.type === 'tool_use' && thought.toolResult;
+  const labelKey =
+    thought.type === 'tool_use'
+      ? 'thoughtProcess.toolCall'
+      : thought.type === 'thinking'
+        ? 'thoughtProcess.thinking'
+        : 'thoughtProcess.error';
 
   const content =
     thought.type === 'tool_use'
@@ -56,7 +56,7 @@ const ThoughtItem = memo(function ThoughtItem({
 
   return (
     <div className="py-1.5 text-xs border-b border-gray-100 last:border-b-0">
-      {/* First row: Icon + Tool name + Timestamp */}
+      {/* Header row: Icon + label + toolName */}
       <div className="flex items-center gap-2">
         {hasToolResult ? (
           thought.toolResult!.isError ? (
@@ -72,91 +72,27 @@ const ThoughtItem = memo(function ThoughtItem({
             thought.toolResult?.isError ? 'text-amber-500' : color
           } flex-1 min-w-0 truncate`}
         >
-          {getThoughtLabel(thought.type)}
+          {t(labelKey)}
           {thought.toolName && ` - ${thought.toolName}`}
         </span>
       </div>
 
-      {/* Content area */}
-      <div className="flex items-end gap-3 mt-0.5 ml-[22px]">
-        <div className="flex-1 min-w-0">
-          {content && (
-            <div className="text-gray-500 whitespace-pre-wrap break-words">
-              {isContentExpanded || !needsTruncate
-                ? content
-                : content.substring(0, maxLen) + '...'}
-              {needsTruncate && (
-                <button
-                  onClick={() => setIsContentExpanded(!isContentExpanded)}
-                  className="ml-1 text-blue-500 hover:text-blue-600"
-                >
-                  {isContentExpanded
-                    ? t('thoughtProcess.collapse')
-                    : t('thoughtProcess.expand')}
-                </button>
-              )}
-            </div>
+      {/* Content */}
+      {content && (
+        <div className="mt-0.5 ml-[22px] text-gray-500 whitespace-pre-wrap break-words">
+          {isContentExpanded || !needsTruncate
+            ? content
+            : content.substring(0, maxLen) + '...'}
+          {needsTruncate && (
+            <button
+              onClick={() => setIsContentExpanded(!isContentExpanded)}
+              className="ml-1 text-blue-500 hover:text-blue-600"
+            >
+              {isContentExpanded
+                ? t('thoughtProcess.collapse')
+                : t('thoughtProcess.expand')}
+            </button>
           )}
-        </div>
-
-        {/* Actions */}
-        {((thought.type === 'tool_use' &&
-          thought.toolInput &&
-          Object.keys(thought.toolInput).length > 0) ||
-          hasToolResult) && (
-          <div className="flex items-center gap-1 shrink-0">
-            {thought.type === 'tool_use' &&
-              thought.toolInput &&
-              Object.keys(thought.toolInput).length > 0 && (
-                <button
-                  onClick={() => setShowRawJson(!showRawJson)}
-                  className={`px-1 py-0.5 rounded transition-colors ${
-                    showRawJson
-                      ? 'bg-blue-100 text-blue-600'
-                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                  }`}
-                  title={
-                    showRawJson
-                      ? t('thoughtProcess.hideRawJson')
-                      : t('thoughtProcess.showRawJson')
-                  }
-                >
-                  <Braces size={10} />
-                </button>
-              )}
-            {hasToolResult && thought.toolResult!.output && (
-              <button
-                onClick={() => setShowResult(!showResult)}
-                className="px-1 py-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-              >
-                {showResult
-                  ? t('thoughtProcess.hide')
-                  : t('thoughtProcess.result')}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Raw JSON display */}
-      {thought.type === 'tool_use' && showRawJson && thought.toolInput && (
-        <pre className="mt-2 ml-[22px] p-2 rounded bg-gray-100 text-[10px] text-gray-600 overflow-x-auto">
-          {JSON.stringify(thought.toolInput, null, 2)}
-        </pre>
-      )}
-
-      {/* Tool result */}
-      {hasToolResult && thought.toolResult!.output && showResult && (
-        <div
-          className={`mt-1.5 ml-[22px] p-2 rounded text-[10px] overflow-x-auto ${
-            thought.toolResult!.isError
-              ? 'bg-amber-50 text-amber-700'
-              : 'bg-gray-100 text-gray-600'
-          }`}
-        >
-          <pre className="whitespace-pre-wrap break-all">
-            {truncateText(thought.toolResult!.output, 300)}
-          </pre>
         </div>
       )}
     </div>
@@ -184,12 +120,8 @@ export function CollapsedThoughtProcess({
     <div className="mb-2">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs
-          transition-all duration-200 w-full ${
-            isExpanded
-              ? 'bg-blue-50 border border-blue-200'
-              : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
-          }`}
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs
+          transition-opacity duration-200 w-full hover:opacity-60"
       >
         <ChevronRight
           size={12}
@@ -198,11 +130,7 @@ export function CollapsedThoughtProcess({
           }`}
         />
 
-        {errorCount > 0 ? (
-          <XCircle size={14} className="text-red-500" />
-        ) : (
-          <Lightbulb size={14} className="text-blue-500" />
-        )}
+        {errorCount > 0 && <XCircle size={14} className="text-red-500" />}
 
         <span className="text-gray-500">
           {t('thoughtProcess.showThinking')}
@@ -211,7 +139,7 @@ export function CollapsedThoughtProcess({
 
       {/* Expanded content */}
       {isExpanded && (
-        <div className="mt-1 py-2 bg-gray-50 rounded-lg border border-gray-200 animate-slide-down">
+        <div className="mt-1 py-2 animate-slide-down">
           <div
             className={`${isMaximized ? 'max-h-[80vh]' : 'max-h-[300px]'} overflow-auto px-3`}
           >
@@ -225,7 +153,7 @@ export function CollapsedThoughtProcess({
             <div className="flex justify-end px-3 mt-1">
               <button
                 onClick={() => setIsMaximized(!isMaximized)}
-                className="flex items-center gap-0.5 px-1 py-0.5 rounded text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                className="flex items-center gap-0.5 px-1 py-0.5 rounded text-xs text-gray-400 hover:text-gray-600 hover:bg-muted-foreground/10 transition-colors"
               >
                 {isMaximized ? (
                   <ChevronUp size={12} />
