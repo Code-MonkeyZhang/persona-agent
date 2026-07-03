@@ -37,6 +37,7 @@ export interface MessageListRef {
 interface MessageItemProps {
   message: UIMessage;
   agent: AgentConfig | null;
+  isStreaming: boolean;
 }
 
 /**
@@ -46,13 +47,18 @@ interface MessageItemProps {
  * - 错误消息：红色背景左对齐
  * hover 时显示复制按钮
  */
-const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
+const MessageItem: React.FC<MessageItemProps> = ({
+  message,
+  agent,
+  isStreaming,
+}) => {
   const { t } = useTranslation();
   const isUser = message.type === 'user';
   const isError = message.type === 'error';
   const isAssistant = message.type === 'assistant';
   const hasThoughts = message.thoughts && message.thoughts.length > 0;
   const hasContent = message.content.trim().length > 0;
+  const isWaiting = isStreaming && !hasContent && !hasThoughts;
 
   return (
     <div
@@ -86,6 +92,17 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
         {/* 思考过程 */}
         {isAssistant && hasThoughts && (
           <CollapsedThoughtProcess thoughts={message.thoughts!} />
+        )}
+
+        {/* 等待中的打字动画 */}
+        {isWaiting && (
+          <div className="px-4 py-3 rounded-2xl">
+            <div className="flex gap-1">
+              <span className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-typing-dot" />
+              <span className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-typing-dot [animation-delay:200ms]" />
+              <span className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-typing-dot [animation-delay:400ms]" />
+            </div>
+          </div>
         )}
 
         {/* 气泡 */}
@@ -127,6 +144,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
 interface MessageListProps {
   messages: UIMessage[];
   isLoading?: boolean;
+  streamingMessageId?: string | null;
   sessionId: string | null;
   hasAgent?: boolean;
   agent: AgentConfig | null;
@@ -137,7 +155,17 @@ interface MessageListProps {
  * 通过 forwardRef 暴露 scrollToBottom 给父组件
  */
 export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
-  ({ messages, isLoading, sessionId, hasAgent = true, agent }, ref) => {
+  (
+    {
+      messages,
+      isLoading,
+      streamingMessageId,
+      sessionId,
+      hasAgent = true,
+      agent,
+    },
+    ref
+  ) => {
     const { t } = useTranslation();
     const virtuosoRef = useRef<VirtuosoHandle>(null);
 
@@ -207,7 +235,12 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
             Header: () => <div className="h-4" />,
           }}
           itemContent={(_index, message) => (
-            <MessageItem key={message.id} message={message} agent={agent} />
+            <MessageItem
+              key={message.id}
+              message={message}
+              agent={agent}
+              isStreaming={message.id === streamingMessageId}
+            />
           )}
         />
       </div>

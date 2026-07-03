@@ -64,6 +64,29 @@ function extractPreview(content: string): string {
   return content.replace(/<[^>]+>/g, '').slice(0, 30);
 }
 
+/**
+ * 清理空占位气泡：如果 streamingMessageId 指向的消息无内容无 thoughts 则从列表移除。
+ * 用于请求失败或出错时回滚乐观创建的空 assistant 气泡。
+ * @param messages - 当前消息列表
+ * @param streamingMessageId - 当前流式消息 ID
+ * @returns 移除空占位后的消息列表
+ */
+function filterEmptyPlaceholder(
+  messages: UIMessage[],
+  streamingMessageId: string | null
+): UIMessage[] {
+  if (!streamingMessageId) return messages;
+  const placeholder = messages.find((m) => m.id === streamingMessageId);
+  if (
+    placeholder &&
+    !placeholder.content.trim() &&
+    !(placeholder.thoughts && placeholder.thoughts.length > 0)
+  ) {
+    return messages.filter((m) => m.id !== streamingMessageId);
+  }
+  return messages;
+}
+
 /** 单个 session 的聊天状态 */
 interface SessionChatState {
   messages: UIMessage[];
@@ -175,7 +198,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       return;
     }
 
-    // 追加用户消息，标记该 session 为加载中
+    // 乐观追加用户消息 + 空 assistant 占位气泡，立即显示打字动画
+    const placeholderId = crypto.randomUUID();
     set((state) => {
       const newStates = new Map(state.sessionStates);
       const sessionState = newStates.get(sessionId) || {
@@ -184,12 +208,23 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         streamingMessageId: null,
       };
       newStates.set(sessionId, {
-        messages: [...sessionState.messages, createMessage('user', content)],
+        messages: [
+          ...sessionState.messages,
+          createMessage('user', content),
+          {
+            id: placeholderId,
+            type: 'assistant' as const,
+            content: '',
+            timestamp: new Date(),
+            thoughts: [],
+          },
+        ],
         isLoading: true,
-        streamingMessageId: null,
+        streamingMessageId: placeholderId,
       });
       return { sessionStates: newStates, lastUserMessage: content };
     });
+    logger.info('Optimistic placeholder created', { sessionId, placeholderId });
 
     // 同步更新会话预览
     useSessionStore
@@ -211,7 +246,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           const newStates = new Map(state.sessionStates);
           const sessionState = newStates.get(sessionId);
           if (sessionState) {
-            newStates.set(sessionId, { ...sessionState, isLoading: false });
+            newStates.set(sessionId, {
+              ...sessionState,
+              messages: filterEmptyPlaceholder(
+                sessionState.messages,
+                sessionState.streamingMessageId
+              ),
+              isLoading: false,
+              streamingMessageId: null,
+            });
           }
           return { sessionStates: newStates };
         });
@@ -221,7 +264,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const newStates = new Map(state.sessionStates);
         const sessionState = newStates.get(sessionId);
         if (sessionState) {
-          newStates.set(sessionId, { ...sessionState, isLoading: false });
+          newStates.set(sessionId, {
+            ...sessionState,
+            messages: filterEmptyPlaceholder(
+              sessionState.messages,
+              sessionState.streamingMessageId
+            ),
+            isLoading: false,
+            streamingMessageId: null,
+          });
         }
         return { sessionStates: newStates };
       });
@@ -355,7 +406,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             newStates.set(sessionId, {
               ...sessionState,
               messages: [
-                ...sessionState.messages,
+                ...filterEmptyPlaceholder(
+                  sessionState.messages,
+                  sessionState.streamingMessageId
+                ),
                 createMessage('error', msg.message),
               ],
               isLoading: false,

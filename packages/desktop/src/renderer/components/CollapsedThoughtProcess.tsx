@@ -3,7 +3,7 @@
  * @description 折叠的思考过程展示组件，默认折叠，展开后显示完整的 Agent 思考步骤详情
  */
 
-import { useState, memo } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import {
   XCircle,
   ChevronRight,
@@ -35,6 +35,8 @@ const ThoughtItem = memo(function ThoughtItem({
 }) {
   const { t } = useTranslation();
   const [isContentExpanded, setIsContentExpanded] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [needsExpand, setNeedsExpand] = useState(false);
 
   const color = getThoughtColor(thought.type, thought.isError);
   const Icon = getThoughtIcon(thought.type, thought.toolName);
@@ -51,8 +53,12 @@ const ThoughtItem = memo(function ThoughtItem({
       ? getToolFriendlyFormat(thought.toolName || '', thought.toolInput)
       : thought.content || '';
 
-  const maxLen = 120;
-  const needsTruncate = content.length > maxLen;
+  useEffect(() => {
+    const el = contentRef.current;
+    if (el) {
+      setNeedsExpand(el.scrollHeight > el.clientHeight);
+    }
+  }, [content]);
 
   return (
     <div className="py-1.5 text-xs border-b border-gray-100 last:border-b-0">
@@ -79,19 +85,26 @@ const ThoughtItem = memo(function ThoughtItem({
 
       {/* Content */}
       {content && (
-        <div className="mt-0.5 ml-[22px] text-gray-500 whitespace-pre-wrap break-words">
-          {isContentExpanded || !needsTruncate
-            ? content
-            : content.substring(0, maxLen) + '...'}
-          {needsTruncate && (
-            <button
-              onClick={() => setIsContentExpanded(!isContentExpanded)}
-              className="ml-1 text-blue-500 hover:text-blue-600"
-            >
-              {isContentExpanded
-                ? t('thoughtProcess.collapse')
-                : t('thoughtProcess.expand')}
-            </button>
+        <div className="mt-0.5 ml-[22px] text-gray-500">
+          <div
+            ref={contentRef}
+            className={`whitespace-pre-wrap break-words ${
+              isContentExpanded ? 'animate-slide-down' : 'line-clamp-2'
+            }`}
+          >
+            {content}
+          </div>
+          {needsExpand && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => setIsContentExpanded(!isContentExpanded)}
+                className="text-blue-500 hover:text-blue-600 animate-slide-down"
+              >
+                {isContentExpanded
+                  ? t('thoughtProcess.collapse')
+                  : t('thoughtProcess.expand')}
+              </button>
+            </div>
           )}
         </div>
       )}

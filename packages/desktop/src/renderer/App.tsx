@@ -62,6 +62,7 @@ function AppContent() {
   );
   const messages = currentSessionState?.messages ?? [];
   const isLoading = currentSessionState?.isLoading ?? false;
+  const streamingMessageId = currentSessionState?.streamingMessageId ?? null;
 
   const connectionStatus = useChatStore((s) => s.connectionStatus);
   const sendMessage = useChatStore((s) => s.sendMessage);
@@ -242,6 +243,7 @@ function AppContent() {
                         key={currentSession?.id ?? 'no-session'}
                         messages={messages}
                         isLoading={isLoading}
+                        streamingMessageId={streamingMessageId}
                         sessionId={currentSession?.id ?? null}
                         hasAgent={!!currentAgent}
                         agent={currentAgent}

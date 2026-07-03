@@ -43,7 +43,7 @@ export function getThoughtColor(type: ThoughtType, isError?: boolean): string {
     case 'thinking':
       return 'text-blue-400';
     case 'tool_use':
-      return 'text-amber-400';
+      return 'text-blue-400';
     case 'error':
       return 'text-red-500';
     default:
