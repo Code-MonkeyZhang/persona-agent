@@ -31,10 +31,13 @@ mock.module('../src/util/paths.js', () => ({
   getAgentsDir: () => path.join(agentsDir),
   getAgentDir: (id: string) => path.join(agentsDir, id),
   getAgentConfigPath: (id: string) => path.join(agentsDir, id, 'config.json'),
-  getAgentSystemPromptPath: (id: string) => path.join(agentsDir, id, 'systemPrompt.md'),
+  getAgentSystemPromptPath: (id: string) =>
+    path.join(agentsDir, id, 'systemPrompt.md'),
   getAgentAssetsDir: (id: string) => path.join(agentsDir, id, 'assets'),
-  getAgentAssetsPoseDir: (id: string) => path.join(agentsDir, id, 'assets', 'pose'),
-  getAgentAssetsBackgroundsDir: (id: string) => path.join(agentsDir, id, 'assets', 'backgrounds'),
+  getAgentAssetsPoseDir: (id: string) =>
+    path.join(agentsDir, id, 'assets', 'pose'),
+  getAgentAssetsBackgroundsDir: (id: string) =>
+    path.join(agentsDir, id, 'assets', 'backgrounds'),
   getAgentSessionsDir: (id: string) => path.join(agentsDir, id, 'sessions'),
   getAgentMemoryDir: (id: string) => path.join(agentsDir, id, 'memory'),
 }));
@@ -46,6 +49,7 @@ import {
   updateAgentConfig,
   deleteAgentConfig,
   hasAgentConfig,
+  AgentConfigUpdateSchema,
 } from '../src/agent/index.js';
 import { getAgentDir } from '../src/util/paths.js';
 import { createAgentRouter } from '../src/server/routers/agent.js';
@@ -209,7 +213,10 @@ describe('Agent Module Integration Tests', () => {
 
         const agents = listAgentConfigs();
         expect(agents.length).toBe(2);
-        expect(agents.map((a) => a.name).sort()).toEqual(['Agent 1', 'Agent 2']);
+        expect(agents.map((a) => a.name).sort()).toEqual([
+          'Agent 1',
+          'Agent 2',
+        ]);
       });
     });
 
@@ -229,7 +236,10 @@ describe('Agent Module Integration Tests', () => {
       /** 测试：更新不存在的 Agent 抛出错误 */
       it('should throw error for non-existent agent', () => {
         expect(() =>
-          updateAgentConfig('non-existent', createTestAgentInput({ name: 'New Name' }))
+          updateAgentConfig(
+            'non-existent',
+            createTestAgentInput({ name: 'New Name' })
+          )
         ).toThrow('Agent not found');
       });
 
@@ -243,6 +253,28 @@ describe('Agent Module Integration Tests', () => {
 
         expect(updated.id).toBe(created.id);
         expect(updated.createdAt).toBe(created.createdAt);
+      });
+
+      /**
+       * 测试：更新未提供工具/技能分配时保留原值。
+       * 回归：Zod v4 下 .partial() 会给带默认值的字段填默认值 []，导致只改提示词就清空工具/技能。
+       */
+      it('should preserve skillNames/mcpNames when update omits them', () => {
+        const created = createAgentConfig(
+          createTestAgentInput({
+            skillNames: ['skill-a', 'skill-b'],
+            mcpNames: ['mcp-x'],
+          })
+        );
+
+        // 模拟 PUT 路由：前端只改提示词，body 不含工具/技能字段
+        const parsed = AgentConfigUpdateSchema.safeParse({
+          systemPrompt: 'updated prompt',
+        });
+        const updated = updateAgentConfig(created.id, parsed.data);
+
+        expect(updated.skillNames).toEqual(['skill-a', 'skill-b']);
+        expect(updated.mcpNames).toEqual(['mcp-x']);
       });
     });
 
@@ -357,7 +389,9 @@ describe('Agent Module Integration Tests', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(createTestAgentInput()),
         });
-        const { agent: created } = (await createResponse.json()) as { agent: AgentConfig };
+        const { agent: created } = (await createResponse.json()) as {
+          agent: AgentConfig;
+        };
 
         const response = await fetch(`${BASE_URL}/api/agents/${created.id}`);
         expect(response.status).toBe(200);
@@ -381,12 +415,16 @@ describe('Agent Module Integration Tests', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(createTestAgentInput()),
         });
-        const { agent: created } = (await createResponse.json()) as { agent: AgentConfig };
+        const { agent: created } = (await createResponse.json()) as {
+          agent: AgentConfig;
+        };
 
         const response = await fetch(`${BASE_URL}/api/agents/${created.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(createTestAgentInput({ name: 'Updated via HTTP' })),
+          body: JSON.stringify(
+            createTestAgentInput({ name: 'Updated via HTTP' })
+          ),
         });
 
         expect(response.status).toBe(200);
@@ -414,7 +452,9 @@ describe('Agent Module Integration Tests', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(createTestAgentInput()),
         });
-        const { agent: created } = (await createResponse.json()) as { agent: AgentConfig };
+        const { agent: created } = (await createResponse.json()) as {
+          agent: AgentConfig;
+        };
 
         const response = await fetch(`${BASE_URL}/api/agents/${created.id}`, {
           method: 'DELETE',
@@ -435,10 +475,14 @@ describe('Agent Module Integration Tests', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(createTestAgentInput()),
         });
-        const { agent: created } = (await createResponse.json()) as { agent: AgentConfig };
+        const { agent: created } = (await createResponse.json()) as {
+          agent: AgentConfig;
+        };
         expect(sessionManagers.has(created.id)).toBe(true);
 
-        await fetch(`${BASE_URL}/api/agents/${created.id}`, { method: 'DELETE' });
+        await fetch(`${BASE_URL}/api/agents/${created.id}`, {
+          method: 'DELETE',
+        });
         expect(sessionManagers.has(created.id)).toBe(false);
       });
 
