@@ -2,19 +2,17 @@
 <a href="README.md">简体中文</a> | English
 </p>
 
-<div align="center">
-
-<img src="assets/logo-rounded.png" width="150" height="150" alt="Persona Agent" />
+<img src="assets/logo-rounded.png" width="100" align="left" hspace="14" vspace="4" alt="Persona Agent" />
 
 # Persona Agent
-
-A personal AI Agent app that lets you bring your characters to life with custom portraits, voice synthesis, and personality settings. It also supports MCP tools and Agent Skills!
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-informational)
 [![Release](https://img.shields.io/github/v/release/Code-MonkeyZhang/persona-agent?include_prereleases)](https://github.com/Code-MonkeyZhang/persona-agent/releases)
 
-</div>
+Persona is an open-source, local-first personal AI agent you truly own — your data stays local, your agent stays yours. It pairs MCP tools and Agent Skills with custom portraits, voice, and personality, so each agent is both a capable assistant that connects your apps and a companion with character.
+
+<br clear="both" />
 
 ## Screenshots
 
@@ -27,10 +25,10 @@ A personal AI Agent app that lets you bring your characters to life with custom 
 
 ## Key Features
 
+- **Multi-Agent Management** — Create multiple independent Agents with character settings, model configuration, MCP tools, Agent Skills, and conversation history
 - **20+ LLM Providers** — DeepSeek, MiniMax, Zhipu, Kimi, OpenAI, Anthropic, Google, OpenRouter, and more
-- **Multi-Agent Management** — Create multiple independent Agents, each with its own character settings, model configuration, MCP tools, Agent Skills, and conversation history
 - **Custom Agent Portraits** — Add custom character portraits and backgrounds. Agents automatically switch expressions based on conversation context
-- **Voice Synthesis** — TTS voice synthesis powered by MiniMax API. Combined with portraits and backgrounds, it brings your characters to life!
+- **Voice Synthesis** — TTS voice synthesis powered by MiniMax API
 - **MCP & Agent Skills** — Configure custom MCP tools and Agent Skills for each Agent, including OAuth-based MCP services (Notion, GitHub)
 - **Remote Access** — Built-in Cloudflare Tunnel for connecting from the mobile app
 

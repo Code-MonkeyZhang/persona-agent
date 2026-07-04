@@ -2,19 +2,17 @@
 简体中文 | <a href="README.en.md">English</a>
 </p>
 
-<div align="center">
-
-<img src="assets/logo-rounded.png" width="150" height="150" alt="Persona Agent" />
+<img src="assets/logo-rounded.png" width="100" align="left" hspace="14" vspace="4" alt="Persona Agent" />
 
 # Persona Agent
-
-persona-agent是个有用且有趣的个人AI Agent应用，你可以赋予它们立绘、声音和性格设定, 还支持配置MCP工具和AgentSkill！
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-informational)
 [![Release](https://img.shields.io/github/v/release/Code-MonkeyZhang/persona-agent?include_prereleases)](https://github.com/Code-MonkeyZhang/persona-agent/releases)
 
-</div>
+Persona 是一个开源、本地优先的个人 AI Agent——数据在你手里，Agent 由你定义。它把 MCP 工具、Agent Skill 与立绘、语音、性格结合，让 Agent 既是能替你连接各种应用打理事务的助手，也是有形象的数字伙伴。
+
+<br clear="both" />
 
 ## 截图
 
@@ -26,10 +24,10 @@ persona-agent是个有用且有趣的个人AI Agent应用，你可以赋予它�
 </table>
 
 ## 核心功能
+- **多 Agent 管理** — 创建多个独立 Agent, 角色设定、模型配置MCP、Agent Skill以及会话历史
 - **支持 20+ LLM供应商** — DeepSeek、MiniMax、智谱、Kimi、OpenAI、Anthropic、Google、OpenRouter等多供应商支持
-- **多 Agent 管理** — 创建多个独立 Agent，每个有自己的角色设定、模型配置MCP、Agent Skill以及会话历史
 - **自定义 Agent 形象界面** — 支持自定义Agent的角色立绘和背景，Agent 会根据对话自动切换表情
-- **自定义 Agent 语音朗读** - 支持Minimax TTS API的语音合成回复, 配合立绘和背景，让你的智能体栩栩如生！
+- **自定义 Agent 语音朗读** - 支持Minimax TTS API的语音合成回复
 - **支持 MCP 与 Agent Skill** — 支持自定义给每个Agent自定义MCP工具和Agent Skill，同时支持需要OAuth的MCP服务 （Notion， Github）
 - **远程访问** — 内置 Cloudflare Tunnel，可以通过移动端App远程连接Agent
 
