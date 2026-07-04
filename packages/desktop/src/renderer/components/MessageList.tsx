@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import type { UIMessage } from '../types/chat';
 import type { AgentConfig } from '../types/agent';
 import { cn } from '../lib/utils';
+import { logger } from '../lib/logger';
 import { toast } from '../stores/toastStore';
 import { CopyButton } from './ui/CopyButton';
 import { CollapsedThoughtProcess } from './CollapsedThoughtProcess';
@@ -180,6 +181,34 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
         virtuosoRef.current?.scrollTo({ top: Infinity, behavior: 'smooth' });
       });
     }, [messages.length]);
+
+    /**
+     * 流式内容增长时跟随滚动到底部
+     * - step_complete 把完整回复一次性填进占位气泡时消息条数不变，
+     *   依赖条数的滚动不会触发，因此额外监听最后一条消息的内容增长
+     * - 内容为空时（占位气泡仅显示打字动画）跳过，避免与条数滚动重复触发
+     * - 双 rAF 等待 Virtuoso 测量完增长后的高度再滚动，避免落到过时位置
+     */
+    const lastMessage = messages[messages.length - 1];
+    const streamingContentSize =
+      (lastMessage?.content.length ?? 0) +
+      (lastMessage?.thoughts?.reduce(
+        (sum, t) => sum + (t.content?.length ?? 0),
+        0
+      ) ?? 0);
+
+    useEffect(() => {
+      if (!streamingMessageId || streamingContentSize === 0) return;
+      logger.info('Following streaming content growth', {
+        streamingMessageId,
+        streamingContentSize,
+      });
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          virtuosoRef.current?.scrollTo({ top: Infinity, behavior: 'smooth' });
+        });
+      });
+    }, [streamingContentSize, streamingMessageId]);
 
     /** 将当前滚动状态按 sessionId 写入缓存 */
     const saveScrollState = useCallback(
