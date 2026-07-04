@@ -14,7 +14,9 @@
 
 </div>
 
-Persona is an open-source, local-first personal AI agent you truly own — your data stays local, your agent stays yours. It pairs MCP tools and Agent Skills with custom portraits, voice, and personality, so each agent is both a capable assistant that connects your apps and a companion with character.
+Persona is an open-source personal AI Agent chat platform that lets you give your agents custom personality, voice, and portraits.
+
+Install agents, MCP tools, and Skills from the Agent Marketplace in one click.
 
 ## 📷 Preview
 

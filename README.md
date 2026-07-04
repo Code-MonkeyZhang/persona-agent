@@ -14,7 +14,9 @@
 
 </div>
 
-Persona 是一个开源、本地优先的个人 AI Agent——数据在你手里，Agent 由你定义。它把 MCP 工具、Agent Skill 与立绘、语音、性格结合，让 Agent 既是能替你连接各种应用打理事务的助手，也是有形象的数字伙伴。
+Persona 是一个开源的个人 AI Agent 聊天平台，让你能够为 AI Agent 设定性格、声音和形象。
+
+你可以从 Agent 商城一键安装 Agent、MCP 工具和 Skill。
 
 ## 📷 预览
 
