@@ -14,9 +14,7 @@
 
 </div>
 
-Persona 是一个开源的个人 AI Agent 聊天平台，让你能够为 AI Agent 设定性格、声音和形象。
-
-你可以从 Agent 商城一键安装 Agent、MCP 工具和 Skill。
+Persona-agent 是一个开源的个人 AI Agent 聊天平台，让你能够完全自定义属于自己的 AI Agent，包括性格、声音和立绘形象，还支持从 Agent 商城一键安装 Agent、MCP 工具和 Skill。Persona-agent 期望创建一个适配LLM时代的人机关系的应用平台
 
 ## 📷 预览
 
