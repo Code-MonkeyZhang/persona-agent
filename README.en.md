@@ -2,7 +2,9 @@
 <a href="README.md">简体中文</a> | English
 </p>
 
-<img src="assets/logo-rounded.png" width="100" align="left" hspace="14" vspace="4" alt="Persona Agent" />
+<div align="center">
+
+<img src="assets/logo-rounded.png" width="150" height="150" alt="Persona Agent" />
 
 # Persona Agent
 
@@ -10,9 +12,9 @@
 ![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-informational)
 [![Release](https://img.shields.io/github/v/release/Code-MonkeyZhang/persona-agent?include_prereleases)](https://github.com/Code-MonkeyZhang/persona-agent/releases)
 
-Persona is an open-source, local-first personal AI agent you truly own — your data stays local, your agent stays yours. It pairs MCP tools and Agent Skills with custom portraits, voice, and personality, so each agent is both a capable assistant that connects your apps and a companion with character.
+</div>
 
-<br clear="both" />
+Persona is an open-source, local-first personal AI agent you truly own — your data stays local, your agent stays yours. It pairs MCP tools and Agent Skills with custom portraits, voice, and personality, so each agent is both a capable assistant that connects your apps and a companion with character.
 
 ## 📷 Preview
 

@@ -2,7 +2,9 @@
 简体中文 | <a href="README.en.md">English</a>
 </p>
 
-<img src="assets/logo-rounded.png" width="100" align="left" hspace="14" vspace="4" alt="Persona Agent" />
+<div align="center">
+
+<img src="assets/logo-rounded.png" width="150" height="150" alt="Persona Agent" />
 
 # Persona Agent
 
@@ -10,9 +12,9 @@
 ![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-informational)
 [![Release](https://img.shields.io/github/v/release/Code-MonkeyZhang/persona-agent?include_prereleases)](https://github.com/Code-MonkeyZhang/persona-agent/releases)
 
-Persona 是一个开源、本地优先的个人 AI Agent——数据在你手里，Agent 由你定义。它把 MCP 工具、Agent Skill 与立绘、语音、性格结合，让 Agent 既是能替你连接各种应用打理事务的助手，也是有形象的数字伙伴。
+</div>
 
-<br clear="both" />
+Persona 是一个开源、本地优先的个人 AI Agent——数据在你手里，Agent 由你定义。它把 MCP 工具、Agent Skill 与立绘、语音、性格结合，让 Agent 既是能替你连接各种应用打理事务的助手，也是有形象的数字伙伴。
 
 ## 📷 预览
 
