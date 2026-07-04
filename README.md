@@ -14,7 +14,7 @@ Persona 是一个开源、本地优先的个人 AI Agent——数据在你手里
 
 <br clear="both" />
 
-## 截图
+## 📷 预览
 
 <table>
   <tr>
@@ -23,7 +23,7 @@ Persona 是一个开源、本地优先的个人 AI Agent——数据在你手里
   </tr>
 </table>
 
-## 核心功能
+## ✨ 核心功能
 - **多 Agent 管理** — 创建多个独立 Agent, 角色设定、模型配置MCP、Agent Skill以及会话历史
 - **支持 20+ LLM供应商** — DeepSeek、MiniMax、智谱、Kimi、OpenAI、Anthropic、Google、OpenRouter等多供应商支持
 - **自定义 Agent 形象界面** — 支持自定义Agent的角色立绘和背景，Agent 会根据对话自动切换表情
@@ -52,7 +52,8 @@ Persona 是一个开源、本地优先的个人 AI Agent——数据在你手里
 
 → [查看完整发版历史](https://github.com/Code-MonkeyZhang/persona-agent/releases)
 
-## 下载安装
+## 🚀 快速开始
+
 本项目支持 macOS 和 Windows 平台. 前往 [GitHub Releases](https://github.com/Code-MonkeyZhang/persona-agent/releases) 下载对应平台的安装包：
 
 | 平台                | 文件                              |
@@ -63,23 +64,23 @@ Persona 是一个开源、本地优先的个人 AI Agent——数据在你手里
 
 macOS 打开 DMG 拖入 Applications 即可；Windows 运行 exe 安装程序按提示完成安装。
 
-
-
 > [!NOTE]
 > macOS 首次打开若弹出「"Persona.app"已损坏，无法打开」，请在终端执行以下命令即可解除限制：
-> 
+>
 > ```bash
 > xattr -cr /Applications/Persona.app
 > ```
 > 执行后即可正常打开。
-> 
+>
 > Windows 安装包未签名，首次运行可能被 SmartScreen 拦截，提示「已保护你的电脑」。点击「更多信息」→「仍要运行」即可继续安装。
 
+## 🎨 Agent 自定义
 
+Persona 让每个 Agent 都独一无二：立绘、背景、声音，全部由你定义。
 
-### Agent 形象自定义
+### 形象自定义
 
-Persona 支持为每个 Agent 自定义角色立绘和对话背景图片。Agent会根据对话情绪自动切换对应表情。
+为 Agent 自定义角色立绘和对话背景，Agent 会根据对话情绪自动切换表情。
 
 <table>
   <tr>
@@ -96,27 +97,23 @@ Persona 支持为每个 Agent 自定义角色立绘和对话背景图片。Agent
   </tr>
 </table>
 
-**立绘要求：**
+### 语音自定义
 
-- 格式：PNG/JPG/JPEG/GIF/WebP（推荐 PNG 透明背景）
-- 建议尺寸：约 1000 × 2100
-- 必须有一个 `default.png`（默认表情），其他表情文件名随意
-- 放置路径：`agents/{id}/assets/pose/`
+为 Agent 配备专属语音。语音合成由 MiniMax TTS 驱动，提供多种预设音色，也支持录制音频克隆自定义语音。
 
-> [!NOTE]
-> 文件名会被 Agent 读取作为切换表情的依据。建议使用有意义的名称，如 `开心.png`、`惊讶.png`、`害羞.png`等。
+> 💡 想要更多 Agent 模板、技能和工具？前往下方的 **Agent 商城**。
 
-**背景要求：**
+## 🛒 Agent 商城
 
-- 格式：PNG/JPG/JPEG/GIF/WebP
-- 建议尺寸：约 1500 × 2700
-- 放置路径：`agents/{id}/assets/backgrounds/`（目录内放一张图即可，文件名随意）
+Persona 内置商城，一站式浏览、安装和管理 Agent 模板、技能（Skill）与 MCP 工具。商城目录由开源仓库 [persona-agent-marketplace](https://github.com/Code-MonkeyZhang/persona-agent-marketplace) 驱动，支持一键安装并分配 MCP 和 Skill 给指定的 Agent。
 
-> 更多 Agent 形象资源，会分享在 [GitHub Discussions](https://github.com/Code-MonkeyZhang/persona-agent/discussions)！
+- **Agent**：精选角色模板，安装即用
+- **技能（Skill）**：为 Agent 注入专业知识与能力
+- **工具（MCP）**：连接 Notion、GitHub 等外部服务，支持 OAuth 授权
 
-## 让你的Agent活跃在移动端
+## 📱 移动端
 
-Persona 还提供iOS 和 Android的移动端app，通过Cloudflare Tunnel连接你的智能体，随时随地与 Agent 对话。
+Persona 还提供 iOS 和 Android 的移动端 app，通过 Cloudflare Tunnel 连接你的智能体，随时随地与 Agent 对话。
 
 <table>
   <tr>
@@ -133,7 +130,7 @@ Persona 还提供iOS 和 Android的移动端app，通过Cloudflare Tunnel连接�
 
 → [查看移动端项目](https://github.com/Code-MonkeyZhang/persona-agent-mobile)
 
-## 致谢
+## 💜 致谢
 
 ### 参考项目
 

@@ -14,7 +14,7 @@ Persona is an open-source, local-first personal AI agent you truly own — your 
 
 <br clear="both" />
 
-## Screenshots
+## 📷 Preview
 
 <table>
   <tr>
@@ -23,8 +23,7 @@ Persona is an open-source, local-first personal AI agent you truly own — your 
   </tr>
 </table>
 
-## Key Features
-
+## ✨ Key Features
 - **Multi-Agent Management** — Create multiple independent Agents with character settings, model configuration, MCP tools, Agent Skills, and conversation history
 - **20+ LLM Providers** — DeepSeek, MiniMax, Zhipu, Kimi, OpenAI, Anthropic, Google, OpenRouter, and more
 - **Custom Agent Portraits** — Add custom character portraits and backgrounds. Agents automatically switch expressions based on conversation context
@@ -53,7 +52,7 @@ Persona is an open-source, local-first personal AI agent you truly own — your 
 
 → [Full release history](https://github.com/Code-MonkeyZhang/persona-agent/releases)
 
-## Installation
+## 🚀 Quick Start
 
 This project supports macOS and Windows. Download the installer from [GitHub Releases](https://github.com/Code-MonkeyZhang/persona-agent/releases):
 
@@ -75,9 +74,13 @@ Open the DMG file and drag the app to Applications; on Windows, run the exe inst
 >
 > The Windows installer is unsigned, so SmartScreen may show a "Windows protected your PC" warning on first launch. Click "More info" → "Run anyway" to continue.
 
-### Custom Agent Portraits
+## 🎨 Agent Customization
 
-Persona supports custom character portraits and conversation background images for each Agent. The Agent automatically switches expressions based on conversation mood.
+Every agent in Persona is one of a kind: portraits, backgrounds, and voice — all defined by you.
+
+### Portraits
+
+Customize character portraits and conversation backgrounds for each agent. The agent automatically switches expressions based on conversation mood.
 
 <table>
   <tr>
@@ -94,27 +97,23 @@ Persona supports custom character portraits and conversation background images f
   </tr>
 </table>
 
-**Portrait Requirements:**
+### Voice
 
-- Format: PNG/JPG/JPEG/GIF/WebP (PNG with transparent background recommended)
-- Recommended size: approximately 1000 × 2100
-- Must include a `default.png` (default expression); other expression filenames are up to you
-- Location: `agents/{id}/assets/pose/`
+Give your agent a voice of its own. Voice synthesis is powered by MiniMax TTS, with a range of preset voices and support for cloning a custom voice from recorded audio.
 
-> [!NOTE]
-> Filenames are read by the Agent to determine expression switching. Use meaningful names like `happy.png`, `surprised.png`, `shy.png`, etc.
+> 💡 Want more agent templates, skills, and tools? Head to the **Agent Marketplace** below.
 
-**Background Requirements:**
+## 🛒 Agent Marketplace
 
-- Format: PNG/JPG/JPEG/GIF/WebP
-- Recommended size: approximately 1500 × 2700
-- Location: `agents/{id}/assets/backgrounds/` (place one image in the directory, filename is arbitrary)
+Persona ships with a built-in marketplace to browse, install, and manage Agent templates, Skills, and MCP tools in one place. The catalog is driven by the open-source [persona-agent-marketplace](https://github.com/Code-MonkeyZhang/persona-agent-marketplace) repo, and supports one-click install with MCP and Skill assignment to a specific agent.
 
-> More Agent portrait resources will be shared on [GitHub Discussions](https://github.com/Code-MonkeyZhang/persona-agent/discussions)!
+- **Agents**: curated character templates, ready to use after install
+- **Skills**: inject domain knowledge and capabilities into your agents
+- **Tools (MCP)**: connect external services like Notion and GitHub, with OAuth support
 
-## Mobile Companion
+## 📱 Mobile
 
-Persona also provides an iOS and Android mobile app. Connect to your Agent via Cloudflare Tunnel and chat with your Agent anytime, anywhere.
+Persona also provides an iOS and Android mobile app. Connect to your agent via Cloudflare Tunnel and chat anytime, anywhere.
 
 <table>
   <tr>
@@ -131,7 +130,7 @@ Persona also provides an iOS and Android mobile app. Connect to your Agent via C
 
 → [View Mobile Project](https://github.com/Code-MonkeyZhang/persona-agent-mobile)
 
-## Acknowledgements
+## 💜 Acknowledgements
 
 ### Reference Projects
 
