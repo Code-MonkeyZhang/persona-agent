@@ -21,7 +21,6 @@ import {
   getUvStatus,
   installUv,
   type BashStatus,
-  type UvStatus,
 } from '../lib/api';
 import { isWin } from '../lib/platform';
 
@@ -139,7 +138,6 @@ type UvState = 'loading' | 'ready' | 'missing' | 'installing' | 'error';
 const UvRow: React.FC = () => {
   const { t } = useTranslation();
   const [state, setState] = useState<UvState>('loading');
-  const [uvStatus, setUvStatus] = useState<UvStatus | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
@@ -147,7 +145,6 @@ const UvRow: React.FC = () => {
     getUvStatus()
       .then((result) => {
         if (cancelled) return;
-        setUvStatus(result);
         setState(result.ok ? 'ready' : 'missing');
       })
       .catch(() => {
@@ -162,7 +159,6 @@ const UvRow: React.FC = () => {
     setState('installing');
     try {
       const result = await installUv();
-      setUvStatus(result);
       setState(result.ok ? 'ready' : 'error');
       if (!result.ok) setErrorMsg(t('config.uvInstallFailed'));
     } catch (err) {
@@ -174,13 +170,11 @@ const UvRow: React.FC = () => {
   };
 
   const desc =
-    state === 'ready' && uvStatus?.version
-      ? `${uvStatus.version} (${uvStatus.source === 'app' ? '应用' : '系统'})`
-      : state === 'error'
-        ? errorMsg
-        : state === 'missing'
-          ? t('config.uvHint')
-          : undefined;
+    state === 'error'
+      ? errorMsg
+      : state === 'missing'
+        ? t('config.uvHint')
+        : undefined;
 
   return (
     <SettingRow label={t('config.uv')} desc={desc} descClassName="truncate">
