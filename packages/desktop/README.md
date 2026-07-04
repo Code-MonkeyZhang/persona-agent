@@ -4,7 +4,7 @@ Persona Agent 的跨平台桌面客户端。内嵌后端二进制，下载安装
 
 ## 技术栈
 
-- **框架**: Electron 28 + React 18 + TypeScript 5.3
+- **框架**: Electron 42 + React 18 + TypeScript 5.3
 - **构建工具**: electron-vite 2.0
 - **UI**: Tailwind CSS 3.4 + Radix UI
 - **状态管理**: Zustand 4.5
@@ -39,7 +39,7 @@ Persona Agent 的跨平台桌面客户端。内嵌后端二进制，下载安装
 
 ### 模型供应商
 
-支持 OpenAI、Anthropic、Google、DeepSeek、MiniMax、xAI、Groq、Mistral、OpenRouter、Cerebras、Fireworks 等 17+ 家供应商。每个 Agent 独立配置默认模型，每个会话可以临时切换。
+支持 OpenAI、Anthropic、Google、DeepSeek、MiniMax、xAI、Groq、Mistral、OpenRouter、Cerebras、Fireworks 等 20+ 家供应商。每个 Agent 独立配置默认模型，每个会话可以临时切换。
 
 ### 其他
 

@@ -11,7 +11,7 @@
 A personal AI Agent app that lets you bring your characters to life with custom portraits, voice synthesis, and personality settings. It also supports MCP tools and Agent Skills!
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Platform](https://img.shields.io/badge/Platform-macOS-informational)
+![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-informational)
 [![Release](https://img.shields.io/github/v/release/Code-MonkeyZhang/persona-agent?include_prereleases)](https://github.com/Code-MonkeyZhang/persona-agent/releases)
 
 </div>
@@ -27,23 +27,45 @@ A personal AI Agent app that lets you bring your characters to life with custom 
 
 ## Key Features
 
-- **17+ LLM Providers** — DeepSeek, MiniMax, Zhipu, Kimi, OpenAI, Anthropic, Google, OpenRouter, and more
+- **20+ LLM Providers** — DeepSeek, MiniMax, Zhipu, Kimi, OpenAI, Anthropic, Google, OpenRouter, and more
 - **Multi-Agent Management** — Create multiple independent Agents, each with its own character settings, model configuration, MCP tools, Agent Skills, and conversation history
 - **Custom Agent Portraits** — Add custom character portraits and backgrounds. Agents automatically switch expressions based on conversation context
 - **Voice Synthesis** — TTS voice synthesis powered by MiniMax API. Combined with portraits and backgrounds, it brings your characters to life!
 - **MCP & Agent Skills** — Configure custom MCP tools and Agent Skills for each Agent, including OAuth-based MCP services (Notion, GitHub)
 - **Remote Access** — Built-in Cloudflare Tunnel for connecting from the mobile app
 
+## 📢 News
+- 2026-07-04 — **v1.6.0**: merged multi-step thinking, persistent API error messages, Git Bash on Windows, one-click uv runtime download, optimistic chat loading.
+- 2026-06-28 — **v1.5.0**: new Agent Marketplace for browsing and installing skills & MCP tools; unified HTTP error handling; design system rollout.
+- 2026-06-23 — **v1.4.0**: redesigned desktop UI (TitleBar + dual sidebars), agent chat with multi-session management, dedicated skill/tool assignment views.
+- 2026-06-04 — **v1.2.3**: fixed message leaking and cross-session voice playback on session switch; improved skill path resolution and system prompt editing.
+
+<details>
+<summary>Earlier news</summary>
+
+- 2026-05-24 — **v1.2.1**: Windows platform support, bilingual (CN/EN) UI.
+- 2026-05-20 — **v1.2.0**: agent portrait & background management, companion panel animations and window drag-region fixes.
+- 2026-05-18 — **v1.1.9**: pose management in Agent Editor, window drag support.
+- 2026-05-17 — **v1.1.8**: voice cloning, Web Fetch tool, multi-language TTS translation.
+- 2026-05-12 — **v1.1.5**: Web Fetch tool, MCP entry, global icon refresh.
+- 2026-05-03 — **v1.1.0**: first iterative release, foundational agent architecture and CI/CD.
+- 2026-04-27 — **v1.0.x**: first public release of Persona Agent (MVP).
+
+</details>
+
+→ [Full release history](https://github.com/Code-MonkeyZhang/persona-agent/releases)
+
 ## Installation
 
-This project supports macOS. Windows version is under development. Download the installer from [GitHub Releases](https://github.com/Code-MonkeyZhang/persona-agent/releases):
+This project supports macOS and Windows. Download the installer from [GitHub Releases](https://github.com/Code-MonkeyZhang/persona-agent/releases):
 
 | Platform            | File                              |
 | ------------------- | --------------------------------- |
 | macOS Apple Silicon | `Persona-mac-arm64-{version}.dmg` |
 | macOS Intel         | `Persona-mac-x64-{version}.dmg`   |
+| Windows x64         | `Persona-win-x64-{version}.exe`   |
 
-Open the DMG file and drag the app to Applications.
+Open the DMG file and drag the app to Applications; on Windows, run the exe installer and follow the prompts.
 
 > [!NOTE]
 > If you see a "Persona.app is damaged and can't be opened" alert on macOS, run the following command in Terminal:
@@ -52,6 +74,8 @@ Open the DMG file and drag the app to Applications.
 > xattr -cr /Applications/Persona.app
 > ```
 > After running this command, the app should open normally.
+>
+> The Windows installer is unsigned, so SmartScreen may show a "Windows protected your PC" warning on first launch. Click "More info" → "Run anyway" to continue.
 
 ### Custom Agent Portraits
 
@@ -108,10 +132,6 @@ Persona also provides an iOS and Android mobile app. Connect to your Agent via C
 </table>
 
 → [View Mobile Project](https://github.com/Code-MonkeyZhang/persona-agent-mobile)
-
-## Contact
-
-This project is developed and maintained by [Zhang Yufeng](https://github.com/Code-MonkeyZhang). For questions, ideas, or collaboration, feel free to reach out at [yufengzhang483@gmail.com](mailto:yufengzhang483@gmail.com).
 
 ## Acknowledgements
 
