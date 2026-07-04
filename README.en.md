@@ -29,7 +29,7 @@ Install agents, MCP tools, and Skills from the Agent Marketplace in one click.
 
 ## ✨ Key Features
 - **Multi-Agent Management** — Create multiple independent Agents with character settings, model configuration, MCP tools, Agent Skills, and conversation history
-- **20+ LLM Providers** — DeepSeek, MiniMax, Zhipu, Kimi, OpenAI, Anthropic, Google, OpenRouter, and more
+- **17 LLM Providers** — DeepSeek, MiniMax, Zhipu, Kimi, Moonshot, OpenAI, Anthropic, Google, OpenRouter, and more
 - **Custom Agent Portraits** — Add custom character portraits and backgrounds. Agents automatically switch expressions based on conversation context
 - **Voice Synthesis** — TTS voice synthesis powered by MiniMax API
 - **MCP & Agent Skills** — Configure custom MCP tools and Agent Skills for each Agent, including OAuth-based MCP services (Notion, GitHub)

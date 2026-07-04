@@ -27,7 +27,7 @@ Persona-agent 是一个开源的个人 AI Agent 聊天平台，让你能够完�
 
 ## ✨ 核心功能
 - **多 Agent 管理** — 创建多个独立 Agent, 角色设定、模型配置MCP、Agent Skill以及会话历史
-- **支持 20+ LLM供应商** — DeepSeek、MiniMax、智谱、Kimi、OpenAI、Anthropic、Google、OpenRouter等多供应商支持
+- **支持 17 家 LLM 供应商** — DeepSeek、MiniMax、智谱、Kimi、月之暗面、OpenAI、Anthropic、Google、OpenRouter 等多供应商支持
 - **自定义 Agent 形象界面** — 支持自定义Agent的角色立绘和背景，Agent 会根据对话自动切换表情
 - **自定义 Agent 语音朗读** - 支持Minimax TTS API的语音合成回复
 - **支持 MCP 与 Agent Skill** — 支持自定义给每个Agent自定义MCP工具和Agent Skill，同时支持需要OAuth的MCP服务 （Notion， Github）

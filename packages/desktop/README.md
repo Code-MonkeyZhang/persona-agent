@@ -39,7 +39,7 @@ Persona Agent 的跨平台桌面客户端。内嵌后端二进制，下载安装
 
 ### 模型供应商
 
-支持 OpenAI、Anthropic、Google、DeepSeek、MiniMax、xAI、Groq、Mistral、OpenRouter、Cerebras、Fireworks 等 20+ 家供应商。每个 Agent 独立配置默认模型，每个会话可以临时切换。
+支持 OpenAI、Anthropic、Google、DeepSeek、MiniMax、Groq、OpenRouter、月之暗面（Moonshot）等 17 家供应商。每个 Agent 独立配置默认模型，每个会话可以临时切换。
 
 ### 其他
 
