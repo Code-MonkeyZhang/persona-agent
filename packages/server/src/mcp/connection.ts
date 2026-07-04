@@ -253,7 +253,7 @@ export class MCPServerConnection {
       );
       await this.disconnect();
 
-      // spawn 找不到可执行文件时会产生 ENOENT，引导用户装 uv
+      // spawn 找不到可执行文件时会产生 ENOENT，多是缺 uv 运行时二进制
       const isENOENT =
         (error as NodeJS.ErrnoException)?.code === 'ENOENT' ||
         message.includes('ENOENT');
@@ -264,7 +264,7 @@ export class MCPServerConnection {
         );
       }
       const errorText = isENOENT
-        ? '未检测到 uv 运行时，请前往 设置 → 通用 → 环境 一键下载'
+        ? '未检测到 Python 环境'
         : `Connection failed: ${message}`;
       return { success: false, error: errorText };
     }
