@@ -1,6 +1,6 @@
 /**
  * @file src/renderer/components/SkillListTab.tsx
- * @description 设置页 Skills 标签页外壳：标题 + "打开目录"按钮 + 管理行列表。
+ * @description 设置页技能标签页外壳：标题 + "打开目录"按钮 + 管理行列表。
  * 已装列表与卸载逻辑在 useMarketplaceStore，行渲染用 ManageRow（行内二次确认）。
  */
 
@@ -29,7 +29,9 @@ export const SkillListTab: React.FC = () => {
       <div className="p-5">
         <div className="rounded-xl border border-border bg-white px-4 py-4">
           <div className="flex items-center justify-between mb-1">
-            <h3 className="text-[14px] font-bold text-foreground">Skills</h3>
+            <h3 className="text-[14px] font-bold text-foreground">
+              {t('skills.title')}
+            </h3>
             <button
               onClick={() => window.api?.openPath(dataPath('skills'))}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] text-muted-foreground border border-border bg-white hover:bg-secondary transition-colors shadow-sm"
