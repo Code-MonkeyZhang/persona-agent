@@ -11,10 +11,11 @@ type MessageType = 'user' | 'assistant' | 'error';
 /**
  * Thought type for representing agent's reasoning process
  * - thinking: AI's internal reasoning
+ * - text: AI's intermediate text response shown in timeline
  * - tool_use: Tool call with optional result
  * - error: System error
  */
-export type ThoughtType = 'thinking' | 'tool_use' | 'error';
+export type ThoughtType = 'thinking' | 'text' | 'tool_use' | 'error';
 
 /**
  * Tool result from execution

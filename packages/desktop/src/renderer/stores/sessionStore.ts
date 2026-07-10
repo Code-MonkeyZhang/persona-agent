@@ -19,6 +19,19 @@ import { deleteScrollPosition } from './scrollPositionCache';
 
 const LAST_SESSION_KEY = 'last-session-id';
 
+/**
+ * 移除 thoughts 数组中最后一条 text thought。
+ * 最终回答已在主气泡显示，时间线中不再重复出现。
+ */
+export function stripLastTextThought(thoughts: Thought[]): Thought[] {
+  for (let i = thoughts.length - 1; i >= 0; i--) {
+    if (thoughts[i].type === 'text') {
+      return thoughts.filter((_, idx) => idx !== i);
+    }
+  }
+  return thoughts;
+}
+
 interface SessionStore {
   sessions: SessionMeta[];
   currentSession: Session | null;
@@ -346,7 +359,8 @@ export const useSessionStore = create<SessionStore>()(
        * 将服务端返回的 Message 数组转换为客户端 UIMessage 格式。
        * 连续的 assistant 消息按轮次分组合并为一条 UIMessage：
        * - thoughts 全部拼接，保留原始顺序
-       * - content 取最后一条非空值（即最终回答）
+       * - 每步的 content 作为 text thought 进入时间线
+       * - 最终回答的 content 取最后一条非空值，同时从 thoughts 移除避免重复
        * - user / error 消息作为天然分隔点打断分组
        * - system 消息直接跳过
        * @param messages - 服务端返回的原始消息数组
@@ -361,12 +375,13 @@ export const useSessionStore = create<SessionStore>()(
         /** 将缓冲区中的 assistant 消息合并为一条 UIMessage 产出 */
         const flushPending = () => {
           if (pendingStartIndex === -1) return;
+          const finalThoughts = stripLastTextThought(pendingThoughts);
           result.push({
             id: `session-msg-${pendingStartIndex}`,
             type: 'assistant',
             content: pendingContent,
             timestamp: new Date(),
-            thoughts: pendingThoughts.length > 0 ? pendingThoughts : undefined,
+            thoughts: finalThoughts.length > 0 ? finalThoughts : undefined,
           });
           pendingThoughts = [];
           pendingContent = '';
@@ -412,6 +427,12 @@ export const useSessionStore = create<SessionStore>()(
 
             if (msg.content) {
               pendingContent = msg.content;
+              pendingThoughts.push({
+                id: `thought-${i}-text`,
+                type: 'text',
+                timestamp: new Date(),
+                content: msg.content,
+              });
             }
           } else {
             flushPending();

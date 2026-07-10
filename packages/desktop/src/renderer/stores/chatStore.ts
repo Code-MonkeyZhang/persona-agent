@@ -12,12 +12,13 @@ import type { ServerMessage, StepCompleteMessage } from '@persona/shared';
 import { createMessage, sendChatMessage, WebSocketClient } from '../lib/api';
 import { toast } from './toastStore';
 import { logger } from '../lib/logger';
-import { useSessionStore } from './sessionStore';
+import { useSessionStore, stripLastTextThought } from './sessionStore';
 import { useCompanionStore } from './companionStore';
 import { useVoiceStore } from './voiceStore';
 
 /**
  * 将 step_complete 消息中的思考过程和工具调用转换为 Thought 数组。
+ * 每步的 content 作为 text thought 保留在时间线，最终回答会在 complete 时移除。
  * @param msg - 服务端推送的步骤完成消息
  * @returns 转换后的 Thought 数组
  */
@@ -31,6 +32,16 @@ function cycleToThoughts(msg: StepCompleteMessage): Thought[] {
       type: 'thinking',
       timestamp: new Date(),
       content: msg.thinking,
+    });
+  }
+
+  // Add intermediate text content
+  if (msg.content) {
+    thoughts.push({
+      id: crypto.randomUUID(),
+      type: 'text',
+      timestamp: new Date(),
+      content: msg.content,
     });
   }
 
@@ -366,13 +377,28 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           const newStates = new Map(state.sessionStates);
           const sessionState = newStates.get(sessionId);
           if (sessionState) {
+            const streamingId = sessionState.streamingMessageId;
+            const messages = streamingId
+              ? sessionState.messages.map((m) =>
+                  m.id === streamingId
+                    ? {
+                        ...m,
+                        thoughts: stripLastTextThought(m.thoughts || []),
+                      }
+                    : m
+                )
+              : sessionState.messages;
             newStates.set(sessionId, {
               ...sessionState,
+              messages,
               isLoading: false,
               streamingMessageId: null,
             });
           }
           return { sessionStates: newStates };
+        });
+        logger.info('Turn complete, stripped last text thought', {
+          sessionId,
         });
         break;
       }

@@ -3,7 +3,14 @@
  * @description 思考过程显示相关的工具函数，包括图标映射、颜色映射、标签映射和工具输入格式化
  */
 
-import { Lightbulb, Braces, XCircle, Zap, type LucideIcon } from 'lucide-react';
+import {
+  Lightbulb,
+  Braces,
+  XCircle,
+  Zap,
+  MessageSquare,
+  type LucideIcon,
+} from 'lucide-react';
 import type { ThoughtType } from '../types/chat';
 
 /**
@@ -24,6 +31,8 @@ export function getThoughtIcon(
   switch (type) {
     case 'thinking':
       return Lightbulb;
+    case 'text':
+      return MessageSquare;
     case 'tool_use':
       return Braces;
     case 'error':
@@ -42,6 +51,8 @@ export function getThoughtColor(type: ThoughtType, isError?: boolean): string {
   switch (type) {
     case 'thinking':
       return 'text-blue-400';
+    case 'text':
+      return 'text-blue-400';
     case 'tool_use':
       return 'text-blue-400';
     case 'error':
@@ -58,6 +69,8 @@ export function getThoughtLabel(type: ThoughtType): string {
   switch (type) {
     case 'thinking':
       return 'Thinking';
+    case 'text':
+      return 'Response';
     case 'tool_use':
       return 'Tool call';
     case 'error':
