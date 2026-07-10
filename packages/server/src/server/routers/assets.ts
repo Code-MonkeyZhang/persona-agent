@@ -119,7 +119,7 @@ export function createAssetsRouter(): Router {
       const contentType = MIME_MAP[ext] || 'application/octet-stream';
 
       res.setHeader('Content-Type', contentType);
-      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
       fs.createReadStream(filePath).pipe(res);
     })
   );
@@ -241,7 +241,7 @@ export function createAssetsRouter(): Router {
       const contentType = MIME_MAP[ext] || 'application/octet-stream';
 
       res.setHeader('Content-Type', contentType);
-      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
       fs.createReadStream(filePath).pipe(res);
     })
   );
