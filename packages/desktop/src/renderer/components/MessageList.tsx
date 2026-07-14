@@ -6,6 +6,7 @@
 
 import React, {
   useRef,
+  useState,
   useEffect,
   useImperativeHandle,
   useCallback,
@@ -25,6 +26,7 @@ import { CopyButton } from './ui/CopyButton';
 import { CollapsedThoughtProcess } from './CollapsedThoughtProcess';
 import { Markdown } from './Markdown';
 import { AgentAvatar } from './AgentAvatar';
+import { ScrollToBottomButton } from './ScrollToBottomButton';
 import {
   setScrollPosition,
   getScrollPosition,
@@ -169,12 +171,23 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
   ) => {
     const { t } = useTranslation();
     const virtuosoRef = useRef<VirtuosoHandle>(null);
+    /** 是否停留在列表底部，由 Virtuoso 的 atBottomStateChange 驱动 */
+    const [isAtBottom, setIsAtBottom] = useState(true);
 
-    useImperativeHandle(ref, () => ({
-      scrollToBottom: (behavior: ScrollBehavior = 'instant') => {
+    const scrollToBottom = useCallback(
+      (behavior: ScrollBehavior = 'instant') => {
         virtuosoRef.current?.scrollTo({ top: Infinity, behavior });
       },
-    }));
+      []
+    );
+
+    useImperativeHandle(ref, () => ({ scrollToBottom }), [scrollToBottom]);
+
+    /** 滚动到底部按钮点击：平滑滚至底部并记录日志 */
+    const handleScrollToBottom = useCallback(() => {
+      logger.info('Scroll-to-bottom button clicked');
+      scrollToBottom('smooth');
+    }, [scrollToBottom]);
 
     useEffect(() => {
       requestAnimationFrame(() => {
@@ -245,12 +258,14 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
     const hasCachedPosition = sessionId ? hasScrollPosition(sessionId) : false;
 
     return (
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 relative">
         <Virtuoso
           ref={virtuosoRef}
           style={{ height: '100%' }}
           data={messages}
           followOutput="smooth"
+          atBottomThreshold={100}
+          atBottomStateChange={setIsAtBottom}
           {...(hasCachedPosition && cachedPosition
             ? {
                 restoreStateFrom: cachedPosition,
@@ -271,6 +286,10 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
               isStreaming={message.id === streamingMessageId}
             />
           )}
+        />
+        <ScrollToBottomButton
+          visible={!isAtBottom && messages.length > 0}
+          onClick={handleScrollToBottom}
         />
       </div>
     );

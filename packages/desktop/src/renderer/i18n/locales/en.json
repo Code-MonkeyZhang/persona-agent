@@ -45,6 +45,7 @@
   "messageList.failedToCopy": "Failed to copy",
   "messageList.startConversation": "Start a conversation...",
   "messageList.copyContent": "Copy content",
+  "messageList.scrollToBottom": "Scroll to bottom",
 
   "thoughtProcess.collapse": "Collapse",
   "thoughtProcess.expand": "Expand",

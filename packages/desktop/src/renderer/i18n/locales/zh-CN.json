@@ -45,6 +45,7 @@
   "messageList.failedToCopy": "复制失败",
   "messageList.startConversation": "开始会话...",
   "messageList.copyContent": "复制内容",
+  "messageList.scrollToBottom": "滚动到底部",
 
   "thoughtProcess.collapse": "收起",
   "thoughtProcess.expand": "展开",
