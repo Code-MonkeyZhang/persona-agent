@@ -264,6 +264,8 @@
   "server.tunnelConnectingMsg": "正在建立隧道连接，请稍候...",
   "server.publicUrl": "公网地址",
   "server.tunnelFailed": "隧道连接失败",
+  "server.scanToConnect": "扫描二维码连接手机",
+  "server.deviceConnected": "{{deviceName}} 已连接",
 
   "workspace.selectWorkspace": "选择工作空间",
   "workspace.clearWorkspace": "清除工作空间",

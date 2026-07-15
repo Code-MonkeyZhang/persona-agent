@@ -84,6 +84,12 @@ export interface PongMessage {
   type: 'pong';
 }
 
+export interface PairRequestMessage {
+  type: 'pair_request';
+  deviceName: string;
+  timestamp: number;
+}
+
 export type ServerMessage =
   | ConnectedMessage
   | SubscribedMessage
@@ -93,7 +99,8 @@ export type ServerMessage =
   | TitleUpdatedMessage
   | SpeakReadyMessage
   | SpeakErrorMessage
-  | PongMessage;
+  | PongMessage
+  | PairRequestMessage;
 
 // ── Client → Server 消息 ──
 

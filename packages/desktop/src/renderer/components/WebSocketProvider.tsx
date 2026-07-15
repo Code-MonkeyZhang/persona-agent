@@ -6,6 +6,9 @@
 import { useEffect, useRef } from 'react';
 import { WebSocketClient, getBaseUrl } from '../lib/api';
 import { useChatStore } from '../stores/chatStore';
+import { toast } from '../stores/toastStore';
+import i18n from '../i18n';
+import { logger } from '../lib/logger';
 
 interface WebSocketProviderProps {
   children: React.ReactNode;
@@ -25,11 +28,22 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
     let connectionUnsubscribe: (() => void) | undefined;
+    let pairUnsubscribe: (() => void) | undefined;
 
     const client = new WebSocketClient(getBaseUrl);
     clientRef.current = client;
 
     unsubscribe = client.onMessage(handleWsMessage);
+
+    pairUnsubscribe = client.onMessage((msg) => {
+      if (msg.type === 'pair_request') {
+        logger.info(`[WebSocket] PairRequest from ${msg.deviceName}`);
+        toast.success(
+          i18n.t('server.deviceConnected', { deviceName: msg.deviceName })
+        );
+      }
+    });
+
     setWsClient(client);
 
     connectionUnsubscribe = client.onConnectionChange((connected) => {
@@ -40,6 +54,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 
     return () => {
       unsubscribe?.();
+      pairUnsubscribe?.();
       connectionUnsubscribe?.();
       clientRef.current?.disconnect();
       clientRef.current = null;

@@ -264,6 +264,8 @@
   "server.tunnelConnectingMsg": "Establishing tunnel connection, please wait...",
   "server.publicUrl": "Public URL",
   "server.tunnelFailed": "Tunnel connection failed",
+  "server.scanToConnect": "Scan to connect your phone",
+  "server.deviceConnected": "{{deviceName}} connected",
 
   "workspace.selectWorkspace": "Select Workspace",
   "workspace.clearWorkspace": "Clear Workspace",

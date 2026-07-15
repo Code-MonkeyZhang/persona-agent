@@ -109,6 +109,17 @@ export function broadcastToSession(
   }
 }
 
+/**
+ * 向所有已连接的客户端广播消息，不区分 session 订阅。
+ *
+ * 用于 pair_request 等全局通知场景。
+ */
+export function broadcastToAll(event: ServerMessage): void {
+  for (const client of clients.values()) {
+    sendToClient(client, event);
+  }
+}
+
 export function shutdownWebSocket(): void {
   if (wss) {
     for (const client of clients.values()) {

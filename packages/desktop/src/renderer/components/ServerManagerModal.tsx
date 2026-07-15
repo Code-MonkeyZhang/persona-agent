@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { X, Bot, Loader2, Globe, Cloud } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
 import { useTunnelStore } from '../stores/tunnelStore';
 import { getBaseUrl } from '../lib/api';
@@ -253,6 +254,12 @@ function TunnelSection({
                 className="text-green-500/80 hover:text-green-500"
               />
             </div>
+          </div>
+          <div className="flex flex-col items-center gap-2 mt-3">
+            <QRCodeSVG value={url} size={180} />
+            <span className="text-[13px] text-muted-foreground">
+              {t('server.scanToConnect')}
+            </span>
           </div>
         </div>
       )}
