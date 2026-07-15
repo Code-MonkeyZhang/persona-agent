@@ -125,7 +125,12 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     session.workspacePath || agentConfig.defaultWorkspacePath || process.cwd();
 
   try {
-    const runConfig = createAgentRunConfig(agentConfig, session, workspaceDir);
+    const runConfig = createAgentRunConfig(
+      agentConfig,
+      session,
+      workspaceDir,
+      sessionManager
+    );
     const isChatSession = session.id.startsWith('chat');
 
     const agent = new AgentCore(runConfig);
@@ -268,6 +273,20 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
           success: tr.success,
           result: truncate(tr.result, MAX_RESULT_LENGTH),
         });
+
+        // show_pose 校验通过时，将 pose 持久化到 session 元数据
+        if (tr.toolName === 'show_pose' && tr.success && toolCall) {
+          const pose = toolCall.function.arguments['pose'] as
+            | string
+            | undefined;
+          if (pose) {
+            sessionManager.updatePose(sessionId, pose);
+            Logger.log('POSE', 'Pose persisted to session', {
+              sessionId,
+              pose,
+            });
+          }
+        }
       }
       broadcastToSession(sessionId, buildStepCompleteEvent());
     };

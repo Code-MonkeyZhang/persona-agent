@@ -307,9 +307,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         if (msg.toolCalls) {
           for (const tc of msg.toolCalls) {
             if (tc.name === 'show_pose' && tc.arguments) {
-              const args = tc.arguments as Record<string, unknown>;
-              const pose = args.pose as string;
-              if (pose) {
+              const pose = tc.arguments.pose as string;
+              const result = msg.toolResults?.find(
+                (tr) => tr.toolCallId === tc.id
+              );
+              if (pose && result?.success) {
                 useCompanionStore.getState().setPose(pose);
               }
             }

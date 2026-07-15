@@ -19,7 +19,6 @@ import { useCompanionStore } from '../stores/companionStore';
 import { useChatStore } from '../stores/chatStore';
 import { useChatInput } from '../hooks/useChatInput';
 import { getPoseImageUrl, getBackgroundImageUrl, listPoses } from '../lib/api';
-import { logger } from '../lib/logger';
 import { Markdown } from './Markdown';
 
 /**
@@ -79,39 +78,20 @@ export function CompanionPanel({
   });
 
   /**
-   * 挂载时检测该 Agent 的立绘资源并解析初始显示立绘。
-   * - 拉取立绘列表，优先选 default，没有则取按名排序的首项
-   * - 先 setPose 再 setHasAssets，避免渲染初期请求不存在的立绘而误触 poseError
+   * 挂载时检测该 Agent 是否有立绘资源。
    * - hasAssets 决定面板显示资源态还是空态
+   * - pose 的初始值由 App.tsx 在切 session 时统一回填
    */
   useEffect(() => {
     if (!agentId) return;
     let cancelled = false;
-    useCompanionStore.getState().setPose('default');
     setBgError(false);
     setPoseError(false);
     setHasAssets(null);
     listPoses(agentId)
       .then((poses) => {
         if (cancelled) return;
-        if (poses.length === 0) {
-          setHasAssets(false);
-          return;
-        }
-        const sorted = [...poses].sort((a, b) => {
-          if (a === 'default') return -1;
-          if (b === 'default') return 1;
-          return a.localeCompare(b);
-        });
-        const effective = sorted[0];
-        if (effective !== 'default') {
-          logger.info(
-            `No default pose for agent ${agentId}, falling back to "${effective}"`
-          );
-        }
-        useCompanionStore.getState().setPose(effective);
-        setPoseError(false);
-        setHasAssets(true);
+        setHasAssets(poses.length > 0);
       })
       .catch(() => {
         if (!cancelled) setHasAssets(false);

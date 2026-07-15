@@ -140,6 +140,11 @@ export class SessionManager {
     return this.updateSessionField(id, { model });
   }
 
+  /** Update session pose (companion display) */
+  updatePose(id: string, pose: string): Session | null {
+    return this.updateSessionField(id, { currentPose: pose });
+  }
+
   /**
    * 更新聊天 Session 的压缩进度指针。
    *

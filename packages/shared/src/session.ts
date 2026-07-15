@@ -17,6 +17,9 @@ export interface SessionMeta {
    * `undefined` / `0` 表示尚未压缩，需加载全部消息。
    */
   summarizedUpTo?: number;
+
+  /** 当前立绘表情名称，由 show_pose 工具写入；undefined 时前端 fallback 到 'default' */
+  currentPose?: string;
 }
 
 /** Full session with messages */

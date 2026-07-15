@@ -123,6 +123,11 @@ function AppContent() {
       chatStore.setCurrentSessionId(session.id);
       setAgentId(session.agentId);
 
+      // 从 session 元数据恢复 pose
+      const pose = session.currentPose ?? 'default';
+      useCompanionStore.getState().setPose(pose);
+      logger.info(`[App] session switch, restoring pose: ${pose}`);
+
       if (useSessionStore.getState().isNewlyCreated) {
         useSessionStore.setState({ isNewlyCreated: false });
         chatStore.initSessionState(session.id, []);

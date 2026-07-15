@@ -23,6 +23,7 @@ import { findGitBash } from '../util/git-bash-detector.js';
 import { MemoryStore } from './memory/memory-store.js';
 import type { AgentConfig, AgentRunConfig } from './types.js';
 import type { Session } from '../session/types.js';
+import type { SessionManager } from '../session/session-manager.js';
 
 /**
  * Build a system prompt with environment context, skills, and MCP server info.
@@ -129,6 +130,7 @@ ${skill.content}`;
  * @param agentConfig - 静态Agent配置
  * @param session - 包含模型配置和工作区路径的Session
  * @param workspaceDir - 文件操作的目录路径
+ * @param sessionManager - Session管理器，供 GetCurrentPoseTool 读取 pose
  * @returns 完整的AgentRunConfig，可用于实例化AgentCore
  * @throws 如果提供商未配置API密钥则抛出Error
  * @throws 如果模型未知则抛出Error
@@ -136,7 +138,8 @@ ${skill.content}`;
 export function createAgentRunConfig(
   agentConfig: AgentConfig,
   session: Session,
-  workspaceDir: string
+  workspaceDir: string,
+  sessionManager: SessionManager
 ): AgentRunConfig {
   const modelConfig = session.model;
   const provider = modelConfig.provider as KnownProvider;
@@ -195,7 +198,7 @@ export function createAgentRunConfig(
     new BashKillTool(),
     new WebFetchTool(),
     new ShowPoseTool(agentConfig.id),
-    new GetCurrentPoseTool(agentConfig.id),
+    new GetCurrentPoseTool(sessionManager, session.id),
     ...mcpTools,
   ];
 
