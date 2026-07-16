@@ -14,6 +14,7 @@
     "dist": "cd packages/desktop && npm run dist",
     "dist:mac": "cd packages/desktop && npm run dist:mac",
     "dist:win": "cd packages/desktop && npm run dist:win",
+    "build:mac": "bun run scripts/prepare-cloudflared.ts --mac-all && cd packages/server && bun run build:mac-all && cd ../desktop && npm run build && npm run dist:mac",
     "typecheck": "cd packages/shared && bun run typecheck && cd ../server && bun run typecheck && cd ../desktop && npm run typecheck",
     "lint": "oxlint packages/shared/src packages/server/src packages/desktop/src",
     "format": "prettier --write \"packages/*/src/**/*.{ts,tsx}\"",

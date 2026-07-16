@@ -9,6 +9,9 @@
   "scripts": {
     "build": "VERSION=$(node -p \"require('./package.json').version\") && bun build ./src/index.ts --compile --outfile ./dist/persona-agent-server --define \"globalThis.SERVER_VERSION=\\\"$VERSION\\\"\" && ./dist/persona-agent-server --version",
     "build:bundle": "bun build ./src/index.ts --outdir ./dist --target bun",
+    "build:mac-arm64": "VERSION=$(node -p \"require('./package.json').version\") && bun build ./src/index.ts --compile --target=bun-darwin-arm64 --outfile ./dist/persona-agent-server-darwin-arm64 --define \"globalThis.SERVER_VERSION=\\\"$VERSION\\\"\"",
+    "build:mac-x64": "VERSION=$(node -p \"require('./package.json').version\") && bun build ./src/index.ts --compile --target=bun-darwin-x64 --outfile ./dist/persona-agent-server-darwin-x64 --define \"globalThis.SERVER_VERSION=\\\"$VERSION\\\"\"",
+    "build:mac-all": "bun run build && bun run build:mac-arm64 && bun run build:mac-x64",
     "start": "bun run dist/index.js",
     "dev": "bun run src/index.ts",
     "test": "bun test && bun test ./tests/tts.isolated.ts && bun test ./tests/compress.isolated.ts && bun test ./tests/memory.isolated.ts",

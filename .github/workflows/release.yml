@@ -24,13 +24,16 @@ jobs:
           VERSION=${TAG#v}
           bun run scripts/bump-version.ts "$VERSION"
 
-      - run: bun run scripts/prepare-cloudflared.ts
+      - run: bun run scripts/prepare-cloudflared.ts --mac-all
 
       - run: bun install
         working-directory: packages/server
 
-      - run: bun run build
+      - run: bun run build:mac-all
         working-directory: packages/server
+
+      - name: Verify x64 server binary via Rosetta
+        run: arch -x86_64 ./packages/server/dist/persona-agent-server-darwin-x64 --version
 
       - run: npm install
         working-directory: packages/desktop

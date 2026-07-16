@@ -12,6 +12,7 @@ Thumbs.db
 # build related
 *.tsbuildinfo
 dist
+bin/cloudflared-darwin-*
 
 #agent 
 data/

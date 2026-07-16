@@ -1,5 +1,7 @@
 productName: "Persona"
 
+afterPack: scripts/after-pack.mjs
+
 artifactName: "Persona-${os}-${arch}-${version}.${ext}"
 
 extraResources:
