@@ -14,11 +14,12 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { Send, ChevronUp, ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useCompanionStore } from '../stores/companionStore';
 import { useChatStore } from '../stores/chatStore';
 import { useChatInput } from '../hooks/useChatInput';
 import { getPoseImageUrl, getBackgroundImageUrl, listPoses } from '../lib/api';
+import { logger } from '../lib/logger';
 import { Markdown } from './Markdown';
 
 /**
@@ -47,6 +48,7 @@ export function CompanionPanel({
 }: CompanionPanelProps) {
   const { t } = useTranslation();
   const currentPose = useCompanionStore((s) => s.currentPose);
+  const animatePose = useCompanionStore((s) => s.animatePose);
   const currentSessionId = useChatStore((s) => s.currentSessionId);
   const messages = useChatStore((s) =>
     currentSessionId
@@ -59,6 +61,9 @@ export function CompanionPanel({
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
   const bubbleRef = useRef<HTMLDivElement>(null);
+
+  /** 立绘 URL，存入 state 避免每次 re-render 因 cache-buster 重新请求 */
+  const [poseUrl, setPoseUrl] = useState('');
 
   const {
     input: inputText,
@@ -105,6 +110,15 @@ export function CompanionPanel({
   useEffect(() => {
     setPoseError(false);
   }, [currentPose]);
+
+  /** currentPose 或 agentId 变化时更新立绘 URL */
+  useEffect(() => {
+    if (!agentId) return;
+    setPoseUrl(getPoseImageUrl(agentId, currentPose));
+    if (animatePose) {
+      logger.info(`[CompanionPanel] cross-fade pose: ${currentPose}`);
+    }
+  }, [currentPose, agentId]);
 
   /**
    * 从全局聊天消息流中倒序查找最后一条 assistant 类型的消息，
@@ -175,13 +189,20 @@ export function CompanionPanel({
         />
       )}
 
-      {hasAssets === true && !poseError && (
-        <img
-          src={getPoseImageUrl(agentId, currentPose)}
-          alt=""
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[1] h-[85%] object-contain object-bottom translate-y-[-8%]"
-          onError={() => setPoseError(true)}
-        />
+      {hasAssets === true && !poseError && poseUrl && (
+        <AnimatePresence mode="sync">
+          <motion.img
+            key={currentPose}
+            src={poseUrl}
+            alt=""
+            className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[1] h-[85%] object-contain object-bottom translate-y-[-8%]"
+            initial={{ opacity: animatePose ? 0 : 1 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: animatePose ? 0 : 1 }}
+            transition={{ duration: animatePose ? 0.3 : 0, ease: 'linear' }}
+            onError={() => setPoseError(true)}
+          />
+        </AnimatePresence>
       )}
       {hasAssets === true && poseError && (
         <div className="absolute inset-0 flex items-center justify-center">

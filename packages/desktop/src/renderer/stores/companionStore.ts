@@ -9,8 +9,11 @@ import { persist } from 'zustand/middleware';
 interface CompanionStore {
   visible: boolean;
   currentPose: string;
+  /** 标记本次 currentPose 变化是否需要交叉淡入动画 */
+  animatePose: boolean;
   toggleVisible: () => void;
-  setPose: (pose: string) => void;
+  /** @param animate - true 时触发 cross-fade，false 或省略时直接切换 */
+  setPose: (pose: string, animate?: boolean) => void;
 }
 
 export const useCompanionStore = create<CompanionStore>()(
@@ -18,8 +21,10 @@ export const useCompanionStore = create<CompanionStore>()(
     (set) => ({
       visible: true,
       currentPose: 'default',
+      animatePose: false,
       toggleVisible: () => set((s) => ({ visible: !s.visible })),
-      setPose: (pose: string) => set({ currentPose: pose }),
+      setPose: (pose: string, animate = false) =>
+        set({ currentPose: pose, animatePose: animate }),
     }),
     {
       name: 'companion-store',

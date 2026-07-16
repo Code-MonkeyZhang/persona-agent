@@ -312,7 +312,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 (tr) => tr.toolCallId === tc.id
               );
               if (pose && result?.success) {
-                useCompanionStore.getState().setPose(pose);
+                useCompanionStore.getState().setPose(pose, true);
               }
             }
           }
