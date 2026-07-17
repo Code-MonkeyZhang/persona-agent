@@ -14,6 +14,7 @@ import type { AppConfig } from '../stores/configStore';
 import type {
   ServerMessage,
   ClientMessage,
+  DeviceType,
   ModelConfig,
   McpServerInfo,
   McpOAuthStatus,
@@ -133,18 +134,30 @@ interface ListProvidersResponse {
 /**
  * WebSocket 客户端，负责与后端建立实时连接、自动重连和消息分发。
  * 聊天消息通过 HTTP POST 发送，WebSocket 仅用于订阅事件流。
+ * 连接建立后自动发送 register 注册设备身份，并以 30 秒心跳保活。
  */
 export class WebSocketClient {
   private ws: WebSocket | null = null;
   private listeners: Set<(msg: ServerMessage) => void> = new Set();
   private connectionListeners: Set<(connected: boolean) => void> = new Set();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
   private activeSessionIds: Set<string> = new Set();
 
-  constructor(private urlProvider: () => Promise<string>) {}
+  /** 心跳间隔，需小于服务端 30 秒超时阈值 */
+  private static readonly HEARTBEAT_INTERVAL_MS = 30_000;
+
+  constructor(
+    private urlProvider: () => Promise<string>,
+    private deviceInfo?: {
+      deviceId: string;
+      deviceType: DeviceType;
+      deviceName: string;
+    }
+  ) {}
 
   /**
    * 注册连接状态变化的监听器。
@@ -174,6 +187,14 @@ export class WebSocketClient {
         this.reconnectAttempts = 0;
         this.connectionListeners.forEach((l) => l(true));
 
+        // 注册设备身份
+        if (this.deviceInfo) {
+          this.send({
+            type: 'register',
+            ...this.deviceInfo,
+          });
+        }
+
         // 重连时重新订阅所有活跃 session
         for (const sessionId of this.activeSessionIds) {
           this.send({
@@ -181,15 +202,19 @@ export class WebSocketClient {
             payload: { sessionId },
           });
         }
+
+        this.startHeartbeat();
       };
 
       this.ws.onmessage = (event) => {
         try {
           const msg: ServerMessage = JSON.parse(event.data);
-          logger.info(
-            '[WebSocket] ← Received from server:',
-            JSON.stringify(msg, null, 2)
-          );
+          if (msg.type !== 'pong') {
+            logger.info(
+              '[WebSocket] ← Received from server:',
+              JSON.stringify(msg, null, 2)
+            );
+          }
           this.listeners.forEach((listener) => listener(msg));
         } catch (error) {
           logger.error(
@@ -200,6 +225,7 @@ export class WebSocketClient {
       };
 
       this.ws.onclose = () => {
+        this.stopHeartbeat();
         this.connectionListeners.forEach((l) => l(false));
         this.attemptReconnect();
       };
@@ -231,13 +257,14 @@ export class WebSocketClient {
   }
 
   /**
-   * 关闭连接并停止重连尝试。
+   * 关闭连接并停止重连和心跳。
    */
   disconnect(): void {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+    this.stopHeartbeat();
     this.reconnectAttempts = this.maxReconnectAttempts;
     this.ws?.close();
     this.ws = null;
@@ -245,13 +272,16 @@ export class WebSocketClient {
 
   /**
    * 通过 WebSocket 发送原始消息，仅在连接打开时生效。
+   * ping 消息因高频不打日志。
    */
   private send(msg: ClientMessage): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      logger.info(
-        '[WebSocket] → Sent to server:',
-        JSON.stringify(msg, null, 2)
-      );
+      if (msg.type !== 'ping') {
+        logger.info(
+          '[WebSocket] → Sent to server:',
+          JSON.stringify(msg, null, 2)
+        );
+      }
       this.ws.send(JSON.stringify(msg));
     }
   }
@@ -272,6 +302,26 @@ export class WebSocketClient {
   unsubscribe(sessionId: string): void {
     this.activeSessionIds.delete(sessionId);
     this.send({ type: 'unsubscribe', payload: { sessionId } });
+  }
+
+  /**
+   * 启动心跳定时器，周期性发送 ping 防止服务端超时断开。
+   */
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    this.heartbeatTimer = setInterval(() => {
+      this.send({ type: 'ping' });
+    }, WebSocketClient.HEARTBEAT_INTERVAL_MS);
+  }
+
+  /**
+   * 停止心跳定时器。
+   */
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
   }
 
   /**
@@ -1030,6 +1080,12 @@ interface TunnelStatusResponse {
   status: 'stopped' | 'starting' | 'running' | 'error';
   url: string | null;
   error: string | null;
+  health: 'unknown' | 'healthy' | 'unhealthy';
+  onlineDevices: Array<{
+    deviceId: string;
+    deviceType: DeviceType;
+    deviceName: string;
+  }>;
 }
 
 /**

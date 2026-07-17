@@ -9,6 +9,7 @@
 
 import { Router } from 'express';
 import { startTunnel, stopTunnel, getTunnelStatus } from '../tunnel-service.js';
+import { getOnlineDevices } from '../websocket-server.js';
 import { httpServer } from '../index.js';
 import { Logger } from '../../util/logger.js';
 import { asyncHandler } from './utils.js';
@@ -64,7 +65,7 @@ export function createTunnelRouter(): Router {
 
   /**
    * GET /api/tunnel/status
-   * Return the current tunnel state for client polling.
+   * Return the current tunnel state and online devices for client polling.
    */
   router.get('/status', (_req, res) => {
     const current = getTunnelStatus();
@@ -73,6 +74,9 @@ export function createTunnelRouter(): Router {
       status: current.status,
       url: current.url,
       error: current.error,
+      health: current.health,
+      lastHealthCheck: current.lastHealthCheck,
+      onlineDevices: getOnlineDevices(),
     });
   });
 

@@ -39,6 +39,7 @@ import { useAgentStore } from './stores/agentStore';
 import { useProviderStore } from './stores/providerStore';
 import { useCompanionStore } from './stores/companionStore';
 import { useViewStore } from './stores/viewStore';
+import { useTunnelStore } from './stores/tunnelStore';
 import { logger } from './lib/logger';
 
 /**
@@ -90,6 +91,7 @@ function AppContent() {
   - 加载Agent列表
   - 加载 Provider 列表
   - 连接成功且选中 Agent 后，加载该 Agent 的会话列表
+  - 同步隧道状态（可能从上次 session 遗留 running）
   */
   useEffect(() => {
     if (connectionStatus === 'connected') {
@@ -108,6 +110,12 @@ function AppContent() {
       loadSessions(currentAgent.id);
     }
   }, [connectionStatus, currentAgent, loadSessions]);
+
+  useEffect(() => {
+    if (connectionStatus === 'connected') {
+      useTunnelStore.getState().refreshStatus();
+    }
+  }, [connectionStatus]);
 
   const activeSessionId = currentSession?.id ?? null;
 

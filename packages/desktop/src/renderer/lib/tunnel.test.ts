@@ -78,6 +78,8 @@ describe('API Tunnel Functions', () => {
         status: 'running',
         url: 'https://abc.trycloudflare.com',
         error: null,
+        health: 'healthy',
+        onlineDevices: [],
       };
       vi.stubGlobal(
         'fetch',
@@ -102,6 +104,8 @@ describe('API Tunnel Functions', () => {
               status: 'error',
               url: null,
               error: 'Binary not found',
+              health: 'unknown',
+              onlineDevices: [],
             }),
         })
       );

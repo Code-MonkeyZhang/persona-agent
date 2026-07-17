@@ -62,13 +62,17 @@ describe('Pair Router', () => {
     httpServer.close();
   });
 
-  it('POST / with deviceName returns ok and broadcasts pair_request', async () => {
+  it('POST / with device identity returns ok and broadcasts pair_request', async () => {
     mockBroadcastToAll.mockClear();
 
     const res = await fetch(`${BASE_URL}/api/pair`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deviceName: 'TestDevice' }),
+      body: JSON.stringify({
+        deviceName: 'iPhone 15 Pro',
+        deviceId: 'dev-123',
+        deviceType: 'mobile',
+      }),
     });
 
     expect(res.status).toBe(200);
@@ -79,10 +83,14 @@ describe('Pair Router', () => {
     const event = mockBroadcastToAll.mock.calls[0][0] as {
       type: string;
       deviceName: string;
+      deviceId?: string;
+      deviceType?: string;
       timestamp: number;
     };
     expect(event.type).toBe('pair_request');
-    expect(event.deviceName).toBe('TestDevice');
+    expect(event.deviceName).toBe('iPhone 15 Pro');
+    expect(event.deviceId).toBe('dev-123');
+    expect(event.deviceType).toBe('mobile');
     expect(typeof event.timestamp).toBe('number');
   });
 

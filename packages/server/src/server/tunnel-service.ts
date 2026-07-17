@@ -14,22 +14,40 @@ import { getCloudflaredBinPath } from '../util/paths.js';
 import { Logger } from '../util/logger.js';
 
 export type TunnelStatus = 'stopped' | 'starting' | 'running' | 'error';
+export type TunnelHealth = 'unknown' | 'healthy' | 'unhealthy';
 
 export interface TunnelState {
   status: TunnelStatus;
   url: string | null;
   error: string | null;
+  health: TunnelHealth;
+  lastHealthCheck: number | null;
+  consecutiveFailures: number;
 }
 
 type StatusCallback = (state: TunnelState) => void;
+
+/** 健康探测间隔，低频以避免触发 Cloudflare 流量限制 */
+const HEALTH_CHECK_INTERVAL_MS = 60_000;
+/** 单次探测超时，Quick Tunnel 经公网往返需要余量 */
+const HEALTH_CHECK_TIMEOUT_MS = 10_000;
+/** 连续失败达此阈值后标记 unhealthy，避免偶发抖动误判 */
+const HEALTH_FAILURE_THRESHOLD = 4;
+/** 隧道 URL 获取后等待多久再启动健康探测，给 Quick Tunnel 预热时间 */
+const HEALTH_CHECK_GRACE_MS = 30_000;
 
 const state: TunnelState = {
   status: 'stopped',
   url: null,
   error: null,
+  health: 'unknown',
+  lastHealthCheck: null,
+  consecutiveFailures: 0,
 };
 
 let process_: ChildProcess | null = null;
+let healthCheckTimer: ReturnType<typeof setInterval> | null = null;
+let healthCheckStartTimer: ReturnType<typeof setTimeout> | null = null;
 const statusCallbacks: StatusCallback[] = [];
 
 function notifyStatus(): void {
@@ -40,12 +58,64 @@ function notifyStatus(): void {
 }
 
 /**
+ * 启动健康探测定时器，每 HEALTH_CHECK_INTERVAL_MS 请求公网地址的 /api/status。
+ * 成功重置失败计数并标记 healthy，失败递增计数，达阈值后标记 unhealthy。
+ */
+function startHealthCheck(url: string): void {
+  if (healthCheckTimer) return;
+
+  healthCheckTimer = setInterval(async () => {
+    try {
+      const res = await fetch(`${url}/api/status`, {
+        signal: AbortSignal.timeout(HEALTH_CHECK_TIMEOUT_MS),
+      });
+      if (res.ok) {
+        state.consecutiveFailures = 0;
+        state.health = 'healthy';
+      } else {
+        state.consecutiveFailures++;
+      }
+    } catch {
+      state.consecutiveFailures++;
+    }
+
+    state.lastHealthCheck = Date.now();
+
+    if (state.consecutiveFailures >= HEALTH_FAILURE_THRESHOLD) {
+      state.health = 'unhealthy';
+      Logger.log(
+        'TUNNEL',
+        `Tunnel unhealthy (${state.consecutiveFailures} consecutive failures)`
+      );
+    }
+
+    notifyStatus();
+  }, HEALTH_CHECK_INTERVAL_MS);
+}
+
+/**
+ * 停止健康探测定时器并重置健康相关字段。
+ */
+function stopHealthCheck(): void {
+  if (healthCheckStartTimer) {
+    clearTimeout(healthCheckStartTimer);
+    healthCheckStartTimer = null;
+  }
+  if (healthCheckTimer) {
+    clearInterval(healthCheckTimer);
+    healthCheckTimer = null;
+  }
+  state.health = 'unknown';
+  state.lastHealthCheck = null;
+  state.consecutiveFailures = 0;
+}
+
+/**
  * Regex patterns to extract the public URL from cloudflared stdout/stderr.
- * Matches https://xxx.trycloudflare.com and similar patterns.
+ * Requires at least one hyphen in the subdomain to avoid matching api.trycloudflare.com.
  */
 const URL_PATTERNS = [
-  /https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/,
-  /https?:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/,
+  /https:\/\/[a-zA-Z0-9]+-[a-zA-Z0-9-]+\.trycloudflare\.com/,
   /https?:\/\/[a-zA-Z0-9-]+\.pages\.dev/,
   /Your quick Tunnel has run and reached the necessary daemon.*?https?:\/\/([^\s]+)/,
 ];
@@ -123,6 +193,13 @@ export async function startTunnel(localPort: number): Promise<string> {
             state.url = url;
             state.status = 'running';
             notifyStatus();
+            Logger.log(
+              'TUNNEL',
+              `Health check starts in ${HEALTH_CHECK_GRACE_MS / 1000}s (grace period for Quick Tunnel warmup)`
+            );
+            healthCheckStartTimer = setTimeout(() => {
+              startHealthCheck(url);
+            }, HEALTH_CHECK_GRACE_MS);
             resolve(url);
             return;
           }
@@ -141,6 +218,7 @@ export async function startTunnel(localPort: number): Promise<string> {
             )
           );
         }
+        stopHealthCheck();
         process_ = null;
         state.url = null;
         state.status = 'stopped';
@@ -151,6 +229,7 @@ export async function startTunnel(localPort: number): Promise<string> {
       proc.on('error', (error: Error) => {
         Logger.log('TUNNEL', 'Process error', error.message);
         clearTimeout(timeout);
+        stopHealthCheck();
         state.error = error.message;
         state.status = 'error';
         process_ = null;
@@ -190,6 +269,7 @@ export async function stopTunnel(): Promise<void> {
   }
 
   process_ = null;
+  stopHealthCheck();
   state.url = null;
   state.status = 'stopped';
   state.error = null;
@@ -226,9 +306,13 @@ export function getTunnelStatus(): TunnelState {
  * Reset internal state — used only by tests.
  */
 export function _resetState(): void {
+  stopHealthCheck();
   process_ = null;
   state.status = 'stopped';
   state.url = null;
   state.error = null;
+  state.health = 'unknown';
+  state.lastHealthCheck = null;
+  state.consecutiveFailures = 0;
   statusCallbacks.length = 0;
 }

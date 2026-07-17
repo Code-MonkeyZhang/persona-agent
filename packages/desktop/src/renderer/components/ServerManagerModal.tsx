@@ -4,7 +4,15 @@
  */
 
 import React from 'react';
-import { X, Bot, Loader2, Globe, Cloud } from 'lucide-react';
+import {
+  X,
+  Bot,
+  Loader2,
+  Globe,
+  Cloud,
+  AlertTriangle,
+  RotateCcw,
+} from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
 import { useTunnelStore } from '../stores/tunnelStore';
@@ -148,7 +156,7 @@ function ServerSection({
 }
 
 /**
- * Cloudflare 隧道控制区，提供隧道的启动、停止和状态展示
+ * Cloudflare 隧道控制区，提供隧道的启动、停止、健康状态展示和重试
  */
 function TunnelSection({
   connectionStatus,
@@ -156,7 +164,8 @@ function TunnelSection({
   connectionStatus: ConnectionStatus;
 }) {
   const { t } = useTranslation();
-  const { status, url, error, start, stop, refreshStatus } = useTunnelStore();
+  const { status, url, error, health, start, stop, refreshStatus } =
+    useTunnelStore();
 
   React.useEffect(() => {
     refreshStatus();
@@ -164,6 +173,7 @@ function TunnelSection({
 
   const isEnabled = status === 'running' || status === 'starting';
   const isDisabled = connectionStatus !== 'connected';
+  const isUnhealthy = status === 'running' && health === 'unhealthy';
 
   /**
    * 切换隧道启停状态
@@ -174,6 +184,13 @@ function TunnelSection({
     } else {
       start();
     }
+  };
+
+  /**
+   * 重启隧道以获取新的公网地址
+   */
+  const handleRetry = () => {
+    stop().then(() => start());
   };
 
   if (isDisabled) {
@@ -236,7 +253,30 @@ function TunnelSection({
         </div>
       )}
 
-      {status === 'running' && url && (
+      {status === 'running' && url && isUnhealthy && (
+        <div className="bg-orange-500/10 border border-orange-500/30 rounded-[16px] p-3 space-y-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-orange-500 shrink-0" />
+            <span className="text-[14px] text-orange-500">
+              {t('server.tunnelUnreachable')}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <code className="text-[13px] bg-white px-2 py-1 rounded-[12px] text-orange-500">
+              {url}
+            </code>
+            <button
+              onClick={handleRetry}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[13px] bg-orange-500/20 text-orange-500 hover:bg-orange-500/30 transition-colors"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              {t('server.retry')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {status === 'running' && url && !isUnhealthy && (
         <div className="bg-green-500/10 border border-green-500/30 rounded-[16px] p-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -244,6 +284,7 @@ function TunnelSection({
               <span className="text-[14px] text-green-500">
                 {t('server.publicUrl')}
               </span>
+              <StatusDot color="bg-green-500" />
             </div>
             <div className="flex items-center gap-2">
               <code className="text-[13px] bg-white px-2 py-1 rounded-[12px] text-green-500">

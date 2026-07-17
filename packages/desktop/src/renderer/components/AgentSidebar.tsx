@@ -4,17 +4,13 @@
  * 选中态使用 framer-motion 共享布局动画，切换 Agent 时白色卡片和蓝色竖条弹性滑动。
  */
 import React, { useState } from 'react';
-import {
-  Settings,
-  Plus,
-  Loader2,
-  Compass,
-  MonitorSmartphone,
-} from 'lucide-react';
+import { Settings, Plus, Compass, MonitorSmartphone } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { useAgentStore } from '../stores/agentStore';
 import { useViewStore } from '../stores/viewStore';
+import { useTunnelStore } from '../stores/tunnelStore';
 import { AgentAvatar } from './AgentAvatar';
 import { ServerManagerModal } from './ServerManagerModal';
 
@@ -29,6 +25,45 @@ const springTransition = {
   damping: 35,
 };
 
+/** 左下角图标五色态 */
+type IconStatus =
+  | 'server_down'
+  | 'tunnel_off'
+  | 'tunnel_unhealthy'
+  | 'waiting_for_mobile'
+  | 'all_good';
+
+const iconConfig: Record<IconStatus, { color: string; titleKey: string }> = {
+  server_down: { color: 'text-red-400', titleKey: 'server.disconnected' },
+  tunnel_off: { color: 'text-gray-400', titleKey: 'server.tunnelNotStarted' },
+  tunnel_unhealthy: {
+    color: 'text-orange-500',
+    titleKey: 'server.tunnelUnreachable',
+  },
+  waiting_for_mobile: {
+    color: 'text-yellow-500',
+    titleKey: 'server.waitingForPhone',
+  },
+  all_good: { color: 'text-green-500', titleKey: 'server.allConnected' },
+};
+
+/**
+ * 根据本地连接、隧道状态、健康度和手机在线状态推导图标状态。
+ * 判断优先级：本地服务器 > 隧道开启 > 隧道健康 > 手机在线
+ */
+function deriveIconStatus(
+  connectionStatus: 'connected' | 'connecting' | 'disconnected',
+  tunnelStatus: string,
+  tunnelHealth: string,
+  mobileOnline: boolean
+): IconStatus {
+  if (connectionStatus !== 'connected') return 'server_down';
+  if (tunnelStatus !== 'running') return 'tunnel_off';
+  if (tunnelHealth === 'unhealthy') return 'tunnel_unhealthy';
+  if (!mobileOnline) return 'waiting_for_mobile';
+  return 'all_good';
+}
+
 /**
  * Agent 列表侧边栏组件，渲染 Agent 头像列表并提供切换和添加操作。
  * 选中 Agent 时通过 framer-motion layoutId 实现弹性滑动切换动画。
@@ -37,9 +72,22 @@ const springTransition = {
 export const AgentSidebar: React.FC<AgentSidebarProps> = ({
   connectionStatus,
 }) => {
+  const { t } = useTranslation();
   const { agents, currentAgent, switchAgent } = useAgentStore();
   const { currentView, setView, openAgentEditor } = useViewStore();
   const [serverModalOpen, setServerModalOpen] = useState(false);
+
+  const tunnelStatus = useTunnelStore((s) => s.status);
+  const tunnelHealth = useTunnelStore((s) => s.health);
+  const mobileOnline = useTunnelStore((s) => s.mobileDeviceIds.size > 0);
+
+  const iconStatus = deriveIconStatus(
+    connectionStatus,
+    tunnelStatus,
+    tunnelHealth,
+    mobileOnline
+  );
+  const config = iconConfig[iconStatus];
 
   /** 点击 Agent 头像切换到对应 Agent，如果在非聊天视图则同时切回聊天 */
   const handleAgentClick = async (id: string) => {
@@ -120,18 +168,13 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = ({
         </button>
         <button
           onClick={() => setServerModalOpen(true)}
+          title={t(config.titleKey)}
           className={cn(
             'w-full flex flex-col items-center py-2 rounded transition-colors',
             'text-muted-foreground hover:bg-muted'
           )}
         >
-          {connectionStatus === 'connecting' ? (
-            <Loader2 className="w-5 h-5 animate-spin text-yellow-500" />
-          ) : connectionStatus === 'connected' ? (
-            <MonitorSmartphone className="w-5 h-5 text-green-500" />
-          ) : (
-            <MonitorSmartphone className="w-5 h-5 text-red-400" />
-          )}
+          <MonitorSmartphone className={cn('w-5 h-5', config.color)} />
         </button>
         <ServerManagerModal
           isOpen={serverModalOpen}

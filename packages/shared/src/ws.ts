@@ -5,6 +5,9 @@
  * ClientMessage 是 client→server 的 closed union，让 handleClientMessage 不再需要 as 强转。
  */
 
+/** 设备类型，用于设备身份注册 */
+export type DeviceType = 'desktop' | 'mobile';
+
 // ── Server → Client 事件 ──
 
 export interface ConnectedMessage {
@@ -87,7 +90,19 @@ export interface PongMessage {
 export interface PairRequestMessage {
   type: 'pair_request';
   deviceName: string;
+  deviceId?: string;
+  deviceType?: DeviceType;
   timestamp: number;
+}
+
+export interface DeviceOnlineMessage {
+  type: 'device_online';
+  device: { deviceId: string; deviceType: DeviceType; deviceName: string };
+}
+
+export interface DeviceOfflineMessage {
+  type: 'device_offline';
+  deviceId: string;
 }
 
 export type ServerMessage =
@@ -100,11 +115,21 @@ export type ServerMessage =
   | SpeakReadyMessage
   | SpeakErrorMessage
   | PongMessage
-  | PairRequestMessage;
+  | PairRequestMessage
+  | DeviceOnlineMessage
+  | DeviceOfflineMessage;
 
 // ── Client → Server 消息 ──
+
+export interface RegisterMessage {
+  type: 'register';
+  deviceId: string;
+  deviceType: DeviceType;
+  deviceName: string;
+}
 
 export type ClientMessage =
   | { type: 'subscribe'; payload: { sessionId: string } }
   | { type: 'unsubscribe'; payload: { sessionId: string } }
-  | { type: 'ping' };
+  | { type: 'ping' }
+  | RegisterMessage;

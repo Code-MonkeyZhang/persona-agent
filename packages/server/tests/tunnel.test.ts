@@ -279,11 +279,14 @@ describe('Cloudflare Tunnel Integration', () => {
       expect(getTunnelStatus().status).toBe('error');
     });
 
-    it('getTunnelStatus returns a snapshot', () => {
+    it('getTunnelStatus returns a snapshot with health fields', () => {
       const s1 = getTunnelStatus();
       const s2 = getTunnelStatus();
       expect(s1).toEqual(s2);
       expect(s1).not.toBe(s2);
+      expect(s1.health).toBe('unknown');
+      expect(s1.lastHealthCheck).toBeNull();
+      expect(s1.consecutiveFailures).toBe(0);
     });
   });
 
@@ -293,7 +296,7 @@ describe('Cloudflare Tunnel Integration', () => {
   describe('Tunnel REST API', () => {
     it('POST /start returns 202 and starts tunnel', async () => {
       const fakeUrl = 'https://api-test.trycloudflare.com';
-      const fake = createFakeChildProcess(fakeUrl, 50);
+      const fake = createFakeChildProcess(fakeUrl, 300);
       mockSpawn.mockReturnValue(fake);
 
       const res = await fetch(`${BASE_URL}/api/tunnel/start`, {
@@ -303,7 +306,7 @@ describe('Cloudflare Tunnel Integration', () => {
       const data = (await res.json()) as { status: string };
       expect(data.status).toBe('starting');
 
-      await new Promise((r) => setTimeout(r, 150));
+      await new Promise((r) => setTimeout(r, 400));
 
       const statusRes = await fetch(`${BASE_URL}/api/tunnel/status`);
       const status = (await statusRes.json()) as {
@@ -339,12 +342,21 @@ describe('Cloudflare Tunnel Integration', () => {
       expect(data.success).toBe(true);
     });
 
-    it('GET /status returns current state', async () => {
+    it('GET /status returns current state with health and online devices', async () => {
       const res = await fetch(`${BASE_URL}/api/tunnel/status`);
       expect(res.status).toBe(200);
-      const data = (await res.json()) as { status: string; url: null };
+      const data = (await res.json()) as {
+        status: string;
+        url: null;
+        health: string;
+        lastHealthCheck: number | null;
+        onlineDevices: unknown[];
+      };
       expect(data.status).toBe('stopped');
       expect(data.url).toBeNull();
+      expect(data.health).toBe('unknown');
+      expect(data.lastHealthCheck).toBeNull();
+      expect(data.onlineDevices).toEqual([]);
     });
   });
 });

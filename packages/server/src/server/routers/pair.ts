@@ -20,15 +20,23 @@ export function createPairRouter(): Router {
   router.post(
     '/',
     asyncHandler('PAIR', 'Failed to handle /api/pair', async (req, res) => {
-      const deviceName =
-        (req.body as { deviceName?: string } | undefined)?.deviceName ??
-        'Unknown';
+      const body = req.body as
+        | {
+            deviceName?: string;
+            deviceId?: string;
+            deviceType?: 'desktop' | 'mobile';
+          }
+        | undefined;
+
+      const deviceName = body?.deviceName ?? 'Unknown';
 
       Logger.log('PAIR', `Received pair request from ${deviceName}`);
 
       broadcastToAll({
         type: 'pair_request',
         deviceName,
+        deviceId: body?.deviceId,
+        deviceType: body?.deviceType,
         timestamp: Date.now(),
       });
 

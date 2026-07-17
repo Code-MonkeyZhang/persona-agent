@@ -266,6 +266,11 @@
   "server.tunnelFailed": "Tunnel connection failed",
   "server.scanToConnect": "Scan to connect your phone",
   "server.deviceConnected": "{{deviceName}} connected",
+  "server.tunnelNotStarted": "Tunnel not started",
+  "server.tunnelUnreachable": "Tunnel public URL is unreachable",
+  "server.waitingForPhone": "Waiting for phone",
+  "server.allConnected": "All connected",
+  "server.retry": "Retry",
 
   "workspace.selectWorkspace": "Select Workspace",
   "workspace.clearWorkspace": "Clear Workspace",

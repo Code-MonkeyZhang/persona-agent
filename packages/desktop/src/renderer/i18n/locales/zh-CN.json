@@ -266,6 +266,11 @@
   "server.tunnelFailed": "隧道连接失败",
   "server.scanToConnect": "扫描二维码连接手机",
   "server.deviceConnected": "{{deviceName}} 已连接",
+  "server.tunnelNotStarted": "隧道未开启",
+  "server.tunnelUnreachable": "隧道公网地址不可用",
+  "server.waitingForPhone": "等待手机连接",
+  "server.allConnected": "全部已连接",
+  "server.retry": "重试",
 
   "workspace.selectWorkspace": "选择工作空间",
   "workspace.clearWorkspace": "清除工作空间",

@@ -11,11 +11,20 @@ vi.mock('../lib/api', () => ({
 describe('tunnelStore', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(globalThis, 'window', {
+      value: {
+        api: {
+          log: vi.fn().mockResolvedValue(undefined),
+        },
+      },
+      writable: true,
+    });
     useTunnelStore.setState({
       status: 'stopped',
       url: null,
       error: null,
-      isModalOpen: false,
+      health: 'unknown',
+      mobileDeviceIds: new Set(),
     });
     useTunnelStore.getState().stopPolling();
   });
@@ -73,6 +82,7 @@ describe('tunnelStore', () => {
       expect(api.stopTunnel).toHaveBeenCalled();
       expect(useTunnelStore.getState().status).toBe('stopped');
       expect(useTunnelStore.getState().url).toBeNull();
+      expect(useTunnelStore.getState().health).toBe('unknown');
     });
 
     it('sets error on API failure', async () => {
@@ -85,11 +95,16 @@ describe('tunnelStore', () => {
   });
 
   describe('refreshStatus', () => {
-    it('updates store from API response', async () => {
+    it('updates store from API response including health and mobile devices', async () => {
       vi.mocked(api.getTunnelStatus).mockResolvedValue({
         status: 'running',
         url: 'https://xyz.trycloudflare.com',
         error: null,
+        health: 'healthy',
+        onlineDevices: [
+          { deviceId: 'phone-1', deviceType: 'mobile', deviceName: 'iPhone' },
+          { deviceId: 'desktop-1', deviceType: 'desktop', deviceName: 'Mac' },
+        ],
       });
 
       await useTunnelStore.getState().refreshStatus();
@@ -98,28 +113,51 @@ describe('tunnelStore', () => {
       expect(useTunnelStore.getState().url).toBe(
         'https://xyz.trycloudflare.com'
       );
+      expect(useTunnelStore.getState().health).toBe('healthy');
+      expect(useTunnelStore.getState().mobileDeviceIds.size).toBe(1);
+      expect(useTunnelStore.getState().mobileDeviceIds.has('phone-1')).toBe(
+        true
+      );
     });
 
-    it('stops polling when status is not starting', async () => {
+    it('stops polling when status is not starting or running', async () => {
       vi.mocked(api.getTunnelStatus).mockResolvedValue({
-        status: 'running',
-        url: 'https://abc.trycloudflare.com',
+        status: 'stopped',
+        url: null,
         error: null,
+        health: 'unknown',
+        onlineDevices: [],
       });
 
       await useTunnelStore.getState().refreshStatus();
 
-      expect(useTunnelStore.getState().status).toBe('running');
+      expect(useTunnelStore.getState().status).toBe('stopped');
     });
   });
 
-  describe('setModalOpen', () => {
-    it('sets isModalOpen', () => {
-      useTunnelStore.getState().setModalOpen(true);
-      expect(useTunnelStore.getState().isModalOpen).toBe(true);
+  describe('mobile device tracking', () => {
+    it('addMobileDevice adds to set', () => {
+      useTunnelStore.getState().addMobileDevice('phone-A');
+      expect(useTunnelStore.getState().mobileDeviceIds.has('phone-A')).toBe(
+        true
+      );
+    });
 
-      useTunnelStore.getState().setModalOpen(false);
-      expect(useTunnelStore.getState().isModalOpen).toBe(false);
+    it('addMobileDevice is idempotent', () => {
+      useTunnelStore.getState().addMobileDevice('phone-A');
+      useTunnelStore.getState().addMobileDevice('phone-A');
+      expect(useTunnelStore.getState().mobileDeviceIds.size).toBe(1);
+    });
+
+    it('removeMobileDevice removes from set', () => {
+      useTunnelStore.getState().addMobileDevice('phone-A');
+      useTunnelStore.getState().removeMobileDevice('phone-A');
+      expect(useTunnelStore.getState().mobileDeviceIds.size).toBe(0);
+    });
+
+    it('removeMobileDevice is safe for unknown device', () => {
+      useTunnelStore.getState().removeMobileDevice('unknown');
+      expect(useTunnelStore.getState().mobileDeviceIds.size).toBe(0);
     });
   });
 });
