@@ -8,6 +8,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
 import { Logger } from '../util/logger.js';
+import { errorMessage } from '../util/errors.js';
 import { APP_NAME, APP_VERSION } from '../util/app.js';
 import type { Tool, ToolInput, ToolResult, JsonSchema } from '../tools/base.js';
 import type { ConnectionType, McpClient, McpServerConfig } from './types.js';
@@ -71,7 +72,7 @@ export class MCPTool implements Tool {
         error: isError ? content || 'Tool returned error' : null,
       };
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorMessage(error);
       return {
         success: false,
         content: '',
@@ -246,7 +247,7 @@ export class MCPServerConnection {
         return { success: false, needsAuth: true };
       }
 
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorMessage(error);
       Logger.log(
         'ERROR',
         `Failed to connect MCP server '${this.name}': ${message}`

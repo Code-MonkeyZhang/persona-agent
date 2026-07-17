@@ -7,6 +7,7 @@
  */
 
 import { Logger } from '../util/logger.js';
+import { errorMessage } from '../util/errors.js';
 import { MCPServerConnection, determineConnectionType } from './connection.js';
 import { McpOAuthProvider } from './oauth/provider.js';
 import { getOAuthTokensPath } from '../util/paths.js';
@@ -84,7 +85,7 @@ export async function connectOne(
 
     return { name, connection, tools, serverConn };
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     Logger.log('ERROR', `Failed to connect MCP server '${name}': ${message}`);
     return { name, tools: [], error: message };
   }

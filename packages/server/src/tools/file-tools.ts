@@ -10,6 +10,7 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import type { Tool, ToolResult } from './base.js';
+import { errorMessage } from '../util/errors.js';
 
 type ReadFileInput = {
   path: string;
@@ -191,7 +192,7 @@ export class ReadTool implements Tool<ReadFileInput> {
       return {
         success: false,
         content: '',
-        error: (error as Error).message || String(error),
+        error: errorMessage(error),
       };
     }
   }
@@ -250,7 +251,7 @@ export class WriteTool implements Tool<WriteFileInput> {
       return {
         success: false,
         content: '',
-        error: (error as Error).message || String(error),
+        error: errorMessage(error),
       };
     }
   }
@@ -334,7 +335,7 @@ export class EditTool implements Tool<EditFileInput> {
       return {
         success: false,
         content: '',
-        error: (error as Error).message || String(error),
+        error: errorMessage(error),
       };
     }
   }

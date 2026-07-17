@@ -6,6 +6,7 @@
  */
 
 import type { Tool, ToolResult, JsonSchema } from '../base.js';
+import { errorMessage } from '../../util/errors.js';
 import { SsrfBlockedError, assertPublicUrl } from './ssrf.js';
 import { type CacheEntry, readCache, writeCache } from './cache.js';
 import {
@@ -211,7 +212,7 @@ export class WebFetchTool implements Tool<WebFetchInput, ToolResult> {
       return {
         success: false,
         content: '',
-        error: String(error instanceof Error ? error.message : error),
+        error: errorMessage(error),
       };
     }
 

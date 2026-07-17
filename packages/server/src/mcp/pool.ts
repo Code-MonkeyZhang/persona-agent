@@ -7,6 +7,7 @@
  */
 
 import { Logger } from '../util/logger.js';
+import { errorMessage } from '../util/errors.js';
 import { loadMcpConfig } from './config.js';
 import { connectAllServers, connectOne } from './loader.js';
 import { MCPServerConnection } from './connection.js';
@@ -245,7 +246,7 @@ export async function startOAuthFlow(name: string): Promise<{
 
     return { authorizationUrl };
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     callback.close();
     pendingOAuth.delete(name);
     entry.status = 'disconnected';
@@ -306,7 +307,7 @@ async function handleOAuthCallback(
       `OAuth flow completed for '${name}' - ${tools.length} tools loaded`
     );
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     Logger.log('ERROR', `OAuth flow failed for '${name}': ${message}`);
     entry.status = 'needs_auth';
     entry.error = `OAuth failed: ${message}`;

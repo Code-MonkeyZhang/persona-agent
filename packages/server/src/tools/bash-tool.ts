@@ -8,6 +8,7 @@
 import { spawn } from 'node:child_process';
 import type { ChildProcessWithoutNullStreams } from 'node:child_process';
 import type { Tool, ToolResultWithMeta } from './base.js';
+import { errorMessage } from '../util/errors.js';
 
 type BashInput = {
   command: string;
@@ -562,13 +563,14 @@ export class BashKillTool implements Tool<BashKillInput, BashOutputResult> {
       });
     } catch (error) {
       const available = BackgroundShellManager.getAvailableIds();
+      const msg = errorMessage(error);
       return buildResult({
         success: false,
-        error: `${(error as Error).message}. Available: ${
+        error: `${msg}. Available: ${
           available.length ? available.join(', ') : 'none'
         }`,
         stdout: '',
-        stderr: (error as Error).message || String(error),
+        stderr: msg,
         exit_code: -1,
         bash_id: params.bash_id,
       });

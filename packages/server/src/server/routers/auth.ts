@@ -20,7 +20,7 @@ import type { KnownProvider, Provider, Auth } from '../../auth/index.js';
 import { getModels, completeSimple } from '@earendil-works/pi-ai';
 import { Logger } from '../../util/logger.js';
 import { asyncHandler, getParam, requireParam } from './utils.js';
-import { AppError } from '../../util/errors.js';
+import { AppError, errorMessage } from '../../util/errors.js';
 
 /**
  * Creates router for provider management.
@@ -169,18 +169,11 @@ export function createAuthRouter(): Router {
           { apiKey, maxTokens: 5 }
         );
       } catch (verifyError) {
-        const errorMessage =
-          verifyError instanceof Error
-            ? verifyError.message
-            : String(verifyError);
-        Logger.log(
-          'AUTH',
-          `Verification failed for ${provider}:`,
-          errorMessage
-        );
+        const msg = errorMessage(verifyError);
+        Logger.log('AUTH', `Verification failed for ${provider}:`, msg);
         res.json({
           valid: false,
-          error: errorMessage,
+          error: msg,
         });
         return;
       }
