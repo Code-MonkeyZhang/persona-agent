@@ -13,7 +13,7 @@
     },
     "packages/desktop": {
       "name": "persona-agent-desktop",
-      "version": "1.5.0",
+      "version": "1.6.3",
       "dependencies": {
         "@radix-ui/react-scroll-area": "^1.2.12",
         "@radix-ui/react-select": "^2.2.6",
@@ -28,6 +28,7 @@
         "i18next": "^26.2.0",
         "i18next-browser-languagedetector": "^8.2.1",
         "lucide-react": "^0.300.0",
+        "qrcode.react": "^4.2.0",
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
         "react-i18next": "^17.0.8",
@@ -60,13 +61,13 @@
     },
     "packages/server": {
       "name": "persona-agent-server",
-      "version": "1.5.0",
+      "version": "1.6.3",
       "bin": {
         "persona-agent-server": "dist/src/index.js",
       },
       "dependencies": {
         "@anthropic-ai/sdk": "^0.90.0",
-        "@earendil-works/pi-ai": "^0.79.4",
+        "@earendil-works/pi-ai": "^0.80.10",
         "@modelcontextprotocol/sdk": "^1.28.0",
         "@sinclair/typebox": "^0.34.0",
         "chalk": "^5.6.2",
@@ -109,7 +110,7 @@
     },
     "packages/shared": {
       "name": "@persona/shared",
-      "version": "1.5.0",
+      "version": "1.6.3",
       "dependencies": {
         "zod": "^4.3.5",
       },
@@ -223,7 +224,7 @@
 
     "@develar/schema-utils": ["@develar/schema-utils@2.6.5", "https://registry.npmmirror.com/@develar/schema-utils/-/schema-utils-2.6.5.tgz", { "dependencies": { "ajv": "^6.12.0", "ajv-keywords": "^3.4.1" } }, "sha512-0cp4PsWQ/9avqTVMCtZ+GirikIA36ikvjtHweU4/j8yLtgObI0+JUPhYFScgwlteveGB1rt3Cm8UhN04XayDig=="],
 
-    "@earendil-works/pi-ai": ["@earendil-works/pi-ai@0.79.9", "https://registry.npmmirror.com/@earendil-works/pi-ai/-/pi-ai-0.79.9.tgz", { "dependencies": { "@anthropic-ai/sdk": "0.91.1", "@aws-sdk/client-bedrock-runtime": "3.1048.0", "@google/genai": "1.52.0", "@mistralai/mistralai": "2.2.6", "@opentelemetry/api": "1.9.0", "@smithy/node-http-handler": "4.7.3", "http-proxy-agent": "7.0.2", "https-proxy-agent": "7.0.6", "openai": "6.26.0", "partial-json": "0.1.7", "typebox": "1.1.38" }, "bin": { "pi-ai": "dist/cli.js" } }, "sha512-fHmgNMONwCCE7bQAKbcz76sgm3iQuA7km1mpIc4H5xXd9+zhPh/faULz6ARkgjQE0EufHnfZPJY39+lNf8Sa9g=="],
+    "@earendil-works/pi-ai": ["@earendil-works/pi-ai@0.80.10", "https://registry.npmmirror.com/@earendil-works/pi-ai/-/pi-ai-0.80.10.tgz", { "dependencies": { "@anthropic-ai/sdk": "0.91.1", "@aws-sdk/client-bedrock-runtime": "3.1048.0", "@google/genai": "1.52.0", "@mistralai/mistralai": "2.2.6", "@opentelemetry/api": "1.9.0", "@smithy/node-http-handler": "4.7.3", "http-proxy-agent": "7.0.2", "https-proxy-agent": "7.0.6", "openai": "6.26.0", "partial-json": "0.1.7", "typebox": "1.1.38" }, "bin": { "pi-ai": "dist/cli.js" } }, "sha512-Moe/H8c87yacDGK9dPbWphZNjVsrb3nTrIHycOQJAkFEnY9PYxOOd74+ny44kATfPU9Dm7aTHefar3pZF+UKUA=="],
 
     "@electron-internal/extract-zip": ["@electron-internal/extract-zip@1.0.3", "https://registry.npmmirror.com/@electron-internal/extract-zip/-/extract-zip-1.0.3.tgz", {}, "sha512-OjKpjB7gohtEjZiq6nDx1egqjZJhGPN1iFOIED+NFhB/MMkXw/XRcHjh1DGXKT5z2W9eW7Jy2UKU3gpjvusFTQ=="],
 
@@ -1616,6 +1617,8 @@
     "proxy-addr": ["proxy-addr@2.0.7", "https://registry.npmmirror.com/proxy-addr/-/proxy-addr-2.0.7.tgz", { "dependencies": { "forwarded": "0.2.0", "ipaddr.js": "1.9.1" } }, "sha512-llQsMLSUDUPT44jdrU/O37qlnifitDP+ZwrmmZcoSKyLKvtZxpyV0n2/bD/N4tBAAZ/gJEdZU7KMraoK1+XYAg=="],
 
     "punycode": ["punycode@2.3.1", "https://registry.npmmirror.com/punycode/-/punycode-2.3.1.tgz", {}, "sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg=="],
+
+    "qrcode.react": ["qrcode.react@4.2.0", "https://registry.npmmirror.com/qrcode.react/-/qrcode.react-4.2.0.tgz", { "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-QpgqWi8rD9DsS9EP3z7BT+5lY5SFhsqGjpgW5DY/i3mK4M9DTBNz3ErMi8BWYEfI3L0d8GIbGmcdFAS1uIRGjA=="],
 
     "qs": ["qs@6.15.2", "https://registry.npmmirror.com/qs/-/qs-6.15.2.tgz", { "dependencies": { "side-channel": "^1.1.0" } }, "sha512-Rzq0KEyX/w/tEybncDgdkZrJgVUsUMk3xjh3t5bv3S1HTAtg+uOYt72+ZfwiQwKdysThkTBdL/rTi6HDmX9Ddw=="],
 

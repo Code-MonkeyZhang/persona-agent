@@ -3,11 +3,11 @@
  *
  */
 
-import { stream } from '@earendil-works/pi-ai';
 import type { Message, AgentEvent, ToolCall } from '../schema/index.js';
 import type { AgentRunConfig } from './types.js';
 import type { Tool, ToolResult } from '../tools/index.js';
 import { convertContext, convertPiAiToolCall } from '../converters/index.js';
+import { models } from './pi-models.js';
 
 export class AgentCore {
   public runConfig: AgentRunConfig;
@@ -99,7 +99,7 @@ export class AgentCore {
       );
 
       // Accumulate content chunk
-      const eventStream = stream(this.runConfig.model, context, {
+      const eventStream = models.stream(this.runConfig.model, context, {
         apiKey: this.runConfig.apiKey,
         thinkingEnabled: true,
       } as Record<string, unknown>);

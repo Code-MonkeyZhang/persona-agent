@@ -5,8 +5,8 @@
  * 失败时抛出异常，由调用方自行 try/catch 处理。
  */
 
-import { stream, getModel, type KnownProvider } from '@earendil-works/pi-ai';
 import { getAuth } from '../auth/index.js';
+import { models } from './pi-models.js';
 
 /**
  * 调用 LLM 进行单轮流式对话，收集完整文本返回。
@@ -28,13 +28,10 @@ export async function streamSingleTurn(
   provider: string,
   modelId: string
 ): Promise<string> {
-  const auth = getAuth(provider as KnownProvider);
+  const auth = getAuth(provider);
   if (!auth) throw new Error(`No auth for provider: ${provider}`);
 
-  const model = getModel(
-    provider as KnownProvider,
-    modelId as Parameters<typeof getModel>[1]
-  );
+  const model = models.getModel(provider, modelId);
   if (!model) throw new Error(`Model not found: ${provider}/${modelId}`);
 
   const context = {
@@ -49,7 +46,7 @@ export async function streamSingleTurn(
   };
 
   let raw = '';
-  const eventStream = stream(model, context, { apiKey: auth.apiKey });
+  const eventStream = models.stream(model, context, { apiKey: auth.apiKey });
   for await (const event of eventStream) {
     if (event.type === 'text_delta') {
       raw += (event as { delta: string }).delta;

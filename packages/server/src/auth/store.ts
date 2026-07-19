@@ -4,9 +4,9 @@
  */
 
 import * as fs from 'node:fs';
-import { getModels } from '@earendil-works/pi-ai';
 import { getAuthPath } from '../util/paths.js';
 import { readJsonFile } from '../util/fs-helpers.js';
+import { models } from '../agent/pi-models.js';
 import type { Auth, AuthStore, Provider, KnownProvider } from './types.js';
 import type { ProviderStatus } from '@persona/shared';
 
@@ -103,12 +103,12 @@ export function getAuth(provider: Provider): Auth | undefined {
 export function listProvidersWithAuth(): ProviderStatus[] {
   const store = readAuthStore();
   return SUPPORTED_PROVIDERS.map((p) => {
-    const models = getModels(p);
+    const providerModels = models.getModels(p);
     const hasAuthFlag = !!store[p];
     return {
       id: p,
       name: PROVIDER_NAMES[p] || p,
-      models: models.map((m) => m.id),
+      models: providerModels.map((m) => m.id),
       hasAuth: hasAuthFlag,
     };
   });

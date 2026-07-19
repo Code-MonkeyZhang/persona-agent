@@ -4,7 +4,6 @@
  * Assembles AgentRunConfig from AgentConfig and Session information.
  */
 
-import { getModel, type KnownProvider } from '@earendil-works/pi-ai';
 import { getAuth } from '../auth/index.js';
 import { getSkills } from '../skill/index.js';
 import type { Skill } from '../skill/index.js';
@@ -21,6 +20,7 @@ import {
 import { ShowPoseTool, GetCurrentPoseTool } from '../tools/pose-tools.js';
 import { findGitBash } from '../util/git-bash-detector.js';
 import { MemoryStore } from './memory/memory-store.js';
+import { models } from './pi-models.js';
 import type { AgentConfig, AgentRunConfig } from './types.js';
 import type { Session } from '../session/types.js';
 import type { SessionManager } from '../session/session-manager.js';
@@ -142,7 +142,7 @@ export function createAgentRunConfig(
   sessionManager: SessionManager
 ): AgentRunConfig {
   const modelConfig = session.model;
-  const provider = modelConfig.provider as KnownProvider;
+  const provider = modelConfig.provider;
   const modelId = modelConfig.model;
 
   const resolvedBashPath = findGitBash();
@@ -152,7 +152,7 @@ export function createAgentRunConfig(
     throw new Error(`No API key configured for provider: ${provider}`);
   }
 
-  const model = getModel(provider, modelId as Parameters<typeof getModel>[1]);
+  const model = models.getModel(provider, modelId);
   if (!model) {
     throw new Error(`Unknown model: ${provider}/${modelId}`);
   }

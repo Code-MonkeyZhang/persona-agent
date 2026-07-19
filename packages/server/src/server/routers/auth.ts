@@ -16,8 +16,8 @@ import {
   setAuth,
   deleteAuth,
 } from '../../auth/index.js';
-import type { KnownProvider, Provider, Auth } from '../../auth/index.js';
-import { getModels, completeSimple } from '@earendil-works/pi-ai';
+import type { Provider, Auth } from '../../auth/index.js';
+import { models } from '../../agent/pi-models.js';
 import { Logger } from '../../util/logger.js';
 import { asyncHandler, getParam, requireParam } from './utils.js';
 import { AppError, errorMessage } from '../../util/errors.js';
@@ -140,8 +140,8 @@ export function createAuthRouter(): Router {
         return;
       }
 
-      const models = getModels(provider as KnownProvider);
-      if (models.length === 0) {
+      const providerModels = models.getModels(provider);
+      if (providerModels.length === 0) {
         res.json({
           valid: false,
           error: 'No models found for provider',
@@ -149,7 +149,7 @@ export function createAuthRouter(): Router {
         return;
       }
 
-      const testModel = models[0];
+      const testModel = providerModels[0];
       if (!testModel) {
         res.json({
           valid: false,
@@ -161,7 +161,7 @@ export function createAuthRouter(): Router {
       // Send test request to verify API key
       let result;
       try {
-        result = await completeSimple(
+        result = await models.completeSimple(
           testModel,
           {
             messages: [{ role: 'user', content: 'Hi', timestamp: Date.now() }],
@@ -193,7 +193,7 @@ export function createAuthRouter(): Router {
 
       res.json({
         valid: true,
-        models: models.map((m) => m.id),
+        models: providerModels.map((m) => m.id),
       });
     })
   );
