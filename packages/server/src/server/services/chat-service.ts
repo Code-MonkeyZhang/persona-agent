@@ -17,6 +17,7 @@ import type { Message, ToolCall } from '../../schema/index.js';
 import type { ToolResult } from '../../tools/index.js';
 import { Logger } from '../../util/logger.js';
 import { broadcastToSession } from '../websocket-server.js';
+import * as sessionRegistry from '../session-registry.js';
 import { generateTitle } from '../../session/title-generator.js';
 import { loadTtsConfig } from '../../tts/store.js';
 import { getAllVoices } from '../../tts/voices.js';
@@ -123,6 +124,16 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
   //TODO: 这里不应该使用当前目录作为兜底, 应该在 persona-agent data directory 中有一个空的 workspace 作为默认工作目录
   const workspaceDir =
     session.workspacePath || agentConfig.defaultWorkspacePath || process.cwd();
+
+  // 重入保护：同一会话不能并发执行两次 processChat
+  if (sessionRegistry.has(sessionId)) {
+    Logger.log('CHAT', 'Session busy, rejected', { sessionId });
+    return { success: false, error: 'Session is currently generating' };
+  }
+
+  const abortController = new AbortController();
+  sessionRegistry.register(sessionId, abortController);
+  Logger.log('CHAT', 'Abort controller registered', { sessionId });
 
   try {
     const runConfig = createAgentRunConfig(
@@ -291,8 +302,27 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       broadcastToSession(sessionId, buildStepCompleteEvent());
     };
 
+    /**
+     * Abort 收尾：存盘 AgentCore 已整理的半成品（含 stopReason: 'aborted'），
+     * 广播 aborted 事件，跳过 TTS 和压缩。
+     */
+    const emitAborted = (): ChatResponse => {
+      saveStepMessages(sessionManager, sessionId, agent, historyLength);
+      Logger.log('CHAT', 'Turn aborted by user', {
+        sessionId,
+        stepIndex: currentStep?.stepIndex,
+        partialContentLength: currentStep?.content.length ?? 0,
+      });
+      broadcastToSession(sessionId, {
+        type: 'aborted',
+        sessionId,
+        reason: 'user_cancel',
+      });
+      return { success: false, error: 'aborted' };
+    };
+
     // 开启agent loop循环
-    for await (const event of agent.runStream()) {
+    for await (const event of agent.runStream(abortController.signal)) {
       switch (event.type) {
         case 'step_start':
           flushCurrentStep();
@@ -346,6 +376,14 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
           });
           return emitError(event.error);
         }
+
+        case 'aborted': {
+          Logger.log('CHAT', 'Agent reported aborted, finalizing', {
+            sessionId,
+            stepIndex: currentStep?.stepIndex,
+          });
+          return emitAborted();
+        }
       }
     }
 
@@ -379,6 +417,8 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
   } catch (error) {
     const err = error as Error;
     return emitError(err.message);
+  } finally {
+    sessionRegistry.unregister(sessionId);
   }
 }
 

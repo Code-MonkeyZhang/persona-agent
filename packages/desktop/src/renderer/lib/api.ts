@@ -305,6 +305,15 @@ export class WebSocketClient {
   }
 
   /**
+   * 请求服务端中止指定会话的当前生成。
+   * 服务端中止后会推送 'aborted' 事件，本方法不等待响应。
+   * 不加入 activeSessionIds — abort 是一次性动作，重连不需补发。
+   */
+  abort(sessionId: string): void {
+    this.send({ type: 'abort', payload: { sessionId } });
+  }
+
+  /**
    * 启动心跳定时器，周期性发送 ping 防止服务端超时断开。
    */
   private startHeartbeat(): void {

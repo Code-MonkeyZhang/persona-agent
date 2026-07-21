@@ -40,6 +40,7 @@
   "inputBox.placeholder": "Type a message...",
   "inputBox.addAttachment": "Add attachment",
   "inputBox.sendMessage": "Send message",
+  "inputBox.stopGeneration": "Stop generating",
 
   "messageList.copiedToClipboard": "Copied to clipboard",
   "messageList.failedToCopy": "Failed to copy",

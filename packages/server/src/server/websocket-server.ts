@@ -10,6 +10,7 @@ import type { IncomingMessage } from 'http';
 import { randomUUID } from 'node:crypto';
 import type { ServerMessage, ClientMessage, DeviceType } from '@persona/shared';
 import { Logger } from '../util/logger.js';
+import * as sessionRegistry from './session-registry.js';
 
 interface WebSocketClient {
   id: string;
@@ -119,6 +120,13 @@ function handleClientMessage(
           deviceName: message.deviceName,
         },
       });
+      break;
+    }
+
+    case 'abort': {
+      const { sessionId } = message.payload;
+      const triggered = sessionRegistry.abort(sessionId);
+      Logger.log('WS', 'Abort requested', { sessionId, triggered });
       break;
     }
   }

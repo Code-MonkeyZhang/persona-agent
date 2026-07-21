@@ -122,6 +122,8 @@ interface ChatStore {
   /** 清除指定 session 的聊天状态 */
   clearSessionState: (sessionId: string) => void;
   sendMessage: (content: string, sessionId?: string) => Promise<void>;
+  /** 请求服务端中止当前会话的生成 */
+  abortGeneration: (sessionId?: string) => void;
   handleWsMessage: (msg: ServerMessage) => void;
   setConnectionStatus: (status: ConnectionStatus) => void;
   setAgentId: (id: string | null) => void;
@@ -290,6 +292,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
+  abortGeneration: (explicitSessionId?: string) => {
+    const sessionId = explicitSessionId || get().currentSessionId;
+    if (!sessionId) return;
+    get().wsClient?.abort(sessionId);
+    logger.info('Abort requested', { sessionId });
+  },
+
   /**
    * 处理 WebSocket 推送消息，按 sessionId 路由到对应 session 的状态。
    * 所有 session 作用域事件均通过 msg.sessionId 定位 Map entry。
@@ -322,6 +331,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const currentSnap = get();
         const sessionState = currentSnap.sessionStates.get(sessionId);
         if (sessionState) {
+          // 防御：本回合已结束后迟到的 step_complete 直接丢弃，
+          // 避免 streamingMessageId 被清成 null 后走首步分支创建孤立气泡
+          if (!sessionState.isLoading) {
+            logger.info('Late step_complete ignored', { sessionId });
+            break;
+          }
+
           const streamingId = sessionState.streamingMessageId;
 
           if (streamingId) {
@@ -446,6 +462,36 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           }
           return { sessionStates: newStates };
         });
+        break;
+      }
+
+      case 'aborted': {
+        const sessionId = msg.sessionId;
+        set((state) => {
+          const newStates = new Map(state.sessionStates);
+          const sessionState = newStates.get(sessionId);
+          if (sessionState) {
+            const streamingId = sessionState.streamingMessageId;
+            // 先移除空占位（abort 早于任何内容到达），有内容的打 aborted 标记
+            const filtered = filterEmptyPlaceholder(
+              sessionState.messages,
+              streamingId
+            );
+            const messages = streamingId
+              ? filtered.map((m) =>
+                  m.id === streamingId ? { ...m, aborted: true } : m
+                )
+              : filtered;
+            newStates.set(sessionId, {
+              ...sessionState,
+              messages,
+              isLoading: false,
+              streamingMessageId: null,
+            });
+          }
+          return { sessionStates: newStates };
+        });
+        logger.info('Turn aborted, partial kept', { sessionId });
         break;
       }
 

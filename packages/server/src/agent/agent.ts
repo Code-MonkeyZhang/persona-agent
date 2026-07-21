@@ -78,8 +78,16 @@ export class AgentCore {
    * @yields AgentEvent - 表示执行不同阶段的事件
    * @returns 任务完成或超过最大步数时的最终内容字符串
    */
-  async *runStream(): AsyncGenerator<AgentEvent, string, void> {
+  async *runStream(
+    signal?: AbortSignal
+  ): AsyncGenerator<AgentEvent, string, void> {
     for (let step = 0; step < this.runConfig.maxSteps; step++) {
+      // 防御：工具执行期间若被中断，上一步消息已完整 push，直接退出
+      if (signal?.aborted) {
+        yield { type: 'aborted' };
+        return '';
+      }
+
       yield {
         type: 'step_start',
         step: step + 1,
@@ -102,7 +110,8 @@ export class AgentCore {
       const eventStream = models.stream(this.runConfig.model, context, {
         apiKey: this.runConfig.apiKey,
         thinkingEnabled: true,
-      } as Record<string, unknown>);
+        signal,
+      });
 
       for await (const event of eventStream) {
         if (event.type === 'thinking_delta') {
@@ -118,11 +127,21 @@ export class AgentCore {
           toolCalls.push(convertedToolCall);
         }
         if (event.type === 'error') {
+          const errorEvent = event as {
+            reason?: string;
+            error?: { errorMessage?: string; stopReason?: string };
+          };
+          // signal 已触发时，任何错误都是连接撕裂的副作用，归类为 abort
+          if (
+            signal?.aborted ||
+            errorEvent.reason === 'aborted' ||
+            errorEvent.error?.stopReason === 'aborted'
+          ) {
+            break;
+          }
           const errorMsg =
-            (event.error as { errorMessage?: string; stopReason?: string })
-              .errorMessage ||
-            (event.error as { errorMessage?: string; stopReason?: string })
-              .stopReason ||
+            errorEvent.error?.errorMessage ||
+            errorEvent.error?.stopReason ||
             'LLM stream error';
           yield { type: 'error', error: errorMsg };
           break;
@@ -130,6 +149,30 @@ export class AgentCore {
         if (event.type === 'done') {
           break;
         }
+      }
+
+      // signal 中断后的半成品整理：有实际内容时给未完成的 tool 补 fake result，
+      // push 带 stopReason 的消息；全空则跳过，避免存出空消息
+      if (signal?.aborted) {
+        if (fullContent || fullThinking || toolCalls.length > 0) {
+          for (const tc of toolCalls) {
+            if (!tc.toolResult) {
+              tc.toolResult = {
+                content: '用户中断了此工具的执行',
+                isError: true,
+              };
+            }
+          }
+          this.messages.push({
+            role: 'assistant',
+            content: fullContent,
+            thinking: fullThinking || undefined,
+            tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+            stopReason: 'aborted',
+          });
+        }
+        yield { type: 'aborted' };
+        return fullContent;
       }
 
       // 如果没有Tool Call就结束循环

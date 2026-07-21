@@ -17,6 +17,7 @@ import type { ToolResult } from '../tools/index.js';
  * - tool_start: 执行特定工具之前触发
  * - tool_result: 工具执行完成后触发
  * - error: 执行期间发生错误时触发
+ * - aborted: 用户主动中止生成时触发
  */
 export type AgentEvent =
   | { type: 'step_start'; step: number; maxSteps: number }
@@ -30,4 +31,5 @@ export type AgentEvent =
       toolCallId: string;
       toolName: string;
     }
-  | { type: 'error'; error: string };
+  | { type: 'error'; error: string }
+  | { type: 'aborted' };

@@ -50,6 +50,7 @@ export interface AssistantMessage {
   content?: string;
   thinking?: string;
   tool_calls?: ToolCall[];
+  stopReason?: 'aborted';
 }
 
 /** 错误消息，持久化 API 调用失败等信息，占助手槽位注入模型上下文 */

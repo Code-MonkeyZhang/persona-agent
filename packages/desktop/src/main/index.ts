@@ -265,6 +265,13 @@ async function startServer(): Promise<void> {
     log.error('Failed to start server:', err);
   });
 
+  serverProcess.stdout?.on('data', (data) => {
+    log.info(`[server] ${data.toString().trimEnd()}`);
+  });
+  serverProcess.stderr?.on('data', (data) => {
+    log.error(`[server] ${data.toString().trimEnd()}`);
+  });
+
   try {
     await waitForServer(url);
     setServerUrl(url);

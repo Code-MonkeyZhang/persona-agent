@@ -105,6 +105,13 @@ export interface DeviceOfflineMessage {
   deviceId: string;
 }
 
+/** 服务端确认会话生成已被中止后推送的事件 */
+export interface AbortedMessage {
+  type: 'aborted';
+  sessionId: string;
+  reason: string;
+}
+
 export type ServerMessage =
   | ConnectedMessage
   | SubscribedMessage
@@ -117,7 +124,8 @@ export type ServerMessage =
   | PongMessage
   | PairRequestMessage
   | DeviceOnlineMessage
-  | DeviceOfflineMessage;
+  | DeviceOfflineMessage
+  | AbortedMessage;
 
 // ── Client → Server 消息 ──
 
@@ -132,4 +140,5 @@ export type ClientMessage =
   | { type: 'subscribe'; payload: { sessionId: string } }
   | { type: 'unsubscribe'; payload: { sessionId: string } }
   | { type: 'ping' }
-  | RegisterMessage;
+  | RegisterMessage
+  | { type: 'abort'; payload: { sessionId: string } };

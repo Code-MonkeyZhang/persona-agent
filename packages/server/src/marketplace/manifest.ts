@@ -18,7 +18,7 @@ import { Logger } from '../util/logger.js';
  * @throws 网络失败或清单格式非法时抛出
  */
 export async function fetchManifest(): Promise<MarketplaceEntry[]> {
-  const resp = await fetch(manifestUrl());
+  const resp = await fetch(manifestUrl(), { verbose: true });
   if (!resp.ok) {
     Logger.log('MARKETPLACE', `Failed to fetch skill manifest: ${resp.status}`);
     throw new Error(`Failed to fetch marketplace manifest: ${resp.status}`);
@@ -40,7 +40,7 @@ export async function fetchManifest(): Promise<MarketplaceEntry[]> {
  * @throws 网络错误或清单格式非法时抛出
  */
 export async function fetchMcpManifest(): Promise<McpMarketplaceEntry[]> {
-  const resp = await fetch(mcpManifestUrl());
+  const resp = await fetch(mcpManifestUrl(), { verbose: true });
   if (!resp.ok) {
     Logger.log('MARKETPLACE', `Failed to fetch MCP manifest: ${resp.status}`);
     throw new Error(`Failed to fetch MCP manifest: ${resp.status}`);
@@ -62,7 +62,7 @@ export async function fetchMcpManifest(): Promise<McpMarketplaceEntry[]> {
  * @throws 网络错误或清单格式非法时抛出
  */
 export async function fetchAgentManifest(): Promise<AgentMarketplaceEntry[]> {
-  const resp = await fetch(agentManifestUrl());
+  const resp = await fetch(agentManifestUrl(), { verbose: true });
   if (!resp.ok) {
     Logger.log('MARKETPLACE', `Failed to fetch agent manifest: ${resp.status}`);
     throw new Error(`Failed to fetch agent manifest: ${resp.status}`);

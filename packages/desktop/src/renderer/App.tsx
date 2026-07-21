@@ -67,6 +67,7 @@ function AppContent() {
 
   const connectionStatus = useChatStore((s) => s.connectionStatus);
   const sendMessage = useChatStore((s) => s.sendMessage);
+  const abortGeneration = useChatStore((s) => s.abortGeneration);
   const setAgentId = useChatStore((s) => s.setAgentId);
 
   const {
@@ -263,6 +264,7 @@ function AppContent() {
                       />
                       <InputBox
                         onSend={handleSend}
+                        onAbort={() => abortGeneration()}
                         isLoading={isLoading}
                         disabled={!currentAgent}
                         providers={providers}
@@ -278,6 +280,7 @@ function AppContent() {
                           <CompanionPanel
                             agentId={currentAgent?.id ?? null}
                             onSend={handleSend}
+                            onAbort={() => abortGeneration()}
                             isLoading={isLoading}
                           />
                         )}

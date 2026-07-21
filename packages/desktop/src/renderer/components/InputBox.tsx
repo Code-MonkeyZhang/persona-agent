@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Square } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
 import { useChatInput } from '../hooks/useChatInput';
@@ -24,6 +24,8 @@ import type { ProviderStatus } from '../lib/api';
 interface InputBoxProps {
   /** 发送消息的回调函数，参数为用户输入的文本内容 */
   onSend: (message: string) => void;
+  /** 中止当前生成的回调，仅在 isLoading 时触发 */
+  onAbort?: () => void;
   isLoading?: boolean;
   disabled?: boolean;
   /** 当前可用的模型供应商列表，传递给 ModelSelector */
@@ -47,6 +49,7 @@ interface InputBoxProps {
  */
 export const InputBox: React.FC<InputBoxProps> = ({
   onSend,
+  onAbort,
   isLoading,
   disabled,
   providers,
@@ -129,38 +132,48 @@ export const InputBox: React.FC<InputBoxProps> = ({
             />
           </div>
 
-          {/* 发送按钮：有内容且非加载中时高亮可点击，否则灰显禁用 */}
-          <button
-            onClick={() => {
-              const text = input.trim();
-              if (text && !disabled && !isLoading) {
-                onSend(text);
-                reset();
-              }
-            }}
-            disabled={disabled || !input.trim() || isLoading}
-            className={cn(
-              'w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-200',
-              input.trim() && !isLoading
-                ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95'
-                : 'bg-muted/50 text-muted-foreground/40 cursor-not-allowed'
-            )}
-            title={t('inputBox.sendMessage')}
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2.5}
+          {/* 发送/停止按钮：isLoading 时显示停止图标，否则显示发送图标 */}
+          {isLoading ? (
+            <button
+              onClick={() => onAbort?.()}
+              className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 transition-all duration-200"
+              title={t('inputBox.stopGeneration')}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18"
-              />
-            </svg>
-          </button>
+              <Square className="w-3.5 h-3.5 fill-current" />
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                const text = input.trim();
+                if (text && !disabled) {
+                  onSend(text);
+                  reset();
+                }
+              }}
+              disabled={disabled || !input.trim()}
+              className={cn(
+                'w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-200',
+                input.trim()
+                  ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95'
+                  : 'bg-muted/50 text-muted-foreground/40 cursor-not-allowed'
+              )}
+              title={t('inputBox.sendMessage')}
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18"
+                />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
     </div>

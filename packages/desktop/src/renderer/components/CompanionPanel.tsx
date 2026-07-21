@@ -12,7 +12,7 @@
  * 关闭面板由 Header 中的「形象」按钮统一控制，面板内不再提供关闭按钮。
  */
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
-import { Send, ChevronUp, ChevronDown } from 'lucide-react';
+import { Send, Square, ChevronUp, ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCompanionStore } from '../stores/companionStore';
@@ -31,6 +31,8 @@ import { Markdown } from './Markdown';
 interface CompanionPanelProps {
   agentId: string | null;
   onSend: (content: string) => void;
+  /** 中止当前生成的回调 */
+  onAbort?: () => void;
   isLoading: boolean;
 }
 
@@ -44,6 +46,7 @@ interface CompanionPanelProps {
 export function CompanionPanel({
   agentId,
   onSend,
+  onAbort,
   isLoading,
 }: CompanionPanelProps) {
   const { t } = useTranslation();
@@ -262,23 +265,32 @@ export function CompanionPanel({
             className="w-full resize-none bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground focus-visible:outline-none max-h-[120px]"
           />
           <div className="flex items-center justify-end mt-3">
-            <button
-              onClick={() => {
-                const text = inputText.trim();
-                if (text && !isLoading) {
-                  onSend(text);
-                  reset();
-                }
-              }}
-              disabled={!inputText.trim() || isLoading}
-              className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-                inputText.trim() && !isLoading
-                  ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                  : 'bg-muted text-white'
-              }`}
-            >
-              <Send className="w-4 h-4" />
-            </button>
+            {isLoading ? (
+              <button
+                onClick={() => onAbort?.()}
+                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  const text = inputText.trim();
+                  if (text) {
+                    onSend(text);
+                    reset();
+                  }
+                }}
+                disabled={!inputText.trim()}
+                className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                  inputText.trim()
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    : 'bg-muted text-white'
+                }`}
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -47,4 +47,6 @@ export interface UIMessage {
   timestamp: Date;
   /** Agent's reasoning process */
   thoughts?: Thought[];
+  /** 用户中断生成后的半成品标记 */
+  aborted?: boolean;
 }
