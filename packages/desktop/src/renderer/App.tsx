@@ -17,8 +17,8 @@
  * Session 栏折叠状态由 viewStore.sessionSidebarCollapsed 管理，
  * 折叠开关位于 TitleBar，不再需要独立的悬浮按钮。
  */
-import { useEffect, useRef } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { TitleBar } from './components/TitleBar';
 import { Header } from './components/Header';
 import { MessageList, type MessageListRef } from './components/MessageList';
@@ -30,7 +30,8 @@ import { AgentEditor } from './components/AgentEditor';
 import { AgentToolsView } from './components/AgentToolsView';
 import { SkillsView } from './components/SkillsView';
 import { MarketplaceView } from './components/MarketplaceView';
-import { CompanionPanel } from './components/CompanionPanel';
+import { CompanionContent } from './components/CompanionContent';
+import { CompanionReplyBubble } from './components/CompanionReplyBubble';
 import { ToastContainer } from './components/Toast';
 import { WebSocketProvider } from './components/WebSocketProvider';
 import { useChatStore } from './stores/chatStore';
@@ -55,6 +56,35 @@ function AppContent() {
 
   const pendingProviderRef = useRef<string | undefined>();
   const messageListRef = useRef<MessageListRef>(null);
+  const floatingRef = useRef<HTMLDivElement>(null);
+  const [floatingHeight, setFloatingHeight] = useState(0);
+
+  /**
+   * 测量浮层 InputBox 区域的实际高度，同步给 MessageList 作为 bottomPadding，
+   * 避免消息列表底部被常驻浮层永久遮挡。
+   * 通过 ResizeObserver 监听 textarea 撑高与回复气泡挂载/卸载带来的高度变化。
+   */
+  useLayoutEffect(() => {
+    const el = floatingRef.current;
+    if (!el) return;
+    const update = () => {
+      const h = el.clientHeight;
+      if (h > 0 && h !== floatingHeight) {
+        setFloatingHeight(h);
+      }
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [floatingHeight]);
+
+  /** 陪伴开关切换日志，便于排查 pane 滑动与浮层联动问题 */
+  useEffect(() => {
+    logger.info(
+      `[App] companion view: ${companionVisible ? 'open' : 'closed'}`
+    );
+  }, [companionVisible]);
 
   /* 从Store中获取数据 */
   const currentSessionId = useChatStore((s) => s.currentSessionId);
@@ -253,40 +283,68 @@ function AppContent() {
                 {activeNav === 'chat' && (
                   <div className="h-full flex flex-col">
                     <Header onNewChat={handleNewChat} />
-                    <div className="flex-1 flex flex-col min-h-0 relative">
-                      <MessageList
-                        ref={messageListRef}
-                        key={currentSession?.id ?? 'no-session'}
-                        messages={messages}
-                        isLoading={isLoading}
-                        streamingMessageId={streamingMessageId}
-                        sessionId={currentSession?.id ?? null}
-                        hasAgent={!!currentAgent}
-                        agent={currentAgent}
-                      />
-                      <InputBox
-                        onSend={handleSend}
-                        onAbort={() => abortGeneration()}
-                        isLoading={isLoading}
-                        disabled={!currentAgent}
-                        providers={providers}
-                        currentModelId={currentModelId}
-                        currentProviderId={currentProviderId}
-                        onModelChange={handleModelChange}
-                        onProviderChange={handleProviderChange}
-                        workspacePath={currentWorkspacePath}
-                        onWorkspaceChange={handleWorkspaceChange}
-                      />
-                      <AnimatePresence initial={false}>
+                    <div className="flex-1 min-h-0 relative">
+                      {/* 双 pane 横向滑动容器，整屏滑动同一时间只看到一个 pane */}
+                      <div className="absolute inset-0 overflow-hidden">
+                        <motion.div
+                          className="flex h-full w-[200%]"
+                          initial={false}
+                          animate={{ x: companionVisible ? '-50%' : '0%' }}
+                          transition={{ duration: 0.3, ease: 'easeOut' }}
+                        >
+                          {/* Pane 1: 聊天列表 */}
+                          <div className="w-1/2 h-full flex flex-col min-h-0">
+                            <MessageList
+                              ref={messageListRef}
+                              key={currentSession?.id ?? 'no-session'}
+                              messages={messages}
+                              isLoading={isLoading}
+                              streamingMessageId={streamingMessageId}
+                              sessionId={currentSession?.id ?? null}
+                              hasAgent={!!currentAgent}
+                              agent={currentAgent}
+                              bottomPadding={floatingHeight}
+                            />
+                          </div>
+                          {/* Pane 2: 陪伴展示 */}
+                          <div className="w-1/2 h-full">
+                            <CompanionContent
+                              agentId={currentAgent?.id ?? null}
+                            />
+                          </div>
+                        </motion.div>
+                      </div>
+
+                      {/* 浮层：常驻底部，聊天态与陪伴态共用同一个 InputBox */}
+                      <div className="absolute bottom-0 left-0 right-0 z-20">
                         {companionVisible && (
-                          <CompanionPanel
+                          <CompanionReplyBubble
                             agentId={currentAgent?.id ?? null}
+                          />
+                        )}
+                        <div
+                          ref={floatingRef}
+                          className={
+                            companionVisible
+                              ? ''
+                              : 'bg-background/80 backdrop-blur-md'
+                          }
+                        >
+                          <InputBox
                             onSend={handleSend}
                             onAbort={() => abortGeneration()}
                             isLoading={isLoading}
+                            disabled={!currentAgent}
+                            providers={providers}
+                            currentModelId={currentModelId}
+                            currentProviderId={currentProviderId}
+                            onModelChange={handleModelChange}
+                            onProviderChange={handleProviderChange}
+                            workspacePath={currentWorkspacePath}
+                            onWorkspaceChange={handleWorkspaceChange}
                           />
-                        )}
-                      </AnimatePresence>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}

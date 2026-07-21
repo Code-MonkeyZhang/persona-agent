@@ -151,6 +151,8 @@ interface MessageListProps {
   sessionId: string | null;
   hasAgent?: boolean;
   agent: AgentConfig | null;
+  /** Virtuoso 底部预留高度，用于避开浮层 InputBox；不传则不留空 */
+  bottomPadding?: number;
 }
 
 /**
@@ -166,6 +168,7 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
       sessionId,
       hasAgent = true,
       agent,
+      bottomPadding = 0,
     },
     ref
   ) => {
@@ -277,6 +280,7 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
           increaseViewportBy={{ top: 2000, bottom: 2000 }}
           components={{
             Header: () => <div className="h-4" />,
+            Footer: () => <div style={{ height: bottomPadding }} />,
           }}
           itemContent={(_index, message) => (
             <MessageItem
@@ -290,6 +294,7 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
         <ScrollToBottomButton
           visible={!isAtBottom && messages.length > 0}
           onClick={handleScrollToBottom}
+          bottomOffset={bottomPadding}
         />
       </div>
     );

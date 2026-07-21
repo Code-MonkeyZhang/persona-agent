@@ -19,7 +19,7 @@ interface CompanionStore {
 export const useCompanionStore = create<CompanionStore>()(
   persist(
     (set) => ({
-      visible: true,
+      visible: false,
       currentPose: 'default',
       animatePose: false,
       toggleVisible: () => set((s) => ({ visible: !s.visible })),

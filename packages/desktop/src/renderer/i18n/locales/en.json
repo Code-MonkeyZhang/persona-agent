@@ -248,7 +248,6 @@
   "companion.uploadPoseHint": "Please upload pose images in the Agent editor's Appearance section",
   "companion.poseLoadError": "Failed to load pose image",
   "companion.thinking": "Thinking...",
-  "companion.inputPlaceholder": "Type a message...",
   "companion.configureVoiceFirst": "Please configure voice in the Agent editor first",
 
   "server.title": "Server Management",

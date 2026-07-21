@@ -14,7 +14,7 @@ interface UseChatInputOptions {
 }
 
 /**
- * 聊天输入框 hook，统一封装 InputBox 和 CompanionPanel 中重复的 textarea 逻辑：
+ * 聊天输入框 hook，封装 textarea 自动撑高、IME 兼容的 Enter 发送、输入值管理和高度重置：
  * - 输入值管理
  * - 根据内容自动撑高，上限 maxHeight
  * - IME 兼容的 Enter 发送

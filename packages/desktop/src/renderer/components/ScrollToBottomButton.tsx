@@ -12,6 +12,8 @@ interface ScrollToBottomButtonProps {
   visible: boolean;
   /** 点击后触发的滚动回调 */
   onClick: () => void;
+  /** 距容器底部的额外偏移，用于避开浮层；默认 0 仅保留基础间距 */
+  bottomOffset?: number;
 }
 
 /**
@@ -22,6 +24,7 @@ interface ScrollToBottomButtonProps {
 export function ScrollToBottomButton({
   visible,
   onClick,
+  bottomOffset = 0,
 }: ScrollToBottomButtonProps) {
   const { t } = useTranslation();
 
@@ -32,7 +35,8 @@ export function ScrollToBottomButton({
           type="button"
           onClick={onClick}
           aria-label={t('messageList.scrollToBottom')}
-          className="absolute bottom-4 right-4 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-border/40 bg-background/90 text-muted-foreground shadow-md backdrop-blur-sm transition-colors hover:bg-background hover:text-foreground"
+          style={{ bottom: bottomOffset + 16 }}
+          className="absolute right-4 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-border/40 bg-background/90 text-muted-foreground shadow-md backdrop-blur-sm transition-colors hover:bg-background hover:text-foreground"
           initial={{ opacity: 0, y: 8 }}
           animate={{
             opacity: 1,
