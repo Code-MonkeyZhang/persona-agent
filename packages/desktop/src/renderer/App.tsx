@@ -144,6 +144,8 @@ function AppContent() {
         const convertedMessages = convertSessionMessages(session.messages);
         chatStore.initSessionState(session.id, convertedMessages);
       }
+      // 进入 session 时订阅事件流，获取 isGenerating 状态并接收后续事件
+      chatStore.subscribeSession(session.id);
     } else {
       chatStore.setCurrentSessionId(null);
       setAgentId(currentAgent?.id ?? null);

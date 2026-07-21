@@ -80,11 +80,13 @@ function handleClientMessage(
     case 'subscribe': {
       const { sessionId } = message.payload;
       client.subscriptions.add(sessionId);
+      const isGenerating = sessionRegistry.has(sessionId);
       Logger.log('WS', 'Client subscribed', {
         clientId: client.id,
         sessionId,
+        isGenerating,
       });
-      sendToClient(client, { type: 'subscribed', sessionId });
+      sendToClient(client, { type: 'subscribed', sessionId, isGenerating });
       break;
     }
 

@@ -18,6 +18,8 @@ export interface ConnectedMessage {
 export interface SubscribedMessage {
   type: 'subscribed';
   sessionId: string;
+  /** 该 session 是否正在生成，前端据此恢复加载状态 */
+  isGenerating?: boolean;
 }
 
 export interface WsToolCall {
