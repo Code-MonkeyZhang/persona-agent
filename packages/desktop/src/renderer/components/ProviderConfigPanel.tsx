@@ -228,9 +228,6 @@ export const ProviderConfigPanel: React.FC = () => {
                       <span className="font-mono text-[13px] text-foreground">
                         {model}
                       </span>
-                      {currentProvider.hasAuth && (
-                        <Check className="w-3.5 h-3.5 text-green-500" />
-                      )}
                     </div>
                   ))}
                 </div>
