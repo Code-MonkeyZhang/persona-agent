@@ -43,11 +43,20 @@ jobs:
 
       - run: npm run dist:mac
         working-directory: packages/desktop
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - uses: actions/upload-artifact@v4
         with:
           name: mac-build
-          path: packages/desktop/dist/*.dmg
+          path: |
+            packages/desktop/dist/*.dmg
+            packages/desktop/dist/*.zip
+            packages/desktop/dist/latest-mac.yml
 
   build-win:
     runs-on: windows-latest
@@ -87,7 +96,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: win-build
-          path: packages/desktop/dist/*.exe
+          path: |
+            packages/desktop/dist/*.exe
+            packages/desktop/dist/latest.yml
 
   release:
     needs: [build-mac, build-win]
@@ -115,7 +126,10 @@ jobs:
           TAG=${GITHUB_REF#refs/tags/}
           gh release create "$TAG" \
             ./artifacts/mac/*.dmg \
+            ./artifacts/mac/*.zip \
+            ./artifacts/mac/latest-mac.yml \
             ./artifacts/win/*.exe \
+            ./artifacts/win/latest.yml \
             --draft \
             --title "$TAG" \
             --generate-notes

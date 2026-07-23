@@ -1,5 +1,7 @@
 productName: "Persona"
 
+appId: com.feurther.persona
+
 afterPack: scripts/after-pack.mjs
 
 artifactName: "Persona-${os}-${arch}-${version}.${ext}"
@@ -18,11 +20,24 @@ extraResources:
     filter:
       - "**/*"
 
+publish:
+  provider: github
+  owner: Code-MonkeyZhang
+  repo: persona-agent
+
 mac:
   icon: "build/icon-mac.png"
-  identity: null
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize:
+    teamId: VPQQH7FP84
   target:
     - target: dmg
+      arch:
+        - arm64
+        - x64
+    - target: zip
       arch:
         - arm64
         - x64
