@@ -21,6 +21,7 @@ import {
 } from './server-manager';
 import { IPC } from '@shared/ipc/channels';
 import type { ProxyFetchOptions, SelectFolderOptions } from '@shared/types/api';
+import { setupUpdater } from './updater';
 
 const isMac = process.platform === 'darwin';
 const isWin = process.platform === 'win32';
@@ -28,6 +29,38 @@ const BINARY_NAME = isWin ? 'persona-agent-server.exe' : 'persona-agent-server';
 const CLOUDFLARED_NAME = isWin ? 'cloudflared.exe' : 'cloudflared';
 
 let serverProcess: ChildProcess | null = null;
+
+/**
+ * 停止后端服务器进程
+ * - 发送 SIGTERM 请求优雅退出
+ * - 等待 close 事件，超时 5 秒后 SIGKILL 强杀
+ * - 用于安装更新前确保子进程完全退出
+ */
+async function stopServer(): Promise<void> {
+  const proc = serverProcess;
+  if (!proc) return;
+  serverProcess = null;
+  try {
+    proc.kill();
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(() => {
+        try {
+          proc.kill('SIGKILL');
+        } catch {
+          // 进程已退出
+        }
+        resolve();
+      }, 5000);
+      proc.once('close', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
+    log.info('Server process stopped for update install');
+  } catch {
+    log.debug('Server process already exited');
+  }
+}
 
 // 日志配置
 if (is.dev) {
@@ -162,7 +195,9 @@ app.whenReady().then(async () => {
 
   await startServer();
 
-  createWindow();
+  const mainWindow = createWindow();
+
+  setupUpdater(mainWindow, stopServer);
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -285,7 +320,7 @@ async function startServer(): Promise<void> {
  * 创建主应用窗口
  * 初始化 BrowserWindow、加载渲染进程内容、配置 WebPreferences
  */
-function createWindow(): void {
+function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -330,4 +365,6 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
+
+  return mainWindow;
 }

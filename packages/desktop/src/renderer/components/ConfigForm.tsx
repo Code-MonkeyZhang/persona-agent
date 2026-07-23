@@ -11,6 +11,7 @@ import { useConfigStore } from '../stores/configStore';
 import { Switch } from './ui/Switch';
 import { SettingRow, SettingDivider } from './SettingRow';
 import { EnvironmentCard } from './EnvironmentCard';
+import { VersionUpdateCard } from './VersionUpdateCard';
 import { dataPath } from '../lib/platform';
 
 const STORAGE_PATHS = [
@@ -119,6 +120,8 @@ export const ConfigForm: React.FC = () => {
       </div>
 
       <EnvironmentCard />
+
+      <VersionUpdateCard />
     </div>
   );
 };

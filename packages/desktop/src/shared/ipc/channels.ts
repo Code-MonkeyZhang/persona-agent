@@ -16,4 +16,10 @@ export const IPC = {
   PROXY_FETCH: 'proxy-fetch',
   OPEN_EXTERNAL: 'open-external',
   OPEN_PATH: 'open-path',
+  UPDATER_GET_VERSION: 'updater:get-version',
+  UPDATER_CHECK_FOR_UPDATES: 'updater:check-for-updates',
+  UPDATER_DOWNLOAD_UPDATE: 'updater:download-update',
+  UPDATER_INSTALL_UPDATE: 'updater:install-update',
+  UPDATER_STATUS_CHANGED: 'updater:status-changed',
+  UPDATER_DOWNLOAD_PROGRESS: 'updater:download-progress',
 } as const;

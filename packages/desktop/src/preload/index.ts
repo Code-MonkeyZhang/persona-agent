@@ -12,7 +12,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
 import { IPC } from '@shared/ipc/channels';
-import type { WindowAPI } from '@shared/types/api';
+import type {
+  WindowAPI,
+  UpdateStatus,
+  UpdateProgress,
+} from '@shared/types/api';
 
 /**
  * 暴露给渲染进程的 API 集合，前端通过 window.api.xxx() 调用
@@ -77,6 +81,48 @@ const api: WindowAPI = {
       ipcRenderer.on(IPC.WINDOW_MAXIMIZED_CHANGED, listener);
       return () =>
         ipcRenderer.removeListener(IPC.WINDOW_MAXIMIZED_CHANGED, listener);
+    },
+  },
+
+  /** 更新检查相关方法，通过 IPC 转发到主进程的 electron-updater */
+  updater: {
+    getVersion: () => ipcRenderer.invoke(IPC.UPDATER_GET_VERSION),
+    checkForUpdates: () => ipcRenderer.invoke(IPC.UPDATER_CHECK_FOR_UPDATES),
+    downloadUpdate: () => ipcRenderer.invoke(IPC.UPDATER_DOWNLOAD_UPDATE),
+    installUpdate: () => ipcRenderer.invoke(IPC.UPDATER_INSTALL_UPDATE),
+
+    /**
+     * 监听更新状态变化
+     * @param callback - 状态变化回调
+     * @returns 取消监听函数
+     */
+    onStatusChange: (callback) => {
+      const listener = (
+        _: Electron.IpcRendererEvent,
+        status: UpdateStatus
+      ): void => {
+        callback(status);
+      };
+      ipcRenderer.on(IPC.UPDATER_STATUS_CHANGED, listener);
+      return () =>
+        ipcRenderer.removeListener(IPC.UPDATER_STATUS_CHANGED, listener);
+    },
+
+    /**
+     * 监听下载进度
+     * @param callback - 进度回调
+     * @returns 取消监听函数
+     */
+    onDownloadProgress: (callback) => {
+      const listener = (
+        _: Electron.IpcRendererEvent,
+        progress: UpdateProgress
+      ): void => {
+        callback(progress);
+      };
+      ipcRenderer.on(IPC.UPDATER_DOWNLOAD_PROGRESS, listener);
+      return () =>
+        ipcRenderer.removeListener(IPC.UPDATER_DOWNLOAD_PROGRESS, listener);
     },
   },
 };

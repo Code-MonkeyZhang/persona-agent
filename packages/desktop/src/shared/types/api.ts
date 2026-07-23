@@ -24,6 +24,19 @@ export interface ProxyFetchResponse {
   body: ArrayBuffer;
 }
 
+/** 更新状态推送给渲染层的联合类型 */
+export type UpdateStatus =
+  | { type: 'checking' }
+  | { type: 'update-available'; version: string }
+  | { type: 'update-not-available' }
+  | { type: 'downloaded' }
+  | { type: 'error'; message: string };
+
+/** 下载进度推送给渲染层 */
+export interface UpdateProgress {
+  percent: number;
+}
+
 /**
  * 暴露给渲染进程的 window.api 接口
  * preload/index.ts 的实现和 renderer/types/window.d.ts 的声明共同引用此接口
@@ -45,5 +58,15 @@ export interface WindowAPI {
     close: () => Promise<void>;
     isMaximized: () => Promise<boolean>;
     onMaximizedChange: (callback: (isMaximized: boolean) => void) => () => void;
+  };
+  updater: {
+    getVersion: () => Promise<string>;
+    checkForUpdates: () => Promise<void>;
+    downloadUpdate: () => Promise<void>;
+    installUpdate: () => Promise<void>;
+    onStatusChange: (callback: (status: UpdateStatus) => void) => () => void;
+    onDownloadProgress: (
+      callback: (progress: UpdateProgress) => void
+    ) => () => void;
   };
 }

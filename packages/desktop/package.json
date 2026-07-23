@@ -36,6 +36,7 @@
     "clsx": "^2.1.0",
     "electron-log": "^5.0.0",
     "electron-store": "^11.0.2",
+    "electron-updater": "^6.8.9",
     "framer-motion": "^11.18.0",
     "highlight.js": "^11.9.0",
     "i18next": "^26.2.0",
