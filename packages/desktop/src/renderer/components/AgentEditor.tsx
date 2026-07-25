@@ -834,7 +834,10 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                   <Brain className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-muted-foreground" />
                   {t('agentEditor.modelConfig')}
                 </h3>
-                <SettingRow label={t('agentEditor.defaultModel')}>
+                <SettingRow
+                  label={t('agentEditor.defaultModel')}
+                  tooltip={t('agentEditor.defaultModelTooltip')}
+                >
                   <ModelSelector
                     providers={providers}
                     value={modelId}
@@ -860,8 +863,9 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                 </SettingRow>
                 <SettingDivider />
                 <div>
-                  <div className="text-[14px] text-foreground leading-[18px] mb-2">
+                  <div className="flex items-center gap-1.5 text-[14px] text-foreground leading-[18px] min-h-[32px] mb-2">
                     {t('agentEditor.systemPrompt')}
+                    <HelpTooltip text={t('agentEditor.systemPromptTooltip')} />
                   </div>
                   <textarea
                     value={systemPrompt}
@@ -914,7 +918,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                 </h3>
                 <SettingRow
                   label={t('agentEditor.selectVoice')}
-                  desc={t('agentEditor.selectVoiceDesc')}
+                  tooltip={t('agentEditor.selectVoiceDesc')}
                 >
                   <div className="flex items-center gap-2">
                     <Select
@@ -1027,7 +1031,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                 </h3>
                 <SettingRow
                   label={t('agentEditor.defaultWorkspace')}
-                  desc={t('agentEditor.defaultWorkspaceDesc')}
+                  tooltip={t('agentEditor.defaultWorkspaceDesc')}
                 >
                   <WorkspaceSelector
                     value={defaultWorkspacePath}
