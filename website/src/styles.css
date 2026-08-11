@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-paper text-ink font-sans;
+    font-size: 16px;
+    line-height: 1.65;
+  }
+
+  ::selection {
+    @apply bg-ink text-paper;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .container-prose {
+    @apply mx-auto w-full max-w-2xl px-6;
+  }
+
+  .container-wide {
+    @apply mx-auto w-full max-w-5xl px-6;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-medium transition-transform duration-150 ease-emil-out;
+  }
+
+  .btn:active {
+    transform: scale(0.97);
+  }
+
+  .btn-primary {
+    @apply btn bg-ink text-paper;
+  }
+
+  .btn-ghost {
+    @apply btn border border-paper-line text-ink;
+  }
+
+  .card {
+    @apply rounded-2xl border border-paper-line bg-paper p-6 transition-colors duration-200;
+  }
+
+  .prose-policy h1 {
+    @apply text-3xl font-bold tracking-tight text-ink;
+  }
+
+  .prose-policy h2 {
+    @apply mt-10 text-xl font-semibold tracking-tight text-ink;
+  }
+
+  .prose-policy p {
+    @apply mt-4 text-base leading-relaxed text-ink-soft;
+  }
+
+  .prose-policy ul {
+    @apply mt-4 space-y-2 pl-5 text-ink-soft;
+    list-style: disc;
+  }
+
+  .prose-policy a {
+    @apply underline underline-offset-2 decoration-paper-line transition-colors duration-150;
+  }
+
+  .prose-policy a:hover {
+    @apply decoration-ink;
+  }
+}
