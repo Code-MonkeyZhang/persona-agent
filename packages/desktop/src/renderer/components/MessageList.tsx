@@ -59,6 +59,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
   const isUser = message.type === 'user';
   const isError = message.type === 'error';
   const isAssistant = message.type === 'assistant';
+
   const hasThoughts = message.thoughts && message.thoughts.length > 0;
   const hasContent = message.content.trim().length > 0;
   const isWaiting = isStreaming && !hasContent && !hasThoughts;

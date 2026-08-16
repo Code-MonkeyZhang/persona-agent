@@ -4,7 +4,7 @@
  * 窗口拖拽和红绿灯由 TitleBar 统一管理，Header 不再承担拖拽职责。
  */
 import React, { useCallback } from 'react';
-import { Plus, VenetianMask, Speech } from 'lucide-react';
+import { Plus, VenetianMask, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '../stores/sessionStore';
 import { useAgentStore } from '../stores/agentStore';
@@ -69,7 +69,11 @@ export const Header: React.FC<HeaderProps> = ({ onNewChat }) => {
               }`}
               title={t('header.voice')}
             >
-              <Speech className="w-4 h-4 mr-1" />
+              {voiceEnabled ? (
+                <Volume2 className="w-4 h-4 mr-1" />
+              ) : (
+                <VolumeX className="w-4 h-4 mr-1" />
+              )}
               <span>{t('header.voice')}</span>
             </button>
             <button
