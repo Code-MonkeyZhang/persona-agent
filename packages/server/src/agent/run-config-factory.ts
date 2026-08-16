@@ -7,7 +7,11 @@
 import { getAuth } from '../auth/index.js';
 import { getSkills } from '../skill/index.js';
 import type { Skill } from '../skill/index.js';
-import { getMcpToolsForServers, getMcpPromptInfo } from '../mcp/index.js';
+import {
+  getMcpToolsForServers,
+  getMcpPromptInfo,
+  getMcpServer,
+} from '../mcp/index.js';
 import {
   ReadTool,
   WriteTool,
@@ -115,9 +119,15 @@ ${skill.content}`;
 
 ## MCP Servers`;
 
-    for (const { name, status } of mcpInfo) {
-      prompt += `
-- ${name}: ${status}`;
+    for (const { name, status, instructions } of mcpInfo) {
+      prompt += `\n- ${name}: ${status}`;
+      if (instructions) {
+        const indented = instructions
+          .split('\n')
+          .map((line) => `  ${line}`)
+          .join('\n');
+        prompt += `\n${indented}`;
+      }
     }
   }
 
@@ -202,6 +212,17 @@ export function createAgentRunConfig(
     ...mcpTools,
   ];
 
+  // 收集 Agent App 工具名，供 executeTool 注入 agentId/sessionId
+  const agentAppToolNames = new Set<string>();
+  for (const serverName of agentConfig.mcpNames ?? []) {
+    const entry = getMcpServer(serverName);
+    if (entry?.agentApp) {
+      for (const tool of entry.tools) {
+        agentAppToolNames.add(tool.name);
+      }
+    }
+  }
+
   return {
     agentName: agentConfig.name,
     provider,
@@ -212,5 +233,8 @@ export function createAgentRunConfig(
     workspaceDir,
     maxSteps: agentConfig.maxSteps,
     tools,
+    agentId: agentConfig.id,
+    sessionId: session.id,
+    agentAppToolNames,
   };
 }

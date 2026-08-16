@@ -8,6 +8,7 @@ import type { AgentRunConfig } from './types.js';
 import type { Tool, ToolResult } from '../tools/index.js';
 import { convertContext, convertPiAiToolCall } from '../converters/index.js';
 import { models } from './pi-models.js';
+import { Logger } from '../util/logger.js';
 
 export class AgentCore {
   public runConfig: AgentRunConfig;
@@ -40,6 +41,9 @@ export class AgentCore {
   /**
    * 根据名称和参数执行工具。
    *
+   * 对 Agent App 工具，无条件注入 agentId/sessionId 到参数中，
+   * 覆盖模型可能填入的值——平台不信任模型对这两个字段的填写。
+   *
    * @param name - 要执行的工具名称
    * @param params - 传递给工具execute方法的参数
    * @returns ToolResult，包含成功状态、内容和可选的错误信息
@@ -55,6 +59,16 @@ export class AgentCore {
         content: '',
         error: `Unknown tool: ${name}`,
       };
+    }
+
+    // Agent App 工具注入：无条件覆盖 agentId/sessionId
+    const { agentId, sessionId, agentAppToolNames } = this.runConfig;
+    if (agentAppToolNames?.has(name) && agentId && sessionId) {
+      params = { ...params, agentId, sessionId };
+      Logger.log(
+        'MCP',
+        `Injected agentId/sessionId into Agent App tool '${name}'`
+      );
     }
 
     try {
