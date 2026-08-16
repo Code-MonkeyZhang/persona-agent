@@ -3,6 +3,7 @@
   "common.noAgentSelected": "No Agent selected",
   "common.collapseSidebar": "Collapse sidebar",
   "common.expandSidebar": "Expand sidebar",
+  "common.toggleAppSidebar": "Toggle app sidebar",
   "common.saveSuccess": "Saved successfully",
   "common.saveFailed": "Save failed",
   "common.delete": "Delete",

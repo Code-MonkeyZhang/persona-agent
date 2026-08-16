@@ -3,6 +3,7 @@
   "common.noAgentSelected": "未选择 Agent",
   "common.collapseSidebar": "收起侧边栏",
   "common.expandSidebar": "展开侧边栏",
+  "common.toggleAppSidebar": "切换应用栏",
   "common.saveSuccess": "保存成功",
   "common.saveFailed": "保存失败",
   "common.delete": "删除",

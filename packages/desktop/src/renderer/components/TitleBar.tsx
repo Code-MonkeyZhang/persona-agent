@@ -5,9 +5,10 @@
  * macOS 使用系统原生红绿灯，Windows/Linux 自绘红绿灯。
  */
 import React from 'react';
-import { PanelLeft, PanelLeftClose } from 'lucide-react';
+import { PanelLeft, PanelLeftClose, LayoutGrid } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useViewStore } from '../stores/viewStore';
+import { useAppPanelStore } from '../stores/appPanelStore';
 import { WindowControls } from './WindowControls';
 import { isMac } from '../lib/platform';
 
@@ -22,6 +23,7 @@ export const TitleBar: React.FC = () => {
     (s) => s.sessionSidebarCollapsed
   );
   const toggleSessionSidebar = useViewStore((s) => s.toggleSessionSidebar);
+  const toggleAppSidebar = useAppPanelStore((s) => s.toggleSidebar);
 
   const showSessionToggle = currentView === 'chat';
 
@@ -51,6 +53,20 @@ export const TitleBar: React.FC = () => {
           </button>
         )}
       </div>
+      {showSessionToggle && (
+        <div
+          className="header-no-drag flex items-center ml-auto"
+          style={{ paddingRight: isMac ? '12px' : '12px' }}
+        >
+          <button
+            onClick={toggleAppSidebar}
+            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            title={t('common.toggleAppSidebar')}
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

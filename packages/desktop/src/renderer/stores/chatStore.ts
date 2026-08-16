@@ -103,6 +103,32 @@ function filterEmptyPlaceholder(
   return messages;
 }
 
+/**
+ * 为一个 session 追加空的 AI 占位气泡并切到生成态。
+ * 用于用户发消息（乐观占位）以及 App 通知/恢复订阅触发的外部回合——
+ * 只有占位气泡存在，后续 step_complete 才能正确填入而非被当迟到消息丢弃。
+ */
+function withLoadingPlaceholder(
+  sessionState: SessionChatState
+): SessionChatState {
+  const placeholderId = crypto.randomUUID();
+  return {
+    ...sessionState,
+    messages: [
+      ...sessionState.messages,
+      {
+        id: placeholderId,
+        type: 'assistant' as const,
+        content: '',
+        timestamp: new Date(),
+        thoughts: [],
+      },
+    ],
+    isLoading: true,
+    streamingMessageId: placeholderId,
+  };
+}
+
 /** 单个 session 的聊天状态 */
 interface SessionChatState {
   messages: UIMessage[];
@@ -361,22 +387,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
               const sessionState = newStates.get(sessionId);
               // 只增不减：仅在当前未加载时恢复，避免与 sendMessage 乐观占位冲突
               if (sessionState && !sessionState.isLoading) {
-                const placeholderId = crypto.randomUUID();
-                newStates.set(sessionId, {
-                  ...sessionState,
-                  messages: [
-                    ...sessionState.messages,
-                    {
-                      id: placeholderId,
-                      type: 'assistant' as const,
-                      content: '',
-                      timestamp: new Date(),
-                      thoughts: [],
-                    },
-                  ],
-                  isLoading: true,
-                  streamingMessageId: placeholderId,
-                });
+                newStates.set(sessionId, withLoadingPlaceholder(sessionState));
               }
               return { sessionStates: newStates };
             });
@@ -386,6 +397,25 @@ export const useChatStore = create<ChatStore>((set, get) => {
           } else {
             logger.info('Subscribed to session:', sessionId);
           }
+          break;
+        }
+
+        case 'app_notification': {
+          // 外部（App）触发的回合：与用户发消息一样放占位气泡并切生成态，
+          // 这样紧随其后的 step_complete 能正确填入，而非被 isLoading 守卫丢弃
+          const sessionId = msg.sessionId;
+          set((state) => {
+            const newStates = new Map(state.sessionStates);
+            const sessionState = newStates.get(sessionId);
+            if (sessionState && !sessionState.isLoading) {
+              newStates.set(sessionId, withLoadingPlaceholder(sessionState));
+            }
+            return { sessionStates: newStates };
+          });
+          logger.info('App notification received', {
+            sessionId,
+            source: msg.source,
+          });
           break;
         }
 
