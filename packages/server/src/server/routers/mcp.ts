@@ -15,8 +15,24 @@ import {
   startOAuthFlow,
   getOAuthStatus,
 } from '../../mcp/index.js';
+import type { McpServerEntry } from '../../mcp/index.js';
 import { asyncHandler, getParam, requireParam } from './utils.js';
 import { AppError, errorMessage } from '../../util/errors.js';
+
+/**
+ * 将 McpServerEntry 投影为 API 响应格式。
+ */
+function projectMcpServerEntry(entry: McpServerEntry) {
+  return {
+    name: entry.name,
+    status: entry.status,
+    toolCount: entry.tools.length,
+    agentApp: entry.agentApp === true,
+    supportedUI: entry.supportedUI,
+    error: entry.error,
+    oauthUrl: entry.oauthUrl,
+  };
+}
 
 export function createMcpRouter(): Router {
   const router = Router();
@@ -24,13 +40,7 @@ export function createMcpRouter(): Router {
   router.get(
     '/',
     asyncHandler('MCP', 'Error listing MCP servers', (_req, res) => {
-      const servers = listMcpServers().map((s) => ({
-        name: s.name,
-        status: s.status,
-        toolCount: s.tools.length,
-        error: s.error,
-        oauthUrl: s.oauthUrl,
-      }));
+      const servers = listMcpServers().map(projectMcpServerEntry);
       res.json({ servers });
     })
   );
@@ -43,14 +53,7 @@ export function createMcpRouter(): Router {
       const entry = getMcpServer(name);
       if (!entry) throw new AppError(404, 'MCP server not found');
 
-      const server = {
-        name: entry.name,
-        status: entry.status,
-        toolCount: entry.tools.length,
-        error: entry.error,
-        oauthUrl: entry.oauthUrl,
-      };
-      res.json({ server });
+      res.json({ server: projectMcpServerEntry(entry) });
     })
   );
 

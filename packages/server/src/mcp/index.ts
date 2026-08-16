@@ -6,6 +6,8 @@ export {
   initMcpPool,
   listMcpServers,
   getMcpServer,
+  getAppPort,
+  setAppNotificationHandler,
   getMcpToolsForServers,
   getMcpPromptInfo,
   startOAuthFlow,

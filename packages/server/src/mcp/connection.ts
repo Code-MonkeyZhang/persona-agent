@@ -100,12 +100,16 @@ export class MCPServerConnection {
 
   public tools: MCPTool[] = [];
 
+  /** server 级整体说明（initialize 握手时的 instructions），无则为 undefined */
+  public instructions?: string;
+
   private session: McpClient | null = null;
   private transport:
     | StdioClientTransport
     | StreamableHTTPClientTransport
     | null = null;
   private authProvider?: McpOAuthProvider;
+  private onAppNotification?: (params: Record<string, unknown>) => void;
 
   constructor(options: {
     name: string;
@@ -119,6 +123,7 @@ export class MCPServerConnection {
     connectTimeoutSec?: number;
     executeTimeoutSec?: number;
     authProvider?: McpOAuthProvider;
+    onAppNotification?: (params: Record<string, unknown>) => void;
   }) {
     this.name = options.name;
     this.connectionType = options.connectionType;
@@ -131,6 +136,7 @@ export class MCPServerConnection {
     this.connectTimeoutSec = options.connectTimeoutSec;
     this.executeTimeoutSec = options.executeTimeoutSec;
     this.authProvider = options.authProvider;
+    this.onAppNotification = options.onAppNotification;
   }
 
   private getConnectTimeoutSec(): number {
@@ -195,20 +201,31 @@ export class MCPServerConnection {
     const client = new Client({
       name: APP_NAME,
       version: APP_VERSION,
-    }) as unknown as McpClient;
+    });
+
+    // Agent App 通知：注册 fallback handler 过滤 notifications/app
+    if (this.onAppNotification) {
+      client.fallbackNotificationHandler = async (notification) => {
+        if (notification.method !== 'notifications/app') return;
+        this.onAppNotification?.(notification.params ?? {});
+      };
+    }
+
+    const session = client as unknown as McpClient;
 
     try {
       const toolsList = await withTimeout(
         (async () => {
-          await client.connect(transport);
-          return await client.listTools();
+          await session.connect(transport);
+          return await session.listTools();
         })(),
         connectTimeoutMs,
         `Connection to MCP server '${this.name}' timed out after ${this.getConnectTimeoutSec()}s`
       );
 
-      this.session = client;
+      this.session = session;
       this.transport = transport;
+      this.instructions = session.getInstructions?.();
 
       const executeTimeout = this.getExecuteTimeoutSec();
       for (const tool of toolsList.tools ?? []) {
@@ -223,7 +240,7 @@ export class MCPServerConnection {
             name: tool.name,
             description: normalizedDescription,
             parameters: normalizedParameters,
-            session: client,
+            session,
             executeTimeoutSec: executeTimeout,
           })
         );
@@ -241,8 +258,8 @@ export class MCPServerConnection {
           'MCP',
           `Server '${this.name}' requires OAuth authentication`
         );
-        if (client?.close) {
-          await client.close().catch(() => {});
+        if (session?.close) {
+          await session.close().catch(() => {});
         }
         return { success: false, needsAuth: true };
       }
