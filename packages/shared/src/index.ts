@@ -23,6 +23,7 @@ export type {
   ToolCall,
   AssistantMessage,
   ErrorMessage,
+  /** 存储层的 App 通知消息；WS 事件版本见 ws.ts 的 AppNotificationEvent */
   AppNotificationMessage,
   Message,
 } from './schema.js';
