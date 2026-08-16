@@ -24,12 +24,14 @@ import { createPairRouter } from './routers/pair.js';
 import { createRuntimesRouter } from './routers/runtimes.js';
 import { createAssetsRouter } from './routers/assets.js';
 import { createAvatarRouter } from './routers/avatar.js';
+import { processAppNotification } from './services/app-notification-service.js';
 import { initWebSocket, isWebSocketInitialized } from './websocket-server.js';
 import { startDreamScheduler } from './dream-scheduler.js';
 
 import { listAgentConfigs } from '../agent/index.js';
 import { initSkillPool } from '../skill/index.js';
-import { initMcpPool } from '../mcp/index.js';
+import { initMcpPool, setAppNotificationHandler } from '../mcp/index.js';
+import { appProxyMiddleware, handleAppWsUpgrade } from '../mcp/app-proxy.js';
 import { SessionStore } from '../session/store.js';
 import { SessionManager } from '../session/session-manager.js';
 import { findGitBash } from '../util/git-bash-detector.js';
@@ -45,6 +47,8 @@ Logger.log('SERVER', `Injected runtimes dir into PATH: ${runtimesDir}`);
 
 const app = express();
 app.use(cors());
+// Proxy before express.json() so raw request bodies are preserved
+app.use(appProxyMiddleware);
 app.use(express.json());
 
 app.use((req, _res, next) => {
@@ -98,6 +102,17 @@ function initSessionManagers(): void {
 
 initSessionManagers();
 initSkillPool();
+
+// 注册 Agent App 通知回调，必须在 initMcpPool 之前
+setAppNotificationHandler((params, serverName) => {
+  processAppNotification(params, serverName, sessionManagers).catch((err) => {
+    Logger.log(
+      'MCP-APP',
+      `Notification handling failed: ${(err as Error).message}`
+    );
+  });
+});
+
 void initMcpPool();
 Logger.setSessionManagers(sessionManagers);
 startDreamScheduler();
@@ -149,5 +164,11 @@ app.use(errorHandler);
 if (!isWebSocketInitialized()) {
   initWebSocket(httpServer);
 }
+// Forward /apps/ WebSocket upgrades to Agent App servers
+httpServer.on('upgrade', (req, socket, head) => {
+  if (req.url?.startsWith('/apps/')) {
+    handleAppWsUpgrade(req, socket, head);
+  }
+});
 
 export { httpServer };

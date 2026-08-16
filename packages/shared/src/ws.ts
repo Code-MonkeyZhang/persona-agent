@@ -114,6 +114,17 @@ export interface AbortedMessage {
   reason: string;
 }
 
+/**
+ * App 通知触发的服务端回合开始信号。
+ * 服务端在 Agent 循环开始前广播，客户端据此创建 AI 占位气泡并切换为生成状态。
+ */
+export interface AppNotificationMessage {
+  type: 'app_notification';
+  sessionId: string;
+  source: string;
+  content: string;
+}
+
 export type ServerMessage =
   | ConnectedMessage
   | SubscribedMessage
@@ -127,7 +138,8 @@ export type ServerMessage =
   | PairRequestMessage
   | DeviceOnlineMessage
   | DeviceOfflineMessage
-  | AbortedMessage;
+  | AbortedMessage
+  | AppNotificationMessage;
 
 // ── Client → Server 消息 ──
 

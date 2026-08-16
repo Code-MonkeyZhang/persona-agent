@@ -30,9 +30,20 @@ let wss: WebSocketServer | null = null;
 let deviceCleanupTimer: ReturnType<typeof setInterval> | null = null;
 
 export function initWebSocket(server: import('http').Server): WebSocketServer {
-  wss = new WebSocketServer({ server, path: '/ws' });
+  const instance = new WebSocketServer({ noServer: true });
+  wss = instance;
 
-  wss.on('connection', (ws: WebSocket, _req: IncomingMessage) => {
+  // Manually route /ws upgrades so non-/ws paths (e.g. /apps/) are not rejected
+  server.on('upgrade', (req, socket, head) => {
+    const idx = req.url ? req.url.indexOf('?') : -1;
+    const pathname = idx !== -1 ? req.url!.slice(0, idx) : req.url;
+    if (pathname !== '/ws') return;
+    instance.handleUpgrade(req, socket, head, (ws) => {
+      instance.emit('connection', ws, req);
+    });
+  });
+
+  instance.on('connection', (ws: WebSocket, _req: IncomingMessage) => {
     const clientId = randomUUID();
     const client: WebSocketClient = {
       id: clientId,
@@ -68,8 +79,8 @@ export function initWebSocket(server: import('http').Server): WebSocketServer {
 
   startDeviceCleanup();
 
-  Logger.log('WS', 'WebSocket server initialized on /ws');
-  return wss;
+  Logger.log('WS', 'WebSocket server initialized (noServer mode, /ws)');
+  return instance;
 }
 
 function handleClientMessage(

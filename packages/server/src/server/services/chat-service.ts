@@ -42,6 +42,8 @@ interface ChatRequest {
   content: string;
   voiceEnabled?: boolean;
   sessionManager: SessionManager;
+  /** 设置时表示本次对话由 App 通知触发，跳过标题生成和 TTS */
+  appSource?: string;
 }
 
 /**
@@ -50,6 +52,23 @@ interface ChatRequest {
 interface ChatResponse {
   success: boolean;
   error?: string;
+}
+
+/**
+ * 将一条历史消息加载进 Agent 的消息列表。
+ *
+ * app_notification 消息在运行时转成带前缀的 user 消息发给 LLM，不写回存储。
+ */
+function loadMessageIntoAgent(agent: AgentCore, msg: Message): void {
+  if (msg.role === 'system') return;
+  if (msg.role === 'app_notification') {
+    agent.messages.push({
+      role: 'user',
+      content: `[来自应用「${msg.source}」的事件] ${msg.content}`,
+    });
+  } else {
+    agent.messages.push(msg);
+  }
 }
 
 /**
@@ -88,7 +107,14 @@ function saveStepMessages(
  * 实时内容通过 WebSocket step_complete 事件推送
  */
 export async function processChat(request: ChatRequest): Promise<ChatResponse> {
-  const { agentId, sessionId, content, voiceEnabled, sessionManager } = request;
+  const {
+    agentId,
+    sessionId,
+    content,
+    voiceEnabled,
+    sessionManager,
+    appSource,
+  } = request;
 
   /**
    * 持久化错误消息并广播 error + complete 事件
@@ -163,30 +189,51 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
         });
       }
       for (const msg of messagesToLoad) {
-        if (msg.role !== 'system') {
-          agent.messages.push(msg);
-        }
+        loadMessageIntoAgent(agent, msg);
       }
     } else {
       // 普通 Session全量加载原始消息。
       // TODO: 普通Session应该使用滑动窗口等简单机制, 而不是全部加载
       for (const msg of session.messages) {
-        if (msg.role !== 'system') {
-          agent.messages.push(msg);
-        }
+        loadMessageIntoAgent(agent, msg);
       }
     }
 
     let historyLength = agent.messages.length;
-    agent.addUserMessage(content);
-    saveStepMessages(sessionManager, sessionId, agent, historyLength);
+    if (appSource) {
+      // App 通知：Agent 收到带前缀的 user 消息，session 存储 app_notification 原文
+      agent.addUserMessage(`[来自应用「${appSource}」的事件] ${content}`);
+      sessionManager.appendMessage(sessionId, {
+        role: 'app_notification',
+        source: appSource,
+        content,
+      });
+      // 广播回合开始信号，客户端据此创建 AI 占位气泡，之后 step_complete 正常填入
+      broadcastToSession(sessionId, {
+        type: 'app_notification',
+        sessionId,
+        source: appSource,
+        content,
+      });
+      Logger.log('CHAT', 'App notification broadcast', {
+        sessionId,
+        source: appSource,
+      });
+    } else {
+      agent.addUserMessage(content);
+      saveStepMessages(sessionManager, sessionId, agent, historyLength);
+    }
     historyLength = agent.messages.length;
-    Logger.log('CHAT', 'User message added', { agentId, sessionId, content });
+    Logger.log('CHAT', 'Message added', {
+      agentId,
+      sessionId,
+      source: appSource ?? 'user',
+    });
 
     // Fire-and-forget: auto-generate title base on the first user message
     const isFirstMessage = session.messages.length === 0;
     const isDefaultTitle = session.title === 'New Session';
-    if (isFirstMessage && isDefaultTitle && !isChatSession) {
+    if (!appSource && isFirstMessage && isDefaultTitle && !isChatSession) {
       Logger.log('TITLE', 'Auto-generating title', { sessionId });
       const { provider: modelProvider, model: modelId } = session.model;
       generateTitle(content, modelProvider, modelId)
@@ -394,7 +441,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     broadcastToSession(sessionId, { type: 'complete', sessionId });
 
     // Fire-and-forget: TTS voice processing
-    if (voiceEnabled) {
+    if (!appSource && voiceEnabled) {
       handleTtsAsync(sessionId, session, agentConfig, lastContentText).catch(
         () => {}
       );

@@ -59,8 +59,23 @@ export interface ErrorMessage {
   content: string;
 }
 
+/**
+ * Agent App 通知消息。
+ *
+ * 存储层独立于 user/assistant，永不改写。
+ * 运行时由 chat-service 转成带前缀的 user 消息发给 LLM。
+ */
+export interface AppNotificationMessage {
+  role: 'app_notification';
+  /** App 名称，与 mcp.json 的 key 一致 */
+  source: string;
+  /** 给 Agent 看的自然语言消息 */
+  content: string;
+}
+
 export type Message =
   | SystemMessage
   | UserMessage
   | AssistantMessage
-  | ErrorMessage;
+  | ErrorMessage
+  | AppNotificationMessage;

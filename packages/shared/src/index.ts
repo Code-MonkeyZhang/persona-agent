@@ -23,12 +23,18 @@ export type {
   ToolCall,
   AssistantMessage,
   ErrorMessage,
+  AppNotificationMessage,
   Message,
 } from './schema.js';
 export type { SessionMeta, Session } from './session.js';
 export * from './ws.js';
 export type { ProviderStatus } from './provider.js';
-export type { McpServerStatus, McpServerInfo, McpOAuthStatus } from './mcp.js';
+export type {
+  McpServerStatus,
+  SupportedUI,
+  McpServerInfo,
+  McpOAuthStatus,
+} from './mcp.js';
 export type { SkillInfo } from './skill.js';
 export type { TtsModel, ClonedVoice, VoiceOption, TtsConfig } from './tts.js';
 export {
