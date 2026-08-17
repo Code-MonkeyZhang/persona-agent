@@ -28,4 +28,8 @@ export interface AgentRunConfig {
   workspaceDir: string;
   maxSteps: number;
   tools: Tool[];
+  agentId?: string;
+  sessionId?: string;
+  /** 需要注入 agentId/sessionId 的工具名集合（来自 agentApp MCP Server） */
+  agentAppToolNames?: Set<string>;
 }

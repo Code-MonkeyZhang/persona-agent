@@ -30,10 +30,34 @@ const connections: Map<
   { name: string; tools: Tool[]; disconnect: () => Promise<void> }
 > = new Map();
 const serverConnections: Map<string, MCPServerConnection> = new Map();
+/** Agent App 名称 → HTTP 端口映射，供反向代理查询 */
+const appPorts: Map<string, number> = new Map();
+
+/** Agent App 通知回调，由 http-server 注册 */
+let appNotificationHandler:
+  | ((params: Record<string, unknown>, serverName: string) => void)
+  | null = null;
 
 const pendingOAuth: Map<string, { status: string; error?: string }> = new Map();
 
 let initialized = false;
+
+/**
+ * 从 config 创建 connecting 状态的 entry，投影 agentApp / supportedUI 字段。
+ */
+function createConnectingEntry(
+  name: string,
+  config: McpServerConfig
+): McpServerEntry {
+  return {
+    name,
+    config,
+    status: 'connecting',
+    tools: [],
+    agentApp: config.agentApp === true,
+    supportedUI: config.supportedUI,
+  };
+}
 
 /**
  * Initialize the MCP connection pool.
@@ -50,19 +74,21 @@ export async function initMcpPool(): Promise<void> {
   }
 
   for (const [name, config] of serverConfigs) {
-    serverEntries.set(name, {
-      name,
-      config,
-      status: 'connecting',
-      tools: [],
-    });
+    serverEntries.set(name, createConnectingEntry(name, config));
   }
 
-  const results = await connectAllServers(serverConfigs);
+  const results = await connectAllServers(
+    serverConfigs,
+    appNotificationHandler ?? undefined
+  );
 
   for (const result of results) {
     const entry = serverEntries.get(result.name);
     if (!entry) continue;
+
+    if (result.appPort) {
+      appPorts.set(result.name, result.appPort);
+    }
 
     if (result.serverConn) {
       serverConnections.set(result.name, result.serverConn);
@@ -105,6 +131,26 @@ export function getMcpServer(name: string): McpServerEntry | undefined {
 }
 
 /**
+ * Get the HTTP port allocated for an Agent App.
+ * Returns undefined for non-App servers or unknown names.
+ */
+export function getAppPort(name: string): number | undefined {
+  return appPorts.get(name);
+}
+
+/**
+ * 注册 Agent App 通知回调。
+ *
+ * 收到 notifications/app 时按 (params, serverName) 调用。
+ * 必须在 initMcpPool 之前调用，否则已建立的连接无法收到通知。
+ */
+export function setAppNotificationHandler(
+  handler: (params: Record<string, unknown>, serverName: string) => void
+): void {
+  appNotificationHandler = handler;
+}
+
+/**
  * Get all tools from the specified MCP servers.
  * Only returns tools from servers that are currently connected.
  * Disconnected or unknown servers are skipped.
@@ -140,19 +186,23 @@ export function getMcpToolsForServers(serverNames: string[]): Tool[] {
 
 /**
  * Get MCP server status info for system prompt generation.
- * Returns server name -> status mapping for the specified names.
+ * Returns server name -> status mapping for the specified names,
+ * plus the server-level instructions (if declared at handshake).
  *
  * @param serverNames - List of MCP server names
- * @returns Array of { name, status } for prompt inclusion
+ * @returns Array of { name, status, instructions? } for prompt inclusion
  */
 export function getMcpPromptInfo(
   serverNames: string[]
-): Array<{ name: string; status: string }> {
+): Array<{ name: string; status: string; instructions?: string }> {
   return serverNames.map((name) => {
     const entry = serverEntries.get(name);
+    const conn = serverConnections.get(name);
+    const instructions = conn?.instructions?.trim() || undefined;
     return {
       name,
       status: entry?.status ?? 'unknown',
+      instructions,
     };
   });
 }
@@ -373,17 +423,21 @@ export async function addServer(
 
   Logger.log('MCP', `Adding server '${name}' to pool at runtime`);
 
-  serverEntries.set(name, {
+  serverEntries.set(name, createConnectingEntry(name, config));
+
+  const handler = appNotificationHandler;
+  const result = await connectOne(
     name,
     config,
-    status: 'connecting',
-    tools: [],
-  });
-
-  const result = await connectOne(name, config);
+    handler ? (params) => handler(params, name) : undefined
+  );
 
   if (result.serverConn) {
     serverConnections.set(name, result.serverConn);
+  }
+
+  if (result.appPort) {
+    appPorts.set(name, result.appPort);
   }
 
   const entry = serverEntries.get(name);
@@ -432,6 +486,7 @@ export async function removeServer(name: string): Promise<void> {
   }
 
   pendingOAuth.delete(name);
+  appPorts.delete(name);
   serverEntries.delete(name);
 
   Logger.log('MCP', `Server '${name}' removed from pool`);

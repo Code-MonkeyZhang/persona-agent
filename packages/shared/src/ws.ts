@@ -114,6 +114,19 @@ export interface AbortedMessage {
   reason: string;
 }
 
+/**
+ * App 通知触发的服务端回合开始信号。
+ * 服务端在 Agent 循环开始前广播，客户端据此创建 AI 占位气泡并切换为生成状态。
+ * 注意：这是 WS 事件，不是存储层消息；存储层的同名概念见 schema.ts 的
+ * AppNotificationMessage（role: 'app_notification'），两者刻意区分命名。
+ */
+export interface AppNotificationEvent {
+  type: 'app_notification';
+  sessionId: string;
+  source: string;
+  content: string;
+}
+
 export type ServerMessage =
   | ConnectedMessage
   | SubscribedMessage
@@ -127,7 +140,8 @@ export type ServerMessage =
   | PairRequestMessage
   | DeviceOnlineMessage
   | DeviceOfflineMessage
-  | AbortedMessage;
+  | AbortedMessage
+  | AppNotificationEvent;
 
 // ── Client → Server 消息 ──
 

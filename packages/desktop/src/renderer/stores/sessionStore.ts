@@ -434,6 +434,8 @@ export const useSessionStore = create<SessionStore>()(
                 content: msg.content,
               });
             }
+          } else if (msg.role === 'app_notification') {
+            flushPending();
           } else {
             flushPending();
 

@@ -324,7 +324,7 @@ function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    minWidth: 400,
+    minWidth: 620,
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
@@ -336,6 +336,7 @@ function createWindow(): BrowserWindow {
       sandbox: false,
       nodeIntegration: false,
       contextIsolation: true,
+      webviewTag: true,
     },
   });
 

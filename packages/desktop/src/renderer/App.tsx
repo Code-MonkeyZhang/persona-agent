@@ -28,10 +28,14 @@ import { SessionSidebar } from './components/SessionSidebar';
 import { SettingsPage } from './components/SettingsPage';
 import { AgentEditor } from './components/AgentEditor';
 import { AgentToolsView } from './components/AgentToolsView';
+import { AppsView } from './components/AppsView';
 import { SkillsView } from './components/SkillsView';
 import { MarketplaceView } from './components/MarketplaceView';
 import { CompanionContent } from './components/CompanionContent';
 import { CompanionReplyBubble } from './components/CompanionReplyBubble';
+import { AppIconBar } from './components/AppIconBar';
+import { AppWebViewPanel } from './components/AppWebViewPanel';
+import { Group, Panel, Separator } from 'react-resizable-panels';
 import { ToastContainer } from './components/Toast';
 import { WebSocketProvider } from './components/WebSocketProvider';
 import { useChatStore } from './stores/chatStore';
@@ -41,18 +45,19 @@ import { useProviderStore } from './stores/providerStore';
 import { useCompanionStore } from './stores/companionStore';
 import { useViewStore } from './stores/viewStore';
 import { useTunnelStore } from './stores/tunnelStore';
+import { useAppPanelStore } from './stores/appPanelStore';
 import { logger } from './lib/logger';
 
 /**
  * 主聊天界面组件，整合所有子组件并管理核心交互逻辑
  */
 function AppContent() {
-  /* 状态定义 */
-
   const companionVisible = useCompanionStore((s) => s.visible);
   const currentView = useViewStore((s) => s.currentView);
   const editingAgentId = useViewStore((s) => s.editingAgentId);
   const activeNav = useViewStore((s) => s.activeNav);
+  const panelCollapsed = useAppPanelStore((s) => s.panelCollapsed);
+  const selectedApp = useAppPanelStore((s) => s.selectedApp);
 
   const pendingProviderRef = useRef<string | undefined>();
   const messageListRef = useRef<MessageListRef>(null);
@@ -279,84 +284,98 @@ function AppContent() {
           ) : (
             <>
               <SessionSidebar />
-              <div className="flex-1 overflow-hidden min-w-0">
-                {activeNav === 'chat' && (
-                  <div className="h-full flex flex-col">
-                    <Header onNewChat={handleNewChat} />
-                    <div className="flex-1 min-h-0 relative">
-                      {/* 双 pane 横向滑动容器，整屏滑动同一时间只看到一个 pane */}
-                      <div className="absolute inset-0 overflow-hidden">
-                        <motion.div
-                          className="flex h-full w-[200%]"
-                          initial={false}
-                          animate={{ x: companionVisible ? '-50%' : '0%' }}
-                          transition={{ duration: 0.3, ease: 'easeOut' }}
-                        >
-                          {/* Pane 1: 聊天列表 */}
-                          <div className="w-1/2 h-full flex flex-col min-h-0">
-                            <MessageList
-                              ref={messageListRef}
-                              key={currentSession?.id ?? 'no-session'}
-                              messages={messages}
-                              isLoading={isLoading}
-                              streamingMessageId={streamingMessageId}
-                              sessionId={currentSession?.id ?? null}
-                              hasAgent={!!currentAgent}
-                              agent={currentAgent}
-                              bottomPadding={floatingHeight}
-                            />
+              <Group orientation="horizontal" className="flex-1 min-w-0">
+                <Panel defaultSize="70" minSize="40">
+                  <div className="h-full overflow-hidden">
+                    {activeNav === 'chat' && (
+                      <div className="h-full flex flex-col">
+                        <Header onNewChat={handleNewChat} />
+                        <div className="flex-1 min-h-0 relative">
+                          {/* 双 pane 横向滑动容器，整屏滑动同一时间只看到一个 pane */}
+                          <div className="absolute inset-0 overflow-hidden">
+                            <motion.div
+                              className="flex h-full w-[200%]"
+                              initial={false}
+                              animate={{ x: companionVisible ? '-50%' : '0%' }}
+                              transition={{ duration: 0.3, ease: 'easeOut' }}
+                            >
+                              {/* Pane 1: 聊天列表 */}
+                              <div className="w-1/2 h-full flex flex-col min-h-0">
+                                <MessageList
+                                  ref={messageListRef}
+                                  key={currentSession?.id ?? 'no-session'}
+                                  messages={messages}
+                                  isLoading={isLoading}
+                                  streamingMessageId={streamingMessageId}
+                                  sessionId={currentSession?.id ?? null}
+                                  hasAgent={!!currentAgent}
+                                  agent={currentAgent}
+                                  bottomPadding={floatingHeight}
+                                />
+                              </div>
+                              {/* Pane 2: 陪伴展示 */}
+                              <div className="w-1/2 h-full">
+                                <CompanionContent
+                                  agentId={currentAgent?.id ?? null}
+                                />
+                              </div>
+                            </motion.div>
                           </div>
-                          {/* Pane 2: 陪伴展示 */}
-                          <div className="w-1/2 h-full">
-                            <CompanionContent
-                              agentId={currentAgent?.id ?? null}
-                            />
-                          </div>
-                        </motion.div>
-                      </div>
 
-                      {/* 浮层：常驻底部，聊天态与陪伴态共用同一个 InputBox */}
-                      <div className="absolute bottom-0 left-0 right-0 z-20">
-                        {companionVisible && (
-                          <CompanionReplyBubble
-                            agentId={currentAgent?.id ?? null}
-                          />
-                        )}
-                        <div
-                          ref={floatingRef}
-                          className={
-                            companionVisible
-                              ? ''
-                              : 'bg-background/80 backdrop-blur-md'
-                          }
-                        >
-                          <InputBox
-                            onSend={handleSend}
-                            onAbort={() => abortGeneration()}
-                            isLoading={isLoading}
-                            disabled={!currentAgent}
-                            providers={providers}
-                            currentModelId={currentModelId}
-                            currentProviderId={currentProviderId}
-                            onModelChange={handleModelChange}
-                            onProviderChange={handleProviderChange}
-                            workspacePath={currentWorkspacePath}
-                            onWorkspaceChange={handleWorkspaceChange}
-                          />
+                          {/* 浮层：常驻底部，聊天态与陪伴态共用同一个 InputBox */}
+                          <div className="absolute bottom-0 left-0 right-0 z-20">
+                            {companionVisible && (
+                              <CompanionReplyBubble
+                                agentId={currentAgent?.id ?? null}
+                              />
+                            )}
+                            <div
+                              ref={floatingRef}
+                              className={
+                                companionVisible
+                                  ? ''
+                                  : 'bg-background/80 backdrop-blur-md'
+                              }
+                            >
+                              <InputBox
+                                onSend={handleSend}
+                                onAbort={() => abortGeneration()}
+                                isLoading={isLoading}
+                                disabled={!currentAgent}
+                                providers={providers}
+                                currentModelId={currentModelId}
+                                currentProviderId={currentProviderId}
+                                onModelChange={handleModelChange}
+                                onProviderChange={handleProviderChange}
+                                workspacePath={currentWorkspacePath}
+                                onWorkspaceChange={handleWorkspaceChange}
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
+                    {activeNav === 'agent-settings' && (
+                      <AgentEditor
+                        editingAgentId={editingAgentId}
+                        onDelete={handleDeleteAgent}
+                      />
+                    )}
+                    {activeNav === 'tools' && <AgentToolsView />}
+                    {activeNav === 'apps' && <AppsView />}
+                    {activeNav === 'skills' && <SkillsView />}
                   </div>
+                </Panel>
+                {!panelCollapsed && selectedApp && (
+                  <>
+                    <Separator className="w-1 bg-border hover:bg-primary/20 transition-colors" />
+                    <Panel defaultSize="30" minSize="20" maxSize="50">
+                      <AppWebViewPanel />
+                    </Panel>
+                  </>
                 )}
-                {activeNav === 'agent-settings' && (
-                  <AgentEditor
-                    editingAgentId={editingAgentId}
-                    onDelete={handleDeleteAgent}
-                  />
-                )}
-                {activeNav === 'tools' && <AgentToolsView />}
-                {activeNav === 'skills' && <SkillsView />}
-              </div>
+              </Group>
+              <AppIconBar />
             </>
           )}
         </div>

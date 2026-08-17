@@ -1,7 +1,7 @@
 /**
  * @file components/cards/MarketplaceCard.tsx
- * @description 商城浏览页用的竖向卡片，三类商品共用，差异在标识区：
- * - MCP / Agent 显示图标框（MarketplaceLogo，有远程 logo 显图，缺失显兜底图标）
+ * @description 商城浏览页用的竖向卡片，四类商品共用，差异在标识区：
+ * - MCP / Agent / 应用 显示图标框（MarketplaceLogo，有远程 logo 显图，缺失显兜底图标）
  * - Skill 不显示，名字直接顶格
  * 安装动作三态：未安装 / 安装中 / 已安装（锁住不可点）。
  */
@@ -14,11 +14,12 @@ import {
   Loader2,
   Wrench,
   UserRound,
+  LayoutGrid,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { MarketplaceLogo } from '../MarketplaceLogo';
 
-/** 卡片渲染所需的商品基础字段，三类商城条目都满足 */
+/** 卡片渲染所需的商品基础字段，各类商城条目都满足 */
 export interface CardItem {
   name: string;
   author: string;
@@ -28,9 +29,9 @@ export interface CardItem {
 }
 
 interface MarketplaceCardProps {
-  type: 'skill' | 'mcp' | 'agent';
+  type: 'skill' | 'mcp' | 'agent' | 'app';
   item: CardItem;
-  /** 远程 logo 地址，仅 MCP / Agent 传入 */
+  /** 远程 logo 地址，仅 MCP / Agent / 应用传入 */
   logoUrl?: string;
   installed: boolean;
   installing: boolean;
@@ -52,13 +53,15 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
 
   return (
     <div className="flex flex-col gap-2 px-3.5 py-3 rounded-xl border border-border bg-background hover:bg-muted transition-colors">
-      {/* 标识区 + 名字：MCP/Agent 显图标框，Skill 名字顶格 */}
+      {/* 标识区 + 名字：MCP/Agent/应用显图标框，Skill 名字顶格 */}
       <div className="flex items-start gap-2.5">
         {type !== 'skill' && (
           <MarketplaceLogo
             logoUrl={logoUrl}
             name={item.name}
-            fallbackIcon={type === 'mcp' ? Wrench : UserRound}
+            fallbackIcon={
+              type === 'mcp' ? Wrench : type === 'app' ? LayoutGrid : UserRound
+            }
           />
         )}
         <div className="min-w-0 flex-1">

@@ -4,9 +4,9 @@
 
 import type { JsonSchema } from '../tools/base.js';
 import type { Tool } from '../tools/base.js';
-import type { McpServerStatus } from '@persona/shared';
+import type { McpServerStatus, SupportedUI } from '@persona/shared';
 
-export type { McpServerStatus } from '@persona/shared';
+export type { McpServerStatus, SupportedUI } from '@persona/shared';
 
 export type ConnectionType = 'stdio' | 'streamable_http';
 
@@ -35,6 +35,8 @@ export type McpClient = {
     arguments?: Record<string, unknown>;
   }) => Promise<McpCallToolResult>;
   close?: () => Promise<void>;
+  /** 读取 server 在 initialize 握手时声明的 instructions（server 级整体说明） */
+  getInstructions?: () => string | undefined;
 };
 
 export type Closable = {
@@ -62,6 +64,10 @@ export interface McpServerConfig {
   disabled?: boolean;
   connect_timeout?: number;
   execute_timeout?: number;
+  /** Agent App 标记：true 表示该 server 附带 Web UI，需要分配 HTTP 端口 */
+  agentApp?: boolean;
+  /** 支持的端，客户端筛选用；未声明时默认只支持 desktop */
+  supportedUI?: SupportedUI[];
 }
 
 export interface McpConfigFile {
@@ -79,6 +85,10 @@ export interface McpServerEntry {
   config: McpServerConfig;
   status: McpServerStatus;
   tools: McpToolMeta[];
+  /** Agent App 标记，从 config 投影，方便内部逻辑直接判断 */
+  agentApp?: boolean;
+  /** 支持的端，从 config 投影，随 /api/mcp 透出给客户端筛选 */
+  supportedUI?: SupportedUI[];
   error?: string;
   oauthUrl?: string;
 }

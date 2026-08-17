@@ -8,6 +8,7 @@ export type {
   UserMessage,
   AssistantMessage,
   ErrorMessage,
+  AppNotificationMessage,
   ToolCall,
   ToolResultMessage,
   Message,

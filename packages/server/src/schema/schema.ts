@@ -11,6 +11,7 @@ export type {
   ToolCall,
   AssistantMessage,
   ErrorMessage,
+  AppNotificationMessage,
   Message,
 } from '@persona/shared';
 

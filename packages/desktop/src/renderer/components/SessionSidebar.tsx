@@ -1,7 +1,7 @@
 /**
  * @file components/SessionSidebar.tsx
  * @description 会话列表侧边栏，展示当前 Agent 的常驻聊天入口、任务会话列表及底部资源入口。
- * 信息架构：Header → 聊天入口 → 分隔线 → 工具/技能 → 分隔线 →
+ * 信息架构：Header → 聊天入口 → 分隔线 → 工具/应用/技能 → 分隔线 →
  * 「会话」折叠头 → 平铺会话列表（钉底）。
  * 折叠状态由 viewStore 管理，开关位于 TitleBar。
  * 整体收起/展开使用 framer-motion AnimatePresence 做宽度过渡动画。
@@ -14,6 +14,7 @@ import {
   ChevronDown,
   ChevronRight,
   Wrench,
+  LayoutGrid,
   Sparkles,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -197,6 +198,14 @@ export const SessionSidebar: React.FC = () => {
                 label={t('sessionSidebar.tools')}
                 active={activeNav === 'tools'}
                 onClick={() => setActiveNav('tools')}
+              />
+
+              {/* 应用入口：人格级添加/移除 Agent App，与工具技能并列 */}
+              <NavItem
+                icon={LayoutGrid}
+                label={t('sessionSidebar.apps')}
+                active={activeNav === 'apps'}
+                onClick={() => setActiveNav('apps')}
               />
 
               {/* 技能入口 */}
