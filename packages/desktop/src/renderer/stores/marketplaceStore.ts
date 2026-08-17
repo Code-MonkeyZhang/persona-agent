@@ -389,11 +389,20 @@ export const useMarketplaceStore = create<MarketplaceStore>((set, get) => ({
     try {
       await apiUninstallMcp(name);
       await get().loadMcpManage();
+      // App 卸载联动：图标栏立即移除；若正开着该 App 的面板，收起面板
+      const appPanel = useAppPanelStore.getState();
+      if (appPanel.apps.some((a) => a.name === name)) {
+        if (appPanel.selectedApp === name) appPanel.selectApp(null);
+        await appPanel.loadApps();
+        logger.info(
+          `[Marketplace] Refreshed app icon bar after ${name} uninstall`
+        );
+      }
       toast.success(i18n.t('marketplace.uninstallSuccess', { name }));
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : i18n.t('common.loadFailed');
-      logger.error(`[Marketplace] Failed to uninstall MCP ${name}:`, err);
+      logger.error(`[Marketplace] Failed to uninstall MCP ${name}:`, msg);
       toast.error(msg);
       throw err;
     }
