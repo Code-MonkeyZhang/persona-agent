@@ -1,13 +1,16 @@
 /**
  * @file components/MarketplaceView.tsx
- * @description 商城浏览页（顶层全屏视图）。统一承载 Agent / MCP / Skill 三个 tab、
+ * @description 商城浏览页（顶层全屏视图）。统一承载 Agent / MCP / 应用 / Skill 四个 tab、
  * 搜索框与卡片网格。由左下角罗盘进入，是商城的唯一入口。
  *
  * 安装语义：一律入全局池，不自动分配给任何 Agent；Agent 安装即克隆并切换。
  *
+ * 应用 tab 与 MCP tab 共用同一份 MCP 清单，按条目的 agentApp 标记分桶：
+ * 应用 tab 只显示 agentApp 商品，MCP tab 不再显示。
+ *
  * 布局（见 ui-design/UI决策.md「商城页面布局与头部」）：
  * - 返回键钉窗口左上边缘；固定页面头（标题 + 副标题 + Tab/搜索）不随卡片滚动；
- * - 标题与图标随当前 tab 变；三个 tab 共用同一套响应式网格。
+ * - 标题与图标随当前 tab 变；四个 tab 共用同一套响应式网格。
  */
 import React, { useEffect, useState } from 'react';
 import {
@@ -15,6 +18,7 @@ import {
   VenetianMask,
   Plug,
   Sparkles,
+  LayoutGrid,
   type LucideIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -26,11 +30,12 @@ import { ListState } from './ListState';
 import { MarketplaceCard } from './cards/MarketplaceCard';
 import { cn } from '../lib/utils';
 
-type Tab = 'agent' | 'mcp' | 'skill';
+type Tab = 'agent' | 'mcp' | 'app' | 'skill';
 
 const TABS: { id: Tab; labelKey: string; Icon: LucideIcon }[] = [
   { id: 'agent', labelKey: 'marketplace.tabs.agent', Icon: VenetianMask },
   { id: 'mcp', labelKey: 'marketplace.tabs.mcp', Icon: Plug },
+  { id: 'app', labelKey: 'marketplace.tabs.app', Icon: LayoutGrid },
   { id: 'skill', labelKey: 'marketplace.tabs.skill', Icon: Sparkles },
 ];
 
@@ -44,10 +49,10 @@ export const MarketplaceView: React.FC = () => {
   const [tab, setTab] = useState<Tab>('agent');
   const [query, setQuery] = useState('');
 
-  // 切到某 tab 时按需拉取该类的清单与已装态
+  // 切到某 tab 时按需拉取该类的清单与已装态；应用 tab 与 MCP 共用清单
   useEffect(() => {
     if (tab === 'agent') s.loadAgentMarketplace();
-    else if (tab === 'mcp') s.loadMcpMarketplace();
+    else if (tab === 'mcp' || tab === 'app') s.loadMcpMarketplace();
     else s.loadSkillMarketplace();
   }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -135,11 +140,34 @@ export const MarketplaceView: React.FC = () => {
             >
               <CardGrid
                 emptyText={t('marketplace.empty')}
-                entries={matchQuery(s.mcpEntries, query)}
+                entries={matchQuery(
+                  s.mcpEntries.filter((e) => !e.agentApp),
+                  query
+                )}
                 isInstalled={(e) => s.mcpInstalled.has(folderNameOf(e))}
                 installing={s.installing}
                 onInstall={s.installMcp}
                 type="mcp"
+              />
+            </ListState>
+          )}
+
+          {tab === 'app' && (
+            <ListState
+              isLoading={s.mcpLoading}
+              error={s.mcpError}
+              onRetry={s.loadMcpMarketplace}
+            >
+              <CardGrid
+                emptyText={t('marketplace.empty')}
+                entries={matchQuery(
+                  s.mcpEntries.filter((e) => e.agentApp),
+                  query
+                )}
+                isInstalled={(e) => s.mcpInstalled.has(folderNameOf(e))}
+                installing={s.installing}
+                onInstall={s.installMcp}
+                type="app"
               />
             </ListState>
           )}
@@ -190,8 +218,8 @@ interface EntryFields {
 }
 
 /**
- * 统一卡片网格（三个 tab 共用同一套响应式规则），处理空态与渲染。
- * 每张卡封顶 240px、网格内居中。logoUrl 仅 mcp/agent 条目上存在。
+ * 统一卡片网格（四个 tab 共用同一套响应式规则），处理空态与渲染。
+ * 每张卡封顶 240px、网格内居中。logoUrl 仅 mcp/agent/app 条目上存在。
  */
 function CardGrid<T extends EntryFields>({
   entries,
@@ -205,7 +233,7 @@ function CardGrid<T extends EntryFields>({
   isInstalled: (e: T) => boolean;
   installing: Set<string>;
   onInstall: (e: T) => void;
-  type: 'agent' | 'mcp' | 'skill';
+  type: 'agent' | 'mcp' | 'app' | 'skill';
   emptyText: string;
 }) {
   if (entries.length === 0) {

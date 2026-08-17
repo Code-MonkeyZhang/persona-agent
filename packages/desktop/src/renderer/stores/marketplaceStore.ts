@@ -29,6 +29,7 @@ import {
 } from '../lib/api';
 import { folderNameOf } from '../lib/marketplace';
 import { useAgentStore } from './agentStore';
+import { useAppPanelStore } from './appPanelStore';
 import { useViewStore } from './viewStore';
 import { logger } from '../lib/logger';
 import { toast } from './toastStore';
@@ -250,6 +251,10 @@ export const useMarketplaceStore = create<MarketplaceStore>((set, get) => ({
       await installMarketplaceMcp(folder);
       set((s) => ({ mcpInstalled: new Set(s.mcpInstalled).add(folder) }));
       toast.success(i18n.t('marketplace.installSuccess', { name: entry.name }));
+      // Agent App 装完即进 App 图标栏，主动刷新让图标立刻出现，不用重启
+      if (entry.agentApp) {
+        await useAppPanelStore.getState().loadApps();
+      }
     } catch (err) {
       logger.error(`[Marketplace] Failed to install MCP ${folder}:`, err);
       toast.error(
