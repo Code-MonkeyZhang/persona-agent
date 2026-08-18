@@ -9,6 +9,7 @@ export type {
   AssistantMessage,
   ErrorMessage,
   AppNotificationMessage,
+  ContextMessage,
   ToolCall,
   ToolResultMessage,
   Message,

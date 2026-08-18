@@ -25,4 +25,14 @@ export interface SessionMeta {
 /** Full session with messages */
 export interface Session extends SessionMeta {
   messages: Message[];
+  /**
+   * 最后一条 context 消息的信封时间戳，loadSession 逐行解析派生，不落盘。
+   * undefined 表示该会话从未注入过运行时上下文。
+   */
+  lastContextAt?: number;
+  /**
+   * 最后一条真实消息（非 context）的信封时间戳，loadSession 逐行解析派生，不落盘。
+   * 用于计算"距上一条消息已过去多久"。
+   */
+  lastMessageAt?: number;
 }

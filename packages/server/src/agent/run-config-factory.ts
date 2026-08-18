@@ -39,7 +39,6 @@ import type { SessionManager } from '../session/session-manager.js';
  * ## Environment
  *
  * - Platform: {darwin|linux|win32}
- * - Date: {YYYY-MM-DD HH:mm (UTC+X)}
  * - Model: {provider}/{modelId}
  * - Working directory: {workspaceDir}
  *
@@ -79,20 +78,13 @@ function buildSystemPrompt(
     platformLine = platform;
   }
   // TODO: 写的很杂, 这个迟早要改
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const offset = -now.getTimezoneOffset();
-  const sign = offset >= 0 ? '+' : '-';
-  const absOffset = Math.abs(offset);
-  const tz = `UTC${sign}${Math.floor(absOffset / 60)}${absOffset % 60 > 0 ? `:${pad(absOffset % 60)}` : ''}`;
-  const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())} (${tz})`;
+  // 日期时间不在此注入——运行时上下文注入机制在消息流末尾提供，见 runtime-context.ts
 
   let prompt = `${basePrompt}
 
 ## Environment
 
 - Platform: ${platformLine}
-- Date: ${date}
 - Model: ${provider}/${modelId}
 - Working directory: ${workspaceDir}`;
 

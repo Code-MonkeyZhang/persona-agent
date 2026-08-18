@@ -199,6 +199,71 @@ describe('Session Module Integration Tests', () => {
       });
     });
 
+    /** loadSession 派生信封时间戳测试 */
+    describe('loadSession envelope timestamps', () => {
+      /** 按信封时间戳手工追加消息行，绕开 appendMessageLine 的实时时间 */
+      const appendTimedLine = (
+        id: string,
+        timestamp: string,
+        msg: Message
+      ): void => {
+        const filePath = path.join(
+          agentsDir,
+          currentAgentId,
+          'sessions',
+          `${id}.jsonl`
+        );
+        fs.appendFileSync(
+          filePath,
+          JSON.stringify({ timestamp, type: 'message', data: msg }) + '\n'
+        );
+      };
+
+      /** 测试从消息行信封派生 lastContextAt / lastMessageAt */
+      it('should derive lastContextAt / lastMessageAt from envelope timestamps', () => {
+        store.createSessionFile(createMeta('env-ts-session'));
+        appendTimedLine(
+          'env-ts-session',
+          '2026-08-16T00:00:00.000Z',
+          createUserMessage('old')
+        );
+        appendTimedLine('env-ts-session', '2026-08-17T00:00:00.000Z', {
+          role: 'context',
+          source: 'runtime-context',
+          content: '[system] 当前时间：2026-08-17 星期一 09:00 (UTC+8)',
+        });
+        appendTimedLine(
+          'env-ts-session',
+          '2026-08-18T00:00:00.000Z',
+          createUserMessage('new')
+        );
+
+        const loaded = store.loadSession('env-ts-session');
+        expect(loaded?.lastContextAt).toBe(
+          Date.parse('2026-08-17T00:00:00.000Z')
+        );
+        expect(loaded?.lastMessageAt).toBe(
+          Date.parse('2026-08-18T00:00:00.000Z')
+        );
+      });
+
+      /** 测试旧格式文件无 context 行时 lastContextAt 为 undefined */
+      it('should leave lastContextAt undefined for legacy files', () => {
+        store.createSessionFile(createMeta('legacy-ts-session'));
+        appendTimedLine(
+          'legacy-ts-session',
+          '2026-08-16T00:00:00.000Z',
+          createUserMessage('old')
+        );
+
+        const loaded = store.loadSession('legacy-ts-session');
+        expect(loaded?.lastContextAt).toBeUndefined();
+        expect(loaded?.lastMessageAt).toBe(
+          Date.parse('2026-08-16T00:00:00.000Z')
+        );
+      });
+    });
+
     /** appendMessageLine 测试 */
     describe('appendMessageLine', () => {
       /** 测试追加消息后能通过 loadSession 读到 */

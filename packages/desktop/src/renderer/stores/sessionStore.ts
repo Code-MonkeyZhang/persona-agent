@@ -362,7 +362,7 @@ export const useSessionStore = create<SessionStore>()(
        * - 每步的 content 作为 text thought 进入时间线
        * - 最终回答的 content 取最后一条非空值，同时从 thoughts 移除避免重复
        * - user / error 消息作为天然分隔点打断分组
-       * - system 消息直接跳过
+       * - system / context 消息直接跳过
        * @param messages - 服务端返回的原始消息数组
        * @returns 转换后的客户端 UIMessage 数组
        */
@@ -391,7 +391,7 @@ export const useSessionStore = create<SessionStore>()(
         for (let i = 0; i < messages.length; i++) {
           const msg = messages[i];
 
-          if (msg.role === 'system') {
+          if (msg.role === 'system' || msg.role === 'context') {
             continue;
           }
 

@@ -73,9 +73,25 @@ export interface AppNotificationMessage {
   content: string;
 }
 
+/**
+ * 运行时上下文注入消息。
+ *
+ * 存储层独立角色，落盘到 session JSONL，前端不渲染。
+ * 内容为当前时间与距上一条消息的时长、环境变化通知。
+ * 加载历史时由 chat-service 转成 user 消息发给 LLM。
+ */
+export interface ContextMessage {
+  role: 'context';
+  /** 注入来源标识，当前固定为 runtime-context */
+  source: 'runtime-context';
+  /** 给模型看的时间与环境变化文本 */
+  content: string;
+}
+
 export type Message =
   | SystemMessage
   | UserMessage
   | AssistantMessage
   | ErrorMessage
-  | AppNotificationMessage;
+  | AppNotificationMessage
+  | ContextMessage;

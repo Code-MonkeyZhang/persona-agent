@@ -9,6 +9,7 @@ import {
   createAgentRunConfig,
 } from '../../agent/index.js';
 import { runCompression } from './compress-service.js';
+import { buildRuntimeContext } from './runtime-context.js';
 import {
   estimateMessagesTokens,
   estimateMessageTokens,
@@ -57,7 +58,7 @@ interface ChatResponse {
 /**
  * 将一条历史消息加载进 Agent 的消息列表。
  *
- * app_notification 消息在运行时转成带前缀的 user 消息发给 LLM，不写回存储。
+ * app_notification / context 消息在运行时转成 user 消息发给 LLM，不写回存储。
  */
 function loadMessageIntoAgent(agent: AgentCore, msg: Message): void {
   if (msg.role === 'system') return;
@@ -65,6 +66,11 @@ function loadMessageIntoAgent(agent: AgentCore, msg: Message): void {
     agent.messages.push({
       role: 'user',
       content: `[来自应用「${msg.source}」的事件] ${msg.content}`,
+    });
+  } else if (msg.role === 'context') {
+    agent.messages.push({
+      role: 'user',
+      content: msg.content,
     });
   } else {
     agent.messages.push(msg);
@@ -229,6 +235,25 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       sessionId,
       source: appSource ?? 'user',
     });
+
+    // 运行时上下文注入：纯文本 user 消息进模型上下文，context 角色副本落盘。
+    // 双写防重复——落盘后立即推进 historyLength 越过内存中的 user 副本，
+    // 避免 saveStepMessages 按 historyLength 切片时把它再存一遍。
+    const runtimeContext = buildRuntimeContext(
+      sessionId,
+      session,
+      workspaceDir,
+      agentConfig.mcpNames
+    );
+    if (runtimeContext) {
+      agent.addUserMessage(runtimeContext);
+      sessionManager.appendMessage(sessionId, {
+        role: 'context',
+        source: 'runtime-context',
+        content: runtimeContext,
+      });
+      historyLength = agent.messages.length;
+    }
 
     // Fire-and-forget: auto-generate title base on the first user message
     const isFirstMessage = session.messages.length === 0;

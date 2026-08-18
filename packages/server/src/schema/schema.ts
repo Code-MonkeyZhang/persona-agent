@@ -12,6 +12,7 @@ export type {
   AssistantMessage,
   ErrorMessage,
   AppNotificationMessage,
+  ContextMessage,
   Message,
 } from '@persona/shared';
 

@@ -107,6 +107,8 @@ export class SessionStore {
    * session_meta; subsequent lines are parsed as messages. Lines that
    * fail JSON parsing are silently skipped (crash recovery).
    * `updatedAt` is derived from the file's modification time.
+   * `lastContextAt` / `lastMessageAt` are derived from the envelope
+   * timestamps of the last context line and the last real message line.
    */
   loadSession(id: string): Session | null {
     const filePath = this.sessionFilePath(id);
@@ -117,6 +119,8 @@ export class SessionStore {
 
     let meta: SessionMeta | null = null;
     const messages: Message[] = [];
+    let lastContextAt: number | undefined;
+    let lastMessageAt: number | undefined;
 
     for (const raw of lines) {
       let parsed: SessionLine;
@@ -128,7 +132,15 @@ export class SessionStore {
       if (parsed.type === 'session_meta' && !meta) {
         meta = parsed.data as SessionMeta;
       } else if (parsed.type === 'message') {
-        messages.push(parsed.data as Message);
+        const msg = parsed.data as Message;
+        messages.push(msg);
+        const ts = Date.parse(parsed.timestamp);
+        if (Number.isNaN(ts)) continue;
+        if (msg.role === 'context') {
+          lastContextAt = ts;
+        } else {
+          lastMessageAt = ts;
+        }
       }
     }
 
@@ -137,7 +149,14 @@ export class SessionStore {
     const stat = fs.statSync(filePath);
     // 文件名是会话 id 的权威来源。历史迁移可能留下 meta.id 与文件名不一致的残留，
     // 统一以传入的 id 为准，避免"列出时读到的 id"与"按 id 找文件"对不上。
-    return { ...meta, id, updatedAt: stat.mtimeMs, messages };
+    return {
+      ...meta,
+      id,
+      updatedAt: stat.mtimeMs,
+      lastContextAt,
+      lastMessageAt,
+      messages,
+    };
   }
 
   /**

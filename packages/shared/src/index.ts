@@ -25,6 +25,8 @@ export type {
   ErrorMessage,
   /** 存储层的 App 通知消息；WS 事件版本见 ws.ts 的 AppNotificationEvent */
   AppNotificationMessage,
+  /** 存储层的运行时上下文注入消息；前端不渲染 */
+  ContextMessage,
   Message,
 } from './schema.js';
 export type { SessionMeta, Session } from './session.js';
