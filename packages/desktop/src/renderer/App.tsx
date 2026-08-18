@@ -17,7 +17,13 @@
  * Session 栏折叠状态由 viewStore.sessionSidebarCollapsed 管理，
  * 折叠开关位于 TitleBar，不再需要独立的悬浮按钮。
  */
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { motion } from 'framer-motion';
 import { TitleBar } from './components/TitleBar';
 import { Header } from './components/Header';
@@ -63,6 +69,25 @@ function AppContent() {
   const messageListRef = useRef<MessageListRef>(null);
   const floatingRef = useRef<HTMLDivElement>(null);
   const [floatingHeight, setFloatingHeight] = useState(0);
+
+  /**
+   * 草稿暂存：新对话（懒创建、尚无会话）期间用户已选的模型/工作目录。
+   * 选择先暂存于此，待首条消息触发会话创建后转正写入并清空。
+   */
+  const [pendingModel, setPendingModel] = useState<{
+    provider: string;
+    model: string;
+  } | null>(null);
+  const [pendingWorkspace, setPendingWorkspace] = useState<
+    string | undefined
+  >();
+
+  /** 清空草稿暂存，调用时机：新建聊天、切换 Agent、转正写入后 */
+  const clearPendingDraft = useCallback(() => {
+    setPendingModel(null);
+    setPendingWorkspace(undefined);
+    pendingProviderRef.current = undefined;
+  }, []);
 
   /**
    * 测量浮层 InputBox 区域的实际高度，同步给 MessageList 作为 bottomPadding，
@@ -153,6 +178,14 @@ function AppContent() {
     }
   }, [connectionStatus]);
 
+  /** 切换 Agent 时清空草稿暂存，防止上一角色的选择串到新角色的新对话 */
+  useEffect(() => {
+    clearPendingDraft();
+    logger.info(
+      `[App] agent context: ${currentAgent?.id ?? 'none'}, draft cleared`
+    );
+  }, [currentAgent?.id, clearPendingDraft]);
+
   const activeSessionId = currentSession?.id ?? null;
 
   /**
@@ -187,22 +220,32 @@ function AppContent() {
     }
   }, [activeSessionId, currentAgent, setAgentId, convertSessionMessages]);
 
+  /* 模型/工作目录显示值：当前会话 → 草稿暂存 → Agent 默认 */
   const currentModelId =
-    currentSession?.model?.model || currentAgent?.defaultModel?.model || '';
+    currentSession?.model?.model ||
+    pendingModel?.model ||
+    currentAgent?.defaultModel?.model ||
+    '';
   const currentProviderId =
-    currentSession?.model?.provider || currentAgent?.defaultModel?.provider;
+    currentSession?.model?.provider ||
+    pendingModel?.provider ||
+    currentAgent?.defaultModel?.provider;
   const currentWorkspacePath =
-    currentSession?.workspacePath || currentAgent?.defaultWorkspacePath;
+    currentSession?.workspacePath ||
+    pendingWorkspace ||
+    currentAgent?.defaultWorkspacePath;
 
   /**
-   * 切换当前会话的模型，同时使用待定的供应商 ID 更新会话配置
+   * 切换模型：有会话直接写入会话；新对话草稿期暂存，待会话创建后转正。
+   * 供应商 ID 优先取待定 ref，无待定时回落当前显示值。
    * @param modelId - 新模型的 ID
    * @returns Promise<void>
    */
   const handleModelChange = async (modelId: string) => {
-    if (currentSession && currentAgent) {
-      const providerId = pendingProviderRef.current || currentProviderId || '';
-      pendingProviderRef.current = undefined;
+    if (!currentAgent) return;
+    const providerId = pendingProviderRef.current || currentProviderId || '';
+    pendingProviderRef.current = undefined;
+    if (currentSession) {
       await useSessionStore
         .getState()
         .updateSessionModel(
@@ -211,7 +254,10 @@ function AppContent() {
           providerId,
           modelId
         );
+      return;
     }
+    setPendingModel({ provider: providerId, model: modelId });
+    logger.info(`[App] draft model stashed: ${providerId}/${modelId}`);
   };
 
   /**
@@ -223,12 +269,13 @@ function AppContent() {
   };
 
   /**
-   * 切换当前会话的工作目录
-   * @param workspacePath - 新的工作目录路径，undefined 表示清除
+   * 切换工作目录：有会话直接写入会话；新对话草稿期暂存，待会话创建后转正。
+   * @param workspacePath - 新的工作目录路径，undefined 表示清除、回落 Agent 默认
    * @returns Promise<void>
    */
   const handleWorkspaceChange = async (workspacePath: string | undefined) => {
-    if (currentSession && currentAgent) {
+    if (!currentAgent) return;
+    if (currentSession) {
       await useSessionStore
         .getState()
         .updateSessionWorkspace(
@@ -236,19 +283,57 @@ function AppContent() {
           currentSession.id,
           workspacePath
         );
+      return;
     }
+    setPendingWorkspace(workspacePath);
+    logger.info(
+      `[App] draft workspace stashed: ${workspacePath ?? '(cleared to default)'}`
+    );
   };
 
   /**
-   * 清空当前会话，回到新建聊天状态
+   * 清空当前会话回到新建聊天状态，同时丢弃草稿暂存
    * @returns void
    */
   const handleNewChat = () => {
+    clearPendingDraft();
     useSessionStore.setState({ currentSession: null });
   };
 
   /**
-   * 发送消息：若无当前会话则先创建新会话，再发送内容
+   * 会话诞生后把草稿期暂存的模型/工作目录转正写入。
+   * 必须在首条消息发出前完成：服务端按发送时刻的会话配置选择模型。
+   * 写入失败仅记录日志并按默认配置继续发送，不阻断消息。
+   */
+  const applyPendingDraft = async (agentId: string, sessionId: string) => {
+    const { updateSessionModel, updateSessionWorkspace } =
+      useSessionStore.getState();
+    if (pendingModel) {
+      const ok = await updateSessionModel(
+        agentId,
+        sessionId,
+        pendingModel.provider,
+        pendingModel.model
+      );
+      logger.info(
+        `[App] promote draft model ${pendingModel.provider}/${pendingModel.model} to session ${sessionId}: ${ok ? 'ok' : 'failed'}`
+      );
+    }
+    if (pendingWorkspace !== undefined) {
+      const ok = await updateSessionWorkspace(
+        agentId,
+        sessionId,
+        pendingWorkspace
+      );
+      logger.info(
+        `[App] promote draft workspace ${pendingWorkspace} to session ${sessionId}: ${ok ? 'ok' : 'failed'}`
+      );
+    }
+    clearPendingDraft();
+  };
+
+  /**
+   * 发送消息：若无当前会话则先创建新会话，转正草稿暂存后再发送内容
    * @param content - 用户输入的消息文本
    * @returns Promise<void>
    */
@@ -264,6 +349,7 @@ function AppContent() {
       const newSession = await createNewSession(currentAgent.id);
       if (newSession) {
         useSessionStore.getState().updateCurrentSession(newSession);
+        await applyPendingDraft(currentAgent.id, newSession.id);
         sendMessage(content, newSession.id);
         return;
       }
