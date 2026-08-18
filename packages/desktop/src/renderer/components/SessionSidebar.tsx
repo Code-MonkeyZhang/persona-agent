@@ -115,8 +115,11 @@ export const SessionSidebar: React.FC = () => {
     }
   };
 
+  // 本地实时补丁优先，服务端 lastMessage 兜底，均无时显示占位文案
   const chatPreview = chatSession
-    ? sessionPreviews[chatSession.id] || t('sessionSidebar.startChat')
+    ? sessionPreviews[chatSession.id] ||
+      chatSession.lastMessage ||
+      t('sessionSidebar.startChat')
     : '';
 
   return (

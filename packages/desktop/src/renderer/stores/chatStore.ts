@@ -9,6 +9,7 @@
 import { create } from 'zustand';
 import type { UIMessage, ConnectionStatus, Thought } from '../types/chat';
 import type { ServerMessage, StepCompleteMessage } from '@persona/shared';
+import { buildPreviewText } from '@persona/shared';
 import {
   createMessage,
   sendChatMessage,
@@ -69,15 +70,6 @@ function cycleToThoughts(msg: StepCompleteMessage): Thought[] {
   });
 
   return thoughts;
-}
-
-/**
- * 从消息内容提取预览文本：去除 HTML 标签后截取前 30 个字符。
- * @param content - 原始消息内容
- * @returns 30 字截断的纯文本预览
- */
-function extractPreview(content: string): string {
-  return content.replace(/<[^>]+>/g, '').slice(0, 30);
 }
 
 /**
@@ -312,7 +304,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
       // 同步更新会话预览
       useSessionStore
         .getState()
-        .updateSessionPreview(sessionId, extractPreview(content));
+        .updateSessionPreview(sessionId, buildPreviewText(content));
 
       wsClient?.subscribe(sessionId);
 
@@ -496,7 +488,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
               .getState()
               .updateSessionPreview(
                 sessionId,
-                extractPreview(msg.content || '')
+                buildPreviewText(msg.content || '')
               );
           }
           break;

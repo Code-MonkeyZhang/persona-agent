@@ -41,6 +41,10 @@ export function createSessionRouter(
     asyncHandler('SESSION', 'Error listing sessions', (req, res) => {
       const manager = getSessionManager(req);
       const sessions = manager.listSessions();
+      Logger.log(
+        'SESSION',
+        `Listed ${sessions.length} sessions (${sessions.filter((s) => s.lastMessage !== undefined).length} with preview)`
+      );
       res.json({ sessions });
     })
   );

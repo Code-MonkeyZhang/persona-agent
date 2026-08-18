@@ -20,6 +20,14 @@ export interface SessionMeta {
 
   /** 当前立绘表情名称，由 show_pose 工具写入；undefined 时前端 fallback 到 'default' */
   currentPose?: string;
+
+  /**
+   * 最后一条真实消息的预览文本。
+   *
+   * 列表接口派生字段，由 listSessionFiles 从已读入的消息行现算，不落盘。
+   * 仅对常驻聊天会话计算；undefined 表示无消息或非聊天会话。
+   */
+  lastMessage?: string;
 }
 
 /** Full session with messages */

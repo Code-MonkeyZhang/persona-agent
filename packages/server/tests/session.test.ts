@@ -336,6 +336,104 @@ describe('Session Module Integration Tests', () => {
         const emptyStore = new SessionStore('no-sessions-agent');
         expect(emptyStore.listSessionFiles()).toEqual([]);
       });
+
+      /** lastMessage 预览派生测试 */
+      describe('lastMessage preview', () => {
+        /** 按消息行手工写入会话文件，首行为 meta */
+        const writeSessionLines = (
+          id: string,
+          msgs: Message[]
+        ): void => {
+          store.createSessionFile(createMeta(id));
+          const filePath = path.join(
+            agentsDir,
+            currentAgentId,
+            'sessions',
+            `${id}.jsonl`
+          );
+          for (const msg of msgs) {
+            fs.appendFileSync(
+              filePath,
+              JSON.stringify({
+                timestamp: new Date().toISOString(),
+                type: 'message',
+                data: msg,
+              }) + '\n'
+            );
+          }
+        };
+
+        /** 从列表结果中取指定 id 的 lastMessage */
+        const previewOf = (id: string): string | undefined =>
+          store.listSessionFiles().find((m) => m.id === id)?.lastMessage;
+
+        /** 测试聊天会话末行 user 文本被清洗截断为预览 */
+        it('should clean and truncate last user text for chat session', () => {
+          writeSessionLines('chat-preview-text', [
+            createUserMessage('<b>hello</b> world'),
+            createUserMessage('x'.repeat(120)),
+          ]);
+          expect(previewOf('chat-preview-text')).toBe('x'.repeat(80));
+        });
+
+        /** 测试 HTML 标签被剥离后进入预览 */
+        it('should strip html tags from preview', () => {
+          writeSessionLines('chat-preview-html', [
+            createUserMessage('<p>hello <b>world</b></p>'),
+          ]);
+          expect(previewOf('chat-preview-html')).toBe('hello world');
+        });
+
+        /** 测试末行 context 注入不泄漏，回退到前一条真实消息 */
+        it('should skip trailing context injection and fall back', () => {
+          writeSessionLines('chat-preview-ctx', [
+            createUserMessage('real message'),
+            {
+              role: 'context',
+              source: 'runtime-context',
+              content: '[system] 当前时间：2026-08-18 星期二 09:00 (UTC+8)',
+            },
+          ]);
+          expect(previewOf('chat-preview-ctx')).toBe('real message');
+        });
+
+        /** 测试末行 assistant 纯工具步无 content 时继续往前找 */
+        it('should keep looking back past contentless assistant steps', () => {
+          writeSessionLines('chat-preview-tool', [
+            createUserMessage('before tools'),
+            { role: 'assistant', tool_calls: [] },
+          ]);
+          expect(previewOf('chat-preview-tool')).toBe('before tools');
+        });
+
+        /** 测试空会话无消息时 lastMessage 为 undefined */
+        it('should leave lastMessage undefined for empty chat session', () => {
+          writeSessionLines('chat-preview-empty', []);
+          expect(previewOf('chat-preview-empty')).toBeUndefined();
+        });
+
+        /** 测试 user 消息为 ContentBlock 数组时拼接文本块 */
+        it('should join text blocks for array user content', () => {
+          writeSessionLines('chat-preview-blocks', [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: 'part one ' },
+                { type: 'text', text: 'part two' },
+              ],
+            },
+          ]);
+          expect(previewOf('chat-preview-blocks')).toBe('part one part two');
+        });
+
+        /** 测试普通任务会话即使有消息也不计算预览 */
+        it('should not compute preview for non-chat sessions', () => {
+          writeSessionLines('task-preview-none', [
+            createUserMessage('should not appear'),
+          ]);
+          expect(previewOf('task-preview-none')).toBeUndefined();
+        });
+      });
     });
 
     /** deleteSessionFile 测试 */

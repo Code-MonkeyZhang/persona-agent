@@ -30,6 +30,7 @@ export type {
   Message,
 } from './schema.js';
 export type { SessionMeta, Session } from './session.js';
+export { buildPreviewText } from './preview.js';
 export * from './ws.js';
 export type { ProviderStatus } from './provider.js';
 export type {
