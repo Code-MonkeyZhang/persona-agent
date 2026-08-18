@@ -10,6 +10,7 @@ import React, {
   useEffect,
   useImperativeHandle,
   useCallback,
+  useMemo,
 } from 'react';
 import {
   Virtuoso,
@@ -145,6 +146,9 @@ const MessageItem: React.FC<MessageItemProps> = ({
   );
 };
 
+/** 列表顶部留白，模块级常量保证 Virtuoso components 引用稳定 */
+const ListHeader = () => <div className="h-4" />;
+
 interface MessageListProps {
   messages: UIMessage[];
   isLoading?: boolean;
@@ -177,10 +181,27 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
     const virtuosoRef = useRef<VirtuosoHandle>(null);
     /** 是否停留在列表底部，由 Virtuoso 的 atBottomStateChange 驱动 */
     const [isAtBottom, setIsAtBottom] = useState(true);
+    /** isAtBottom 的 ref 镜像，供滚动副作用读取而不进入依赖数组 */
+    const isAtBottomRef = useRef(true);
 
+    const handleAtBottomChange = useCallback((atBottom: boolean) => {
+      isAtBottomRef.current = atBottom;
+      setIsAtBottom(atBottom);
+    }, []);
+
+    /**
+     * 滚动到最后一条消息的底部
+     * - 用 scrollToIndex 而非 scrollTo(top: Infinity)：平滑动画期间虚拟列表
+     *   会持续测量新条目改变总高度，后者会停在过时的目标位置，需要多次点击才能到底
+     * - Virtuoso 的 behavior 不接受 'instant'，统一映射为 'auto'
+     */
     const scrollToBottom = useCallback(
       (behavior: ScrollBehavior = 'instant') => {
-        virtuosoRef.current?.scrollTo({ top: Infinity, behavior });
+        virtuosoRef.current?.scrollToIndex({
+          index: 'LAST',
+          align: 'end',
+          behavior: behavior === 'smooth' ? 'smooth' : 'auto',
+        });
       },
       []
     );
@@ -193,9 +214,21 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
       scrollToBottom('smooth');
     }, [scrollToBottom]);
 
+    /** 列表底部留白，随 bottomPadding 记忆化，避免每次渲染新对象触发 Virtuoso 重渲染 */
+    const ListFooter = useMemo(
+      () => () => <div style={{ height: bottomPadding }} />,
+      [bottomPadding]
+    );
+
+    /** 新消息到达时跟随滚底，仅在已处于底部时跟随，避免回翻历史被拽回底部 */
     useEffect(() => {
+      if (!isAtBottomRef.current) return;
       requestAnimationFrame(() => {
-        virtuosoRef.current?.scrollTo({ top: Infinity, behavior: 'smooth' });
+        virtuosoRef.current?.scrollToIndex({
+          index: 'LAST',
+          align: 'end',
+          behavior: 'smooth',
+        });
       });
     }, [messages.length]);
 
@@ -205,6 +238,7 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
      *   依赖条数的滚动不会触发，因此额外监听最后一条消息的内容增长
      * - 内容为空时（占位气泡仅显示打字动画）跳过，避免与条数滚动重复触发
      * - 双 rAF 等待 Virtuoso 测量完增长后的高度再滚动，避免落到过时位置
+     * - 仅在已处于底部时跟随，流式期间回翻历史不被持续拽回底部
      */
     const lastMessage = messages[messages.length - 1];
     const streamingContentSize =
@@ -216,13 +250,18 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
 
     useEffect(() => {
       if (!streamingMessageId || streamingContentSize === 0) return;
+      if (!isAtBottomRef.current) return;
       logger.info('Following streaming content growth', {
         streamingMessageId,
         streamingContentSize,
       });
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          virtuosoRef.current?.scrollTo({ top: Infinity, behavior: 'smooth' });
+          virtuosoRef.current?.scrollToIndex({
+            index: 'LAST',
+            align: 'end',
+            behavior: 'smooth',
+          });
         });
       });
     }, [streamingContentSize, streamingMessageId]);
@@ -269,7 +308,7 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
           data={messages}
           followOutput="smooth"
           atBottomThreshold={100}
-          atBottomStateChange={setIsAtBottom}
+          atBottomStateChange={handleAtBottomChange}
           {...(hasCachedPosition && cachedPosition
             ? {
                 restoreStateFrom: cachedPosition,
@@ -279,10 +318,7 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
                 initialTopMostItemIndex: messages.length - 1,
               })}
           increaseViewportBy={{ top: 2000, bottom: 2000 }}
-          components={{
-            Header: () => <div className="h-4" />,
-            Footer: () => <div style={{ height: bottomPadding }} />,
-          }}
+          components={{ Header: ListHeader, Footer: ListFooter }}
           itemContent={(_index, message) => (
             <MessageItem
               key={message.id}
