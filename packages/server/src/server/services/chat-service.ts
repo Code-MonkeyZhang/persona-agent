@@ -43,7 +43,7 @@ interface ChatRequest {
   content: string;
   voiceEnabled?: boolean;
   sessionManager: SessionManager;
-  /** 设置时表示本次对话由 App 通知触发，跳过标题生成和 TTS */
+  /** 设置时表示本次对话由 App 通知触发，跳过标题生成 */
   appSource?: string;
 }
 
@@ -466,7 +466,8 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     broadcastToSession(sessionId, { type: 'complete', sessionId });
 
     // Fire-and-forget: TTS voice processing
-    if (!appSource && voiceEnabled) {
+    // App 通知触发的回合与手动发消息同权，是否播报由客户端开关决定
+    if (voiceEnabled) {
       handleTtsAsync(sessionId, session, agentConfig, lastContentText).catch(
         () => {}
       );

@@ -99,6 +99,8 @@ export async function processAppNotification(
       content,
       sessionManager,
       appSource: serverName,
+      // App 回合照常走 TTS 流程，是否播报由客户端全局开关和当前会话决定
+      voiceEnabled: true,
     });
 
     if (result.success) return;
