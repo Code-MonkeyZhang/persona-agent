@@ -76,7 +76,6 @@ export async function getBaseUrl(): Promise<string> {
 // DTO 类型已迁移至 @persona/shared
 export type {
   McpServerInfo,
-  McpOAuthStatus,
   ProviderStatus,
   SkillInfo,
   MarketplaceEntry,
@@ -295,15 +294,6 @@ export class WebSocketClient {
   }
 
   /**
-   * 取消订阅指定会话的事件流。
-   * @param sessionId - 要取消订阅的会话 ID
-   */
-  unsubscribe(sessionId: string): void {
-    this.activeSessionIds.delete(sessionId);
-    this.send({ type: 'unsubscribe', payload: { sessionId } });
-  }
-
-  /**
    * 请求服务端中止指定会话的当前生成。
    * 服务端中止后会推送 'aborted' 事件，本方法不等待响应。
    * 不加入 activeSessionIds — abort 是一次性动作，重连不需补发。
@@ -342,13 +332,6 @@ export class WebSocketClient {
     return () => {
       this.listeners.delete(listener);
     };
-  }
-
-  /**
-   * 判断 WebSocket 是否处于已连接状态。
-   */
-  get isConnected(): boolean {
-    return this.ws?.readyState === WebSocket.OPEN;
   }
 }
 

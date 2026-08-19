@@ -22,8 +22,6 @@ const LAST_AGENT_KEY = 'last-agent-id';
 interface AgentStore {
   agents: AgentConfig[];
   currentAgent: AgentConfig | null;
-  isLoading: boolean;
-  error: string | null;
   agentAvatarPreviews: Record<string, string>;
 
   loadAgents: () => Promise<void>;
@@ -46,12 +44,9 @@ interface AgentStore {
 export const useAgentStore = create<AgentStore>((set, get) => ({
   agents: [],
   currentAgent: null,
-  isLoading: false,
-  error: null,
   agentAvatarPreviews: {},
 
   loadAgents: async () => {
-    set({ isLoading: true, error: null });
     try {
       logger.info('[AgentStore] loadAgents started');
       const agents = await listAgents();
@@ -63,7 +58,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
           2
         )
       );
-      set({ agents, isLoading: false });
+      set({ agents });
 
       if (agents.length > 0) {
         const lastAgentId = localStorage.getItem(LAST_AGENT_KEY);
@@ -85,74 +80,45 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
         '[AgentStore] loadAgents failed:',
         error instanceof Error ? error.stack : error
       );
-      set({
-        error: error instanceof Error ? error.message : 'Failed to load agents',
-        isLoading: false,
-      });
     }
   },
 
   switchAgent: async (id: string) => {
-    set({ isLoading: true, error: null });
     try {
       const agent = await getAgent(id);
       localStorage.setItem(LAST_AGENT_KEY, id);
-      set({ currentAgent: agent, isLoading: false });
+      set({ currentAgent: agent });
       return agent;
-    } catch (error) {
-      set({
-        error:
-          error instanceof Error ? error.message : 'Failed to switch agent',
-        isLoading: false,
-      });
+    } catch {
       return null;
     }
   },
 
   createNewAgent: async (input: AgentConfigInput) => {
-    set({ isLoading: true, error: null });
     try {
       const agent = await createAgent(input);
       const { agents } = get();
       localStorage.setItem(LAST_AGENT_KEY, agent.id);
-      set({
-        agents: [...agents, agent],
-        currentAgent: agent,
-        isLoading: false,
-      });
+      set({ agents: [...agents, agent], currentAgent: agent });
       return agent;
-    } catch (error) {
-      set({
-        error:
-          error instanceof Error ? error.message : 'Failed to create agent',
-        isLoading: false,
-      });
+    } catch {
       return null;
     }
   },
 
   updateAgentById: async (id: string, input: AgentConfigUpdate) => {
-    set({ error: null });
-    try {
-      const agent = await updateAgent(id, input);
-      const { agents, currentAgent } = get();
-      const newAgents = agents.map((a) => (a.id === id ? agent : a));
-      set({ agents: newAgents });
+    const agent = await updateAgent(id, input);
+    const { agents, currentAgent } = get();
+    const newAgents = agents.map((a) => (a.id === id ? agent : a));
+    set({ agents: newAgents });
 
-      if (currentAgent?.id === id) {
-        set({ currentAgent: agent });
-      }
-      return agent;
-    } catch (error) {
-      const msg =
-        error instanceof Error ? error.message : 'Failed to update agent';
-      set({ error: msg });
-      throw error;
+    if (currentAgent?.id === id) {
+      set({ currentAgent: agent });
     }
+    return agent;
   },
 
   deleteAgentById: async (id: string) => {
-    set({ error: null });
     try {
       const success = await deleteAgent(id);
       if (success) {
@@ -174,11 +140,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
         }
       }
       return success;
-    } catch (error) {
-      set({
-        error:
-          error instanceof Error ? error.message : 'Failed to delete agent',
-      });
+    } catch {
       return false;
     }
   },

@@ -21,7 +21,7 @@ const RAW_TAG = '[RAW]';
 const RAW_MAX_CHARS = 2000;
 
 /** runCompression 的入参 */
-export interface CompressionOptions {
+interface CompressionOptions {
   agentId: string;
   sessionId: string;
   sessionManager: SessionManager;

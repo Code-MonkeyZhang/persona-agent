@@ -15,7 +15,7 @@ const SUCCESS_HTML = `<!DOCTYPE html>
 <h2>Authorization successful</h2><p>You can close this tab and return to the app.</p>
 </body></html>`;
 
-export interface CallbackResult {
+interface CallbackResult {
   port: number;
   waitForCode: () => Promise<string>;
   close: () => void;

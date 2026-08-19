@@ -15,7 +15,6 @@ import { logger } from '../lib/logger';
 import i18n from '../i18n';
 
 interface VoiceStore {
-  isSpeaking: boolean;
   voiceEnabled: boolean;
   toggleVoice: () => void;
 
@@ -32,7 +31,6 @@ interface VoiceStore {
 export const useVoiceStore = create<VoiceStore>()(
   persist(
     (set) => ({
-      isSpeaking: false,
       voiceEnabled: false,
 
       toggleVoice: () => {
@@ -43,7 +41,6 @@ export const useVoiceStore = create<VoiceStore>()(
         try {
           if (!speakText.trim()) return;
 
-          set({ isSpeaking: true });
           const audio = await synthesize(
             speakText,
             voiceId,
@@ -53,7 +50,6 @@ export const useVoiceStore = create<VoiceStore>()(
           );
           audioPlayer.play(audio);
         } catch (err) {
-          set({ isSpeaking: false });
           logger.error(
             '[VoiceStore] speak failed:',
             err instanceof Error ? err.message : String(err)
@@ -68,7 +64,6 @@ export const useVoiceStore = create<VoiceStore>()(
 
       stopSpeaking: () => {
         audioPlayer.stop();
-        set({ isSpeaking: false });
       },
     }),
     {

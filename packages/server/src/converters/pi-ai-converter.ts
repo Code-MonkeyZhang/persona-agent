@@ -25,7 +25,7 @@ import type { Tool } from '../tools/index.js';
  * @param messages - 内部消息对象数组
  * @returns pi-ai格式的消息数组
  */
-export function convertMessages(messages: Message[]): PiAiMessage[] {
+function convertMessages(messages: Message[]): PiAiMessage[] {
   const result: PiAiMessage[] = [];
 
   for (const msg of messages) {
@@ -127,7 +127,7 @@ export function convertMessages(messages: Message[]): PiAiMessage[] {
  * @param tools - 内部Tool实例数组
  * @returns pi-ai格式的工具定义数组
  */
-export function convertTools(tools: Tool[]): PiAiTool[] {
+function convertTools(tools: Tool[]): PiAiTool[] {
   return tools.map((tool) => ({
     name: tool.name,
     description: tool.description ?? '',

@@ -27,7 +27,7 @@ import { useViewStore } from '../stores/viewStore';
 import { folderNameOf } from '../lib/marketplace';
 import { BackButton } from './ui/BackButton';
 import { ListState } from './ListState';
-import { MarketplaceCard } from './cards/MarketplaceCard';
+import { MarketplaceCard, type CardItem } from './cards/MarketplaceCard';
 import { cn } from '../lib/utils';
 
 type Tab = 'agent' | 'mcp' | 'app' | 'skill';
@@ -208,20 +208,11 @@ function matchQuery<T extends { name: string; description: string }>(
   );
 }
 
-/** 商城条目共有的展示字段 */
-interface EntryFields {
-  name: string;
-  author: string;
-  description: string;
-  homepage: string;
-  path: string;
-}
-
 /**
  * 统一卡片网格（四个 tab 共用同一套响应式规则），处理空态与渲染。
  * 每张卡封顶 240px、网格内居中。logoUrl 仅 mcp/agent/app 条目上存在。
  */
-function CardGrid<T extends EntryFields>({
+function CardGrid<T extends CardItem>({
   entries,
   isInstalled,
   installing,

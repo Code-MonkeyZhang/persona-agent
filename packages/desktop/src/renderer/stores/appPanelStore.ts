@@ -9,7 +9,7 @@ import { persist } from 'zustand/middleware';
 import { listMcpServers } from '../lib/api';
 import { logger } from '../lib/logger';
 
-export interface AppInfo {
+interface AppInfo {
   name: string;
 }
 

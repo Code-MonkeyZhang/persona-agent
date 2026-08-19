@@ -16,7 +16,6 @@ import {
 interface ProviderStore {
   providers: ProviderStatus[];
   isLoading: boolean;
-  error: string | null;
   verifyingProvider: string | null;
   pendingCredentials: Map<string, string>;
 
@@ -35,7 +34,6 @@ interface ProviderStore {
 export const useProviderStore = create<ProviderStore>((set, get) => ({
   providers: [],
   isLoading: false,
-  error: null,
   verifyingProvider: null,
   pendingCredentials: new Map(),
 
@@ -43,19 +41,15 @@ export const useProviderStore = create<ProviderStore>((set, get) => ({
    * 从后端获取所有供应商信息，按已认证优先排序后写入本地状态
    */
   loadProviders: async () => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true });
     try {
       const providers = await listProviders();
       const sorted = providers.sort((a, b) => {
         return a.hasAuth === b.hasAuth ? 0 : a.hasAuth ? -1 : 1;
       });
       set({ providers: sorted, isLoading: false });
-    } catch (error) {
-      set({
-        error:
-          error instanceof Error ? error.message : 'Failed to load providers',
-        isLoading: false,
-      });
+    } catch {
+      set({ isLoading: false });
     }
   },
 
@@ -66,7 +60,6 @@ export const useProviderStore = create<ProviderStore>((set, get) => ({
    * @returns 保存成功返回 true，失败返回 false
    */
   setCredential: async (provider: string, apiKey: string) => {
-    set({ error: null });
     try {
       await apiSetCredential(provider, apiKey);
       const pending = new Map(get().pendingCredentials);
@@ -74,11 +67,7 @@ export const useProviderStore = create<ProviderStore>((set, get) => ({
       set({ pendingCredentials: pending });
       await get().loadProviders();
       return true;
-    } catch (error) {
-      set({
-        error:
-          error instanceof Error ? error.message : 'Failed to set credential',
-      });
+    } catch {
       return false;
     }
   },
@@ -90,7 +79,7 @@ export const useProviderStore = create<ProviderStore>((set, get) => ({
    * @returns 验证结果，包含 valid 标志和可选的 error 信息
    */
   verifyCredential: async (provider: string, apiKey?: string) => {
-    set({ verifyingProvider: provider, error: null });
+    set({ verifyingProvider: provider });
     try {
       const result = await apiVerifyCredential(provider, apiKey);
       if (result.valid) {
@@ -108,7 +97,6 @@ export const useProviderStore = create<ProviderStore>((set, get) => ({
             ? error.message
             : 'Failed to verify credential',
       };
-      set({ error: result.error });
       return result;
     } finally {
       set({ verifyingProvider: null });
@@ -121,7 +109,6 @@ export const useProviderStore = create<ProviderStore>((set, get) => ({
    * @returns 删除成功返回 true，失败返回 false
    */
   deleteCredential: async (provider: string) => {
-    set({ error: null });
     try {
       await apiDeleteCredential(provider);
       const pending = new Map(get().pendingCredentials);
@@ -129,13 +116,7 @@ export const useProviderStore = create<ProviderStore>((set, get) => ({
       set({ pendingCredentials: pending });
       await get().loadProviders();
       return true;
-    } catch (error) {
-      set({
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to delete credential',
-      });
+    } catch {
       return false;
     }
   },

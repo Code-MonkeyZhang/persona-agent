@@ -21,7 +21,7 @@ const INSTALL_TIMEOUT_MS = 180_000;
 /** uv sync 依赖预装的超时，单位毫秒 */
 const SYNC_TIMEOUT_MS = 300_000;
 
-export interface UvStatus {
+interface UvStatus {
   ok: boolean;
   source: 'app' | 'system' | null;
   path: string | null;

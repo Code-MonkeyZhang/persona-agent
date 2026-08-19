@@ -7,7 +7,6 @@ import type { Tool } from '../tools/index.js';
 
 // 从 shared 再导出，保持 barrel 消费方零改动
 export {
-  ModelConfigSchema,
   AgentConfigSchema,
   AgentConfigInputSchema,
   AgentConfigUpdateSchema,

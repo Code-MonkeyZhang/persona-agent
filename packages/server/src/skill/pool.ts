@@ -9,7 +9,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Logger } from '../util/logger.js';
 import { getSkillsDir } from '../util/paths.js';
-import { loadSkillFile, loadAllSkills } from './loader.js';
+import { loadSkillFile, loadAllSkills, toSkillInfo } from './loader.js';
 import type { Skill, SkillInfo, SkillStatusInfo } from './types.js';
 
 let skillPool: Map<string, Skill> = new Map();
@@ -32,10 +32,7 @@ export function initSkillPool(): void {
 export function listSkills(): SkillInfo[] {
   ensureInitialized();
   reloadModifiedSkills();
-  return Array.from(skillPool.values()).map((s) => ({
-    name: s.name,
-    description: s.description,
-  }));
+  return Array.from(skillPool.values()).map(toSkillInfo);
 }
 
 /**

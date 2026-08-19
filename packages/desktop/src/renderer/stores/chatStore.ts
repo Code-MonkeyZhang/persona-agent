@@ -135,12 +135,10 @@ interface ChatStore {
   currentSessionId: string | null;
   connectionStatus: ConnectionStatus;
   agentId: string | null;
-  lastUserMessage: string | null;
   wsClient: WebSocketClient | null;
 
   setCurrentSessionId: (id: string | null) => void;
   initSessionState: (sessionId: string, messages: UIMessage[]) => void;
-  clearSessionState: (sessionId: string) => void;
   sendMessage: (content: string, sessionId?: string) => Promise<void>;
   abortGeneration: (sessionId?: string) => void;
   subscribeSession: (sessionId: string) => void;
@@ -189,7 +187,6 @@ export const useChatStore = create<ChatStore>((set, get) => {
     currentSessionId: null,
     connectionStatus: 'disconnected',
     agentId: null,
-    lastUserMessage: null,
     wsClient: null,
 
     setConnectionStatus: (status: ConnectionStatus) => {
@@ -208,14 +205,6 @@ export const useChatStore = create<ChatStore>((set, get) => {
           isLoading: false,
           streamingMessageId: null,
         });
-        return { sessionStates: newStates };
-      });
-    },
-
-    clearSessionState: (sessionId: string) => {
-      set((state) => {
-        const newStates = new Map(state.sessionStates);
-        newStates.delete(sessionId);
         return { sessionStates: newStates };
       });
     },
@@ -289,7 +278,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
           isLoading: true,
           streamingMessageId: placeholderId,
         });
-        return { sessionStates: newStates, lastUserMessage: content };
+        return { sessionStates: newStates };
       });
       logger.info('Optimistic placeholder created', {
         sessionId,
@@ -303,33 +292,8 @@ export const useChatStore = create<ChatStore>((set, get) => {
 
       wsClient?.subscribe(sessionId);
 
-      try {
-        const voiceEnabled = useVoiceStore.getState().voiceEnabled;
-        const result = await sendChatMessage(
-          agentId,
-          sessionId,
-          content,
-          voiceEnabled
-        );
-        if (!result.success) {
-          set((state) => {
-            const newStates = new Map(state.sessionStates);
-            const sessionState = newStates.get(sessionId);
-            if (sessionState) {
-              newStates.set(sessionId, {
-                ...sessionState,
-                messages: filterEmptyPlaceholder(
-                  sessionState.messages,
-                  sessionState.streamingMessageId
-                ),
-                isLoading: false,
-                streamingMessageId: null,
-              });
-            }
-            return { sessionStates: newStates };
-          });
-        }
-      } catch {
+      /** 失败回滚：结束生成态并移除乐观创建的空占位气泡 */
+      const rollbackPlaceholder = () =>
         set((state) => {
           const newStates = new Map(state.sessionStates);
           const sessionState = newStates.get(sessionId);
@@ -346,6 +310,20 @@ export const useChatStore = create<ChatStore>((set, get) => {
           }
           return { sessionStates: newStates };
         });
+
+      try {
+        const voiceEnabled = useVoiceStore.getState().voiceEnabled;
+        const result = await sendChatMessage(
+          agentId,
+          sessionId,
+          content,
+          voiceEnabled
+        );
+        if (!result.success) {
+          rollbackPlaceholder();
+        }
+      } catch {
+        rollbackPlaceholder();
       }
     },
 

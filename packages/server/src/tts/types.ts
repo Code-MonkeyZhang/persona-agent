@@ -19,7 +19,7 @@ export interface TtsConfig {
 }
 
 /** Voice language option for language_boost parameter */
-export interface VoiceLanguage {
+interface VoiceLanguage {
   value: string;
   label: string;
   boost?: string;
@@ -32,7 +32,7 @@ export const TTS_MODELS: TtsModel[] = [
 ];
 
 /** Voice language options. boost maps to MiniMax language_boost parameter. */
-export const VOICE_LANGUAGES: VoiceLanguage[] = [
+const VOICE_LANGUAGES: VoiceLanguage[] = [
   { value: 'default', label: 'Default' },
   { value: 'zh', label: '中文', boost: 'Chinese' },
   { value: 'en', label: '英语', boost: 'English' },

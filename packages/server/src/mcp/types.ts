@@ -6,8 +6,6 @@ import type { JsonSchema } from '../tools/base.js';
 import type { Tool } from '../tools/base.js';
 import type { McpServerStatus, SupportedUI } from '@persona/shared';
 
-export type { McpServerStatus, SupportedUI } from '@persona/shared';
-
 export type ConnectionType = 'stdio' | 'streamable_http';
 
 export interface McpCallToolResult {
@@ -38,19 +36,6 @@ export type McpClient = {
   /** 读取 server 在 initialize 握手时声明的 instructions（server 级整体说明） */
   getInstructions?: () => string | undefined;
 };
-
-export type Closable = {
-  close?: () => Promise<void> | void;
-};
-
-export type ClientConstructor = new (options: {
-  name: string;
-  version: string;
-}) => McpClient;
-
-export type TransportConstructor = new (
-  options: Record<string, unknown>
-) => Closable;
 
 export interface McpServerConfig {
   description?: string;

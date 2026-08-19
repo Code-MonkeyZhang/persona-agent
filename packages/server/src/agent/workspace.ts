@@ -25,13 +25,13 @@ function isUsableDir(dirPath: string): boolean {
 }
 
 /** 失效的工作目录来源层 */
-export interface InvalidWorkspace {
+interface InvalidWorkspace {
   source: 'session' | 'agent';
   path: string;
 }
 
 /** 工作目录解析结果 */
-export interface ResolvedWorkspace {
+interface ResolvedWorkspace {
   /** 实际生效的工作目录，保证已存在且可写 */
   dir: string;
   /** 解析途中失效的层，按尝试顺序排列 */

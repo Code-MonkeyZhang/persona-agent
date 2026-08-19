@@ -24,9 +24,6 @@
   "header.avatar": "Avatar",
   "header.voice": "Voice",
 
-  "sessionSidebar.today": "Today",
-  "sessionSidebar.yesterday": "Yesterday",
-  "sessionSidebar.earlier": "Earlier",
   "sessionSidebar.chat": "Chat",
   "sessionSidebar.sessions": "Sessions",
   "sessionSidebar.noTaskSessions": "No task sessions",
@@ -65,7 +62,6 @@
   "thoughtProcess.full": "Full",
 
   "settings.title": "Settings",
-  "settings.loading": "Loading...",
   "settings.loadError": "Failed to load configuration",
   "settings.tabs.general": "General",
   "settings.tabs.providers": "Model Providers",
@@ -182,7 +178,6 @@
   "skills.emptyAssigned": "No skills assigned",
   "skills.emptyLibrary": "All skills assigned",
 
-  "marketplace.title": "Marketplace",
   "marketplace.tabs.agent": "Agent",
   "marketplace.tabs.mcp": "Tools",
   "marketplace.tabs.app": "Apps",
@@ -272,7 +267,6 @@
   "agentEditor.langEn": "English",
   "agentEditor.langJa": "Japanese",
 
-  "agentSidebar.editAgent": "Edit Agent",
 
   "companion.noAppearance": "This Agent has no companion appearance configured",
   "companion.uploadPoseHint": "Please upload pose images in the Agent editor's Appearance section",

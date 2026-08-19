@@ -7,29 +7,15 @@
  */
 
 import { Router } from 'express';
-import multer from 'multer';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getAgentAssetsDir } from '../../util/paths.js';
 import { Logger } from '../../util/logger.js';
-import { asyncHandler, getParam, requireParam } from './utils.js';
+import { asyncHandler, getParam, requireParam, imageUpload } from './utils.js';
 import { AppError } from '../../util/errors.js';
 import { processAvatar } from '../../lib/avatar-processor.js';
 
 const AVATAR_FILENAME = 'avatar.png';
-
-const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif']);
-
-const upload = multer({
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (ALLOWED_MIME_TYPES.has(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new AppError(400, `Unsupported image format: ${file.mimetype}`));
-    }
-  },
-});
 
 function getAvatarPath(agentId: string): string {
   return path.join(getAgentAssetsDir(agentId), AVATAR_FILENAME);
@@ -79,7 +65,7 @@ export function createAvatarRouter(): Router {
    */
   router.post(
     '/',
-    upload.single('avatar'),
+    imageUpload.single('avatar'),
     asyncHandler('AVATAR', 'Error uploading avatar', async (req, res) => {
       const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
 

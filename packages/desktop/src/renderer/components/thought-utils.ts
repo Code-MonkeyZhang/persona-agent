@@ -63,24 +63,6 @@ export function getThoughtColor(type: ThoughtType, isError?: boolean): string {
 }
 
 /**
- * Get display label for thought type
- */
-export function getThoughtLabel(type: ThoughtType): string {
-  switch (type) {
-    case 'thinking':
-      return 'Thinking';
-    case 'text':
-      return 'Response';
-    case 'tool_use':
-      return 'Tool call';
-    case 'error':
-      return 'Error';
-    default:
-      return 'AI';
-  }
-}
-
-/**
  * Format tool input into human-readable summary
  */
 export function getToolFriendlyFormat(

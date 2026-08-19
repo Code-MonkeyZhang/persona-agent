@@ -6,14 +6,10 @@ export {
   initMcpPool,
   listMcpServers,
   getMcpServer,
-  getAppPort,
   setAppNotificationHandler,
   getMcpToolsForServers,
   getMcpPromptInfo,
   startOAuthFlow,
   getOAuthStatus,
-  addServer,
-  removeServer,
 } from './pool.js';
-export { loadMcpConfig, saveMcpServer, deleteMcpServer } from './config.js';
-export type { McpServerEntry, McpServerConfig } from './types.js';
+export type { McpServerEntry } from './types.js';

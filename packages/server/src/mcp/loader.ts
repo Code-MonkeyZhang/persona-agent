@@ -15,7 +15,7 @@ import { getOAuthTokensPath } from '../util/paths.js';
 import type { McpServerConfig } from './types.js';
 import type { McpConnection, McpToolMeta } from './types.js';
 
-export interface ConnectResult {
+interface ConnectResult {
   name: string;
   connection?: McpConnection;
   tools: McpToolMeta[];

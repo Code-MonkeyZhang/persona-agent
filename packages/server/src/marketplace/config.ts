@@ -6,7 +6,7 @@
 
 export const REPO_OWNER = 'Code-MonkeyZhang';
 export const REPO_NAME = 'persona-agent-marketplace';
-export const REPO_BRANCH = 'main';
+const REPO_BRANCH = 'main';
 
 const CDN_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/`;
 

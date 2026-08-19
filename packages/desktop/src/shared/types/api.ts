@@ -17,7 +17,7 @@ export interface ProxyFetchOptions {
 }
 
 /** proxyFetch 响应 */
-export interface ProxyFetchResponse {
+interface ProxyFetchResponse {
   ok: boolean;
   status: number;
   headers: Record<string, string>;

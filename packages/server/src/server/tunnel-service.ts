@@ -13,10 +13,10 @@ import type { ChildProcess } from 'node:child_process';
 import { getCloudflaredBinPath } from '../util/paths.js';
 import { Logger } from '../util/logger.js';
 
-export type TunnelStatus = 'stopped' | 'starting' | 'running' | 'error';
-export type TunnelHealth = 'unknown' | 'healthy' | 'unhealthy';
+type TunnelStatus = 'stopped' | 'starting' | 'running' | 'error';
+type TunnelHealth = 'unknown' | 'healthy' | 'unhealthy';
 
-export interface TunnelState {
+interface TunnelState {
   status: TunnelStatus;
   url: string | null;
   error: string | null;

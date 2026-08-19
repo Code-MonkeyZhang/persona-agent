@@ -13,7 +13,6 @@
  */
 
 import { Router } from 'express';
-import multer from 'multer';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
@@ -21,7 +20,7 @@ import {
   getAgentAssetsBackgroundsDir,
 } from '../../util/paths.js';
 import { Logger } from '../../util/logger.js';
-import { asyncHandler, getParam, requireParam } from './utils.js';
+import { asyncHandler, getParam, requireParam, imageUpload } from './utils.js';
 import { AppError } from '../../util/errors.js';
 
 const IMAGE_EXTENSIONS = /\.(png|jpg|jpeg|gif|webp)$/i;
@@ -33,19 +32,6 @@ const MIME_MAP: Record<string, string> = {
   '.gif': 'image/gif',
   '.webp': 'image/webp',
 };
-
-const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif']);
-
-const upload = multer({
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (ALLOWED_MIME_TYPES.has(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new AppError(400, `Unsupported image format: ${file.mimetype}`));
-    }
-  },
-});
 
 /**
  * 根据 URL 中的 name 在 pose 目录中查找匹配的文件名。
@@ -134,7 +120,7 @@ export function createAssetsRouter(): Router {
    */
   router.post(
     '/pose/:name',
-    upload.single('pose'),
+    imageUpload.single('pose'),
     asyncHandler('ASSETS', 'Error uploading pose', (req, res) => {
       const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
       const poseName = requireParam(getParam(req.params['name']), 'Pose name');
@@ -255,7 +241,7 @@ export function createAssetsRouter(): Router {
    */
   router.post(
     '/background',
-    upload.single('background'),
+    imageUpload.single('background'),
     asyncHandler('ASSETS', 'Error uploading background', (req, res) => {
       const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
 

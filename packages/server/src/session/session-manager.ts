@@ -172,7 +172,7 @@ export class SessionManager {
 
     Object.assign(session, updates, { updatedAt: Date.now() });
 
-    const { messages, ...meta } = session;
+    const { messages: _messages, ...meta } = session;
     this.store.rewriteMetaLine(id, meta);
     return session;
   }

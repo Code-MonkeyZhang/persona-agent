@@ -4,12 +4,8 @@
 
 export type {
   ContentBlock,
-  SystemMessage,
   UserMessage,
   AssistantMessage,
-  ErrorMessage,
-  AppNotificationMessage,
-  ContextMessage,
   ToolCall,
   ToolResultMessage,
   Message,

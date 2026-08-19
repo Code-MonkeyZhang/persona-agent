@@ -2,7 +2,7 @@
  * @fileoverview 轻量 token 估算与消息文本化工具。
  */
 
-import type { ContentBlock, Message } from '../../schema/index.js';
+import type { Message } from '../../schema/index.js';
 
 /** CJK / 全角字符的 token 权重 */
 const CJK_WEIGHT = 1.5;

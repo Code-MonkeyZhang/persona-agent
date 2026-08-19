@@ -37,7 +37,6 @@ export interface AppConfig {
 interface ConfigState {
   config: AppConfig | null;
   loading: boolean;
-  saving: boolean;
   error: string | null;
 
   loadConfig: () => Promise<void>;
@@ -51,7 +50,6 @@ interface ConfigState {
 export const useConfigStore = create<ConfigState>((set, get) => ({
   config: null,
   loading: false,
-  saving: false,
   error: null,
 
   /**
@@ -75,14 +73,14 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
    * @throws 后端保存失败时抛出异常
    */
   saveConfig: async (config: AppConfig) => {
-    set({ saving: true, error: null });
+    set({ error: null });
     try {
       await updateConfig(config);
-      set({ config, saving: false });
+      set({ config });
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to save config';
-      set({ error: errorMessage, saving: false });
+      set({ error: errorMessage });
       throw error;
     }
   },

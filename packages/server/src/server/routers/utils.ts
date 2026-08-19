@@ -3,8 +3,33 @@
  */
 
 import type { Request, Response, RequestHandler } from 'express';
+import multer from 'multer';
 import { Logger } from '../../util/logger.js';
 import { errorMessage, AppError } from '../../util/errors.js';
+
+/** 图片上传共用的 MIME 白名单 */
+const ALLOWED_IMAGE_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+]);
+
+/**
+ * 图片上传共用的 multer 实例。
+ *
+ * - 限制单文件 5MB
+ * - 仅放行白名单内 MIME，其余以 400 拒绝
+ */
+export const imageUpload = multer({
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_IMAGE_MIME_TYPES.has(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new AppError(400, `Unsupported image format: ${file.mimetype}`));
+    }
+  },
+});
 
 /** Helper to extract string param from Express req.params */
 export function getParam(

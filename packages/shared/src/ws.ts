@@ -10,25 +10,25 @@ export type DeviceType = 'desktop' | 'mobile';
 
 // ── Server → Client 事件 ──
 
-export interface ConnectedMessage {
+interface ConnectedMessage {
   type: 'connected';
   clientId: string;
 }
 
-export interface SubscribedMessage {
+interface SubscribedMessage {
   type: 'subscribed';
   sessionId: string;
   /** 该 session 是否正在生成，前端据此恢复加载状态 */
   isGenerating?: boolean;
 }
 
-export interface WsToolCall {
+interface WsToolCall {
   id: string;
   name: string;
   arguments: Record<string, unknown>;
 }
 
-export interface WsToolResult {
+interface WsToolResult {
   toolCallId: string;
   toolName: string;
   result: string;
@@ -45,24 +45,24 @@ export interface StepCompleteMessage {
   toolResults?: WsToolResult[];
 }
 
-export interface CompleteMessage {
+interface CompleteMessage {
   type: 'complete';
   sessionId: string;
 }
 
-export interface ErrorMessage {
+interface ErrorMessage {
   type: 'error';
   sessionId: string;
   message: string;
 }
 
-export interface TitleUpdatedMessage {
+interface TitleUpdatedMessage {
   type: 'title_updated';
   sessionId: string;
   title: string;
 }
 
-export interface SpeakReadyMessage {
+interface SpeakReadyMessage {
   type: 'speak_ready';
   sessionId: string;
   speakText: string;
@@ -72,24 +72,24 @@ export interface SpeakReadyMessage {
   languageBoost?: string;
 }
 
-export type SpeakErrorReason =
+type SpeakErrorReason =
   | 'no_api_key'
   | 'no_voice_id'
   | 'no_content'
   | 'voice_not_found';
 
-export interface SpeakErrorMessage {
+interface SpeakErrorMessage {
   type: 'speak_error';
   sessionId: string;
   reason: SpeakErrorReason;
   message: string;
 }
 
-export interface PongMessage {
+interface PongMessage {
   type: 'pong';
 }
 
-export interface PairRequestMessage {
+interface PairRequestMessage {
   type: 'pair_request';
   deviceName: string;
   deviceId?: string;
@@ -97,18 +97,18 @@ export interface PairRequestMessage {
   timestamp: number;
 }
 
-export interface DeviceOnlineMessage {
+interface DeviceOnlineMessage {
   type: 'device_online';
   device: { deviceId: string; deviceType: DeviceType; deviceName: string };
 }
 
-export interface DeviceOfflineMessage {
+interface DeviceOfflineMessage {
   type: 'device_offline';
   deviceId: string;
 }
 
 /** 服务端确认会话生成已被中止后推送的事件 */
-export interface AbortedMessage {
+interface AbortedMessage {
   type: 'aborted';
   sessionId: string;
   reason: string;
@@ -120,7 +120,7 @@ export interface AbortedMessage {
  * 注意：这是 WS 事件，不是存储层消息；存储层的同名概念见 schema.ts 的
  * AppNotificationMessage（role: 'app_notification'），两者刻意区分命名。
  */
-export interface AppNotificationEvent {
+interface AppNotificationEvent {
   type: 'app_notification';
   sessionId: string;
   source: string;
@@ -132,7 +132,7 @@ export interface AppNotificationEvent {
  * 用户显式配置的路径失效时由服务端广播：生效路径已写回配置，
  * 客户端据此提示用户并刷新 Agent 与会话显示。
  */
-export interface WorkspaceFallbackMessage {
+interface WorkspaceFallbackMessage {
   type: 'workspace_fallback';
   sessionId: string;
   agentId: string;
@@ -158,7 +158,7 @@ export type ServerMessage =
 
 // ── Client → Server 消息 ──
 
-export interface RegisterMessage {
+interface RegisterMessage {
   type: 'register';
   deviceId: string;
   deviceType: DeviceType;

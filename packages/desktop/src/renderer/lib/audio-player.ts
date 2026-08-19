@@ -4,13 +4,8 @@
  */
 
 class AudioPlayer {
-  private playing = false;
   private currentAudio: HTMLAudioElement | null = null;
   private currentObjectUrl: string | null = null;
-
-  get isPlaying(): boolean {
-    return this.playing;
-  }
 
   /**
    * 播放音频，自动停掉当前正在播放的音频
@@ -22,15 +17,12 @@ class AudioPlayer {
     const blob = new Blob([audio], { type: 'audio/mp3' });
     this.currentObjectUrl = URL.createObjectURL(blob);
     this.currentAudio = new Audio(this.currentObjectUrl);
-    this.playing = true;
 
     this.currentAudio.onended = () => {
-      this.playing = false;
       this.releaseUrl();
     };
 
     this.currentAudio.onerror = () => {
-      this.playing = false;
       this.releaseUrl();
     };
 
@@ -46,7 +38,6 @@ class AudioPlayer {
       this.currentAudio.src = '';
       this.currentAudio = null;
     }
-    this.playing = false;
     this.releaseUrl();
   }
 

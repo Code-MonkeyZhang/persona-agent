@@ -34,9 +34,6 @@ export function stripLastTextThought(thoughts: Thought[]): Thought[] {
 interface SessionStore {
   sessions: SessionMeta[];
   currentSession: Session | null;
-  currentAgentId: string | null;
-  isLoading: boolean;
-  error: string | null;
   isNewlyCreated: boolean;
 
   loadSessions: (agentId: string) => Promise<void>;
@@ -73,9 +70,6 @@ interface SessionStore {
 export const useSessionStore = create<SessionStore>((set, get) => ({
   sessions: [],
   currentSession: null,
-  currentAgentId: null,
-  isLoading: false,
-  error: null,
   isNewlyCreated: false,
   sessionPreviews: {},
 
@@ -84,10 +78,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
    * @param agentId - Agent ID
    */
   loadSessions: async (agentId: string) => {
-    set({ isLoading: true, error: null, currentAgentId: agentId });
     try {
       const sessions = await listSessions(agentId);
-      set({ sessions, isLoading: false });
+      set({ sessions });
 
       if (sessions.length > 0) {
         const lastSessionId = localStorage.getItem(LAST_SESSION_KEY);
@@ -107,12 +100,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       } else {
         set({ currentSession: null });
       }
-    } catch (error) {
-      set({
-        error:
-          error instanceof Error ? error.message : 'Failed to load sessions',
-        isLoading: false,
-      });
+    } catch {
+      // 加载失败保持现有列表，调用方通过返回的 Promise 感知异常
     }
   },
 
@@ -123,7 +112,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
    * @returns 创建的会话对象，失败返回 null
    */
   createNewSession: async (agentId: string, title?: string) => {
-    set({ isLoading: true, error: null });
     try {
       const session = await createSession(agentId, title);
       const { sessions } = get();
@@ -131,17 +119,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       set({
         sessions: [session, ...sessions],
         currentSession: session,
-        currentAgentId: agentId,
-        isLoading: false,
         isNewlyCreated: true,
       });
       return session;
-    } catch (error) {
-      set({
-        error:
-          error instanceof Error ? error.message : 'Failed to create session',
-        isLoading: false,
-      });
+    } catch {
       return null;
     }
   },
@@ -153,18 +134,12 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
    * @returns 切换后的会话对象，失败返回 null
    */
   switchSession: async (agentId: string, id: string) => {
-    set({ isLoading: true, error: null, currentAgentId: agentId });
     try {
       const session = await getSession(agentId, id);
       localStorage.setItem(LAST_SESSION_KEY, id);
-      set({ currentSession: session, isLoading: false });
+      set({ currentSession: session });
       return session;
-    } catch (error) {
-      set({
-        error:
-          error instanceof Error ? error.message : 'Failed to load session',
-        isLoading: false,
-      });
+    } catch {
       return null;
     }
   },
@@ -176,7 +151,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
    * @returns 是否删除成功
    */
   deleteSessionById: async (agentId: string, id: string) => {
-    set({ error: null });
     try {
       const success = await deleteSession(agentId, id);
       if (success) {
@@ -208,11 +182,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         }
       }
       return success;
-    } catch (error) {
-      set({
-        error:
-          error instanceof Error ? error.message : 'Failed to delete session',
-      });
+    } catch {
       return false;
     }
   },
@@ -225,7 +195,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
    * @returns 是否更新成功
    */
   updateSessionTitle: async (agentId: string, id: string, title: string) => {
-    set({ error: null });
     try {
       const session = await updateSession(agentId, id, { title });
       const { sessions, currentSession } = get();
@@ -237,13 +206,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         set({ currentSession: session });
       }
       return true;
-    } catch (error) {
-      set({
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to update session title',
-      });
+    } catch {
       return false;
     }
   },
@@ -262,7 +225,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     provider: string,
     model: string
   ) => {
-    set({ error: null });
     try {
       const session = await updateSession(agentId, id, {
         model: { provider, model },
@@ -272,13 +234,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         set({ currentSession: session });
       }
       return true;
-    } catch (error) {
-      set({
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to update session model',
-      });
+    } catch {
       return false;
     }
   },
@@ -295,7 +251,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     id: string,
     workspacePath: string | undefined
   ) => {
-    set({ error: null });
     try {
       const session = await updateSession(agentId, id, { workspacePath });
       const { currentSession } = get();
@@ -303,13 +258,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         set({ currentSession: session });
       }
       return true;
-    } catch (error) {
-      set({
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to update session workspace',
-      });
+    } catch {
       return false;
     }
   },

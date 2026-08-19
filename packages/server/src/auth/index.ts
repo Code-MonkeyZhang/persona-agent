@@ -8,6 +8,5 @@ export {
   getAuth,
   listProvidersWithAuth,
   hasAuth,
-  type ProviderStatus,
 } from './store.js';
-export type { KnownProvider, Provider, Auth, AuthStore } from './types.js';
+export type { Provider, Auth } from './types.js';

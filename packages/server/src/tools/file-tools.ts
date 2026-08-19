@@ -48,7 +48,7 @@ export function windowsPathCore(p: string): string {
 /**
  * 平台感知的路径规整：非 win32 原值返回，win32 上委托 windowsPathCore。
  */
-export function windowsPath(p: string): string {
+function windowsPath(p: string): string {
   if (process.platform !== 'win32') return p;
   return windowsPathCore(p);
 }

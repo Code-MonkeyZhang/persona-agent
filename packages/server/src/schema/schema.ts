@@ -6,13 +6,9 @@
 
 export type {
   ContentBlock,
-  SystemMessage,
   UserMessage,
   ToolCall,
   AssistantMessage,
-  ErrorMessage,
-  AppNotificationMessage,
-  ContextMessage,
   Message,
 } from '@persona/shared';
 

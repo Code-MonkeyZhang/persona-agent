@@ -24,9 +24,6 @@
   "header.avatar": "形象",
   "header.voice": "语音",
 
-  "sessionSidebar.today": "今天",
-  "sessionSidebar.yesterday": "昨天",
-  "sessionSidebar.earlier": "更早",
   "sessionSidebar.chat": "聊天",
   "sessionSidebar.sessions": "会话",
   "sessionSidebar.noTaskSessions": "暂无会话",
@@ -65,7 +62,6 @@
   "thoughtProcess.full": "完整",
 
   "settings.title": "设置中心",
-  "settings.loading": "加载中...",
   "settings.loadError": "加载配置失败",
   "settings.tabs.general": "通用设置",
   "settings.tabs.providers": "模型供应商",
@@ -182,7 +178,6 @@
   "skills.emptyAssigned": "暂未分配技能",
   "skills.emptyLibrary": "已全部分配",
 
-  "marketplace.title": "商城",
   "marketplace.tabs.agent": "智能体",
   "marketplace.tabs.mcp": "工具",
   "marketplace.tabs.app": "应用",
@@ -272,7 +267,6 @@
   "agentEditor.langEn": "英语",
   "agentEditor.langJa": "日语",
 
-  "agentSidebar.editAgent": "编辑 Agent",
 
   "companion.noAppearance": "该 Agent 还未配置陪伴形象",
   "companion.uploadPoseHint": "请在 Agent 编辑器的「形象」栏中上传立绘图片",
