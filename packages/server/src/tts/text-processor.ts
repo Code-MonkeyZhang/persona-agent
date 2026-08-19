@@ -2,12 +2,20 @@
  * @fileoverview TTS text processing: rule-based cleaning + optional LLM compression/translation.
  *
  * Pipeline: cleanText() → threshold/language check → at most one LLM call → fallback to cleaned text.
+ * Fixed instructions live in agent/prompt/tts-*.txt as the system prompt; the dynamic
+ * compress-threshold instruction and the raw text form the user message.
+ * All prompt files are written in English for maximum LLM comprehension accuracy.
  */
 
 import { Logger } from '../util/logger.js';
 import { errorMessage } from '../util/errors.js';
 import { streamSingleTurn } from '../agent/llm-single-call.js';
 import { loadTtsConfig } from './store.js';
+import TTS_COMPRESS_PROMPT from '../agent/prompt/tts-compress.txt';
+import TTS_ZH_PROMPT from '../agent/prompt/tts-zh.txt';
+import TTS_EN_PROMPT from '../agent/prompt/tts-en.txt';
+import TTS_JA_PROMPT from '../agent/prompt/tts-ja.txt';
+import TTS_GENERIC_PROMPT from '../agent/prompt/tts-generic.txt';
 
 /**
  * Rule-based text cleaning: strip Markdown, code blocks, HTML tags, emoji, and normalize whitespace.
@@ -72,6 +80,7 @@ export async function processTextForTTS(
     cleanedText: cleaned,
     cleanedLength: cleaned.length,
     threshold,
+    language: options.language,
     needCompress,
     needTranslate,
   });
@@ -85,18 +94,16 @@ export async function processTextForTTS(
     return cleaned;
   }
 
-  const prompt = buildPrompt(cleaned, {
-    threshold,
-    language: options.language,
-    needCompress,
-    needTranslate,
-  });
+  const systemPrompt = selectSystemPrompt(
+    needTranslate ? options.language : undefined
+  );
+  const userMessage = buildUserMessage(cleaned, threshold, needCompress);
 
   let result = '';
   try {
     result = await streamSingleTurn(
-      prompt,
-      '',
+      userMessage,
+      systemPrompt,
       options.provider,
       options.modelId
     );
@@ -129,189 +136,48 @@ export async function processTextForTTS(
   return final;
 }
 
-function buildPrompt(
-  text: string,
-  opts: {
-    threshold: number;
-    language?: string;
-    needCompress: boolean;
-    needTranslate: boolean;
-  }
-): string {
-  if (opts.needTranslate && opts.language) {
-    return buildTranslatePrompt(text, {
-      threshold: opts.threshold,
-      language: opts.language,
-      needCompress: opts.needCompress,
-    });
-  }
+/** Dedicated translation prompts per known language */
+const TRANSLATE_PROMPTS: Record<string, string> = {
+  zh: TTS_ZH_PROMPT,
+  en: TTS_EN_PROMPT,
+  ja: TTS_JA_PROMPT,
+};
 
-  return buildCompressOnlyPrompt(text, opts.threshold, opts.needCompress);
+/**
+ * Select the system prompt: compress-only template without a target language,
+ * dedicated template for known languages, generic template with the language
+ * name filled in otherwise.
+ *
+ * @param language - Target language; undefined or 'default' means no translation
+ */
+function selectSystemPrompt(language?: string): string {
+  if (!language || language === 'default') return TTS_COMPRESS_PROMPT;
+  return (
+    TRANSLATE_PROMPTS[language] ??
+    TTS_GENERIC_PROMPT.replace('{{language}}', language)
+  );
 }
 
-function buildCompressOnlyPrompt(
+/**
+ * Build the user message: the dynamic compress-threshold instruction when over
+ * threshold, followed by the text to process.
+ *
+ * @param text - Cleaned text
+ * @param threshold - Character count that triggers compression
+ * @param needCompress - Whether compression is needed
+ */
+function buildUserMessage(
   text: string,
   threshold: number,
   needCompress: boolean
 ): string {
-  const parts: string[] = [
-    'You are a text-to-speech processing assistant. Process the following text to make it suitable for spoken narration.',
-  ];
-
+  const parts: string[] = [];
   if (needCompress) {
     parts.push(
       `Compress the content to under ${threshold} characters while preserving key information.`
     );
   }
-
-  parts.push(
-    'Rules:',
-    '- Output plain text only, no explanations',
-    '- Preserve key facts and numbers',
-    '- Make the text natural and fluent for spoken narration',
-    '',
-    'Original text:',
-    text
-  );
-
-  return parts.join('\n');
-}
-
-/**
- * Build a language-specific translation prompt for TTS text processing.
- * All prompts are written in English for maximum LLM comprehension accuracy.
- */
-function buildTranslatePrompt(
-  text: string,
-  opts: {
-    threshold: number;
-    language: string;
-    needCompress: boolean;
-  }
-): string {
-  switch (opts.language) {
-    case 'zh':
-      return buildChinesePrompt(text, opts);
-    case 'en':
-      return buildEnglishPrompt(text, opts);
-    case 'ja':
-      return buildJapanesePrompt(text, opts);
-    default:
-      return buildGenericTranslatePrompt(text, opts, opts.language);
-  }
-}
-
-function buildChinesePrompt(
-  text: string,
-  opts: { threshold: number; needCompress: boolean }
-): string {
-  const parts: string[] = [
-    'You are a text-to-speech processing assistant. Translate and adapt the following text into natural Chinese (Mandarin) for spoken narration.',
-  ];
-
-  if (opts.needCompress) {
-    parts.push(
-      `Compress the content to under ${opts.threshold} characters while preserving key information.`
-    );
-  }
-
-  parts.push(
-    'Rules:',
-    '- Output plain text only, no explanations',
-    '- Use natural, conversational Chinese (Mandarin)',
-    '- Keep foreign proper nouns in their original form, add Chinese annotation when necessary',
-    '- Preserve key facts and numbers',
-    '',
-    'Original text:',
-    text
-  );
-
-  return parts.join('\n');
-}
-
-function buildEnglishPrompt(
-  text: string,
-  opts: { threshold: number; needCompress: boolean }
-): string {
-  const parts: string[] = [
-    'You are a text-to-speech processing assistant. Translate and adapt the following text into natural English for spoken narration.',
-  ];
-
-  if (opts.needCompress) {
-    parts.push(
-      `Compress the content to under ${opts.threshold} characters while preserving key information.`
-    );
-  }
-
-  parts.push(
-    'Rules:',
-    '- Output plain text only, no explanations',
-    '- Use natural, conversational English',
-    '- Keep proper nouns in their original form when appropriate',
-    '- Preserve key facts and numbers',
-    '',
-    'Original text:',
-    text
-  );
-
-  return parts.join('\n');
-}
-
-function buildJapanesePrompt(
-  text: string,
-  opts: { threshold: number; needCompress: boolean }
-): string {
-  const parts: string[] = [
-    'You are a text-to-speech processing assistant. Translate and adapt the following text into natural Japanese for spoken narration. your prompt will directly send to TTS engine, so do not generate text that is hard to process or repeat it self',
-  ];
-
-  if (opts.needCompress) {
-    parts.push(
-      `Compress the content to under ${opts.threshold} characters while preserving key information.`
-    );
-  }
-
-  parts.push(
-    'Rules:',
-    '- Output plain text only, no explanations',
-    '- Convert difficult kanji compounds to hiragana/katakana where appropriate do not use () to repeat those words',
-    '- Transliterate ALL English and foreign words into katakana (e.g. computer→コンピュータ, AI→エーアイ, API→エーピーアイ)',
-    '- Transliterate foreign proper nouns into katakana (e.g. New York→ニューヨーク)',
-    '- Use natural, conversational Japanese suitable for spoken narration',
-    '- Preserve key facts and numbers',
-    '',
-    'Original text:',
-    text
-  );
-
-  return parts.join('\n');
-}
-
-function buildGenericTranslatePrompt(
-  text: string,
-  opts: { threshold: number; needCompress: boolean },
-  language: string
-): string {
-  const parts: string[] = [
-    `You are a text-to-speech processing assistant. Translate and adapt the following text into natural ${language} for spoken narration.`,
-  ];
-
-  if (opts.needCompress) {
-    parts.push(
-      `Compress the content to under ${opts.threshold} characters while preserving key information.`
-    );
-  }
-
-  parts.push(
-    'Rules:',
-    '- Output plain text only, no explanations',
-    '- Use natural, conversational language suitable for spoken narration',
-    '- Preserve key facts and numbers',
-    '',
-    'Original text:',
-    text
-  );
-
+  parts.push('Original text:', text);
   return parts.join('\n');
 }
 
