@@ -15,7 +15,6 @@
     "start": "bun run dist/index.js",
     "dev": "bun run src/index.ts",
     "test": "bun test && bun test ./tests/tts.isolated.ts && bun test ./tests/compress.isolated.ts && bun test ./tests/memory.isolated.ts && bun test ./tests/marketplace-app-install.isolated.ts",
-    "test:vitest": "vitest",
     "typecheck": "tsc --noEmit",
     "preflight": "bun run build && bun test"
   },
