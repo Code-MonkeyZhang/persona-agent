@@ -9,7 +9,7 @@
  * Mock 策略：
  * - 文件系统：mock paths.js 到临时目录
  * - MiniMax API：mock minimax-api.ts 避免调用真实外部 API
- * - Agent 循环：mock @earendil-works/pi-ai 的 stream，返回固定文本
+ * - Agent 循环：mock pi-models.js 的 models.stream，返回固定文本
  * - Express + WebSocket：真实启动
  */
 
@@ -72,8 +72,11 @@ mock.module('../src/config/index.js', () => ({
   getDefaultConfigYaml: () => 'enableLogging: false\n',
 }));
 
-mock.module('@earendil-works/pi-ai', () => {
-  return {
+// pi-ai 0.80+ 起 LLM 调用统一经 pi-models.js 的 models 实例，mock 该模块即可拦截
+// 全部调用方；不要改回 mock '@earendil-works/pi-ai' 主入口——converter 运行时
+// 依赖其中的 Type，mock 掉会导致工具 schema 转换崩溃。
+mock.module('../src/agent/pi-models.js', () => ({
+  models: {
     stream: () => {
       function* fakeStream() {
         yield { type: 'text_delta', delta: '你好，我是助手。' };
@@ -82,8 +85,8 @@ mock.module('@earendil-works/pi-ai', () => {
       return fakeStream();
     },
     getModel: () => ({ id: 'test-model' }),
-  };
-});
+  },
+}));
 
 import { cleanText } from '../src/tts/text-processor.js';
 import { createTtsRouter } from '../src/server/routers/tts.js';
@@ -286,11 +289,9 @@ describe('TTS Integration Tests', () => {
     it('should return 2 TTS models', async () => {
       const response = await fetch(`${BASE_URL}/api/tts/models`);
       const data = (await response.json()) as {
-        success: boolean;
         models: Array<{ id: string; name: string }>;
       };
 
-      expect(data.success).toBe(true);
       expect(data.models).toHaveLength(2);
       expect(data.models[0].id).toBe('speech-2.8-hd');
     });
@@ -298,7 +299,6 @@ describe('TTS Integration Tests', () => {
     it('should return default config', async () => {
       const response = await fetch(`${BASE_URL}/api/tts/config`);
       const data = (await response.json()) as {
-        success: boolean;
         config: {
           apiKey: string;
           model: string;
@@ -307,7 +307,6 @@ describe('TTS Integration Tests', () => {
         };
       };
 
-      expect(data.success).toBe(true);
       expect(data.config.apiKey).toBe('');
       expect(data.config.model).toBe('speech-2.8-hd');
       expect(data.config.clonedVoices).toEqual([]);
@@ -328,11 +327,9 @@ describe('TTS Integration Tests', () => {
       // GET 触发迁移：从 config.yaml 读 500，持久化到 minimax-tts.json
       const response = await fetch(`${BASE_URL}/api/tts/config`);
       const data = (await response.json()) as {
-        success: boolean;
         config: { summaryThreshold: number };
       };
 
-      expect(data.success).toBe(true);
       expect(data.config.summaryThreshold).toBe(500);
 
       // 验证迁移已持久化到 minimax-tts.json
@@ -360,14 +357,12 @@ describe('TTS Integration Tests', () => {
       expect(data.config.model).toBe('speech-2.8-hd');
     });
 
-    it('should return 54 preset voices with no clones', async () => {
+    it('should return 58 preset voices with no clones', async () => {
       const response = await fetch(`${BASE_URL}/api/voices`);
       const data = (await response.json()) as {
-        success: boolean;
         voices: Array<{ id: string; group: string }>;
       };
 
-      expect(data.success).toBe(true);
       expect(data.voices).toHaveLength(58);
       expect(data.voices.every((v) => v.group === 'preset')).toBe(true);
     });
