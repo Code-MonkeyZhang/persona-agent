@@ -125,6 +125,7 @@ export class AgentCore {
         apiKey: this.runConfig.apiKey,
         thinkingEnabled: true,
         signal,
+        maxRetries: 2,
       });
 
       for await (const event of eventStream) {
