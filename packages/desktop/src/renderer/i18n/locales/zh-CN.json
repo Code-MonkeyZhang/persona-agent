@@ -304,6 +304,7 @@
 
   "workspace.selectWorkspace": "选择工作空间",
   "workspace.clearWorkspace": "清除工作空间",
+  "workspace.fallbackNotice": "配置的工作目录不可用，已重置为：{{path}}",
 
   "codeBlock.expand": "展开",
   "codeBlock.collapse": "折叠",

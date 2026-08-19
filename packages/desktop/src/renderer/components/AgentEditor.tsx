@@ -540,7 +540,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           maxSteps: parseInt(maxSteps) || 50,
           compressionThreshold: parseInt(compressionThreshold) || 50,
           dreamIntervalMinutes: parseInt(dreamIntervalMinutes) || 120,
-          defaultWorkspacePath,
+          defaultWorkspacePath: defaultWorkspacePath || '',
           voiceId: voiceId || undefined,
           voiceLanguage: voiceId ? voiceLanguage : undefined,
         };
@@ -556,7 +556,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           maxSteps: parseInt(maxSteps) || 50,
           compressionThreshold: parseInt(compressionThreshold) || 50,
           dreamIntervalMinutes: parseInt(dreamIntervalMinutes) || 120,
-          defaultWorkspacePath,
+          defaultWorkspacePath: defaultWorkspacePath || '',
           voiceId: voiceId || undefined,
           voiceLanguage: voiceId ? voiceLanguage : undefined,
         };

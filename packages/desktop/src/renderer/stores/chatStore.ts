@@ -18,6 +18,8 @@ import {
 } from '../lib/api';
 import { toast } from './toastStore';
 import { logger } from '../lib/logger';
+import i18n from '../i18n';
+import { useAgentStore } from './agentStore';
 import { useSessionStore, stripLastTextThought } from './sessionStore';
 import { useCompanionStore } from './companionStore';
 import { useVoiceStore } from './voiceStore';
@@ -562,6 +564,16 @@ export const useChatStore = create<ChatStore>((set, get) => {
 
         case 'speak_error': {
           toast.warning(msg.message);
+          break;
+        }
+
+        case 'workspace_fallback': {
+          // 工作目录失效已被写回配置：提示用户并刷新 Agent 与会话的路径显示
+          toast.warning(
+            i18n.t('workspace.fallbackNotice', { path: msg.fallbackPath })
+          );
+          void useAgentStore.getState().loadAgents();
+          void useSessionStore.getState().loadSessions(msg.agentId);
           break;
         }
 

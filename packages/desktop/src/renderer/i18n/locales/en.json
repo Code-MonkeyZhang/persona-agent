@@ -304,6 +304,7 @@
 
   "workspace.selectWorkspace": "Select Workspace",
   "workspace.clearWorkspace": "Clear Workspace",
+  "workspace.fallbackNotice": "Configured workspace is unavailable, reset to {{path}}",
 
   "codeBlock.expand": "Expand",
   "codeBlock.collapse": "Collapse",
