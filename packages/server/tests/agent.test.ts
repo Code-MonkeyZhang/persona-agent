@@ -40,6 +40,7 @@ mock.module('../src/util/paths.js', () => ({
     path.join(agentsDir, id, 'assets', 'backgrounds'),
   getAgentSessionsDir: (id: string) => path.join(agentsDir, id, 'sessions'),
   getAgentMemoryDir: (id: string) => path.join(agentsDir, id, 'memory'),
+  getWorkspaceDir: () => path.join(tempDir, 'workspace'),
 }));
 
 import {
@@ -49,6 +50,7 @@ import {
   updateAgentConfig,
   deleteAgentConfig,
   hasAgentConfig,
+  backfillDefaultWorkspacePaths,
   AgentConfigUpdateSchema,
 } from '../src/agent/index.js';
 import { getAgentDir } from '../src/util/paths.js';
@@ -167,6 +169,31 @@ describe('Agent Module Integration Tests', () => {
         expect(fs.existsSync(agentDir)).toBe(true);
         expect(fs.statSync(agentDir).isDirectory()).toBe(true);
       });
+
+      /** 测试：未提供工作空间时预填充默认工作空间 */
+      it('should prefill default workspace path when omitted', () => {
+        const agent = createAgentConfig(createTestAgentInput());
+
+        const expected = path.join(tempDir, 'workspace');
+        expect(agent.defaultWorkspacePath).toBe(expected);
+
+        const saved = JSON.parse(
+          fs.readFileSync(
+            path.join(agentsDir, agent.id, 'config.json'),
+            'utf8'
+          )
+        ) as AgentConfig;
+        expect(saved.defaultWorkspacePath).toBe(expected);
+      });
+
+      /** 测试：显式提供的工作空间被保留 */
+      it('should keep explicitly provided workspace path', () => {
+        const agent = createAgentConfig(
+          createTestAgentInput({ defaultWorkspacePath: '/custom/ws' })
+        );
+
+        expect(agent.defaultWorkspacePath).toBe('/custom/ws');
+      });
     });
 
     describe('getAgentConfig', () => {
@@ -276,6 +303,21 @@ describe('Agent Module Integration Tests', () => {
         expect(updated.skillNames).toEqual(['skill-a', 'skill-b']);
         expect(updated.mcpNames).toEqual(['mcp-x']);
       });
+
+      /** 测试：更新传空串时工作空间重置为默认路径 */
+      it('should reset workspace to default when updated with empty string', () => {
+        const created = createAgentConfig(
+          createTestAgentInput({ defaultWorkspacePath: '/custom/ws' })
+        );
+
+        const updated = updateAgentConfig(created.id, {
+          defaultWorkspacePath: '',
+        });
+
+        expect(updated.defaultWorkspacePath).toBe(
+          path.join(tempDir, 'workspace')
+        );
+      });
     });
 
     describe('deleteAgentConfig', () => {
@@ -296,6 +338,44 @@ describe('Agent Module Integration Tests', () => {
 
         deleteAgentConfig(agent.id);
         expect(fs.existsSync(agentDir)).toBe(false);
+      });
+    });
+
+    describe('backfillDefaultWorkspacePaths', () => {
+      /** 测试：为缺失字段的旧 Agent 补写默认工作空间 */
+      it('should backfill missing defaultWorkspacePath on disk', () => {
+        const agent = createAgentConfig(createTestAgentInput());
+        const configPath = path.join(agentsDir, agent.id, 'config.json');
+
+        // 手动抹掉字段，模拟预填充上线前的存量数据
+        const raw = JSON.parse(
+          fs.readFileSync(configPath, 'utf8')
+        ) as Record<string, unknown>;
+        delete raw['defaultWorkspacePath'];
+        fs.writeFileSync(configPath, JSON.stringify(raw, null, 2));
+
+        backfillDefaultWorkspacePaths();
+
+        const saved = JSON.parse(
+          fs.readFileSync(configPath, 'utf8')
+        ) as AgentConfig;
+        expect(saved.defaultWorkspacePath).toBe(
+          path.join(tempDir, 'workspace')
+        );
+        // updatedAt 不因迁移被刷新
+        expect(saved.updatedAt).toBe(raw['updatedAt']);
+      });
+
+      /** 测试：已有值的 Agent 不被覆盖 */
+      it('should not overwrite existing defaultWorkspacePath', () => {
+        const agent = createAgentConfig(
+          createTestAgentInput({ defaultWorkspacePath: '/custom/ws' })
+        );
+
+        backfillDefaultWorkspacePaths();
+
+        const saved = getAgentConfig(agent.id);
+        expect(saved?.defaultWorkspacePath).toBe('/custom/ws');
       });
     });
   });

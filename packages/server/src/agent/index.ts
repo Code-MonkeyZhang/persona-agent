@@ -9,6 +9,7 @@ export {
   createAgentConfig,
   updateAgentConfig,
   deleteAgentConfig,
+  backfillDefaultWorkspacePaths,
 } from './agent-config-store.js';
 export {
   AgentConfigSchema,

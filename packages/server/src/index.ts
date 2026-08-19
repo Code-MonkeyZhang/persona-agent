@@ -7,6 +7,7 @@ import { initAllDirsAndFiles, Logger } from './util/index.js';
 import { getLogsDir, getConfigPath } from './util/paths.js';
 import { loadConfig } from './config/index.js';
 import { startServer, httpServer } from './server/index.js';
+import { backfillDefaultWorkspacePaths } from './agent/index.js';
 import { APP_NAME, APP_VERSION } from './util/app.js';
 
 const program = new Command();
@@ -23,6 +24,7 @@ program
     initAllDirsAndFiles();
     const config = loadConfig(getConfigPath());
     Logger.initialize(getLogsDir(), config.enableLogging);
+    backfillDefaultWorkspacePaths();
 
     await startServer(port);
     setupExitHandlers();

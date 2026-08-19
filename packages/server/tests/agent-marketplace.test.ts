@@ -59,6 +59,7 @@ mock.module('../src/util/paths.js', () => ({
     path.join(agentsDir, id, 'assets', 'backgrounds'),
   getAgentSessionsDir: (id: string) => path.join(agentsDir, id, 'sessions'),
   getAgentMemoryDir: (id: string) => path.join(agentsDir, id, 'memory'),
+  getWorkspaceDir: () => path.join(tempDir, 'workspace'),
   // 以下给同进程的 marketplace.test.ts / mcp-marketplace.test.ts 用
   getSkillsDir: () => path.join(tempDir, 'skills'),
   getMcpServersDir: () => path.join(tempDir, 'mcp-servers'),
@@ -227,8 +228,8 @@ describe('installAgentFromMarketplace', () => {
     // id 是新生成的，不是 config.json 里的
     expect(agent.id).not.toBe('should-be-deleted');
     expect(agent.createdAt).not.toBe(123);
-    // 这些字段不应该存在
-    expect(agent.defaultWorkspacePath).toBeUndefined();
+    // 作者配置的路径被剥离，预填充为默认工作空间
+    expect(agent.defaultWorkspacePath).toBe(path.join(tempDir, 'workspace'));
     expect(agent.voiceId).toBeUndefined();
     // marketplaceSource 被防御性清理后用真实来源覆盖
     expect(agent.marketplaceSource).not.toBe('fake/source');

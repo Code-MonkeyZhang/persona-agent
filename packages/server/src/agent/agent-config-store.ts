@@ -32,6 +32,7 @@ import {
   getAgentAssetsBackgroundsDir,
   getAgentSessionsDir,
   getAgentMemoryDir,
+  getWorkspaceDir,
 } from '../util/paths.js';
 import {
   AgentConfigSchema,
@@ -65,6 +66,15 @@ function readSystemPrompt(agentId: string): string | undefined {
 /** Write an agent's system prompt to systemPrompt.md atomically */
 function writeSystemPrompt(agentId: string, content: string): void {
   writeFileAtomic(getAgentSystemPromptPath(agentId), content);
+}
+
+/**
+ * 规整工作空间路径，保证落盘永远有值。
+ * - 未设置或空串时回落默认工作空间
+ * - 用户显式清空等价于重置为默认路径
+ */
+function normalizeWorkspacePath(value?: string): string {
+  return value?.trim() || getWorkspaceDir();
 }
 
 /** Check if an agent exists */
@@ -143,6 +153,8 @@ function generateAgentId(timestamp: number = Date.now()): string {
  * agents/{agentId}/ with config.json, systemPrompt.md, assets/, assets/pose/,
  * assets/backgrounds/, sessions/, memory/
  *
+ * defaultWorkspacePath 未提供时预填充为默认工作空间，商城安装剥离作者路径后同样生效。
+ *
  * @param input - Agent configuration input
  * @returns Created agent configuration
  */
@@ -152,6 +164,7 @@ export function createAgentConfig(input: AgentConfigInput): AgentConfig {
 
   const config: AgentConfig = {
     ...input,
+    defaultWorkspacePath: normalizeWorkspacePath(input.defaultWorkspacePath),
     id,
     createdAt: now,
     updatedAt: now,
@@ -182,6 +195,7 @@ export function createAgentConfig(input: AgentConfigInput): AgentConfig {
  *
  * 接受部分更新：传入对象中只需包含需要修改的字段，其余字段从现有配置继承。
  * id 与 createdAt 不可变，updatedAt 每次调用都会刷新。
+ * defaultWorkspacePath 不传保留原值，传空串重置为默认工作空间。
  *
  * @param id - The unique identifier of the agent.
  * @param input - Partial agent config fields to update.
@@ -204,6 +218,9 @@ export function updateAgentConfig(
     createdAt: existing.createdAt,
     updatedAt: Date.now(),
   };
+  updated.defaultWorkspacePath = normalizeWorkspacePath(
+    updated.defaultWorkspacePath
+  );
 
   // systemPrompt 单独持久化；config.json 不再包含该字段
   const { systemPrompt, ...onDisk } = updated;
@@ -221,5 +238,34 @@ export function deleteAgentConfig(id: string): void {
   const agentDir = getAgentDir(id);
   if (fs.existsSync(agentDir)) {
     fs.rmSync(agentDir, { recursive: true });
+  }
+}
+
+/**
+ * 存量迁移：为缺失 defaultWorkspacePath 的旧 Agent 补写默认工作空间。
+ *
+ * - 只补空缺，绝不覆盖已有值
+ * - 直接改写 config.json，不经 updateAgentConfig，避免无谓刷新 updatedAt
+ * - 调用点须在 Logger.initialize 之后，保证回填日志能落盘
+ */
+export function backfillDefaultWorkspacePaths(): void {
+  const agentsDir = getAgentsDir();
+  if (!fs.existsSync(agentsDir)) return;
+
+  for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const configPath = getAgentConfigPath(entry.name);
+    const raw = readJsonFile<Record<string, unknown> | null>(configPath, null);
+    if (raw === null) continue;
+
+    const existing =
+      typeof raw['defaultWorkspacePath'] === 'string'
+        ? (raw['defaultWorkspacePath'] as string).trim()
+        : '';
+    if (existing) continue;
+
+    raw['defaultWorkspacePath'] = getWorkspaceDir();
+    writeJsonAtomic(configPath, raw);
+    Logger.log('AGENT', `Backfilled default workspace path: ${entry.name}`);
   }
 }

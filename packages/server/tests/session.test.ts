@@ -41,6 +41,7 @@ mock.module('../src/util/paths.js', () => ({
   getAgentAssetsPoseDir: (id: string) => path.join(agentsDir, id, 'assets', 'pose'),
   getAgentAssetsBackgroundsDir: (id: string) => path.join(agentsDir, id, 'assets', 'backgrounds'),
   getAgentMemoryDir: (id: string) => path.join(agentsDir, id, 'memory'),
+  getWorkspaceDir: () => path.join(tempDir, 'workspace'),
 }));
 
 import { createSessionRouter } from '../src/server/routers/session.js';
