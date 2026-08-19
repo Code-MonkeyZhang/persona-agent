@@ -4,6 +4,11 @@ appId: com.feurther.persona
 
 afterPack: scripts/after-pack.mjs
 
+# 依赖全部为纯 JS（无原生模块），且由根目录 bun install 统一安装。
+# 不设 false 时 electron-builder 会在包目录缺 node_modules 时尝试 npm 重装生产依赖，
+# 该步骤会把 npm_execpath（bun 二进制）当脚本传给 node 执行而报 SyntaxError。
+npmRebuild: false
+
 artifactName: "Persona-${os}-${arch}-${version}.${ext}"
 
 extraResources:
