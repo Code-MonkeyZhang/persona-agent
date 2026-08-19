@@ -27,7 +27,6 @@ jobs:
       - run: bun run scripts/prepare-cloudflared.ts --mac-all
 
       - run: bun install
-        working-directory: packages/server
 
       - run: bun run build:mac-all
         working-directory: packages/server
@@ -35,13 +34,10 @@ jobs:
       - name: Verify x64 server binary via Rosetta
         run: arch -x86_64 ./packages/server/dist/persona-agent-server-darwin-x64 --version
 
-      - run: npm install
+      - run: bun run build
         working-directory: packages/desktop
 
-      - run: npm run build
-        working-directory: packages/desktop
-
-      - run: npm run dist:mac
+      - run: bun run dist:mac
         working-directory: packages/desktop
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
@@ -79,18 +75,14 @@ jobs:
       - run: bun run scripts/prepare-cloudflared.ts
 
       - run: bun install
-        working-directory: packages/server
 
       - run: bun run build
         working-directory: packages/server
 
-      - run: npm install
+      - run: bun run build
         working-directory: packages/desktop
 
-      - run: npm run build
-        working-directory: packages/desktop
-
-      - run: npm run dist:win
+      - run: bun run dist:win
         working-directory: packages/desktop
 
       - uses: actions/upload-artifact@v4

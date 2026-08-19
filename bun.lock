@@ -44,7 +44,7 @@
       "devDependencies": {
         "@electron-toolkit/preload": "^3.0.0",
         "@electron-toolkit/utils": "^3.0.0",
-        "@persona/shared": "file:../shared",
+        "@persona/shared": "workspace:*",
         "@types/node": "^20.10.0",
         "@types/react": "^18.2.0",
         "@types/react-dom": "^18.2.0",
@@ -83,7 +83,7 @@
         "zod": "^4.3.5",
       },
       "devDependencies": {
-        "@persona/shared": "file:../shared",
+        "@persona/shared": "workspace:*",
         "@types/bun": "^1.2.0",
         "@types/cors": "^2.8.19",
         "@types/express": "^5.0.6",
@@ -2102,10 +2102,6 @@
     "path-scurry/lru-cache": ["lru-cache@10.4.3", "https://registry.npmmirror.com/lru-cache/-/lru-cache-10.4.3.tgz", {}, "sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ=="],
 
     "path-scurry/minipass": ["minipass@7.1.3", "https://registry.npmmirror.com/minipass/-/minipass-7.1.3.tgz", {}, "sha512-tEBHqDnIoM/1rXME1zgka9g6Q2lcoCkxHLuc7ODJ5BxbP5d4c2Z5cGgtXAku59200Cx7diuHTOYfSBD8n6mm8A=="],
-
-    "persona-agent-desktop/@persona/shared": ["@persona/shared@file:packages/shared", { "dependencies": { "zod": "^4.3.5" } }],
-
-    "persona-agent-server/@persona/shared": ["@persona/shared@file:packages/shared", { "dependencies": { "zod": "^4.3.5" } }],
 
     "persona-agent-server/@types/node": ["@types/node@24.13.2", "https://registry.npmmirror.com/@types/node/-/node-24.13.2.tgz", { "dependencies": { "undici-types": "~7.18.0" } }, "sha512-fRa09kZTgu8o71KFcDjUFuc7F+dEbZYZmkI0mg5YBTRs0yMKjYHsq/c0urDKeDb+D5qVgXOdFcuu+DZPKOITwA=="],
 

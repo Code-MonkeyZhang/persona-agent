@@ -19,7 +19,7 @@
     "preflight": "bun run build && bun test"
   },
   "devDependencies": {
-    "@persona/shared": "file:../shared",
+    "@persona/shared": "workspace:*",
     "@types/bun": "^1.2.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

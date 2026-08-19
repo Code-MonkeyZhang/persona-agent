@@ -10,7 +10,6 @@
     "preview": "electron-vite preview",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit",
-    "postinstall": "node scripts/sync-shared.mjs",
     "lint": "node scripts/check-i18n-keys.mjs",
     "check:i18n": "node scripts/check-i18n-keys.mjs",
     "test": "vitest",
@@ -58,7 +57,7 @@
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.0",
     "@electron-toolkit/utils": "^3.0.0",
-    "@persona/shared": "file:../shared",
+    "@persona/shared": "workspace:*",
     "@types/node": "^20.10.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",

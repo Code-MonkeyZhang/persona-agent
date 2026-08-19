@@ -31,13 +31,7 @@ jobs:
 
       - run: bun install
 
-      - run: bun install
-        working-directory: packages/server
-
-      - run: npm install
-        working-directory: packages/desktop
-
-      - run: npm run check
+      - run: bun run check
 
       - run: bun test
         working-directory: packages/server
