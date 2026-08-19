@@ -127,6 +127,9 @@ describe('WebSocket Device Identity', () => {
 
   afterAll(async () => {
     shutdownWebSocket();
+    // Bun 的 node:http 对 upgrade 过的 socket 有连接 accounting 缺口，
+    // 仅靠 close(cb) 回调永不触发；先强制断开残余连接再关监听
+    httpServer.closeAllConnections?.();
     await new Promise<void>((resolve) => httpServer.close(() => resolve()));
   });
 
