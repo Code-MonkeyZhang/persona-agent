@@ -19,15 +19,6 @@ interface VoiceStore {
   voiceEnabled: boolean;
   toggleVoice: () => void;
 
-  /**
-   * 语音播报：直接用服务端传来的参数调 MiniMax TTS API → 播放
-   * 所有参数来自服务端 speak_ready WebSocket 事件
-   * @param speakText - 服务端处理后的朗读文本
-   * @param voiceId - 音色 ID
-   * @param apiKey - MiniMax API Key
-   * @param model - TTS 模型 ID
-   * @param languageBoost - 语言增强参数
-   */
   speak: (
     speakText: string,
     voiceId: string,

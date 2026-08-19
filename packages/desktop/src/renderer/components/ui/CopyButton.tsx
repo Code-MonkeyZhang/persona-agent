@@ -10,13 +10,9 @@ interface CopyButtonProps extends Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick' | 'children'
 > {
-  /** 待复制的文本内容 */
   text: string;
-  /** 复制成功后的回调 */
   onCopied?: () => void;
-  /** 复制失败后的回调 */
   onError?: () => void;
-  /** 自定义渲染函数，接收 copied 状态 */
   children?: (copied: boolean) => React.ReactNode;
 }
 

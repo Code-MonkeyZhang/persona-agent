@@ -7,7 +7,6 @@ import React from 'react';
 import { HelpCircle } from 'lucide-react';
 
 interface HelpTooltipProps {
-  /** 提示文字内容 */
   text: string;
 }
 

@@ -9,10 +9,8 @@ import { persist } from 'zustand/middleware';
 interface CompanionStore {
   visible: boolean;
   currentPose: string;
-  /** 标记本次 currentPose 变化是否需要交叉淡入动画 */
   animatePose: boolean;
   toggleVisible: () => void;
-  /** @param animate - true 时触发 cross-fade，false 或省略时直接切换 */
   setPose: (pose: string, animate?: boolean) => void;
 }
 

@@ -7,9 +7,7 @@ import { useState, useRef, useCallback } from 'react';
 import type { KeyboardEvent, ChangeEvent } from 'react';
 
 interface UseChatInputOptions {
-  /** textarea 最大高度 */
   maxHeight: number;
-  /** Enter 发送回调 */
   onSend: () => void;
 }
 

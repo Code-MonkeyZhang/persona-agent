@@ -13,7 +13,6 @@ import { getPoseImageUrl, getBackgroundImageUrl, listPoses } from '../lib/api';
 import { logger } from '../lib/logger';
 
 interface CompanionContentProps {
-  /** 当前 Agent ID，用于拼接资源 URL；为 null 时不渲染 */
   agentId: string | null;
 }
 

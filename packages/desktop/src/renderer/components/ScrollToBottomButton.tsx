@@ -8,11 +8,8 @@ import { ArrowDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface ScrollToBottomButtonProps {
-  /** 是否显示按钮，由父组件依据滚动位置决定 */
   visible: boolean;
-  /** 点击后触发的滚动回调 */
   onClick: () => void;
-  /** 距容器底部的额外偏移，用于避开浮层；默认 0 仅保留基础间距 */
   bottomOffset?: number;
 }
 

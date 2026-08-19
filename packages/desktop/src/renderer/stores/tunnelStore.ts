@@ -19,7 +19,6 @@ interface TunnelStore {
   url: string | null;
   error: string | null;
   health: TunnelHealth;
-  /** 在线手机设备的 deviceId 集合，size > 0 表示有手机连接 */
   mobileDeviceIds: Set<string>;
 
   start: () => Promise<void>;

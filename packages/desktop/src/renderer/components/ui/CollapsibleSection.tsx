@@ -7,13 +7,9 @@ import { ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 interface CollapsibleSectionProps {
-  /** 分区标题 */
   title: string;
-  /** 分区内项目数量，显示在标题右侧 */
   count: number;
-  /** 当前是否展开 */
   open: boolean;
-  /** 切换展开/折叠 */
   onToggle: () => void;
   children: React.ReactNode;
 }

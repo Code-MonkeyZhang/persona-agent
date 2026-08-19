@@ -10,11 +10,8 @@ import type { LucideIcon } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface MarketplaceLogoProps {
-  /** 远程图 URL，缺失时走兜底 */
   logoUrl?: string | null;
-  /** img alt 文本 */
   name: string;
-  /** 兜底图标，MCP 用 Wrench，Agent 用 UserRound */
   fallbackIcon: LucideIcon;
 }
 

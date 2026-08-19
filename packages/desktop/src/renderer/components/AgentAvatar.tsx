@@ -26,7 +26,6 @@ interface AgentAvatarProps {
   agent: AgentConfig;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
-  /** 编辑器中的 base64 预览 URL，传入时优先使用 */
   editingPreviewUrl?: string;
 }
 

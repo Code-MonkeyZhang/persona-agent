@@ -147,7 +147,6 @@ export class WebSocketClient {
   private reconnectDelay = 1000;
   private activeSessionIds: Set<string> = new Set();
 
-  /** 心跳间隔，需小于服务端 30 秒超时阈值 */
   private static readonly HEARTBEAT_INTERVAL_MS = 30_000;
 
   constructor(

@@ -156,7 +156,6 @@ interface MessageListProps {
   sessionId: string | null;
   hasAgent?: boolean;
   agent: AgentConfig | null;
-  /** Virtuoso 底部预留高度，用于避开浮层 InputBox；不传则不留空 */
   bottomPadding?: number;
 }
 

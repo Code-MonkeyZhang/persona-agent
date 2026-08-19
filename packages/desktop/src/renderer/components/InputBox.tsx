@@ -22,13 +22,10 @@ import type { ProviderStatus } from '../lib/api';
  * InputBox 组件的属性接口
  */
 interface InputBoxProps {
-  /** 发送消息的回调函数，参数为用户输入的文本内容 */
   onSend: (message: string) => void;
-  /** 中止当前生成的回调，仅在 isLoading 时触发 */
   onAbort?: () => void;
   isLoading?: boolean;
   disabled?: boolean;
-  /** 当前可用的模型供应商列表，传递给 ModelSelector */
   providers: ProviderStatus[];
   currentModelId: string;
   currentProviderId: string | undefined;

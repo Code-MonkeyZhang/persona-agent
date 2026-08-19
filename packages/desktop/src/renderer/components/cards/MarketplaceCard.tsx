@@ -31,7 +31,6 @@ export interface CardItem {
 interface MarketplaceCardProps {
   type: 'skill' | 'mcp' | 'agent' | 'app';
   item: CardItem;
-  /** 远程 logo 地址，仅 MCP / Agent / 应用传入 */
   logoUrl?: string;
   installed: boolean;
   installing: boolean;

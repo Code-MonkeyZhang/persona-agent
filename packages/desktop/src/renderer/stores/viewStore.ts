@@ -13,13 +13,9 @@ type MainNav = 'chat' | 'agent-settings' | 'tools' | 'apps' | 'skills';
 
 interface ViewStore {
   currentView: ViewType;
-  /** 当前编辑的 Agent ID */
   editingAgentId: string | null;
-  /** MainView 内部导航 */
   activeNav: MainNav;
-  /** Session 栏整体收起/展开 */
   sessionSidebarCollapsed: boolean;
-  /** 普通会话列表折叠 */
   sessionsCollapsed: boolean;
 
   setView: (view: ViewType) => void;

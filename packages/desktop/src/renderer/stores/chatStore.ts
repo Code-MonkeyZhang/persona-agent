@@ -125,14 +125,11 @@ function withLoadingPlaceholder(
 interface SessionChatState {
   messages: UIMessage[];
   isLoading: boolean;
-  /** 当前轮次正在积累的 assistant 消息 ID，null 表示无活跃流式消息 */
   streamingMessageId: string | null;
 }
 
 interface ChatStore {
-  /** 按 sessionId 隔离的各 session 聊天状态 */
   sessionStates: Map<string, SessionChatState>;
-  /** 当前用户正在查看的 session ID */
   currentSessionId: string | null;
   connectionStatus: ConnectionStatus;
   agentId: string | null;
@@ -140,14 +137,10 @@ interface ChatStore {
   wsClient: WebSocketClient | null;
 
   setCurrentSessionId: (id: string | null) => void;
-  /** 为指定 session 初始化聊天状态 */
   initSessionState: (sessionId: string, messages: UIMessage[]) => void;
-  /** 清除指定 session 的聊天状态 */
   clearSessionState: (sessionId: string) => void;
   sendMessage: (content: string, sessionId?: string) => Promise<void>;
-  /** 请求服务端中止当前会话的生成 */
   abortGeneration: (sessionId?: string) => void;
-  /** 进入 session 时订阅事件流，供 App.tsx 在 session 切换时调用 */
   subscribeSession: (sessionId: string) => void;
   handleWsMessage: (msg: ServerMessage) => void;
   setConnectionStatus: (status: ConnectionStatus) => void;

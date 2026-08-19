@@ -13,7 +13,6 @@ import { useChatStore } from '../stores/chatStore';
 import { Markdown } from './Markdown';
 
 interface CompanionReplyBubbleProps {
-  /** 当前 Agent ID，预留接口便于后续按 Agent 调整气泡样式 */
   agentId: string | null;
 }
 

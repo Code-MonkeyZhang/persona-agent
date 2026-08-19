@@ -6,7 +6,6 @@
 import { cn } from '../../lib/utils';
 
 interface StatusDotProps {
-  /** Tailwind 背景色类，如 bg-green-500、bg-gray-300 */
   color: string;
   className?: string;
 }

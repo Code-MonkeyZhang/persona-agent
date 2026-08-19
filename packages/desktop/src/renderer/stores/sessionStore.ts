@@ -66,7 +66,6 @@ interface SessionStore {
   updateSessionTitleLocally: (sessionId: string, title: string) => void;
   convertSessionMessages: (messages: Message[]) => UIMessage[];
 
-  /** 按 sessionId 映射的消息预览文本，作为两次列表刷新之间的本地实时补丁 */
   sessionPreviews: Record<string, string>;
   updateSessionPreview: (sessionId: string, preview: string) => void;
 }

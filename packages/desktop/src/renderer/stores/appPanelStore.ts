@@ -17,7 +17,6 @@ interface AppPanelState {
   apps: AppInfo[];
   selectedApp: string | null;
   panelCollapsed: boolean;
-  /** 图标栏整体可见性，由 TitleBar 按钮切换 */
   sidebarVisible: boolean;
 
   loadApps: () => Promise<void>;

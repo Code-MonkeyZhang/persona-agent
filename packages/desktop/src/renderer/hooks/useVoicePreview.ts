@@ -11,9 +11,7 @@ import { toast } from '../stores/toastStore';
 import { logger } from '../lib/logger';
 
 interface PreviewLabels {
-  /** API Key 未配置时的提示 */
   noKey: string;
-  /** 合成失败时的提示 */
   failed: string;
 }
 
