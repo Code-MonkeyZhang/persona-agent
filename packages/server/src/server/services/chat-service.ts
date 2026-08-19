@@ -7,6 +7,8 @@ import {
   getAgentConfig,
   AgentCore,
   createAgentRunConfig,
+  resolveWorkspaceDir,
+  persistResolvedWorkspace,
 } from '../../agent/index.js';
 import { runCompression } from './compress-service.js';
 import { buildRuntimeContext } from './runtime-context.js';
@@ -153,9 +155,25 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     return emitError(`Agent not found: ${agentId}`);
   }
 
-  //TODO: 这里不应该使用当前目录作为兜底, 应该在 persona-agent data directory 中有一个空的 workspace 作为默认工作目录
-  const workspaceDir =
-    session.workspacePath || agentConfig.defaultWorkspacePath || process.cwd();
+  // 运行时解析工作目录：显式配置失效时写回生效路径并广播，
+  // 下次解析直接通过，避免每个回合重复回退
+  const resolved = resolveWorkspaceDir(session, agentConfig);
+  const workspaceDir = resolved.dir;
+  if (resolved.invalid.length > 0) {
+    persistResolvedWorkspace(resolved, agentId, sessionId, sessionManager);
+    Logger.log('WORKSPACE', 'Invalid workspace persisted with fallback', {
+      sessionId,
+      agentId,
+      invalid: resolved.invalid,
+      fallbackPath: workspaceDir,
+    });
+    broadcastToSession(sessionId, {
+      type: 'workspace_fallback',
+      sessionId,
+      agentId,
+      fallbackPath: workspaceDir,
+    });
+  }
 
   // 重入保护：同一会话不能并发执行两次 processChat
   if (sessionRegistry.has(sessionId)) {

@@ -127,6 +127,18 @@ export interface AppNotificationEvent {
   content: string;
 }
 
+/**
+ * 工作目录解析回退通知。
+ * 用户显式配置的路径失效时由服务端广播：生效路径已写回配置，
+ * 客户端据此提示用户并刷新 Agent 与会话显示。
+ */
+export interface WorkspaceFallbackMessage {
+  type: 'workspace_fallback';
+  sessionId: string;
+  agentId: string;
+  fallbackPath: string;
+}
+
 export type ServerMessage =
   | ConnectedMessage
   | SubscribedMessage
@@ -141,7 +153,8 @@ export type ServerMessage =
   | DeviceOnlineMessage
   | DeviceOfflineMessage
   | AbortedMessage
-  | AppNotificationEvent;
+  | AppNotificationEvent
+  | WorkspaceFallbackMessage;
 
 // ── Client → Server 消息 ──
 

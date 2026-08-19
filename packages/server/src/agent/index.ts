@@ -24,3 +24,5 @@ export type {
 } from './types.js';
 export { AgentCore } from './agent.js';
 export { createAgentRunConfig } from './run-config-factory.js';
+export { resolveWorkspaceDir, persistResolvedWorkspace } from './workspace.js';
+export type { ResolvedWorkspace, InvalidWorkspace } from './workspace.js';
