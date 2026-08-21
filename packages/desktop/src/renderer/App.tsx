@@ -35,7 +35,7 @@ import { InputBox } from './components/chat/InputBox';
 import { AgentSidebar } from './components/shell/AgentSidebar';
 import { SessionSidebar } from './components/shell/SessionSidebar';
 import { SettingsPage } from './components/settings/SettingsPage';
-import { AgentEditor } from './components/AgentEditor';
+import { AgentEditor } from './components/agent-editor/AgentEditor';
 import { AgentToolsView } from './components/tools/AgentToolsView';
 import { AppsView } from './components/AppsView';
 import { SkillsView } from './components/skills/SkillsView';
