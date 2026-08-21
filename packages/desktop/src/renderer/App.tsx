@@ -25,21 +25,24 @@ import {
   useState,
 } from 'react';
 import { motion } from 'framer-motion';
-import { TitleBar } from './components/TitleBar';
-import { Header } from './components/Header';
-import { MessageList, type MessageListRef } from './components/MessageList';
-import { InputBox } from './components/InputBox';
-import { AgentSidebar } from './components/AgentSidebar';
-import { SessionSidebar } from './components/SessionSidebar';
-import { SettingsPage } from './components/SettingsPage';
+import { TitleBar } from './components/shell/TitleBar';
+import { Header } from './components/shell/Header';
+import {
+  MessageList,
+  type MessageListRef,
+} from './components/chat/MessageList';
+import { InputBox } from './components/chat/InputBox';
+import { AgentSidebar } from './components/shell/AgentSidebar';
+import { SessionSidebar } from './components/shell/SessionSidebar';
+import { SettingsPage } from './components/settings/SettingsPage';
 import { AgentEditor } from './components/AgentEditor';
-import { AgentToolsView } from './components/AgentToolsView';
+import { AgentToolsView } from './components/tools/AgentToolsView';
 import { AppsView } from './components/AppsView';
-import { SkillsView } from './components/SkillsView';
-import { MarketplaceView } from './components/MarketplaceView';
-import { CompanionContent } from './components/CompanionContent';
-import { CompanionReplyBubble } from './components/CompanionReplyBubble';
-import { AppIconBar } from './components/AppIconBar';
+import { SkillsView } from './components/skills/SkillsView';
+import { MarketplaceView } from './components/marketplace/MarketplaceView';
+import { CompanionContent } from './components/companion/CompanionContent';
+import { CompanionReplyBubble } from './components/companion/CompanionReplyBubble';
+import { AppIconBar } from './components/shell/AppIconBar';
 import { AppWebViewPanel } from './components/AppWebViewPanel';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { ToastContainer } from './components/Toast';

@@ -1,32 +1,31 @@
 /**
- * @file components/AppsView.tsx
- * @description 人格级 Agent App 分配视图。结构仿 AgentToolsView：草稿 + 保存模式。
- * 从 currentAgent.mcpNames 初始化草稿（应用与普通工具共用 mcpNames，此处只操作 agentApp 条目），
- * 保存后调 updateAgentMcpNames 写入后端——名字在 mcpNames 里，这个人格就能用该应用的工具。
- * 两段式布局：上半「已添加」+ 下半「可用应用」，行渲染统一用 AssignRow。
+ * @file src/renderer/components/tools/AgentToolsView.tsx
+ * @description Agent 工具视图，独立于 AgentEditor，采用草稿+保存模式。
+ * 从 currentAgent.mcpNames 初始化草稿，保存后调 updateAgentMcpNames 写入后端。
+ * 两段式布局：上半「已分配」+ 下半「可用 MCP」，行渲染统一用 AssignRow。
  *
- * 商城入口已收口到左下角罗盘，本页不放安装按钮；可用区为空时提示去商城。
+ * 商城入口已收口到左下角罗盘，本页不再提供"浏览商城"按钮；要装新的 MCP 去罗盘。
  */
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid } from 'lucide-react';
+import { Wrench } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { listMcpServers, type McpServerInfo } from '../lib/api';
-import { useAgentStore } from '../stores/agentStore';
-import { useViewStore } from '../stores/viewStore';
-import { logger } from '../lib/logger';
-import { ScrollArea } from './ui/ScrollArea';
-import { BackButton } from './ui/BackButton';
-import { CollapsibleSection } from './ui/CollapsibleSection';
-import { AssignRow } from './common/AssignRow';
+import { listMcpServers, type McpServerInfo } from '../../lib/api';
+import { useAgentStore } from '../../stores/agentStore';
+import { useViewStore } from '../../stores/viewStore';
+import { logger } from '../../lib/logger';
+import { ScrollArea } from '../ui/ScrollArea';
+import { BackButton } from '../ui/BackButton';
+import { CollapsibleSection } from '../ui/CollapsibleSection';
+import { AssignRow } from '../common/AssignRow';
 
-export const AppsView: React.FC = () => {
+export const AgentToolsView: React.FC = () => {
   const { t } = useTranslation();
   const currentAgent = useAgentStore((s) => s.currentAgent);
   const updateAgentMcpNames = useAgentStore((s) => s.updateAgentMcpNames);
   const setActiveNav = useViewStore((s) => s.setActiveNav);
 
-  const [installedApps, setInstalledApps] = useState<McpServerInfo[]>([]);
-  const [selectedAppIds, setSelectedAppIds] = useState<string[]>(
+  const [mcps, setMcps] = useState<McpServerInfo[]>([]);
+  const [selectedMcpIds, setSelectedMcpIds] = useState<string[]>(
     currentAgent?.mcpNames ?? []
   );
   const [isSaving, setIsSaving] = useState(false);
@@ -35,35 +34,33 @@ export const AppsView: React.FC = () => {
 
   useEffect(() => {
     listMcpServers()
-      .then((servers) => setInstalledApps(servers.filter((s) => s.agentApp)))
-      .catch((err) => logger.error('Failed to load agent apps:', err));
+      .then((servers) => setMcps(servers.filter((s) => !s.agentApp)))
+      .catch((err) => logger.error('Failed to load MCP servers:', err));
   }, []);
 
   /** Agent 切换时重新初始化草稿 */
   useEffect(() => {
-    setSelectedAppIds(currentAgent?.mcpNames ?? []);
+    setSelectedMcpIds(currentAgent?.mcpNames ?? []);
   }, [currentAgent?.id]);
 
-  /** 已添加 = 已装应用中名字在草稿里的；可用 = 已装但未添加的 */
-  const assignedApps = installedApps.filter((a) =>
-    selectedAppIds.includes(a.name)
-  );
-  const availableApps = installedApps.filter(
-    (a) => !selectedAppIds.includes(a.name)
-  );
+  /** 可用 MCP = 全部普通 MCP（应用归 AppsView，此处排除）中未被当前 Agent 选中的 */
+  const availableMcps = mcps.filter((m) => !selectedMcpIds.includes(m.name));
 
-  /** 保存当前应用分配到后端，成功后返回聊天视图 */
+  /** 已分配草稿里属于应用的名字也要保留展示——工具页只渲染普通 MCP 的行 */
+  const assignedMcps = mcps.filter((m) => selectedMcpIds.includes(m.name));
+
+  /** 保存当前 MCP 分配到后端，成功后返回聊天视图 */
   const handleSave = async () => {
     if (!currentAgent) return;
     setIsSaving(true);
     try {
-      await updateAgentMcpNames(currentAgent.id, selectedAppIds);
+      await updateAgentMcpNames(currentAgent.id, selectedMcpIds);
       logger.info(
-        `[Apps] Saved app assignment for ${currentAgent.id}: ${assignedApps.map((a) => a.name).join(', ')}`
+        `[Tools] Saved MCP assignment for ${currentAgent.id}: ${selectedMcpIds.join(', ')}`
       );
       setActiveNav('chat');
     } catch (err) {
-      logger.error('Failed to save MCP names (apps):', err);
+      logger.error('Failed to save MCP names:', err);
     } finally {
       setIsSaving(false);
     }
@@ -73,9 +70,9 @@ export const AppsView: React.FC = () => {
     <div className="h-full w-full flex flex-col bg-general-bg">
       <div className="shrink-0 flex items-center gap-2 px-5 h-14 border-b border-border bg-muted">
         <BackButton onClick={() => setActiveNav('chat')} />
-        <LayoutGrid className="w-4 h-4 text-muted-foreground" />
+        <Wrench className="w-4 h-4 text-muted-foreground" />
         <h1 className="text-[16px] font-bold text-foreground">
-          {t('apps.title')}
+          {t('tools.title')}
         </h1>
         <div className="flex-1" />
         <button
@@ -89,29 +86,29 @@ export const AppsView: React.FC = () => {
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full">
           <div className="max-w-2xl mx-auto px-6 py-6">
-            {/* 已添加应用 */}
+            {/* 已分配 MCP（仅普通工具，应用归 AppsView） */}
             <CollapsibleSection
-              title={t('apps.assignedTo', { name: currentAgent?.name ?? '' })}
-              count={assignedApps.length}
+              title={t('tools.assignedTo', { name: currentAgent?.name ?? '' })}
+              count={assignedMcps.length}
               open={assignedOpen}
               onToggle={() => setAssignedOpen(!assignedOpen)}
             >
-              {assignedApps.length === 0 ? (
+              {assignedMcps.length === 0 ? (
                 <div className="px-1 py-3 text-[12px] text-muted-foreground/60">
-                  {t('apps.emptyAssigned')}
+                  {t('tools.emptyAssigned')}
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2.5 pt-1 pb-2">
-                  {assignedApps.map((app) => (
+                  {assignedMcps.map((mcp) => (
                     <AssignRow
-                      key={app.name}
+                      key={mcp.name}
                       type="mcp"
                       variant="assigned"
-                      name={app.name}
-                      mcp={app}
+                      name={mcp.name}
+                      mcp={mcp}
                       onAction={() =>
-                        setSelectedAppIds(
-                          selectedAppIds.filter((id) => id !== app.name)
+                        setSelectedMcpIds(
+                          selectedMcpIds.filter((id) => id !== mcp.name)
                         )
                       }
                     />
@@ -120,28 +117,28 @@ export const AppsView: React.FC = () => {
               )}
             </CollapsibleSection>
 
-            {/* 可用应用 */}
+            {/* 可用 MCP */}
             <CollapsibleSection
-              title={t('apps.available')}
-              count={availableApps.length}
+              title={t('tools.available')}
+              count={availableMcps.length}
               open={availableOpen}
               onToggle={() => setAvailableOpen(!availableOpen)}
             >
-              {availableApps.length === 0 ? (
+              {availableMcps.length === 0 ? (
                 <div className="px-1 py-3 text-[12px] text-muted-foreground/60">
-                  {t('apps.emptyAvailable')}
+                  {t('tools.emptyAvailable')}
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2.5 pt-1 pb-2">
-                  {availableApps.map((app) => (
+                  {availableMcps.map((mcp) => (
                     <AssignRow
-                      key={app.name}
+                      key={mcp.name}
                       type="mcp"
                       variant="available"
-                      name={app.name}
-                      mcp={app}
+                      name={mcp.name}
+                      mcp={mcp}
                       onAction={() =>
-                        setSelectedAppIds([...selectedAppIds, app.name])
+                        setSelectedMcpIds([...selectedMcpIds, mcp.name])
                       }
                     />
                   ))}

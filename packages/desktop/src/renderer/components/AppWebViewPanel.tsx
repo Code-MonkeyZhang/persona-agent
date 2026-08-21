@@ -1,5 +1,5 @@
 /**
- * @file components/AppWebViewPanel.tsx
+ * @file src/renderer/components/AppWebViewPanel.tsx
  * @description Agent App 的 WebView 面板。通过反向代理加载 App 的 Web UI，
  * 支持加载态、错误态和重试。webview 元素通过命令式 API 创建以避免 JSX 类型问题。
  */

@@ -33,10 +33,10 @@ import {
   type ProviderStatus,
   type VoiceOption,
 } from '../lib/api';
-import { ModelSelector } from './ModelSelector';
-import { WorkspaceSelector } from './WorkspaceSelector';
-import { AgentAvatar } from './AgentAvatar';
-import { SettingRow, SettingDivider } from './SettingRow';
+import { ModelSelector } from './common/ModelSelector';
+import { WorkspaceSelector } from './common/WorkspaceSelector';
+import { AgentAvatar } from './common/AgentAvatar';
+import { SettingRow, SettingDivider } from './common/SettingRow';
 import { ScrollArea } from './ui/ScrollArea';
 import { Input } from './ui/Input';
 import {
