@@ -30,6 +30,7 @@ import {
 } from '../../lib/api';
 import { synthesize } from '../../lib/tts';
 import { SettingRow, SettingDivider } from '../common/SettingRow';
+import { Card } from '../ui/Card';
 import { PasswordInput } from '../ui/PasswordInput';
 import {
   Select,
@@ -294,14 +295,7 @@ export const VoiceConfigPanel: React.FC = () => {
   return (
     <div className="p-5 flex flex-col gap-4">
       {/* API Key 配置 */}
-      <div className="rounded-xl border border-border bg-white px-4 py-4">
-        <h3 className="text-[14px] font-bold text-foreground mb-1">
-          {t('voice.minimaxTitle')}
-        </h3>
-        <p className="text-[12px] text-muted-foreground mb-4">
-          {t('voice.minimaxDesc')}
-        </p>
-
+      <Card title={t('voice.minimaxTitle')} desc={t('voice.minimaxDesc')}>
         <SettingRow label="API Key">
           <div className="flex items-center gap-2">
             <PasswordInput
@@ -331,13 +325,10 @@ export const VoiceConfigPanel: React.FC = () => {
             {feedback.message}
           </p>
         )}
-      </div>
+      </Card>
 
       {/* 语音参数 */}
-      <div className="rounded-xl border border-border bg-white px-4 py-4">
-        <h3 className="text-[14px] font-bold text-foreground mb-3">
-          {t('voice.params')}
-        </h3>
+      <Card title={t('voice.params')}>
         <SettingRow label={t('voice.ttsModel')}>
           <Select
             value={selectedModel}
@@ -376,20 +367,14 @@ export const VoiceConfigPanel: React.FC = () => {
             </span>
           </div>
         </SettingRow>
-      </div>
+      </Card>
 
       {/* 克隆音色管理 */}
-      <div className="rounded-xl border border-border bg-white px-4 py-4">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h3 className="text-[14px] font-bold text-foreground">
-              {t('voice.cloneManagement')}
-            </h3>
-            <p className="text-[12px] text-muted-foreground mt-0.5">
-              {t('voice.cloneDesc')}
-            </p>
-          </div>
-          {!showCloneForm && (
+      <Card
+        title={t('voice.cloneManagement')}
+        desc={t('voice.cloneDesc')}
+        action={
+          !showCloneForm && (
             <button
               onClick={() => setShowCloneForm(true)}
               className="h-8 px-3 text-[13px] rounded-lg border border-input text-muted-foreground hover:text-foreground hover:border-muted-foreground transition-colors flex items-center gap-1"
@@ -397,9 +382,9 @@ export const VoiceConfigPanel: React.FC = () => {
               <Plus className="w-3.5 h-3.5" />
               {t('voice.cloneNew')}
             </button>
-          )}
-        </div>
-
+          )
+        }
+      >
         {showCloneForm && (
           <div className="mb-4 p-4 rounded-lg border border-dashed border-input bg-card-bg">
             <div className="flex items-center justify-between mb-3">
@@ -525,7 +510,7 @@ export const VoiceConfigPanel: React.FC = () => {
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

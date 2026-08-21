@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { ModelSelector } from '../common/ModelSelector';
 import { SettingRow, SettingDivider } from '../common/SettingRow';
 import { LabelWithTooltip } from '../common/LabelWithTooltip';
+import { Card } from '../ui/Card';
 import { NumberInput } from './NumberInput';
 import type { ProviderStatus } from '../../lib/api';
 
@@ -39,11 +40,7 @@ export const ModelConfigCard: React.FC<ModelConfigCardProps> = ({
   const { t } = useTranslation();
 
   return (
-    <div className="rounded-xl border border-border bg-background px-4 py-4">
-      <h3 className="text-[14px] font-bold text-foreground mb-3">
-        <Brain className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-muted-foreground" />
-        {t('agentEditor.modelConfig')}
-      </h3>
+    <Card title={t('agentEditor.modelConfig')} icon={Brain}>
       <SettingRow
         label={t('agentEditor.defaultModel')}
         tooltip={t('agentEditor.defaultModelTooltip')}
@@ -83,6 +80,6 @@ export const ModelConfigCard: React.FC<ModelConfigCardProps> = ({
           className="w-full min-h-[360px] rounded-lg border border-border px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
         />
       </div>
-    </div>
+    </Card>
   );
 };

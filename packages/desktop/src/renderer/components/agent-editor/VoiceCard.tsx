@@ -17,6 +17,7 @@ import {
   SelectSeparator,
 } from '../ui/Select';
 import { SettingRow, SettingDivider } from '../common/SettingRow';
+import { Card } from '../ui/Card';
 import { useVoicePreview } from '../../hooks/useVoicePreview';
 import type { VoiceOption } from '../../lib/api';
 
@@ -57,11 +58,7 @@ export const VoiceCard: React.FC<VoiceCardProps> = ({
     useVoicePreview();
 
   return (
-    <div className="rounded-xl border border-border bg-background px-4 py-4">
-      <h3 className="text-[14px] font-bold text-foreground mb-3">
-        <Speech className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-muted-foreground" />
-        {t('agentEditor.voice')}
-      </h3>
+    <Card title={t('agentEditor.voice')} icon={Speech}>
       <SettingRow
         label={t('agentEditor.selectVoice')}
         tooltip={t('agentEditor.selectVoiceDesc')}
@@ -151,6 +148,6 @@ export const VoiceCard: React.FC<VoiceCardProps> = ({
           </SettingRow>
         </>
       )}
-    </div>
+    </Card>
   );
 };

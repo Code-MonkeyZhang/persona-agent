@@ -8,6 +8,7 @@ import { Folder } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { WorkspaceSelector } from '../common/WorkspaceSelector';
 import { SettingRow } from '../common/SettingRow';
+import { Card } from '../ui/Card';
 
 interface WorkspaceCardProps {
   value?: string;
@@ -22,11 +23,7 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
   const { t } = useTranslation();
 
   return (
-    <div className="rounded-xl border border-border bg-background px-4 py-4">
-      <h3 className="text-[14px] font-bold text-foreground mb-3">
-        <Folder className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-muted-foreground" />
-        {t('agentEditor.workspace')}
-      </h3>
+    <Card title={t('agentEditor.workspace')} icon={Folder}>
       <SettingRow
         label={t('agentEditor.defaultWorkspace')}
         tooltip={t('agentEditor.defaultWorkspaceDesc')}
@@ -37,6 +34,6 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
           placeholder={t('agentEditor.defaultWorkspacePlaceholder')}
         />
       </SettingRow>
-    </div>
+    </Card>
   );
 };

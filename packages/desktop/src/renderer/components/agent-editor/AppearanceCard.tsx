@@ -3,13 +3,14 @@
  * @description 形象卡片，立绘列表与背景图管理
  */
 
-import React, { useRef, useState } from 'react';
-import { Plus, VenetianMask } from 'lucide-react';
+import React, { useState } from 'react';
+import { VenetianMask } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { readFileAsDataURL } from '../../lib/utils';
 import { SettingDivider } from '../common/SettingRow';
 import { HoverDeleteButton } from '../ui/HoverDeleteButton';
 import { ImagePreviewOverlay } from '../ui/ImagePreviewOverlay';
+import { ImageAddTile } from '../ui/ImageAddTile';
+import { Card } from '../ui/Card';
 import { LabelWithTooltip } from '../common/LabelWithTooltip';
 import { PoseImageCardList } from './PoseImageCardList';
 import type { PoseImage } from './PoseImageCardList';
@@ -43,23 +44,9 @@ export const AppearanceCard: React.FC<AppearanceCardProps> = ({
 }) => {
   const { t } = useTranslation();
   const [bgPreviewOpen, setBgPreviewOpen] = useState(false);
-  const bgInputRef = useRef<HTMLInputElement>(null);
-
-  const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const dataUrl = await readFileAsDataURL(file);
-    onBgUpload(file, dataUrl);
-    e.target.value = '';
-  };
 
   return (
-    <div className="rounded-xl border border-border bg-background px-4 py-4">
-      <h3 className="text-[14px] font-bold text-foreground mb-3">
-        <VenetianMask className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-muted-foreground" />
-        {t('agentEditor.appearance')}
-      </h3>
-
+    <Card title={t('agentEditor.appearance')} icon={VenetianMask}>
       <LabelWithTooltip
         label={t('agentEditor.poseImage')}
         tooltip={t('agentEditor.poseTooltip')}
@@ -107,23 +94,8 @@ export const AppearanceCard: React.FC<AppearanceCardProps> = ({
           )}
         </div>
       ) : (
-        <div className="inline-block">
-          <div
-            className="rounded-lg border border-dashed border-border bg-muted flex items-center justify-center cursor-pointer hover:border-muted-foreground transition-colors"
-            style={{ width: 90, height: 160 }}
-            onClick={() => bgInputRef.current?.click()}
-          >
-            <Plus className="w-5 h-5 text-muted-foreground" />
-          </div>
-          <input
-            ref={bgInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/gif"
-            onChange={handleBgUpload}
-            className="hidden"
-          />
-        </div>
+        <ImageAddTile width={90} height={160} onPick={onBgUpload} />
       )}
-    </div>
+    </Card>
   );
 };

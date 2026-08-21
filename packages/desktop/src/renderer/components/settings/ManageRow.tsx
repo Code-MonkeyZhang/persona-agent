@@ -11,8 +11,7 @@ import React, { useState } from 'react';
 import { Trash2, Loader2, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { McpServerInfo, SkillInfo } from '@persona/shared';
-import { StatusDot } from '../ui/StatusDot';
-import { mcpStatusColor, mcpStatusText } from '../../stores/marketplaceStore';
+import { ItemInfo } from '../common/ItemInfo';
 import { cn } from '../../lib/utils';
 
 type ManageRowProps = { onUninstall: () => Promise<void> } & (
@@ -34,7 +33,6 @@ export const ManageRow: React.FC<ManageRowProps> = (props) => {
   const [uninstalling, setUninstalling] = useState(false);
 
   const isMcp = props.type === 'mcp';
-  const name = isMcp ? props.mcp.name : props.skill.name;
 
   const handleConfirm = async () => {
     setUninstalling(true);
@@ -56,27 +54,15 @@ export const ManageRow: React.FC<ManageRowProps> = (props) => {
           : 'border-card-border bg-card-bg'
       )}
     >
-      <div className="min-w-0 flex-1">
-        <div className="text-[13px] font-medium text-foreground truncate">
-          {name}
-        </div>
-        {isMcp ? (
-          // MCP 副标题：状态点 + 状态文案（有 error 时优先显示 error）
-          <div className="flex items-center gap-1 text-[11px] text-muted-foreground min-w-0">
-            <StatusDot
-              color={mcpStatusColor(props.mcp.status, !!props.mcp.error)}
-            />
-            <span className="truncate">
-              {props.mcp.error || mcpStatusText(props.mcp)}
-            </span>
-          </div>
-        ) : (
-          // Skill 副标题：简介
-          <div className="text-[11px] text-muted-foreground truncate mt-0.5">
-            {props.skill.description}
-          </div>
-        )}
-      </div>
+      {isMcp ? (
+        <ItemInfo name={props.mcp.name} type="mcp" mcp={props.mcp} />
+      ) : (
+        <ItemInfo
+          name={props.skill.name}
+          type="skill"
+          description={props.skill.description}
+        />
+      )}
 
       {/* 右侧操作：确认态只留取消/确认，其余隐藏 */}
       {confirming ? (

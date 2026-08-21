@@ -3,12 +3,13 @@
  * @description 基本信息卡片，头像上传与名称、简介编辑
  */
 
-import React, { useRef } from 'react';
+import React from 'react';
 import { Camera, PenLine } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { AgentAvatar } from '../common/AgentAvatar';
+import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
-import { readFileAsDataURL } from '../../lib/utils';
+import { useImageFileInput } from '../../hooks/useImageFileInput';
 import type { AgentConfig } from '../../types/agent';
 
 interface BasicInfoCardProps {
@@ -35,26 +36,14 @@ export const BasicInfoCard: React.FC<BasicInfoCardProps> = ({
   onAvatarUpload,
 }) => {
   const { t } = useTranslation();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const base64 = await readFileAsDataURL(file);
-    onAvatarUpload(file, base64);
-    e.target.value = '';
-  };
+  const { inputRef, handleChange } = useImageFileInput(onAvatarUpload);
 
   return (
-    <div className="rounded-xl border border-border bg-background px-4 py-4">
-      <h3 className="text-[14px] font-bold text-foreground mb-3">
-        <PenLine className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-muted-foreground" />
-        {t('agentEditor.basicInfo')}
-      </h3>
+    <Card title={t('agentEditor.basicInfo')} icon={PenLine}>
       <div className="flex items-start gap-4">
         <div
           className="relative group cursor-pointer shrink-0 pt-0.5"
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => inputRef.current?.click()}
         >
           <AgentAvatar
             agent={previewAgent}
@@ -65,10 +54,10 @@ export const BasicInfoCard: React.FC<BasicInfoCardProps> = ({
             <Camera className="w-4 h-4 text-white" />
           </div>
           <input
-            ref={fileInputRef}
+            ref={inputRef}
             type="file"
             accept="image/jpeg,image/png,image/gif"
-            onChange={handleFileUpload}
+            onChange={handleChange}
             className="hidden"
           />
         </div>
@@ -97,6 +86,6 @@ export const BasicInfoCard: React.FC<BasicInfoCardProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 };

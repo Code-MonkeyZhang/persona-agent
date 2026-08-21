@@ -9,6 +9,7 @@ import { FolderOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useConfigStore } from '../../stores/configStore';
 import { Switch } from '../ui/Switch';
+import { Card } from '../ui/Card';
 import { SettingRow, SettingDivider } from '../common/SettingRow';
 import { EnvironmentCard } from './EnvironmentCard';
 import { VersionUpdateCard } from './VersionUpdateCard';
@@ -62,10 +63,7 @@ export const ConfigForm: React.FC = () => {
 
   return (
     <div className="p-5 flex flex-col gap-4">
-      <div className="rounded-xl border border-border bg-white px-4 py-4">
-        <h3 className="text-[14px] font-bold text-foreground mb-3">
-          {t('config.basic')}
-        </h3>
+      <Card title={t('config.basic')}>
         <SettingRow
           label={t('config.language')}
           desc={t('config.languageDesc')}
@@ -105,19 +103,16 @@ export const ConfigForm: React.FC = () => {
             }
           />
         </SettingRow>
-      </div>
+      </Card>
 
-      <div className="rounded-xl border border-border bg-white px-4 py-4">
-        <h3 className="text-[14px] font-bold text-foreground mb-3">
-          {t('config.storagePaths')}
-        </h3>
+      <Card title={t('config.storagePaths')}>
         {STORAGE_PATHS.map((item, i) => (
           <React.Fragment key={item.labelKey}>
             {i > 0 && <SettingDivider />}
             <PathRow label={t(item.labelKey)} path={dataPath(item.dir)} />
           </React.Fragment>
         ))}
-      </div>
+      </Card>
 
       <EnvironmentCard />
 

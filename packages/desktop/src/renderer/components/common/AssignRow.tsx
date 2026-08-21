@@ -13,8 +13,7 @@ import React from 'react';
 import { Plus, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { McpServerInfo } from '@persona/shared';
-import { StatusDot } from '../ui/StatusDot';
-import { mcpStatusColor, mcpStatusText } from '../../stores/marketplaceStore';
+import { ItemInfo } from './ItemInfo';
 
 type AssignRowProps = {
   variant: 'assigned' | 'available';
@@ -33,26 +32,15 @@ export const AssignRow: React.FC<AssignRowProps> = (props) => {
 
   return (
     <div className="group relative flex items-center gap-2.5 px-3 py-3 rounded-xl border border-border bg-background hover:bg-muted transition-all text-left">
-      <div className="min-w-0 flex-1">
-        <div className="text-[13px] font-medium text-foreground truncate">
-          {props.name}
-        </div>
-        {isMcp ? (
-          // MCP 副标题：状态点 + 状态文案（有 error 时优先显示 error）
-          <div className="flex items-center gap-1 text-[11px] text-muted-foreground min-w-0">
-            <StatusDot
-              color={mcpStatusColor(props.mcp?.status, !!props.mcp?.error)}
-            />
-            <span className="truncate">
-              {props.mcp?.error || mcpStatusText(props.mcp)}
-            </span>
-          </div>
-        ) : (
-          <div className="text-[11px] text-muted-foreground truncate">
-            {props.description}
-          </div>
-        )}
-      </div>
+      {isMcp ? (
+        <ItemInfo name={props.name} type="mcp" mcp={props.mcp} />
+      ) : (
+        <ItemInfo
+          name={props.name}
+          type="skill"
+          description={props.description}
+        />
+      )}
 
       {props.variant === 'assigned' ? (
         <button

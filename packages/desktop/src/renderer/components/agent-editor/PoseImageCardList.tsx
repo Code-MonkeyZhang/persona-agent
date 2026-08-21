@@ -3,13 +3,14 @@
  * @description 立绘图片卡片列表，支持添加、删除、重命名和放大预览
  */
 
-import React, { useEffect, useRef, useState } from 'react';
-import { Plus, PenLine } from 'lucide-react';
+import React, { useState } from 'react';
+import { PenLine } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getPoseImageUrl } from '../../lib/api';
-import { readFileAsDataURL } from '../../lib/utils';
+import { ImageAddTile } from '../ui/ImageAddTile';
 import { HoverDeleteButton } from '../ui/HoverDeleteButton';
 import { ImagePreviewOverlay } from '../ui/ImagePreviewOverlay';
+import { useInlineRename } from '../../hooks/useInlineRename';
 
 /** 立绘图片的本地状态，用于追踪编辑过程中的增删改变更 */
 export interface PoseImage {
@@ -40,41 +41,21 @@ export const PoseImageCardList: React.FC<PoseImageCardListProps> = ({
   agentId,
 }) => {
   const { t } = useTranslation();
-  const inputRef = useRef<HTMLInputElement>(null);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
-  const [renamingIdx, setRenamingIdx] = useState<number | null>(null);
-  const [renameInput, setRenameInput] = useState('');
-  const renameInputRef = useRef<HTMLInputElement>(null);
+  const {
+    editingKey: renamingIdx,
+    draft: renameInput,
+    setDraft: setRenameInput,
+    inputRef: renameInputRef,
+    start: startRename,
+    confirm: confirmRename,
+    cancel: cancelRename,
+  } = useInlineRename<number>((idx, newName) => onRename(idx, newName));
 
-  useEffect(() => {
-    if (renamingIdx !== null && renameInputRef.current) {
-      renameInputRef.current.focus();
-      renameInputRef.current.select();
-    }
-  }, [renamingIdx]);
-
+  /** 进入第 idx 张立绘的重命名，默认立绘不可改名 */
   const handleStartRename = (idx: number) => {
     if (images[idx].name === 'default') return;
-    setRenamingIdx(idx);
-    setRenameInput(images[idx].name);
-  };
-
-  const handleConfirmRename = () => {
-    if (renamingIdx !== null && renameInput.trim()) {
-      onRename(renamingIdx, renameInput.trim());
-    }
-    setRenamingIdx(null);
-    setRenameInput('');
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const name =
-      file.name.replace(/\.[^.]+$/, '') || `pose_${images.length + 1}`;
-    const dataUrl = await readFileAsDataURL(file);
-    onAdd(file, dataUrl, name);
-    e.target.value = '';
+    startRename(idx, images[idx].name);
   };
 
   return (
@@ -106,14 +87,11 @@ export const PoseImageCardList: React.FC<PoseImageCardListProps> = ({
                 value={renameInput}
                 onChange={(e) => setRenameInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleConfirmRename();
-                  if (e.key === 'Escape') {
-                    setRenamingIdx(null);
-                    setRenameInput('');
-                  }
+                  if (e.key === 'Enter') confirmRename();
+                  if (e.key === 'Escape') cancelRename();
                 }}
                 onClick={(e) => e.stopPropagation()}
-                onBlur={handleConfirmRename}
+                onBlur={confirmRename}
                 className="text-[10px] text-white bg-background/20 rounded px-1 py-0.5 leading-tight w-full outline-none border border-white/30"
               />
             ) : (
@@ -152,19 +130,16 @@ export const PoseImageCardList: React.FC<PoseImageCardListProps> = ({
           />
         </div>
       ))}
-      <div
-        className="shrink-0 rounded-lg border border-dashed border-border bg-muted flex items-center justify-center cursor-pointer hover:border-muted-foreground transition-colors"
-        style={{ width: 90, height: 120 }}
-        onClick={() => inputRef.current?.click()}
-      >
-        <Plus className="w-5 h-5 text-muted-foreground" />
-      </div>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/gif"
-        onChange={handleFileChange}
-        className="hidden"
+      <ImageAddTile
+        width={90}
+        height={120}
+        onPick={(file, dataUrl) =>
+          onAdd(
+            file,
+            dataUrl,
+            file.name.replace(/\.[^.]+$/, '') || `pose_${images.length + 1}`
+          )
+        }
       />
       {previewSrc && (
         <ImagePreviewOverlay

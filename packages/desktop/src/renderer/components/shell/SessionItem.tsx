@@ -9,6 +9,7 @@ import { Trash2, Pencil, Check, X, MoreVertical } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { SessionMeta } from '../../types/session';
 import { cn } from '../../lib/utils';
+import { useInlineRename } from '../../hooks/useInlineRename';
 
 interface SessionItemProps {
   session: SessionMeta;
@@ -34,42 +35,13 @@ export const SessionItem: React.FC<SessionItemProps> = ({
   onRename,
 }) => {
   const { t } = useTranslation();
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState(session.title);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isEditing]);
-
-  /**
-   * 保存重命名结果，标题有效且变化时调用 onRename
-   * @param e - 鼠标事件
-   * @returns void
-   */
-  const handleSaveRename = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (editTitle.trim() && editTitle !== session.title) {
-      onRename(session.id, editTitle.trim());
-    }
-    setIsEditing(false);
-  };
-
-  /**
-   * 取消重命名，恢复原标题并退出编辑模式
-   * @param e - 鼠标事件
-   */
-  const handleCancelRename = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsEditing(false);
-    setEditTitle(session.title);
-  };
+  const { editingKey, draft, setDraft, inputRef, start, confirm, cancel } =
+    useInlineRename<string>((id, title) => onRename(id, title));
+  const isEditing = editingKey === session.id;
 
   /**
    * 处理重命名输入框的键盘事件：Enter 保存，Escape 取消
@@ -78,13 +50,9 @@ export const SessionItem: React.FC<SessionItemProps> = ({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (editTitle.trim() && editTitle !== session.title) {
-        onRename(session.id, editTitle.trim());
-      }
-      setIsEditing(false);
+      confirm();
     } else if (e.key === 'Escape') {
-      setIsEditing(false);
-      setEditTitle(session.title);
+      cancel();
     }
   };
 
@@ -112,8 +80,7 @@ export const SessionItem: React.FC<SessionItemProps> = ({
   const handleMenuRename = (e: React.MouseEvent) => {
     e.stopPropagation();
     setMenuOpen(false);
-    setIsEditing(true);
-    setEditTitle(session.title);
+    start(session.id, session.title);
   };
 
   const handleMenuDelete = (e: React.MouseEvent) => {
@@ -154,19 +121,25 @@ export const SessionItem: React.FC<SessionItemProps> = ({
                 <input
                   ref={inputRef}
                   type="text"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={handleKeyDown}
                   className="flex-1 px-2 py-0.5 text-sm border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
                 <button
-                  onClick={handleSaveRename}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    confirm();
+                  }}
                   className="p-1 rounded hover:bg-green-100 text-green-600"
                 >
                   <Check className="w-3 h-3" />
                 </button>
                 <button
-                  onClick={handleCancelRename}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    cancel();
+                  }}
                   className="p-1 rounded hover:bg-muted text-muted-foreground"
                 >
                   <X className="w-3 h-3" />

@@ -9,6 +9,7 @@ import { FolderOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useMarketplaceStore } from '../../stores/marketplaceStore';
 import { ListState } from '../common/ListState';
+import { Card } from '../ui/Card';
 import { ManageRow } from './ManageRow';
 import { dataPath } from '../../lib/platform';
 
@@ -27,11 +28,10 @@ export const SkillListTab: React.FC = () => {
   return (
     <ListState isLoading={isLoading} error={error} onRetry={loadSkillManage}>
       <div className="p-5">
-        <div className="rounded-xl border border-border bg-white px-4 py-4">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-[14px] font-bold text-foreground">
-              {t('skills.title')}
-            </h3>
+        <Card
+          title={t('skills.title')}
+          desc={t('skills.desc')}
+          action={
             <button
               onClick={() => window.api?.openPath(dataPath('skills'))}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] text-muted-foreground border border-border bg-white hover:bg-secondary transition-colors shadow-sm"
@@ -39,11 +39,8 @@ export const SkillListTab: React.FC = () => {
               <FolderOpen className="w-4 h-4" />
               {t('common.openDirectory')}
             </button>
-          </div>
-          <p className="text-[12px] text-muted-foreground mb-4">
-            {t('skills.desc')}
-          </p>
-
+          }
+        >
           {skills.length === 0 ? (
             <div className="text-placeholder text-[13px] py-4 text-center">
               {t('skills.empty')}
@@ -60,7 +57,7 @@ export const SkillListTab: React.FC = () => {
               ))}
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </ListState>
   );

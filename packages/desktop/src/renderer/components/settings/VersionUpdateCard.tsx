@@ -10,6 +10,8 @@ import React, { useEffect, useState } from 'react';
 import { RefreshCw, Download, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SettingRow, SettingDivider } from '../common/SettingRow';
+import { ActionButton } from '../ui/ActionButton';
+import { Card } from '../ui/Card';
 import type { UpdateStatus } from '@shared/types/api';
 
 /** 卡片内部状态，由主进程推送的 UpdateStatus 映射而来 */
@@ -21,21 +23,6 @@ type CardState =
   | { type: 'downloading'; percent: number }
   | { type: 'downloaded' }
   | { type: 'error' };
-
-/** 小型操作按钮，带图标 + 文字 */
-const ActionButton: React.FC<{
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-}> = ({ icon, label, onClick }) => (
-  <button
-    onClick={onClick}
-    className="ml-2 flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[12px] text-foreground hover:bg-secondary transition-colors"
-  >
-    {icon}
-    {label}
-  </button>
-);
 
 export const VersionUpdateCard: React.FC = () => {
   const { t } = useTranslation();
@@ -92,11 +79,7 @@ export const VersionUpdateCard: React.FC = () => {
   };
 
   return (
-    <div className="rounded-xl border border-border bg-white px-4 py-4">
-      <h3 className="text-[14px] font-bold text-foreground mb-3">
-        {t('config.versionAndUpdate')}
-      </h3>
-
+    <Card title={t('config.versionAndUpdate')}>
       <SettingRow label={t('config.currentVersion')} desc="Persona Desktop">
         <span className="font-mono text-[13px] text-muted-foreground">
           v{version}
@@ -194,6 +177,6 @@ export const VersionUpdateCard: React.FC = () => {
           />
         </SettingRow>
       )}
-    </div>
+    </Card>
   );
 };

@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SettingRow, SettingDivider } from '../common/SettingRow';
+import { ActionButton } from '../ui/ActionButton';
+import { Card } from '../ui/Card';
 import {
   getBashStatus,
   getUvStatus,
@@ -26,21 +28,6 @@ import { isWin } from '../../lib/platform';
 
 const GIT_BASH_DOWNLOAD_URL = 'https://git-scm.com/download/win';
 
-/** 状态行里的小型操作按钮，带图标 + 文字 */
-const ActionButton: React.FC<{
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-}> = ({ icon, label, onClick }) => (
-  <button
-    onClick={onClick}
-    className="ml-2 flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[12px] text-foreground hover:bg-secondary transition-colors"
-  >
-    {icon}
-    {label}
-  </button>
-);
-
 // ---------------------------------------------------------------------------
 // EnvironmentCard — 容器，组装 Git Bash 行 + uv 行
 // ---------------------------------------------------------------------------
@@ -49,10 +36,7 @@ export const EnvironmentCard: React.FC = () => {
   const { t } = useTranslation();
 
   return (
-    <div className="rounded-xl border border-border bg-white px-4 py-4">
-      <h3 className="text-[14px] font-bold text-foreground mb-3">
-        {t('config.environment')}
-      </h3>
+    <Card title={t('config.environment')}>
       {isWin && (
         <>
           <GitBashRow />
@@ -60,7 +44,7 @@ export const EnvironmentCard: React.FC = () => {
         </>
       )}
       <UvRow />
-    </div>
+    </Card>
   );
 };
 

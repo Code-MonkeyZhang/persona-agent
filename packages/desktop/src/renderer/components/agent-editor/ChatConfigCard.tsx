@@ -7,6 +7,7 @@ import React from 'react';
 import { MessageSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SettingRow, SettingDivider } from '../common/SettingRow';
+import { Card } from '../ui/Card';
 import { NumberInput } from './NumberInput';
 
 interface ChatConfigCardProps {
@@ -26,11 +27,7 @@ export const ChatConfigCard: React.FC<ChatConfigCardProps> = ({
   const { t } = useTranslation();
 
   return (
-    <div className="rounded-xl border border-border bg-background px-4 py-4">
-      <h3 className="text-[14px] font-bold text-foreground mb-3">
-        <MessageSquare className="w-4 h-4 inline-block mr-1.5 -mt-0.5 text-muted-foreground" />
-        {t('agentEditor.chatConfig')}
-      </h3>
+    <Card title={t('agentEditor.chatConfig')} icon={MessageSquare}>
       <SettingRow
         label={t('agentEditor.compressionThreshold')}
         tooltip={t('agentEditor.compressionThresholdTooltip')}
@@ -53,6 +50,6 @@ export const ChatConfigCard: React.FC<ChatConfigCardProps> = ({
           min={1}
         />
       </SettingRow>
-    </div>
+    </Card>
   );
 };
