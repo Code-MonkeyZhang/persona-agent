@@ -9,7 +9,7 @@ import { persist } from 'zustand/middleware';
 type ViewType = 'chat' | 'settings' | 'marketplace';
 
 /** MainView 内部导航，在 chat 视图下按 activeNav 切换右侧内容区 */
-type MainNav = 'chat' | 'agent-settings' | 'tools' | 'apps' | 'skills';
+type MainNav = 'chat' | 'agent-settings' | 'tools' | 'skills';
 
 interface ViewStore {
   currentView: ViewType;

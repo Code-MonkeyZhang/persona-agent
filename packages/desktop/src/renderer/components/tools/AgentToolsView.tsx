@@ -34,7 +34,7 @@ export const AgentToolsView: React.FC = () => {
 
   useEffect(() => {
     listMcpServers()
-      .then((servers) => setMcps(servers.filter((s) => !s.agentApp)))
+      .then(setMcps)
       .catch((err) => logger.error('Failed to load MCP servers:', err));
   }, []);
 
@@ -43,11 +43,8 @@ export const AgentToolsView: React.FC = () => {
     setSelectedMcpIds(currentAgent?.mcpNames ?? []);
   }, [currentAgent?.id]);
 
-  /** 可用 MCP = 全部普通 MCP（应用归 AppsView，此处排除）中未被当前 Agent 选中的 */
+  /** 可用 MCP = 全部 MCP（含 Agent App）中未被当前 Agent 选中的 */
   const availableMcps = mcps.filter((m) => !selectedMcpIds.includes(m.name));
-
-  /** 已分配草稿里属于应用的名字也要保留展示——工具页只渲染普通 MCP 的行 */
-  const assignedMcps = mcps.filter((m) => selectedMcpIds.includes(m.name));
 
   /** 保存当前 MCP 分配到后端，成功后返回聊天视图 */
   const handleSave = async () => {
@@ -65,6 +62,10 @@ export const AgentToolsView: React.FC = () => {
       setIsSaving(false);
     }
   };
+
+  /** 根据 name 查找 MCP 信息（已分配项可能按名引用，未必加载到详情） */
+  const resolveMcp = (name: string): McpServerInfo | undefined =>
+    mcps.find((m) => m.name === name);
 
   return (
     <div className="h-full w-full flex flex-col bg-general-bg">
@@ -86,29 +87,29 @@ export const AgentToolsView: React.FC = () => {
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full">
           <div className="max-w-2xl mx-auto px-6 py-6">
-            {/* 已分配 MCP（仅普通工具，应用归 AppsView） */}
+            {/* 已分配 MCP */}
             <CollapsibleSection
               title={t('tools.assignedTo', { name: currentAgent?.name ?? '' })}
-              count={assignedMcps.length}
+              count={selectedMcpIds.length}
               open={assignedOpen}
               onToggle={() => setAssignedOpen(!assignedOpen)}
             >
-              {assignedMcps.length === 0 ? (
+              {selectedMcpIds.length === 0 ? (
                 <div className="px-1 py-3 text-[12px] text-muted-foreground/60">
                   {t('tools.emptyAssigned')}
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2.5 pt-1 pb-2">
-                  {assignedMcps.map((mcp) => (
+                  {selectedMcpIds.map((name) => (
                     <AssignRow
-                      key={mcp.name}
+                      key={name}
                       type="mcp"
                       variant="assigned"
-                      name={mcp.name}
-                      mcp={mcp}
+                      name={name}
+                      mcp={resolveMcp(name)}
                       onAction={() =>
                         setSelectedMcpIds(
-                          selectedMcpIds.filter((id) => id !== mcp.name)
+                          selectedMcpIds.filter((id) => id !== name)
                         )
                       }
                     />

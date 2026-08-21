@@ -29,7 +29,6 @@
   "sessionSidebar.noTaskSessions": "No task sessions",
   "sessionSidebar.startChat": "Start chatting...",
   "sessionSidebar.tools": "Tools",
-  "sessionSidebar.apps": "Apps",
   "sessionSidebar.skills": "Skills",
 
   "sessionItem.moreActions": "More actions",
@@ -205,15 +204,6 @@
   "tools.available": "Available MCP",
   "tools.emptyAssigned": "No tools assigned",
   "tools.emptyAvailable": "All tools assigned",
-  "apps.title": "Apps",
-  "apps.assignedTo": "Added to {{name}}",
-  "apps.available": "Available apps",
-  "apps.emptyAssigned": "No apps added yet",
-  "apps.emptyAvailable": "All apps added. Install more from the marketplace",
-  "appsSettings.title": "Apps",
-  "appsSettings.desc": "Manage installed agent apps. Uninstalling removes app data as well",
-  "appsSettings.empty": "No apps installed yet. Check the marketplace",
-  "settings.tabs.apps": "Apps",
 
   "model.noModels": "No models available",
   "model.selectModel": "Select model",

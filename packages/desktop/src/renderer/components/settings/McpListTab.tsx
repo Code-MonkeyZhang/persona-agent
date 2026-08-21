@@ -1,7 +1,7 @@
 /**
  * @file src/renderer/components/settings/McpListTab.tsx
  * @description 设置页 MCP 标签页外壳：标题 + "打开目录"按钮 + 管理行列表。
- * 仅列普通工具，Agent App 归 AppListTab 管理（按 agentApp 标记分列）。
+ * 列出全部 MCP 服务（含 Agent App）。
  * 状态、OAuth、卸载数据与逻辑都在 useMarketplaceStore，行渲染用 ManageRow（行内二次确认）。
  */
 
@@ -55,18 +55,16 @@ export const McpListTab: React.FC = () => {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2.5">
-              {mcpServers
-                .filter((mcp) => !mcp.agentApp)
-                .map((mcp) => (
-                  <ManageRow
-                    key={mcp.name}
-                    type="mcp"
-                    mcp={mcp}
-                    authorizing={authorizing === mcp.name}
-                    onAuthorize={() => authorizeMcp(mcp.name)}
-                    onUninstall={() => uninstallMcpItem(mcp.name)}
-                  />
-                ))}
+              {mcpServers.map((mcp) => (
+                <ManageRow
+                  key={mcp.name}
+                  type="mcp"
+                  mcp={mcp}
+                  authorizing={authorizing === mcp.name}
+                  onAuthorize={() => authorizeMcp(mcp.name)}
+                  onUninstall={() => uninstallMcpItem(mcp.name)}
+                />
+              ))}
             </div>
           )}
         </div>

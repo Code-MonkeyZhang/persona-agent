@@ -37,7 +37,6 @@ import { SessionSidebar } from './components/shell/SessionSidebar';
 import { SettingsPage } from './components/settings/SettingsPage';
 import { AgentEditor } from './components/agent-editor/AgentEditor';
 import { AgentToolsView } from './components/tools/AgentToolsView';
-import { AppsView } from './components/AppsView';
 import { SkillsView } from './components/skills/SkillsView';
 import { MarketplaceView } from './components/marketplace/MarketplaceView';
 import { CompanionContent } from './components/companion/CompanionContent';
@@ -451,7 +450,6 @@ function AppContent() {
                       />
                     )}
                     {activeNav === 'tools' && <AgentToolsView />}
-                    {activeNav === 'apps' && <AppsView />}
                     {activeNav === 'skills' && <SkillsView />}
                   </div>
                 </Panel>
