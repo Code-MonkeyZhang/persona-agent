@@ -22,7 +22,7 @@ const SUPPORTED_PROVIDERS: KnownProvider[] = [
   'anthropic',
   'google',
   'openai',
-  'groq',
+  'xai',
   'openrouter',
   'zai',
   'minimax',
@@ -43,9 +43,9 @@ const PROVIDER_NAMES: Record<string, string> = {
   anthropic: 'Anthropic',
   google: 'Google',
   openai: 'OpenAI',
-  groq: 'Groq',
+  xai: 'xAI',
   openrouter: 'OpenRouter',
-  zai: 'ZAI',
+  zai: 'Z.AI',
   minimax: 'MiniMax',
   'minimax-cn': 'MiniMax-CN',
   'opencode-go': 'OpenCode Go',
@@ -53,10 +53,10 @@ const PROVIDER_NAMES: Record<string, string> = {
   deepseek: 'DeepSeek',
   huggingface: 'HuggingFace',
   'openai-codex': 'OpenAI Codex',
-  xiaomi: 'Xiaomi MiMo',
+  xiaomi: 'Xiaomi',
   moonshotai: 'Moonshot AI',
   'moonshotai-cn': 'Moonshot AI CN',
-  'xiaomi-token-plan-cn': 'Xiaomi MiMo CN',
+  'xiaomi-token-plan-cn': 'Xiaomi Token Plan CN',
 };
 
 /** Read auth store from file */

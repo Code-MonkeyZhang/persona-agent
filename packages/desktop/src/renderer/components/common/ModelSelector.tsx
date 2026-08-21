@@ -6,6 +6,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ProviderStatus } from '../../lib/api';
+import { ProviderMark } from './ProviderMark';
 import {
   Select,
   SelectContent,
@@ -117,10 +118,19 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                   value={`${opt.modelId}::${opt.providerId}`}
                   className="text-sm"
                 >
-                  <span className="text-foreground">{opt.modelId}</span>
-                  <span className="mx-1 text-muted-foreground">-</span>
-                  <span className="text-muted-foreground">
-                    {opt.providerName}
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <ProviderMark
+                      providerId={opt.providerId}
+                      name={opt.providerName}
+                      size={14}
+                    />
+                    <span className="truncate text-foreground">
+                      {opt.modelId}
+                    </span>
+                    <span className="shrink-0 text-muted-foreground">-</span>
+                    <span className="truncate text-muted-foreground">
+                      {opt.providerName}
+                    </span>
                   </span>
                 </SelectItem>
               ))}
@@ -160,10 +170,19 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                 value={`${opt.modelId}::${opt.providerId}`}
                 className="text-sm"
               >
-                <span className="text-foreground">{opt.modelId}</span>
-                <span className="mx-1 text-muted-foreground">-</span>
-                <span className="text-muted-foreground">
-                  {opt.providerName}
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <ProviderMark
+                    providerId={opt.providerId}
+                    name={opt.providerName}
+                    size={14}
+                  />
+                  <span className="truncate text-foreground">
+                    {opt.modelId}
+                  </span>
+                  <span className="shrink-0 text-muted-foreground">-</span>
+                  <span className="truncate text-muted-foreground">
+                    {opt.providerName}
+                  </span>
                 </span>
               </SelectItem>
             ))}

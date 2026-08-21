@@ -12,6 +12,7 @@ import { Button } from '../ui/Button';
 import { PasswordInput } from '../ui/PasswordInput';
 import { ScrollArea } from '../ui/ScrollArea';
 import { StatusDot } from '../ui/StatusDot';
+import { ProviderMark, ModelMark } from '../common/ProviderMark';
 import { SettingRow } from '../common/SettingRow';
 import { toast } from '../../stores/toastStore';
 import { logger } from '../../lib/logger';
@@ -149,7 +150,14 @@ export const ProviderConfigPanel: React.FC = () => {
                       : 'text-muted-foreground hover:bg-secondary/80'
                   )}
                 >
-                  <span>{provider.name}</span>
+                  <span className="flex items-center gap-2 min-w-0">
+                    <ProviderMark
+                      providerId={provider.id}
+                      name={provider.name}
+                      size={18}
+                    />
+                    <span className="truncate">{provider.name}</span>
+                  </span>
                   {provider.hasAuth && <StatusDot color="bg-green-500" />}
                 </button>
               ))}
@@ -163,13 +171,20 @@ export const ProviderConfigPanel: React.FC = () => {
             <>
               {/* 固定区: 标题、API Key 与状态提示 */}
               <div className="shrink-0">
-                <div className="mb-4">
-                  <h3 className="text-[14px] font-bold text-foreground mb-1">
-                    {currentProvider.name}
-                  </h3>
-                  <p className="text-[12px] text-muted-foreground">
-                    {t('provider.configDesc', { name: currentProvider.name })}
-                  </p>
+                <div className="mb-4 flex items-center gap-3">
+                  <ProviderMark
+                    providerId={currentProvider.id}
+                    name={currentProvider.name}
+                    size={36}
+                  />
+                  <div className="min-w-0">
+                    <h3 className="text-[14px] font-bold text-foreground mb-1">
+                      {currentProvider.name}
+                    </h3>
+                    <p className="text-[12px] text-muted-foreground">
+                      {t('provider.configDesc', { name: currentProvider.name })}
+                    </p>
+                  </div>
                 </div>
 
                 <SettingRow label="API Key">
@@ -225,8 +240,16 @@ export const ProviderConfigPanel: React.FC = () => {
                       key={model}
                       className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0"
                     >
-                      <span className="font-mono text-[13px] text-foreground">
-                        {model}
+                      <span className="flex min-w-0 items-center gap-2">
+                        <ModelMark
+                          modelId={model}
+                          providerId={currentProvider.id}
+                          name={currentProvider.name}
+                          size={16}
+                        />
+                        <span className="font-mono text-[13px] text-foreground truncate">
+                          {model}
+                        </span>
                       </span>
                     </div>
                   ))}
