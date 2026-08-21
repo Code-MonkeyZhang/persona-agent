@@ -241,7 +241,7 @@ function CardGrid<T extends CardItem>({
         const logoUrl =
           'logoUrl' in e ? (e as { logoUrl?: string }).logoUrl : undefined;
         return (
-          <div key={folder} className="w-full max-w-[240px]">
+          <div key={folder} className="w-full h-full max-w-[240px]">
             <MarketplaceCard
               type={type}
               item={e}

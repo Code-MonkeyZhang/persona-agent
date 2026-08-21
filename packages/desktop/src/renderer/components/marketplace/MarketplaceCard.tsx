@@ -51,7 +51,7 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
   const { t } = useTranslation();
 
   return (
-    <div className="flex flex-col gap-2 px-3.5 py-3 rounded-xl border border-border bg-background hover:bg-muted transition-colors">
+    <div className="flex flex-col gap-2 h-full px-3.5 py-3 rounded-xl border border-border bg-background hover:bg-muted transition-colors">
       {/* 标识区 + 名字：MCP/Agent/应用显图标框，Skill 名字顶格 */}
       <div className="flex items-start gap-2.5">
         {type !== 'skill' && (
@@ -74,7 +74,7 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
       </div>
 
       {/* 两行简介（超出截断） */}
-      <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed min-h-[28px]">
+      <p className="text-[11px] text-muted-foreground line-clamp-2 leading-[18px] h-[36px]">
         {item.description}
       </p>
 
