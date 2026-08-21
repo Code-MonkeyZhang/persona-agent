@@ -4,7 +4,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { HelpTooltip } from '../ui/HelpTooltip';
+import { LabelWithTooltip } from './LabelWithTooltip';
 
 interface SettingRowProps {
   label: string;
@@ -16,7 +16,7 @@ interface SettingRowProps {
 
 /**
  * 设置行组件，左侧显示标签和描述，右侧放置控件。
- * 提供 tooltip 时自动在标签旁渲染 HelpTooltip。
+ * 提供 tooltip 时标签由 LabelWithTooltip 渲染并附带帮助提示。
  * @param label - 设置项标签
  * @param desc - 可选的描述文字
  * @param descClassName - 描述文字的额外 className
@@ -33,10 +33,11 @@ export function SettingRow({
   return (
     <div className="flex items-center justify-between min-h-[32px] gap-4">
       <div className="min-w-0">
-        <div className="flex items-center gap-1.5 text-[14px] text-foreground leading-[18px]">
-          {label}
-          {tooltip && <HelpTooltip text={tooltip} />}
-        </div>
+        <LabelWithTooltip
+          label={label}
+          tooltip={tooltip}
+          className="text-[14px] leading-[18px]"
+        />
         {desc && (
           <div
             className={`text-[12px] text-muted-foreground mt-0.5 ${descClassName ?? ''}`}

@@ -8,7 +8,7 @@ import { Brain } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ModelSelector } from '../common/ModelSelector';
 import { SettingRow, SettingDivider } from '../common/SettingRow';
-import { HelpTooltip } from '../ui/HelpTooltip';
+import { LabelWithTooltip } from '../common/LabelWithTooltip';
 import { NumberInput } from './NumberInput';
 import type { ProviderStatus } from '../../lib/api';
 
@@ -71,10 +71,11 @@ export const ModelConfigCard: React.FC<ModelConfigCardProps> = ({
       </SettingRow>
       <SettingDivider />
       <div>
-        <div className="flex items-center gap-1.5 text-[14px] text-foreground leading-[18px] min-h-[32px] mb-2">
-          {t('agentEditor.systemPrompt')}
-          <HelpTooltip text={t('agentEditor.systemPromptTooltip')} />
-        </div>
+        <LabelWithTooltip
+          label={t('agentEditor.systemPrompt')}
+          tooltip={t('agentEditor.systemPromptTooltip')}
+          className="text-[14px] leading-[18px] min-h-[32px] mb-2"
+        />
         <textarea
           value={systemPrompt}
           onChange={(e) => onSystemPromptChange(e.target.value)}

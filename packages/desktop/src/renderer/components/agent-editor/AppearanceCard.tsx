@@ -10,7 +10,7 @@ import { readFileAsDataURL } from '../../lib/utils';
 import { SettingDivider } from '../common/SettingRow';
 import { HoverDeleteButton } from '../ui/HoverDeleteButton';
 import { ImagePreviewOverlay } from '../ui/ImagePreviewOverlay';
-import { LabelWithTooltip } from '../ui/LabelWithTooltip';
+import { LabelWithTooltip } from '../common/LabelWithTooltip';
 import { PoseImageCardList } from './PoseImageCardList';
 import type { PoseImage } from './PoseImageCardList';
 
@@ -63,6 +63,7 @@ export const AppearanceCard: React.FC<AppearanceCardProps> = ({
       <LabelWithTooltip
         label={t('agentEditor.poseImage')}
         tooltip={t('agentEditor.poseTooltip')}
+        className="text-[13px] mb-2"
       />
       <PoseImageCardList
         images={poseImages}
@@ -77,6 +78,7 @@ export const AppearanceCard: React.FC<AppearanceCardProps> = ({
       <LabelWithTooltip
         label={t('agentEditor.backgroundImage')}
         tooltip={t('agentEditor.bgTooltip')}
+        className="text-[13px] mb-2"
       />
       {bgPreviewUrl ? (
         <div className="relative group inline-block">
