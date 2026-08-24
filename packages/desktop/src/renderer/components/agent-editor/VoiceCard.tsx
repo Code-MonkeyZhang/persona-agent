@@ -19,13 +19,8 @@ import {
 import { SettingRow, SettingDivider } from '../common/SettingRow';
 import { Card } from '../ui/Card';
 import { useVoicePreview } from '../../hooks/useVoicePreview';
+import { getRandomPreviewText } from '../../lib/utils';
 import type { VoiceOption } from '../../lib/api';
-
-const PREVIEW_TEXTS = [
-  '你好呀，很高兴见到你，今天有什么我可以帮忙的吗？',
-  '今天天气真不错，适合出去走走呢。',
-  '嗨，我是你的语音助手，有什么想聊的吗？',
-];
 
 const VOICE_LANGUAGES = [
   { value: 'default', labelKey: 'agentEditor.langDefault' },
@@ -108,8 +103,7 @@ export const VoiceCard: React.FC<VoiceCardProps> = ({
           </Select>
           <button
             onClick={() => {
-              const text =
-                PREVIEW_TEXTS[Math.floor(Math.random() * PREVIEW_TEXTS.length)];
+              const text = getRandomPreviewText(t);
               previewVoice(voiceId, text, {
                 noKey: t('common.configureApiKeyInSettings'),
                 failed: t('common.previewFailed'),

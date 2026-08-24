@@ -40,6 +40,7 @@ import {
   SelectValue,
 } from '../ui/Select';
 import { useVoicePreview } from '../../hooks/useVoicePreview';
+import { getRandomPreviewText } from '../../lib/utils';
 import { toast } from '../../stores/toastStore';
 import { logger } from '../../lib/logger';
 
@@ -483,7 +484,7 @@ export const VoiceConfigPanel: React.FC = () => {
                 <div className="shrink-0 flex items-center gap-1">
                   <button
                     onClick={() =>
-                      previewVoice(v.id, '你好，这是克隆音色的试听效果。', {
+                      previewVoice(v.id, getRandomPreviewText(t), {
                         noKey: t('voice.configureApiKeyFirst'),
                         failed: t('voice.previewFailed'),
                       })

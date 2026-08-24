@@ -28,3 +28,20 @@ export function readFileAsDataURL(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
+
+const PREVIEW_TEXT_KEYS = [
+  'voice.previewText1',
+  'voice.previewText2',
+  'voice.previewText3',
+];
+
+/**
+ * 随机取一句试听文案，语言跟随界面语言
+ * @param t - i18n 翻译函数
+ * @returns 随机选中的试听句
+ */
+export function getRandomPreviewText(t: (key: string) => string): string {
+  return t(
+    PREVIEW_TEXT_KEYS[Math.floor(Math.random() * PREVIEW_TEXT_KEYS.length)]
+  );
+}
