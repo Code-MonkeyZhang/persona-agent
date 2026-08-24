@@ -31,17 +31,23 @@ Persona-agent 是一个开源的个人 AI Agent 聊天平台，让你能够完�
 - **自定义 Agent 形象界面** — 支持自定义Agent的角色立绘和背景，Agent 会根据对话自动切换表情
 - **自定义 Agent 语音朗读** - 支持Minimax TTS API的语音合成回复
 - **支持 MCP 与 Agent Skill** — 支持自定义给每个Agent自定义MCP工具和Agent Skill，同时支持需要OAuth的MCP服务 （Notion， Github）
+- **Agent App** — 为 Agent 安装专属小应用，通过应用面板交互并接收应用通知
 - **远程访问** — 内置 Cloudflare Tunnel，可以通过移动端App远程连接Agent
 
 ## 📢 News
+- 2026-08-24 — **v1.8.0**：供应商与模型官方品牌图标、语音试听文案中英双语、商城卡片高度统一。
+- 2026-08-19 — **v1.7.1**：LLM 瞬时断连自动重试、无效工作空间自动回退、会话列表消息预览、GLM-5.3 支持。
+- 2026-08-17 — **v1.7.0**：Agent App 体系上线 — 商城新增 App 标签页，一键安装专属小应用，支持应用面板交互与通知。
+- 2026-07-23 — **v1.6.5**：应用内检查更新、macOS 安装包签名与公证、陪伴面板重构为滑出式、支持中止生成。
+- 2026-07-19 — **v1.6.4**：Intel Mac 支持、扫码配对远程连接、Kimi K3 支持、立绘切换过渡动画、思考过程时间线重设计。
 - 2026-07-04 — **v1.6.0**：思考过程合并展示、API 错误提示随会话持久化、Windows 端改用 Git Bash、uv 运行时一键下载、聊天乐观加载。
 - 2026-06-28 — **v1.5.0**：新增 Agent 市场，应用内集中浏览和安装技能与 MCP 工具；统一 HTTP 错误处理；设计系统落地。
 - 2026-06-23 — **v1.4.0**：全新桌面端 UI（TitleBar + 双侧边栏）、Agent 聊天与多会话管理、技能/工具独立分配视图。
-- 2026-06-04 — **v1.2.3**：修复会话切换时消息泄漏与跨会话语音播放，改进 Skill 路径解析与系统提示词编辑体验。
 
 <details>
 <summary>Earlier news</summary>
 
+- 2026-06-04 — **v1.2.3**：修复会话切换时消息泄漏与跨会话语音播放，改进 Skill 路径解析与系统提示词编辑体验。
 - 2026-05-24 — **v1.2.1**：Windows 平台支持、中英文双语界面。
 - 2026-05-20 — **v1.2.0**：Agent 立绘与背景图管理、陪伴面板动画与窗口拖拽区域全面修复。
 - 2026-05-18 — **v1.1.9**：Agent 编辑器形象（pose）管理、窗口拖拽支持。
@@ -67,13 +73,6 @@ Persona-agent 是一个开源的个人 AI Agent 聊天平台，让你能够完�
 macOS 打开 DMG 拖入 Applications 即可；Windows 运行 exe 安装程序按提示完成安装。
 
 > [!NOTE]
-> macOS 首次打开若弹出「"Persona.app"已损坏，无法打开」，请在终端执行以下命令即可解除限制：
->
-> ```bash
-> xattr -cr /Applications/Persona.app
-> ```
-> 执行后即可正常打开。
->
 > Windows 安装包未签名，首次运行可能被 SmartScreen 拦截，提示「已保护你的电脑」。点击「更多信息」→「仍要运行」即可继续安装。
 
 ## 🎨 Agent 自定义
@@ -145,6 +144,7 @@ Persona 还提供 iOS 和 Android 的移动端 app，通过 Cloudflare Tunnel �
 ### 技术依赖
 
 - [pi-ai](https://github.com/mariozechner/pi-ai) — 统一多供应商 LLM 调用接口
+- [lobe-icons](https://github.com/lobehub/lobe-icons) — 供应商与模型品牌图标
 - [Model Context Protocol](https://modelcontextprotocol.io/) — MCP工具扩展协议
 - [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) — 提供内网穿透能力
 - [MiniMax](https://www.minimaxi.com/) — TTS 语音合成
