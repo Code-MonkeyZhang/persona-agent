@@ -61,29 +61,26 @@ export const BasicInfoCard: React.FC<BasicInfoCardProps> = ({
             className="hidden"
           />
         </div>
-        <div className="flex-1 flex flex-col gap-2.5">
-          <div className="flex items-center gap-3">
-            <span className="text-[13px] text-muted-foreground shrink-0 w-12">
-              {t('agentEditor.name')}
-            </span>
-            <Input
-              value={name}
-              onChange={(e) => onNameChange(e.target.value)}
-              placeholder={t('agentEditor.namePlaceholder')}
-              className="rounded-lg border-border h-8 flex-1 text-[13px]"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[13px] text-muted-foreground shrink-0 w-12">
-              {t('agentEditor.description')}
-            </span>
-            <Input
-              value={description}
-              onChange={(e) => onDescriptionChange(e.target.value)}
-              placeholder={t('agentEditor.descPlaceholder')}
-              className="rounded-lg border-border h-8 flex-1 text-[13px]"
-            />
-          </div>
+        {/* 标签列自适应最宽标签，避免长标签溢出，两行输入框左缘对齐 */}
+        <div className="flex-1 min-w-0 grid grid-cols-[max-content_1fr] items-center gap-x-3 gap-y-2.5">
+          <span className="text-[13px] text-muted-foreground">
+            {t('agentEditor.name')}
+          </span>
+          <Input
+            value={name}
+            onChange={(e) => onNameChange(e.target.value)}
+            placeholder={t('agentEditor.namePlaceholder')}
+            className="rounded-lg border-border h-8 text-[13px]"
+          />
+          <span className="text-[13px] text-muted-foreground">
+            {t('agentEditor.description')}
+          </span>
+          <Input
+            value={description}
+            onChange={(e) => onDescriptionChange(e.target.value)}
+            placeholder={t('agentEditor.descPlaceholder')}
+            className="rounded-lg border-border h-8 text-[13px]"
+          />
         </div>
       </div>
     </Card>
