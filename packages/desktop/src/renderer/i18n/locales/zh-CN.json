@@ -276,10 +276,6 @@
   "landing.ttsConfigured": "语音服务已配置",
   "landing.ttsServiceLabel": "语音服务",
   "landing.ttsKeyPlaceholder": "输入 MiniMax API Key",
-  "landing.clonedVoices": "我的克隆音色",
-  "landing.presetVoices": "预设音色",
-  "landing.male": "男声",
-  "landing.female": "女声",
   "landing.voiceLanguage": "朗读语言",
   "landing.langDefault": "Default（跟随原文）",
   "landing.langZh": "中文",
@@ -307,7 +303,6 @@
   "agentEditor.langZh": "中文",
   "agentEditor.langEn": "英语",
   "agentEditor.langJa": "日语",
-
 
   "companion.noAppearance": "该 Agent 还未配置陪伴形象",
   "companion.uploadPoseHint": "请在 Agent 编辑器的「形象」栏中上传立绘图片",

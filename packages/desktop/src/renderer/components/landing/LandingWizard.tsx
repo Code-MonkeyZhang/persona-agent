@@ -551,7 +551,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                               0 && (
                               <SelectGroup>
                                 <SelectLabel className="text-[11px] text-muted-foreground uppercase">
-                                  {t('landing.clonedVoices')}
+                                  {t('agentEditor.clonedVoices')}
                                 </SelectLabel>
                                 {voices
                                   .filter((v) => v.group === 'cloned')
@@ -564,7 +564,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                             )}
                             <SelectGroup>
                               <SelectLabel className="text-[11px] text-muted-foreground uppercase">
-                                {t('landing.presetVoices')}
+                                {t('agentEditor.presetVoices')}
                               </SelectLabel>
                               {voices
                                 .filter((v) => v.group === 'preset')
@@ -572,9 +572,9 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                                   <SelectItem key={v.id} value={v.id}>
                                     {t(`voicePreset.${v.id}`)} ·{' '}
                                     {v.gender === 'male'
-                                      ? t('landing.male')
+                                      ? t('agentEditor.male')
                                       : v.gender === 'female'
-                                        ? t('landing.female')
+                                        ? t('agentEditor.female')
                                         : ''}
                                   </SelectItem>
                                 ))}

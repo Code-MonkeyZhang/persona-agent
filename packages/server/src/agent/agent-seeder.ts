@@ -26,6 +26,10 @@ import { AgentConfigInputSchema } from './types.js';
 /** 模板名，与 templates/ 目录下的文件夹同名 */
 const TEMPLATE_NAME = 'arona-adult';
 
+/** 前缀匹配播种语言：zh* → zh-CN、en* → en、其余 null */
+const matchLang = (locale: string): 'zh-CN' | 'en' | null =>
+  locale.startsWith('zh') ? 'zh-CN' : locale.startsWith('en') ? 'en' : null;
+
 /**
  * 解析播种语言。
  *
@@ -33,16 +37,14 @@ const TEMPLATE_NAME = 'arona-adult';
  * 未设置或无法识别时回退 Intl 主机语言，其余地区默认 zh-CN。
  */
 export function resolveSeedLang(): 'zh-CN' | 'en' {
-  const override = process.env['PERSONA_AGENT_LANG'];
-  if (override) {
-    const lower = override.toLowerCase();
-    if (lower.startsWith('zh')) return 'zh-CN';
-    if (lower.startsWith('en')) return 'en';
-  }
-  const locale = Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase();
-  if (locale.startsWith('zh')) return 'zh-CN';
-  if (locale.startsWith('en')) return 'en';
-  return 'zh-CN';
+  const override = matchLang(
+    (process.env['PERSONA_AGENT_LANG'] ?? '').toLowerCase()
+  );
+  if (override) return override;
+  return (
+    matchLang(Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase()) ??
+    'zh-CN'
+  );
 }
 
 /**

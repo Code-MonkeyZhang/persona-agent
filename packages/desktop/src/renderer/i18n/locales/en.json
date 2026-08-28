@@ -276,10 +276,6 @@
   "landing.ttsConfigured": "Voice service configured",
   "landing.ttsServiceLabel": "Voice service",
   "landing.ttsKeyPlaceholder": "Enter your MiniMax API Key",
-  "landing.clonedVoices": "My cloned voices",
-  "landing.presetVoices": "Preset voices",
-  "landing.male": "Male",
-  "landing.female": "Female",
   "landing.voiceLanguage": "Speech language",
   "landing.langDefault": "Default (follow text)",
   "landing.langZh": "中文",
@@ -307,7 +303,6 @@
   "agentEditor.langZh": "Chinese",
   "agentEditor.langEn": "English",
   "agentEditor.langJa": "Japanese",
-
 
   "companion.noAppearance": "This Agent has no companion appearance configured",
   "companion.uploadPoseHint": "Please upload pose images in the Agent editor's Appearance section",
