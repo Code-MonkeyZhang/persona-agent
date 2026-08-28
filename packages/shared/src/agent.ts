@@ -76,3 +76,17 @@ export const AgentConfigUpdateSchema = AgentConfigInputSchema.partial().extend({
 
 /** Partial of AgentConfigInput, used for PUT (update) requests. */
 export type AgentConfigUpdate = z.infer<typeof AgentConfigUpdateSchema>;
+
+/**
+ * 初始 Agent 播种状态（server config/agent-seed.json）。
+ *
+ * seeded 为核心布尔，其余字段自解释并为将来「模板升级重播」留门；
+ * agentId 供渲染端判断播种 Agent 是否仍在列表（老用户不弹向导）。
+ */
+export interface AgentSeedStatus {
+  seeded: boolean;
+  template?: string;
+  lang?: 'zh-CN' | 'en';
+  agentId?: string;
+  seededAt?: number;
+}

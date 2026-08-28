@@ -12,6 +12,11 @@ export {
   backfillDefaultWorkspacePaths,
 } from './agent-config-store.js';
 export {
+  seedInitialAgent,
+  readAgentSeedStatus,
+  resolveSeedLang,
+} from './agent-seeder.js';
+export {
   AgentConfigSchema,
   AgentConfigInputSchema,
   AgentConfigUpdateSchema,

@@ -1,0 +1,15 @@
+{
+  "name": "Arona",
+  "description": "Your AI assistant",
+  "defaultModel": {
+    "provider": "minimax-cn",
+    "model": "MiniMax-M3"
+  },
+  "maxSteps": 30,
+  "skillNames": [],
+  "mcpNames": [],
+  "compressionThreshold": 50,
+  "dreamIntervalMinutes": 120,
+  "voiceId": "Chinese (Mandarin)_Gentle_Senior",
+  "voiceLanguage": "en"
+}

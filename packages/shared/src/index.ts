@@ -15,6 +15,7 @@ export {
   type AgentConfig,
   type AgentConfigInput,
   type AgentConfigUpdate,
+  type AgentSeedStatus,
 } from './agent.js';
 export type {
   ContentBlock,

@@ -27,6 +27,7 @@ import type {
   TtsConfig,
   TtsModel,
   VoiceOption,
+  AgentSeedStatus,
 } from '@persona/shared';
 import { logger } from './logger';
 
@@ -645,6 +646,25 @@ export async function listAgents(): Promise<AgentConfig[]> {
   const data: ListAgentsResponse = await response.json();
   logger.info(`[API] GET ${url} response body:`, JSON.stringify(data, null, 2));
   return data.agents;
+}
+
+/**
+ * 获取初始 Agent 播种状态。
+ * 读取失败时 server 返回 seeded: false，向导触发判定据此跳过。
+ * @returns 播种状态对象
+ */
+export async function getSeedStatus(): Promise<AgentSeedStatus> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/agents/seed-status`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get seed status: ${response.status}`);
+  }
+
+  return response.json();
 }
 
 /**

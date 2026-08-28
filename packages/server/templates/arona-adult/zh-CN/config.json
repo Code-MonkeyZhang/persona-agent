@@ -1,0 +1,15 @@
+{
+  "name": "阿罗娜",
+  "description": "你的AI助手",
+  "defaultModel": {
+    "provider": "minimax-cn",
+    "model": "MiniMax-M3"
+  },
+  "maxSteps": 30,
+  "skillNames": [],
+  "mcpNames": [],
+  "compressionThreshold": 50,
+  "dreamIntervalMinutes": 120,
+  "voiceId": "Chinese (Mandarin)_Gentle_Senior",
+  "voiceLanguage": "zh"
+}

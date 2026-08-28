@@ -24,6 +24,11 @@ extraResources:
     to: "bin/cloudflared.exe"
     filter:
       - "**/*"
+  # 初始 Agent 播种模板（双语言档案 + assets），随 app 打包保证离线可用
+  - from: "../server/templates"
+    to: "templates"
+    filter:
+      - "**/*"
 
 publish:
   provider: github

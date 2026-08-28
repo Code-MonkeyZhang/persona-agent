@@ -243,6 +243,18 @@ function getCloudflaredPath(): string {
 }
 
 /**
+ * 返回初始 Agent 播种模板目录。
+ * dev 模式下位于仓库 packages/server/templates，生产模式位于 resources/templates。
+ * 通过环境变量传递给 server 进程，播种语言由 server 端检测。
+ */
+function getTemplatesPath(): string {
+  if (is.dev) {
+    return join(__dirname, '../../../server/templates');
+  }
+  return join(process.resourcesPath, 'templates');
+}
+
+/**
  * 查找可用的网络端口
  * @returns {Promise<number>} 可用端口号
  * @throws {Error} 获取端口失败时抛出错误
@@ -287,13 +299,19 @@ async function startServer(): Promise<void> {
   const url = `http://localhost:${port}`;
   const binaryPath = getBinaryPath();
   const cloudflaredPath = getCloudflaredPath();
+  const templatesPath = getTemplatesPath();
   log.info(`Starting server from: ${binaryPath} on port ${port}`);
   log.info(`Cloudflared path: ${cloudflaredPath}`);
+  log.info(`Templates path: ${templatesPath}`);
 
   serverProcess = spawn(binaryPath, [String(port)], {
     stdio: 'pipe',
     windowsHide: true,
-    env: { ...process.env, PERSONA_CLOUDFLARED_BIN_PATH: cloudflaredPath },
+    env: {
+      ...process.env,
+      PERSONA_CLOUDFLARED_BIN_PATH: cloudflaredPath,
+      PERSONA_AGENT_TEMPLATE_DIR: templatesPath,
+    },
   });
 
   serverProcess.on('error', (err) => {

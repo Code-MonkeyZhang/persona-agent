@@ -43,6 +43,7 @@ import { CompanionContent } from './components/companion/CompanionContent';
 import { CompanionReplyBubble } from './components/companion/CompanionReplyBubble';
 import { AppIconBar } from './components/shell/AppIconBar';
 import { AppWebViewPanel } from './components/AppWebViewPanel';
+import { LandingWizard } from './components/landing/LandingWizard';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { ToastContainer } from './components/Toast';
 import { WebSocketProvider } from './components/WebSocketProvider';
@@ -55,6 +56,7 @@ import { useViewStore } from './stores/viewStore';
 import { useTunnelStore } from './stores/tunnelStore';
 import { useAppPanelStore } from './stores/appPanelStore';
 import { logger } from './lib/logger';
+import { getSeedStatus } from './lib/api';
 
 /**
  * 主聊天界面组件，整合所有子组件并管理核心交互逻辑
@@ -139,8 +141,12 @@ function AppContent() {
     loadSessions,
   } = useSessionStore();
 
-  const { loadAgents, currentAgent, deleteAgentById } = useAgentStore();
+  const { loadAgents, currentAgent, deleteAgentById, switchAgent } =
+    useAgentStore();
   const { providers, loadProviders } = useProviderStore();
+
+  /** 首启向导：播种 Agent 的 id（null = 不弹） */
+  const [landingAgentId, setLandingAgentId] = useState<string | null>(null);
 
   /**
    * 删除指定 Agent
@@ -167,6 +173,48 @@ function AppContent() {
       loadProviders();
     }
   }, [connectionStatus, loadProviders]);
+
+  /**
+   * 首启向导触发：无 landing-completed 标记 且 seed-status 显示已播种
+   * 且播种 Agent 仍在列表（老用户 seeded=false → 永不弹）。
+   * 在 loadAgents 完成后检查，保证播种 Agent 已进列表。
+   */
+  const agentsLoaded = useAgentStore((s) => s.agents.length > 0);
+  useEffect(() => {
+    if (connectionStatus !== 'connected' || !agentsLoaded) return;
+    if (localStorage.getItem('landing-completed')) return;
+    let cancelled = false;
+    void getSeedStatus()
+      .then((status) => {
+        if (cancelled) return;
+        const exists = useAgentStore
+          .getState()
+          .agents.some((a) => a.id === status.agentId);
+        if (status.seeded && status.agentId && exists) {
+          logger.info(`[Landing] showing wizard for seeded agent`);
+          setLandingAgentId(status.agentId);
+        }
+      })
+      .catch(() => {
+        /* seed-status 读取失败按不弹处理 */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [connectionStatus, agentsLoaded]);
+
+  /** 向导唯一出口：切换到播种 Agent 并进入聊天视图 */
+  const handleLandingComplete = async () => {
+    const agentId = landingAgentId;
+    setLandingAgentId(null);
+    if (!agentId) return;
+    const view = useViewStore.getState();
+    view.setView('chat');
+    view.setActiveNav('chat');
+    if (useAgentStore.getState().currentAgent?.id !== agentId) {
+      await switchAgent(agentId);
+    }
+  };
 
   useEffect(() => {
     if (connectionStatus === 'connected' && currentAgent) {
@@ -468,6 +516,12 @@ function AppContent() {
         </div>
       </div>
       <ToastContainer />
+      {landingAgentId && (
+        <LandingWizard
+          agentId={landingAgentId}
+          onComplete={() => void handleLandingComplete()}
+        />
+      )}
     </div>
   );
 }

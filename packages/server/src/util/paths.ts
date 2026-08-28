@@ -60,6 +60,13 @@ export const getOAuthTokensPath = () =>
   path.join(getMcpDir(), 'oauth-tokens.json');
 
 /**
+ * 初始 Agent 播种状态文件路径（config/agent-seed.json）。
+ * 记录「播种发生过没有」的一次性事实，防删除后复活。
+ */
+export const getAgentSeedStatusPath = () =>
+  path.join(getConfigDir(), 'agent-seed.json');
+
+/**
  * Returns the path to the cloudflared binary.
  * - Priority: PERSONA_CLOUDFLARED_BIN_PATH env var (set by desktop main process)
  * - Fallback: same directory as the running server executable

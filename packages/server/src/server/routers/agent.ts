@@ -2,11 +2,12 @@
  * @fileoverview HTTP routes for agent management.
  *
  * Routes:
- * - GET    /api/agents     - List all agents
- * - GET    /api/agents/:id - Get single agent
- * - POST   /api/agents     - Create agent
- * - PUT    /api/agents/:id - Update agent
- * - DELETE /api/agents/:id - Delete agent
+ * - GET    /api/agents              - List all agents
+ * - GET    /api/agents/seed-status  - Initial agent seed status
+ * - GET    /api/agents/:id          - Get single agent
+ * - POST   /api/agents              - Create agent
+ * - PUT    /api/agents/:id          - Update agent
+ * - DELETE /api/agents/:id          - Delete agent
  */
 
 import { Router } from 'express';
@@ -16,6 +17,7 @@ import {
   createAgentConfig,
   updateAgentConfig,
   deleteAgentConfig,
+  readAgentSeedStatus,
   AgentConfigInputSchema,
   AgentConfigUpdateSchema,
 } from '../../agent/index.js';
@@ -53,6 +55,14 @@ export function createAgentRouter(
     asyncHandler('AGENT', 'Error listing agents', (_req, res) => {
       const agents = listAgentConfigs();
       res.json({ agents });
+    })
+  );
+
+  /** GET /api/agents/seed-status - 初始 Agent 播种状态（读取失败返回 seeded: false） */
+  router.get(
+    '/seed-status',
+    asyncHandler('AGENT', 'Error getting seed status', (_req, res) => {
+      res.json(readAgentSeedStatus());
     })
   );
 
