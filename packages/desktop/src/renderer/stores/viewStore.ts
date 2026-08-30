@@ -16,11 +16,17 @@ interface ViewStore {
   editingAgentId: string | null;
   activeNav: MainNav;
   sessionSidebarCollapsed: boolean;
+  /**
+   * 会话侧边栏宽度（占 Group 的百分比，15–30）。
+   * 与 minSize/maxSize 保持一致，避免 Panel 警告并保证拖拽范围。
+   */
+  sessionSidebarWidth: number;
   sessionsCollapsed: boolean;
 
   setView: (view: ViewType) => void;
   setActiveNav: (nav: MainNav) => void;
   toggleSessionSidebar: () => void;
+  setSessionSidebarWidth: (width: number) => void;
   toggleSessionsCollapsed: () => void;
   openAgentEditor: (agentId: string | null) => void;
   closeAgentEditor: () => void;
@@ -33,12 +39,14 @@ export const useViewStore = create<ViewStore>()(
       editingAgentId: null,
       activeNav: 'chat',
       sessionSidebarCollapsed: false,
+      sessionSidebarWidth: 20,
       sessionsCollapsed: false,
 
       setView: (view) => set({ currentView: view }),
       setActiveNav: (nav) => set({ activeNav: nav }),
       toggleSessionSidebar: () =>
         set((s) => ({ sessionSidebarCollapsed: !s.sessionSidebarCollapsed })),
+      setSessionSidebarWidth: (width) => set({ sessionSidebarWidth: width }),
       toggleSessionsCollapsed: () =>
         set((s) => ({ sessionsCollapsed: !s.sessionsCollapsed })),
 
@@ -61,6 +69,7 @@ export const useViewStore = create<ViewStore>()(
       name: 'view-store',
       partialize: (s) => ({
         sessionSidebarCollapsed: s.sessionSidebarCollapsed,
+        sessionSidebarWidth: s.sessionSidebarWidth,
       }),
     }
   )
