@@ -44,7 +44,7 @@ import { CompanionReplyBubble } from './components/companion/CompanionReplyBubbl
 import { AppIconBar } from './components/shell/AppIconBar';
 import { AppWebViewPanel } from './components/AppWebViewPanel';
 import { LandingWizard } from './components/landing/LandingWizard';
-import { Group, Panel, Separator } from 'react-resizable-panels';
+import { Group, Panel, Separator, useGroupRef } from 'react-resizable-panels';
 import { ToastContainer } from './components/Toast';
 import { WebSocketProvider } from './components/WebSocketProvider';
 import { useChatStore } from './stores/chatStore';
@@ -68,6 +68,58 @@ function AppContent() {
   const activeNav = useViewStore((s) => s.activeNav);
   const panelCollapsed = useAppPanelStore((s) => s.panelCollapsed);
   const selectedApp = useAppPanelStore((s) => s.selectedApp);
+  const sessionSidebarCollapsed = useViewStore(
+    (s) => s.sessionSidebarCollapsed
+  );
+  const sessionSidebarWidth = useViewStore((s) => s.sessionSidebarWidth);
+  const setSessionSidebarWidth = useViewStore((s) => s.setSessionSidebarWidth);
+
+  /**
+   * 拖拽侧边栏 Separator 时同步宽度到 viewStore，由 zustand persist 持久化。
+   * 仅在用户实际操作后写入，避免初次挂载时把 Group 的 defaultLayout 又写回 store。
+   * `LayoutChangedMeta.isUserInteraction === true` 时表示 Separator 拖拽 / 键盘调整；
+   * 初挂载、约束重算、defaultSize 应用等都视为 false，不回写。
+   */
+  const handleLayoutChanged = useCallback(
+    (
+      layout: { [key: string]: number },
+      meta: { isUserInteraction: boolean }
+    ) => {
+      if (!meta.isUserInteraction) return;
+      const next = layout['session-sidebar'];
+      if (typeof next === 'number' && next !== sessionSidebarWidth) {
+        setSessionSidebarWidth(next);
+      }
+    },
+    [sessionSidebarWidth, setSessionSidebarWidth]
+  );
+
+  /**
+   * 折叠时不让 session-sidebar 占宽度：折叠瞬间通过 imperative API 把它的尺寸
+   * 收回 0%，避免展开时按 persisted 值跳跃。展开后由 Panel 的 defaultSize
+   * （同样来自 store）自动应用回持久化宽度。
+   */
+  const groupRef = useGroupRef();
+
+  useEffect(() => {
+    const api = groupRef.current;
+    if (!api) return;
+    const layout = api.getLayout();
+    if (sessionSidebarCollapsed) {
+      if (typeof layout['session-sidebar'] === 'number') {
+        api.setLayout({ ...layout, 'session-sidebar': 0 });
+      }
+    } else if (
+      typeof layout['session-sidebar'] === 'number' &&
+      Math.abs(layout['session-sidebar'] - sessionSidebarWidth) > 0.5
+    ) {
+      // 折叠后再展开，Group 自留的 0% 需要手动写回持久化值
+      api.setLayout({
+        ...layout,
+        'session-sidebar': sessionSidebarWidth,
+      });
+    }
+  }, [sessionSidebarCollapsed, sessionSidebarWidth, groupRef]);
 
   const pendingProviderRef = useRef<string | undefined>();
   const messageListRef = useRef<MessageListRef>(null);
@@ -419,9 +471,26 @@ function AppContent() {
             <MarketplaceView />
           ) : (
             <>
-              <SessionSidebar />
-              <Group orientation="horizontal" className="flex-1 min-w-0">
-                <Panel defaultSize="70" minSize="40">
+              <Group
+                groupRef={groupRef}
+                orientation="horizontal"
+                className="flex-1 min-w-0"
+                onLayoutChanged={handleLayoutChanged}
+              >
+                {!sessionSidebarCollapsed && (
+                  <>
+                    <Panel
+                      id="session-sidebar"
+                      defaultSize={`${sessionSidebarWidth}`}
+                      minSize="15"
+                      maxSize="30"
+                    >
+                      <SessionSidebar />
+                    </Panel>
+                    <Separator className="w-1 bg-border hover:bg-primary/20 transition-colors" />
+                  </>
+                )}
+                <Panel id="chat" minSize="40">
                   <div className="h-full overflow-hidden">
                     {activeNav === 'chat' && (
                       <div className="h-full flex flex-col">
@@ -504,7 +573,7 @@ function AppContent() {
                 {!panelCollapsed && selectedApp && (
                   <>
                     <Separator className="w-1 bg-border hover:bg-primary/20 transition-colors" />
-                    <Panel defaultSize="30" minSize="20" maxSize="50">
+                    <Panel id="app-webview" minSize="20" maxSize="50">
                       <AppWebViewPanel />
                     </Panel>
                   </>
