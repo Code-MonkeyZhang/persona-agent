@@ -481,7 +481,7 @@ function AppContent() {
                   <>
                     <Panel
                       id="session-sidebar"
-                      defaultSize={sessionSidebarWidth}
+                      defaultSize={`${sessionSidebarWidth}`}
                       minSize="15"
                       maxSize="30"
                     >
