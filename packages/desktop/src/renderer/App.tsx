@@ -487,7 +487,9 @@ function AppContent() {
                     >
                       <SessionSidebar />
                     </Panel>
-                    <Separator className="w-1 bg-border hover:bg-primary/20 transition-colors" />
+                    <Separator className="w-1 hover:bg-primary/10 transition-colors">
+                      <div className="w-px h-full bg-border" />
+                    </Separator>
                   </>
                 )}
                 <Panel id="chat" minSize="40">
@@ -572,7 +574,9 @@ function AppContent() {
                 </Panel>
                 {!panelCollapsed && selectedApp && (
                   <>
-                    <Separator className="w-1 bg-border hover:bg-primary/20 transition-colors" />
+                    <Separator className="w-1 hover:bg-primary/10 transition-colors">
+                      <div className="w-px h-full bg-border" />
+                    </Separator>
                     <Panel id="app-webview" minSize="20" maxSize="50">
                       <AppWebViewPanel />
                     </Panel>
