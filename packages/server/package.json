@@ -6,6 +6,7 @@
     "persona-agent-server": "dist/src/index.js"
   },
   "private": true,
+  "license": "MIT",
   "scripts": {
     "build": "VERSION=$(node -p \"require('./package.json').version\") && bun build ./src/index.ts --compile --outfile ./dist/persona-agent-server --define \"globalThis.SERVER_VERSION=\\\"$VERSION\\\"\" && ./dist/persona-agent-server --version",
     "build:bundle": "bun build ./src/index.ts --outdir ./dist --target bun",

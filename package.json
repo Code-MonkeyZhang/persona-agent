@@ -2,6 +2,7 @@
   "name": "persona-agent",
   "version": "1.9.0",
   "private": true,
+  "license": "MIT",
   "workspaces": [
     "packages/*"
   ],
