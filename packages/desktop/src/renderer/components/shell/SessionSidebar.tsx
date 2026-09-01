@@ -118,7 +118,7 @@ export const SessionSidebar: React.FC = () => {
     : '';
 
   return (
-    <aside className="h-full w-full bg-background border-r border-border flex flex-col overflow-hidden">
+    <aside className="h-full w-full bg-background flex flex-col overflow-hidden">
       {/* - Header：Agent 信息块，整块可点击进入编辑 */}
       <div className="h-14 px-4 border-b border-border flex items-center shrink-0">
         <button
