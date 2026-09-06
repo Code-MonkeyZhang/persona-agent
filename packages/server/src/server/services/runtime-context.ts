@@ -1,7 +1,7 @@
 /**
  * @fileoverview 运行时上下文注入：每次请求前组装时间与环境变化文本。
  *
- * 设计文档：docs/Agent服务器文档/功能模块/AgentCore/System Prompt/运行时上下文注入.md
+ * 设计文档：docs/设计文档/AgentCore/设计/System Prompt/运行时上下文注入.md
  * 输出以 context 角色落盘、以 user 消息进入模型上下文，前端不渲染。
  */
 
