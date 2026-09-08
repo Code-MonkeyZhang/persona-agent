@@ -547,6 +547,91 @@ describe('Chat Module Integration Tests', () => {
       TEST_CONFIG.timeout
     );
 
+    /** 测试：插话续跑的轮次边界不重复广播步骤完成事件 */
+    it(
+      'should not rebroadcast step_complete at interjection round boundary',
+      async () => {
+        const eventTypes: string[] = [];
+        const stepPayloads: {
+          stepIndex: number;
+          thinking?: string;
+          content?: string;
+        }[] = [];
+
+        await new Promise<void>((resolve, reject) => {
+          ws = new WebSocket(WS_URL);
+
+          ws.on('open', () => {
+            ws.send(JSON.stringify({
+              type: 'subscribe',
+              payload: { sessionId },
+            }));
+          });
+
+          ws.on('message', (data: Buffer) => {
+            const msg = JSON.parse(data.toString()) as {
+              type: string;
+              stepIndex?: number;
+              thinking?: string;
+              content?: string;
+            };
+            eventTypes.push(msg.type);
+
+            if (msg.type === 'step_complete') {
+              stepPayloads.push({
+                stepIndex: msg.stepIndex!,
+                thinking: msg.thinking,
+                content: msg.content,
+              });
+            }
+
+            if (msg.type === 'complete') {
+              ws.close();
+              resolve();
+            }
+          });
+
+          ws.on('error', reject);
+
+          setTimeout(() => {
+            fetch(
+              `${BASE_URL}/api/agents/${agentId}/sessions/${sessionId}/chat`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  content: '请写一段大约一百五十字的自我介绍，写完整一些',
+                }),
+              }
+            ).catch(reject);
+            /** 首条响应要等整回合结束才返回，插话必须按定时器独立发出 */
+            setTimeout(() => {
+              fetch(
+                `${BASE_URL}/api/agents/${agentId}/sessions/${sessionId}/chat`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ content: '再补充一句今天的日期' }),
+                }
+              ).catch(reject);
+            }, 2000);
+          }, 100);
+        });
+
+        /** 插话成功进入缓冲才会触发续跑，否则用例失去意义 */
+        expect(eventTypes).toContain('round_end');
+
+        /** 同一回合内不应出现载荷完全相同的两条步骤完成事件 */
+        const seen = new Set<string>();
+        for (const p of stepPayloads) {
+          const key = `${p.stepIndex}|${p.thinking ?? ''}|${p.content ?? ''}`;
+          expect(seen.has(key)).toBe(false);
+          seen.add(key);
+        }
+      },
+      TEST_CONFIG.timeout
+    );
+
     /** 测试：多个 WebSocket 客户端同时订阅同一 Session */
     it(
       'should handle multiple WebSocket clients',

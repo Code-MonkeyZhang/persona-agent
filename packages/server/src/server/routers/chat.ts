@@ -64,7 +64,8 @@ export function createChatRouter(sessionManagers: SessionManagersMap): Router {
         throw new AppError(500, result.error ?? 'Chat failed');
       }
 
-      res.json({ success: true });
+      // 透传 processChat 结果：忙时插话携带 pendingId
+      res.json(result);
     })
   );
 

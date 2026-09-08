@@ -87,41 +87,30 @@ export async function processAppNotification(
     `Delivering notification from '${serverName}' to session ${sessionId}`
   );
 
-  // Agent 可能还在生成上一轮回复（重入保护会拒绝并发 processChat），
-  // 因此遇到 "Session is currently generating" 时短暂等待后重试。
-  const MAX_RETRIES = 10;
-  const RETRY_DELAY_MS = 1000;
+  const result = await processChat({
+    agentId,
+    sessionId,
+    content,
+    sessionManager,
+    appSource: serverName,
+    // App 回合照常走 TTS 流程，是否播报由客户端全局开关和当前会话决定
+    voiceEnabled: true,
+  });
 
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    const result = await processChat({
-      agentId,
-      sessionId,
-      content,
-      sessionManager,
-      appSource: serverName,
-      // App 回合照常走 TTS 流程，是否播报由客户端全局开关和当前会话决定
-      voiceEnabled: true,
-    });
-
-    if (result.success) return;
-
-    if (result.error !== 'Session is currently generating') {
-      Logger.log(
-        'MCP-APP',
-        `processChat failed for notification: ${result.error ?? 'unknown'}`
-      );
-      return;
-    }
-
+  if (result.success) {
+    // 会话忙时消息进待注入缓冲，由 Agent 在步骤间隙消费
     Logger.log(
       'MCP-APP',
-      `Session busy, retry ${attempt}/${MAX_RETRIES} in ${RETRY_DELAY_MS}ms`
+      result.pendingId
+        ? 'Session busy, notification queued'
+        : 'Notification delivered',
+      { sessionId, source: serverName, pendingId: result.pendingId }
     );
-    await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+    return;
   }
 
   Logger.log(
     'MCP-APP',
-    `Notification delivery timed out after ${MAX_RETRIES} retries`
+    `processChat failed for notification: ${result.error ?? 'unknown'}`
   );
 }

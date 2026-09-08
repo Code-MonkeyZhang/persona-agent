@@ -50,6 +50,16 @@ interface CompleteMessage {
   sessionId: string;
 }
 
+/**
+ * 轮次边界信号。
+ * 续跑判定处缓冲非空决定续跑下一轮时广播，客户端据此关闭当前轮气泡，
+ * 生成状态保持，下一轮首条 step_complete 创建新气泡。
+ */
+interface RoundEndMessage {
+  type: 'round_end';
+  sessionId: string;
+}
+
 interface ErrorMessage {
   type: 'error';
   sessionId: string;
@@ -139,11 +149,34 @@ interface WorkspaceFallbackMessage {
   fallbackPath: string;
 }
 
+/**
+ * 忙时插话的缓冲条目。
+ * 会话生成期间到达的用户消息与 App 通知进入待注入缓冲，步骤间隙统一取空注入。
+ */
+export interface PendingInput {
+  id: string;
+  source: 'user' | 'app';
+  /** App 消息的来源服务名，如 pomodoro-timer */
+  sourceName?: string;
+  content: string;
+}
+
+/**
+ * 待注入缓冲变化事件。
+ * 缓冲写入与取空时广播全量列表，客户端据此同步灰气泡。
+ */
+interface PendingInputChangedMessage {
+  type: 'pending_input_changed';
+  sessionId: string;
+  pending: PendingInput[];
+}
+
 export type ServerMessage =
   | ConnectedMessage
   | SubscribedMessage
   | StepCompleteMessage
   | CompleteMessage
+  | RoundEndMessage
   | ErrorMessage
   | TitleUpdatedMessage
   | SpeakReadyMessage
@@ -154,7 +187,8 @@ export type ServerMessage =
   | DeviceOfflineMessage
   | AbortedMessage
   | AppNotificationEvent
-  | WorkspaceFallbackMessage;
+  | WorkspaceFallbackMessage
+  | PendingInputChangedMessage;
 
 // ── Client → Server 消息 ──
 

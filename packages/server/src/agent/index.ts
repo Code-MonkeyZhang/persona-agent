@@ -23,5 +23,9 @@ export {
 } from './types.js';
 export type { AgentConfig, AgentConfigInput } from './types.js';
 export { AgentCore } from './agent.js';
+export {
+  formatAppNotificationForAgent,
+  formatPendingInputForAgent,
+} from './inject.js';
 export { createAgentRunConfig } from './run-config-factory.js';
 export { resolveWorkspaceDir, persistResolvedWorkspace } from './workspace.js';

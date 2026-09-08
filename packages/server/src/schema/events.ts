@@ -4,6 +4,7 @@
 
 import type { ToolCall } from './schema.js';
 import type { ToolResult } from '../tools/index.js';
+import type { PendingInput } from '@persona/shared';
 
 /**
  * AgentEvent - AgentCore执行期间产生的内部事件。
@@ -18,6 +19,7 @@ import type { ToolResult } from '../tools/index.js';
  * - tool_result: 工具执行完成后触发
  * - error: 执行期间发生错误时触发
  * - aborted: 用户主动中止生成时触发
+ * - inputs_injected: 步骤间隙注入待插话消息后触发
  */
 export type AgentEvent =
   | { type: 'step_start'; step: number; maxSteps: number }
@@ -31,5 +33,6 @@ export type AgentEvent =
       toolCallId: string;
       toolName: string;
     }
+  | { type: 'inputs_injected'; inputs: PendingInput[] }
   | { type: 'error'; error: string }
   | { type: 'aborted' };

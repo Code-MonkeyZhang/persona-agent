@@ -7,6 +7,8 @@ import {
   getAgentConfig,
   AgentCore,
   createAgentRunConfig,
+  formatAppNotificationForAgent,
+  formatPendingInputForAgent,
   resolveWorkspaceDir,
   persistResolvedWorkspace,
 } from '../../agent/index.js';
@@ -17,10 +19,16 @@ import {
   estimateMessageTokens,
 } from '../../agent/memory/token-estimate.js';
 import type { Message, ToolCall } from '../../schema/index.js';
+import type { PendingInput } from '@persona/shared';
 import type { ToolResult } from '../../tools/index.js';
 import { Logger } from '../../util/logger.js';
 import { broadcastToSession } from '../websocket-server.js';
 import * as sessionRegistry from '../session-registry.js';
+import {
+  addPendingInput,
+  drainPendingInputs,
+  hasPendingInputs,
+} from './pending-input-service.js';
 import { generateTitle } from '../../session/title-generator.js';
 import { loadTtsConfig } from '../../tts/store.js';
 import { getAllVoices } from '../../tts/voices.js';
@@ -55,6 +63,8 @@ interface ChatRequest {
 interface ChatResponse {
   success: boolean;
   error?: string;
+  /** 会话忙时消息已进待注入缓冲，条目 id 供前端对账 */
+  pendingId?: string;
 }
 
 /**
@@ -67,7 +77,7 @@ function loadMessageIntoAgent(agent: AgentCore, msg: Message): void {
   if (msg.role === 'app_notification') {
     agent.messages.push({
       role: 'user',
-      content: `[来自应用「${msg.source}」的事件] ${msg.content}`,
+      content: formatAppNotificationForAgent(msg.source, msg.content),
     });
   } else if (msg.role === 'context') {
     agent.messages.push({
@@ -77,6 +87,22 @@ function loadMessageIntoAgent(agent: AgentCore, msg: Message): void {
   } else {
     agent.messages.push(msg);
   }
+}
+
+/**
+ * 待注入消息的落盘形态：一律存原文，前缀只在进入 Agent 上下文时拼接。
+ * - user 插话存原话，与落盘、上下文、界面显示保持同一份文本
+ * - app 通知存既有 app_notification 角色，与空闲直发路径一致
+ */
+function toPersistedMessage(input: PendingInput): Message {
+  if (input.source === 'app') {
+    return {
+      role: 'app_notification',
+      source: input.sourceName ?? input.source,
+      content: input.content,
+    };
+  }
+  return { role: 'user', content: input.content };
 }
 
 /**
@@ -175,10 +201,13 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     });
   }
 
-  // 重入保护：同一会话不能并发执行两次 processChat
+  // 重入保护：生成中的会话不做并发回合，消息进入待注入缓冲
   if (sessionRegistry.has(sessionId)) {
-    Logger.log('CHAT', 'Session busy, rejected', { sessionId });
-    return { success: false, error: 'Session is currently generating' };
+    const input: Omit<PendingInput, 'id'> = appSource
+      ? { source: 'app', sourceName: appSource, content }
+      : { source: 'user', content };
+    const pending = addPendingInput(sessionId, input);
+    return { success: true, pendingId: pending.id };
   }
 
   const abortController = new AbortController();
@@ -192,6 +221,8 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       workspaceDir,
       sessionManager
     );
+    // 忙时插话接线：runStream 每个步骤间隙取空待注入缓冲
+    runConfig.takePendingInputs = () => drainPendingInputs(sessionId);
     const isChatSession = session.id.startsWith('chat');
 
     const agent = new AgentCore(runConfig);
@@ -223,10 +254,16 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       }
     }
 
+    // 遗留缓冲消费：上一回合停止后驻留的插话先于本轮新消息进入历史
+    for (const input of drainPendingInputs(sessionId)) {
+      agent.addUserMessage(formatPendingInputForAgent(input));
+      sessionManager.appendMessage(sessionId, toPersistedMessage(input));
+    }
+
     let historyLength = agent.messages.length;
     if (appSource) {
       // App 通知：Agent 收到带前缀的 user 消息，session 存储 app_notification 原文
-      agent.addUserMessage(`[来自应用「${appSource}」的事件] ${content}`);
+      agent.addUserMessage(formatAppNotificationForAgent(appSource, content));
       sessionManager.appendMessage(sessionId, {
         role: 'app_notification',
         source: appSource,
@@ -390,6 +427,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
         }
       }
       broadcastToSession(sessionId, buildStepCompleteEvent());
+      currentStep = null;
     };
 
     /**
@@ -411,74 +449,104 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       return { success: false, error: 'aborted' };
     };
 
-    // 开启agent loop循环
-    for await (const event of agent.runStream(abortController.signal)) {
-      switch (event.type) {
-        case 'step_start':
-          flushCurrentStep();
-          currentStep = {
-            stepIndex: event.step,
-            thinking: '',
-            content: '',
-            toolCalls: [],
-            toolResults: [],
-          };
-          break;
+    // 开启agent loop循环。内层跑完一轮 runStream 后检查缓冲，
+    // 回合自然结束时缓冲非空则续跑下一轮消费插话，直到缓冲清空才发完成信号
+    for (;;) {
+      for await (const event of agent.runStream(abortController.signal)) {
+        switch (event.type) {
+          case 'step_start':
+            flushCurrentStep();
+            currentStep = {
+              stepIndex: event.step,
+              thinking: '',
+              content: '',
+              toolCalls: [],
+              toolResults: [],
+            };
+            break;
 
-        case 'thinking':
-          if (currentStep) {
-            currentStep.thinking += event.content;
+          case 'thinking':
+            if (currentStep) {
+              currentStep.thinking += event.content;
+            }
+            break;
+
+          case 'content':
+            if (currentStep) {
+              currentStep.content += event.content;
+            }
+            break;
+
+          case 'tool_call':
+            if (currentStep) {
+              currentStep.toolCalls.push(...event.tool_calls);
+            }
+            break;
+
+          case 'tool_result': {
+            if (currentStep) {
+              const tr: ToolResult = event.result;
+              currentStep.toolResults.push({
+                toolCallId: event.toolCallId,
+                toolName: event.toolName,
+                result: tr.success
+                  ? tr.content
+                  : `Error: ${tr.error ?? 'Unknown error'}`,
+                success: tr.success,
+              });
+            }
+            break;
           }
-          break;
 
-        case 'content':
-          if (currentStep) {
-            currentStep.content += event.content;
-          }
-          break;
-
-        case 'tool_call':
-          if (currentStep) {
-            currentStep.toolCalls.push(...event.tool_calls);
-          }
-          break;
-
-        case 'tool_result': {
-          if (currentStep) {
-            const tr: ToolResult = event.result;
-            currentStep.toolResults.push({
-              toolCallId: event.toolCallId,
-              toolName: event.toolName,
-              result: tr.success
-                ? tr.content
-                : `Error: ${tr.error ?? 'Unknown error'}`,
-              success: tr.success,
+          case 'inputs_injected': {
+            // 注入时机在 step_start 之前，currentStep 仍持有上一步内容，先落盘广播
+            flushCurrentStep();
+            for (const input of event.inputs) {
+              sessionManager.appendMessage(
+                sessionId,
+                toPersistedMessage(input)
+              );
+            }
+            // 双写防御：事件先于消息 push 产出，按条数预推进切片起点，
+            // 跳过即将 push 进来的上下文副本，避免 saveStepMessages 重复落盘
+            historyLength += event.inputs.length;
+            Logger.log('CHAT', 'Pending inputs injected', {
+              sessionId,
+              count: event.inputs.length,
             });
+            break;
           }
-          break;
-        }
 
-        case 'error': {
-          Logger.log('CHAT', 'Stream error, discarding partial step', {
-            sessionId,
-            stepIndex: currentStep?.stepIndex,
-            partialContentLength: currentStep?.content.length ?? 0,
-          });
-          return emitError(event.error);
-        }
+          case 'error': {
+            Logger.log('CHAT', 'Stream error, discarding partial step', {
+              sessionId,
+              stepIndex: currentStep?.stepIndex,
+              partialContentLength: currentStep?.content.length ?? 0,
+            });
+            return emitError(event.error);
+          }
 
-        case 'aborted': {
-          Logger.log('CHAT', 'Agent reported aborted, finalizing', {
-            sessionId,
-            stepIndex: currentStep?.stepIndex,
-          });
-          return emitAborted();
+          case 'aborted': {
+            Logger.log('CHAT', 'Agent reported aborted, finalizing', {
+              sessionId,
+              stepIndex: currentStep?.stepIndex,
+            });
+            return emitAborted();
+          }
         }
       }
-    }
 
-    // 处理最后一个step
-    flushCurrentStep();
+      // 处理最后一个step
+      flushCurrentStep();
+
+      // 缓冲非空说明最后一步执行期间有新插话到达，续跑下一轮消费
+      if (!hasPendingInputs(sessionId)) break;
+      Logger.log('CHAT', 'Starting next round for pending inputs', {
+        sessionId,
+      });
+      // 轮次边界信号，前端只关当前轮气泡，生成状态保持
+      broadcastToSession(sessionId, { type: 'round_end', sessionId });
+    }
 
     // 发送完成信号
     broadcastToSession(sessionId, { type: 'complete', sessionId });

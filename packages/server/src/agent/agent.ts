@@ -7,6 +7,7 @@ import type { Message, AgentEvent, ToolCall } from '../schema/index.js';
 import type { AgentRunConfig } from './types.js';
 import type { Tool, ToolResult } from '../tools/index.js';
 import { convertContext, convertPiAiToolCall } from '../converters/index.js';
+import { formatPendingInputForAgent } from './inject.js';
 import { models } from './pi-models.js';
 import { Logger } from '../util/logger.js';
 
@@ -100,6 +101,16 @@ export class AgentCore {
       if (signal?.aborted) {
         yield { type: 'aborted' };
         return '';
+      }
+
+      // 忙时插话：步骤间隙取待注入缓冲。事件先于消息 push 产出，
+      // 消费方据此落盘原文并预推进切片起点，push 进来的副本由切片跳过
+      const pendingInputs = this.runConfig.takePendingInputs?.() ?? [];
+      if (pendingInputs.length > 0) {
+        yield { type: 'inputs_injected', inputs: pendingInputs };
+        for (const input of pendingInputs) {
+          this.addUserMessage(formatPendingInputForAgent(input));
+        }
       }
 
       yield {
