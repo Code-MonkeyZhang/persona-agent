@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { SettingRow, SettingDivider } from '../common/SettingRow';
 import { ActionButton } from '../ui/ActionButton';
 import { Card } from '../ui/Card';
-import type { UpdateStatus } from '@shared/types/api';
+import type { UpdateStatus } from '@shared/api';
 
 /** 卡片内部状态，由主进程推送的 UpdateStatus 映射而来 */
 type CardState =

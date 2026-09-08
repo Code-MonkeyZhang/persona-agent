@@ -11,12 +11,8 @@
  */
 import { contextBridge, ipcRenderer } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
-import { IPC } from '@shared/ipc/channels';
-import type {
-  WindowAPI,
-  UpdateStatus,
-  UpdateProgress,
-} from '@shared/types/api';
+import { IPC } from '@shared/channels';
+import type { WindowAPI, UpdateStatus, UpdateProgress } from '@shared/api';
 
 /**
  * 暴露给渲染进程的 API 集合，前端通过 window.api.xxx() 调用

@@ -1,4 +1,4 @@
-import type { WindowAPI } from '@shared/types/api';
+import type { WindowAPI } from '@shared/api';
 
 declare global {
   interface Window {

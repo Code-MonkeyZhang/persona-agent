@@ -1,5 +1,5 @@
 /**
- * @file shared/ipc/channels.ts
+ * @file shared/channels.ts
  * @description IPC 通道名常量,主进程和预加载脚本共同引用,避免裸字符串拼写错误
  */
 

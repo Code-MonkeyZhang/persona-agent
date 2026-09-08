@@ -8,8 +8,8 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import pkg from 'electron-updater';
 import log from 'electron-log';
-import { IPC } from '@shared/ipc/channels';
-import type { UpdateStatus } from '@shared/types/api';
+import { IPC } from '@shared/channels';
+import type { UpdateStatus } from '@shared/api';
 
 const { autoUpdater } = pkg;
 

@@ -1,5 +1,5 @@
 /**
- * @file shared/types/api.ts
+ * @file shared/api.ts
  * @description 跨进程共享的 IPC 数据类型定义,主进程、预加载脚本、渲染层三方引用同一份类型
  */
 

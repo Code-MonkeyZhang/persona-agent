@@ -19,8 +19,8 @@ import {
   getServerUrl,
   killOrphanProcesses,
 } from './server-manager';
-import { IPC } from '@shared/ipc/channels';
-import type { ProxyFetchOptions, SelectFolderOptions } from '@shared/types/api';
+import { IPC } from '@shared/channels';
+import type { ProxyFetchOptions, SelectFolderOptions } from '@shared/api';
 import { setupUpdater } from './updater';
 
 const isMac = process.platform === 'darwin';
