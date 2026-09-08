@@ -23,6 +23,7 @@
   "header.showCompanion": "Show companion panel",
   "header.avatar": "Avatar",
   "header.voice": "Voice",
+  "header.generating": "Generating",
 
   "sessionSidebar.chat": "Chat",
   "sessionSidebar.sessions": "Sessions",
@@ -39,6 +40,8 @@
   "inputBox.addAttachment": "Add attachment",
   "inputBox.sendMessage": "Send message",
   "inputBox.stopGeneration": "Stop generating",
+  "inputBox.queueMessage": "Send — will join the current reply",
+  "inputBox.queueFailed": "Failed to queue message",
 
   "messageList.copiedToClipboard": "Copied to clipboard",
   "messageList.failedToCopy": "Failed to copy",

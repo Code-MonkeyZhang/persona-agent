@@ -75,51 +75,15 @@ function cycleToThoughts(msg: StepCompleteMessage): Thought[] {
 }
 
 /**
- * 清理空占位气泡：如果 streamingMessageId 指向的消息无内容无 thoughts 则从列表移除。
- * 用于请求失败或出错时回滚乐观创建的空 assistant 气泡。
- * @param messages - 当前消息列表
- * @param streamingMessageId - 当前流式消息 ID
- * @returns 移除空占位后的消息列表
+ * 将 session 切到生成态。
+ * 用于用户发消息以及 App 通知/恢复订阅触发的外部回合——
+ * isLoading 置位后，首步 step_complete 会现场创建助手消息填入内容。
  */
-function filterEmptyPlaceholder(
-  messages: UIMessage[],
-  streamingMessageId: string | null
-): UIMessage[] {
-  if (!streamingMessageId) return messages;
-  const placeholder = messages.find((m) => m.id === streamingMessageId);
-  if (
-    placeholder &&
-    !placeholder.content.trim() &&
-    !(placeholder.thoughts && placeholder.thoughts.length > 0)
-  ) {
-    return messages.filter((m) => m.id !== streamingMessageId);
-  }
-  return messages;
-}
-
-/**
- * 为一个 session 追加空的 AI 占位气泡并切到生成态。
- * 用于用户发消息（乐观占位）以及 App 通知/恢复订阅触发的外部回合——
- * 只有占位气泡存在，后续 step_complete 才能正确填入而非被当迟到消息丢弃。
- */
-function withLoadingPlaceholder(
-  sessionState: SessionChatState
-): SessionChatState {
-  const placeholderId = crypto.randomUUID();
+function withLoadingState(sessionState: SessionChatState): SessionChatState {
   return {
     ...sessionState,
-    messages: [
-      ...sessionState.messages,
-      {
-        id: placeholderId,
-        type: 'assistant' as const,
-        content: '',
-        timestamp: new Date(),
-        thoughts: [],
-      },
-    ],
     isLoading: true,
-    streamingMessageId: placeholderId,
+    streamingMessageId: null,
   };
 }
 
@@ -254,8 +218,41 @@ export const useChatStore = create<ChatStore>((set, get) => {
         return;
       }
 
-      // 乐观追加用户消息 + 空 assistant 占位气泡，立即显示打字动画
-      const placeholderId = crypto.randomUUID();
+      // 忙时插话：消息进服务端待注入缓冲，灰气泡由 pending_input_changed 广播渲染。
+      // 不提前上屏，发送失败也就没有需要回滚的本地状态
+      if (get().sessionStates.get(sessionId)?.isLoading) {
+        useSessionStore
+          .getState()
+          .updateSessionPreview(sessionId, buildPreviewText(content));
+        wsClient?.subscribe(sessionId);
+
+        try {
+          const voiceEnabled = useVoiceStore.getState().voiceEnabled;
+          const result = await sendChatMessage(
+            agentId,
+            sessionId,
+            content,
+            voiceEnabled
+          );
+          if (result.success) {
+            logger.info('Interjection sent while generating', {
+              sessionId,
+              pendingId: result.pendingId,
+            });
+          } else {
+            logger.warn('Interjection rejected', {
+              sessionId,
+              error: result.error,
+            });
+            toast.error(i18n.t('inputBox.queueFailed'));
+          }
+        } catch {
+          toast.error(i18n.t('inputBox.queueFailed'));
+        }
+        return;
+      }
+
+      // 乐观追加用户消息并切生成态，助手消息由首步 step_complete 现场创建
       set((state) => {
         const newStates = new Map(state.sessionStates);
         const sessionState = newStates.get(sessionId) || {
@@ -264,26 +261,12 @@ export const useChatStore = create<ChatStore>((set, get) => {
           streamingMessageId: null,
         };
         newStates.set(sessionId, {
-          messages: [
-            ...sessionState.messages,
-            createMessage('user', content),
-            {
-              id: placeholderId,
-              type: 'assistant' as const,
-              content: '',
-              timestamp: new Date(),
-              thoughts: [],
-            },
-          ],
-          isLoading: true,
-          streamingMessageId: placeholderId,
+          ...withLoadingState(sessionState),
+          messages: [...sessionState.messages, createMessage('user', content)],
         });
         return { sessionStates: newStates };
       });
-      logger.info('Optimistic placeholder created', {
-        sessionId,
-        placeholderId,
-      });
+      logger.info('Message sent, loading state entered', { sessionId });
 
       // 同步更新会话预览
       useSessionStore
@@ -292,18 +275,14 @@ export const useChatStore = create<ChatStore>((set, get) => {
 
       wsClient?.subscribe(sessionId);
 
-      /** 失败回滚：结束生成态并移除乐观创建的空占位气泡 */
-      const rollbackPlaceholder = () =>
+      /** 失败回滚：结束生成态，乐观用户消息保留 */
+      const rollbackLoading = () =>
         set((state) => {
           const newStates = new Map(state.sessionStates);
           const sessionState = newStates.get(sessionId);
           if (sessionState) {
             newStates.set(sessionId, {
               ...sessionState,
-              messages: filterEmptyPlaceholder(
-                sessionState.messages,
-                sessionState.streamingMessageId
-              ),
               isLoading: false,
               streamingMessageId: null,
             });
@@ -320,10 +299,10 @@ export const useChatStore = create<ChatStore>((set, get) => {
           voiceEnabled
         );
         if (!result.success) {
-          rollbackPlaceholder();
+          rollbackLoading();
         }
       } catch {
-        rollbackPlaceholder();
+        rollbackLoading();
       }
     },
 
@@ -350,9 +329,9 @@ export const useChatStore = create<ChatStore>((set, get) => {
             set((state) => {
               const newStates = new Map(state.sessionStates);
               const sessionState = newStates.get(sessionId);
-              // 只增不减：仅在当前未加载时恢复，避免与 sendMessage 乐观占位冲突
+              // 只增不减：仅在当前未加载时恢复，避免与 sendMessage 已切入的生成态冲突
               if (sessionState && !sessionState.isLoading) {
-                newStates.set(sessionId, withLoadingPlaceholder(sessionState));
+                newStates.set(sessionId, withLoadingState(sessionState));
               }
               return { sessionStates: newStates };
             });
@@ -366,20 +345,63 @@ export const useChatStore = create<ChatStore>((set, get) => {
         }
 
         case 'app_notification': {
-          // 外部（App）触发的回合：与用户发消息一样放占位气泡并切生成态，
-          // 这样紧随其后的 step_complete 能正确填入，而非被 isLoading 守卫丢弃
+          // 外部（App）触发的回合：与用户发消息一样切生成态，
+          // 首步 step_complete 现场创建助手消息并填入，而非被 isLoading 守卫丢弃
           const sessionId = msg.sessionId;
           set((state) => {
             const newStates = new Map(state.sessionStates);
             const sessionState = newStates.get(sessionId);
             if (sessionState && !sessionState.isLoading) {
-              newStates.set(sessionId, withLoadingPlaceholder(sessionState));
+              newStates.set(sessionId, withLoadingState(sessionState));
             }
             return { sessionStates: newStates };
           });
           logger.info('App notification received', {
             sessionId,
             source: msg.source,
+          });
+          break;
+        }
+
+        case 'pending_input_changed': {
+          // 待注入缓冲全量同步：未知条目补灰气泡，注入取空时灰气泡转正常
+          const sessionId = msg.sessionId;
+          set((state) => {
+            const newStates = new Map(state.sessionStates);
+            const sessionState = newStates.get(sessionId);
+            if (!sessionState) return {};
+            const pendingIds = new Set(msg.pending.map((p) => p.id));
+            // 灰气泡随广播创建并自带 pendingId，不在服务端列表即已注入
+            const messages = sessionState.messages.map((m) =>
+              m.queued && m.pendingId && !pendingIds.has(m.pendingId)
+                ? { ...m, queued: false }
+                : m
+            );
+            // 服务端有而本地没有的条目：本窗口刚发的与其他客户端写入的插话，补灰气泡
+            const localPendingIds = new Set(
+              messages
+                .filter((m) => m.pendingId)
+                .map((m) => m.pendingId as string)
+            );
+            const additions = msg.pending
+              .filter((p) => !localPendingIds.has(p.id))
+              .map((p) =>
+                createMessage('user', p.content, {
+                  queued: true,
+                  pendingId: p.id,
+                  source: p.source === 'app' ? ('app' as const) : undefined,
+                  sourceName: p.sourceName,
+                })
+              );
+            newStates.set(sessionId, {
+              ...sessionState,
+              messages: [...messages, ...additions],
+            });
+            return { sessionStates: newStates };
+          });
+          logger.info('Pending inputs synced', {
+            sessionId,
+            pendingCount: msg.pending.length,
           });
           break;
         }
@@ -467,6 +489,24 @@ export const useChatStore = create<ChatStore>((set, get) => {
           break;
         }
 
+        case 'round_end': {
+          const sessionId = msg.sessionId;
+          const sessionState = get().sessionStates.get(sessionId);
+          if (sessionState) {
+            // 轮次边界：只关当前轮气泡，生成状态保持，下一轮首条 step_complete 开新气泡
+            set((state) => {
+              const newStates = new Map(state.sessionStates);
+              newStates.set(sessionId, {
+                ...sessionState,
+                streamingMessageId: null,
+              });
+              return { sessionStates: newStates };
+            });
+            logger.info('Round ended, closing streaming bubble', { sessionId });
+          }
+          break;
+        }
+
         case 'complete': {
           const sessionId = msg.sessionId;
           const snap = get();
@@ -475,7 +515,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
           const streamingMsg = streamingId
             ? sessionState?.messages.find((m) => m.id === streamingId)
             : null;
-          // 无流式消息或流式消息为空占位时，需要从磁盘刷新
+          // 无流式消息或流式消息无内容时，需要从磁盘刷新
           const needsRefresh =
             !streamingMsg ||
             (!streamingMsg.content.trim() &&
@@ -485,25 +525,17 @@ export const useChatStore = create<ChatStore>((set, get) => {
             const newStates = new Map(state.sessionStates);
             const ss = newStates.get(sessionId);
             if (ss) {
-              let messages = ss.messages;
-              if (streamingId) {
-                const filtered = filterEmptyPlaceholder(
-                  ss.messages,
-                  streamingId
-                );
-                if (filtered !== ss.messages) {
-                  messages = filtered;
-                } else {
-                  messages = ss.messages.map((m) =>
+              // 流式消息移除时间线里最后一段 text thought，让它成为正式回复
+              const messages = streamingId
+                ? ss.messages.map((m) =>
                     m.id === streamingId
                       ? {
                           ...m,
                           thoughts: stripLastTextThought(m.thoughts || []),
                         }
                       : m
-                  );
-                }
-              }
+                  )
+                : ss.messages;
               newStates.set(sessionId, {
                 ...ss,
                 messages,
@@ -564,10 +596,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
               newStates.set(sessionId, {
                 ...sessionState,
                 messages: [
-                  ...filterEmptyPlaceholder(
-                    sessionState.messages,
-                    sessionState.streamingMessageId
-                  ),
+                  ...sessionState.messages,
                   createMessage('error', msg.message),
                 ],
                 isLoading: false,
@@ -586,16 +615,12 @@ export const useChatStore = create<ChatStore>((set, get) => {
             const sessionState = newStates.get(sessionId);
             if (sessionState) {
               const streamingId = sessionState.streamingMessageId;
-              // 先移除空占位（abort 早于任何内容到达），有内容的打 aborted 标记
-              const filtered = filterEmptyPlaceholder(
-                sessionState.messages,
-                streamingId
-              );
+              // 已创建的流式消息打 aborted 标记，保留部分内容
               const messages = streamingId
-                ? filtered.map((m) =>
+                ? sessionState.messages.map((m) =>
                     m.id === streamingId ? { ...m, aborted: true } : m
                   )
-                : filtered;
+                : sessionState.messages;
               newStates.set(sessionId, {
                 ...sessionState,
                 messages,

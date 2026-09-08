@@ -60,16 +60,19 @@ export const InputBox: React.FC<InputBoxProps> = ({
   const { t } = useTranslation();
   const [isFocused, setIsFocused] = React.useState(false);
 
+  /** 发送当前输入：空闲与生成中均可用，生成中由上层作为插话排队 */
+  const submit = () => {
+    const text = input.trim();
+    if (text && !disabled) {
+      onSend(text);
+      reset();
+    }
+  };
+
   const { input, textareaRef, handleChange, handleKeyDown, reset } =
     useChatInput({
       maxHeight: 200,
-      onSend: () => {
-        const text = input.trim();
-        if (text && !disabled && !isLoading) {
-          onSend(text);
-          reset();
-        }
-      },
+      onSend: submit,
     });
 
   return (
@@ -129,24 +132,19 @@ export const InputBox: React.FC<InputBoxProps> = ({
             />
           </div>
 
-          {/* 发送/停止按钮：isLoading 时显示停止图标，否则显示发送图标 */}
-          {isLoading ? (
+          {/* 发送与停止并存：生成中发送变为插话排队，停止独立中止当前回合 */}
+          <div className="flex items-center gap-1.5">
+            {isLoading && onAbort && (
+              <button
+                onClick={() => onAbort?.()}
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all duration-200"
+                title={t('inputBox.stopGeneration')}
+              >
+                <Square className="w-3 h-3 fill-current" />
+              </button>
+            )}
             <button
-              onClick={() => onAbort?.()}
-              className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 transition-all duration-200"
-              title={t('inputBox.stopGeneration')}
-            >
-              <Square className="w-3.5 h-3.5 fill-current" />
-            </button>
-          ) : (
-            <button
-              onClick={() => {
-                const text = input.trim();
-                if (text && !disabled) {
-                  onSend(text);
-                  reset();
-                }
-              }}
+              onClick={submit}
               disabled={disabled || !input.trim()}
               className={cn(
                 'w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-200',
@@ -154,7 +152,11 @@ export const InputBox: React.FC<InputBoxProps> = ({
                   ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95'
                   : 'bg-muted/50 text-muted-foreground/40 cursor-not-allowed'
               )}
-              title={t('inputBox.sendMessage')}
+              title={
+                isLoading
+                  ? t('inputBox.queueMessage')
+                  : t('inputBox.sendMessage')
+              }
             >
               <svg
                 className="w-4 h-4"
@@ -170,7 +172,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
                 />
               </svg>
             </button>
-          )}
+          </div>
         </div>
       </div>
     </div>

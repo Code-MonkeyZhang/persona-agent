@@ -498,14 +498,18 @@ export async function updateSession(
  * @param agentId - Agent ID
  * @param sessionId - 会话 ID
  * @param content - 消息内容
- * @returns 发送结果，包含 success 标志和可选的 error 信息
+ * @returns 发送结果；会话忙时携带 pendingId 表示已进待注入缓冲
  */
 export async function sendChatMessage(
   agentId: string,
   sessionId: string,
   content: string,
   voiceEnabled?: boolean
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{
+  success: boolean;
+  error?: string;
+  pendingId?: string;
+}> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(
     `${baseUrl}/api/agents/${agentId}/sessions/${sessionId}/chat`,

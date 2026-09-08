@@ -47,4 +47,12 @@ export interface UIMessage {
   timestamp: Date;
   thoughts?: Thought[];
   aborted?: boolean;
+  /** 待注入状态：忙时插话尚未被 Agent 消费 */
+  queued?: boolean;
+  /** 服务端缓冲条目 id，用于与 pending_input_changed 对账 */
+  pendingId?: string;
+  /** 消息来源标记：app 表示来自 Agent App 通知 */
+  source?: 'app';
+  /** App 来源展示名 */
+  sourceName?: string;
 }

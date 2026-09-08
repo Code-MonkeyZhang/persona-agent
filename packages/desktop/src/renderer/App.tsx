@@ -494,7 +494,10 @@ function AppContent() {
                   <div className="h-full overflow-hidden">
                     {activeNav === 'chat' && (
                       <div className="h-full flex flex-col">
-                        <Header onNewChat={handleNewChat} />
+                        <Header
+                          onNewChat={handleNewChat}
+                          isLoading={isLoading}
+                        />
                         <div className="flex-1 min-h-0 relative">
                           {/* 双 pane 横向滑动容器，整屏滑动同一时间只看到一个 pane */}
                           <div className="absolute inset-0 overflow-hidden">

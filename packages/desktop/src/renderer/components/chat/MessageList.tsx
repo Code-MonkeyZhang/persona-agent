@@ -41,7 +41,6 @@ export interface MessageListRef {
 interface MessageItemProps {
   message: UIMessage;
   agent: AgentConfig | null;
-  isStreaming: boolean;
 }
 
 /**
@@ -51,19 +50,20 @@ interface MessageItemProps {
  * - 错误消息：红色背景左对齐
  * hover 时显示复制按钮
  */
-const MessageItem: React.FC<MessageItemProps> = ({
-  message,
-  agent,
-  isStreaming,
-}) => {
+const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
   const { t } = useTranslation();
   const isUser = message.type === 'user';
   const isError = message.type === 'error';
   const isAssistant = message.type === 'assistant';
 
+  // App 来源插话内容带来源前缀，与用户消息同一时间线展示
+  const displayContent =
+    isUser && message.source === 'app' && message.sourceName
+      ? `${message.sourceName}：${message.content}`
+      : message.content;
+
   const hasThoughts = message.thoughts && message.thoughts.length > 0;
-  const hasContent = message.content.trim().length > 0;
-  const isWaiting = isStreaming && !hasContent && !hasThoughts;
+  const hasContent = displayContent.trim().length > 0;
 
   return (
     <div
@@ -99,28 +99,20 @@ const MessageItem: React.FC<MessageItemProps> = ({
           <CollapsedThoughtProcess thoughts={message.thoughts!} />
         )}
 
-        {/* 等待中的打字动画 */}
-        {isWaiting && (
-          <div className="px-4 py-3 rounded-2xl">
-            <div className="flex gap-1">
-              <span className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-typing-dot" />
-              <span className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-typing-dot [animation-delay:200ms]" />
-              <span className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-typing-dot [animation-delay:400ms]" />
-            </div>
-          </div>
-        )}
-
-        {/* 气泡 */}
+        {/* 气泡：待注入的插话为灰色草稿态，注入时灰转蓝平滑渐变 */}
         {hasContent && (
           <div
             className={cn(
-              'px-4 py-2.5 rounded-2xl',
-              isUser && 'bg-primary text-primary-foreground msg-bubble-user',
+              'px-4 py-2.5 rounded-2xl transition-colors duration-300',
+              isUser &&
+                (message.queued
+                  ? 'bg-muted text-foreground/70'
+                  : 'bg-primary text-primary-foreground msg-bubble-user'),
               isError && 'bg-red-50 text-red-900 border border-red-200',
               !isUser && !isError && 'bg-secondary text-foreground'
             )}
           >
-            <Markdown content={message.content} />
+            <Markdown content={displayContent} />
           </div>
         )}
 
@@ -233,16 +225,19 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
 
     /**
      * 流式内容增长时跟随滚动到底部
-     * - step_complete 把完整回复一次性填进占位气泡时消息条数不变，
-     *   依赖条数的滚动不会触发，因此额外监听最后一条消息的内容增长
-     * - 内容为空时（占位气泡仅显示打字动画）跳过，避免与条数滚动重复触发
+     * - step_complete 把完整回复一次性填进流式消息时消息条数不变，
+     *   依赖条数的滚动不会触发，因此额外监听流式目标消息的内容增长
+     * - 按 streamingMessageId 定位目标而非数组末位，插话灰气泡排在
+     *   流式气泡之后时滚动跟随不会盯错对象
      * - 双 rAF 等待 Virtuoso 测量完增长后的高度再滚动，避免落到过时位置
      * - 仅在已处于底部时跟随，流式期间回翻历史不被持续拽回底部
      */
-    const lastMessage = messages[messages.length - 1];
+    const streamingMessage = streamingMessageId
+      ? messages.find((m) => m.id === streamingMessageId)
+      : undefined;
     const streamingContentSize =
-      (lastMessage?.content.length ?? 0) +
-      (lastMessage?.thoughts?.reduce(
+      (streamingMessage?.content.length ?? 0) +
+      (streamingMessage?.thoughts?.reduce(
         (sum, t) => sum + (t.content?.length ?? 0),
         0
       ) ?? 0);
@@ -319,12 +314,7 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
           increaseViewportBy={{ top: 2000, bottom: 2000 }}
           components={{ Header: ListHeader, Footer: ListFooter }}
           itemContent={(_index, message) => (
-            <MessageItem
-              key={message.id}
-              message={message}
-              agent={agent}
-              isStreaming={message.id === streamingMessageId}
-            />
+            <MessageItem key={message.id} message={message} agent={agent} />
           )}
         />
         <ScrollToBottomButton

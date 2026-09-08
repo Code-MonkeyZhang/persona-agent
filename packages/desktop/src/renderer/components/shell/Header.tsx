@@ -14,13 +14,16 @@ import { toast } from '../../stores/toastStore';
 
 interface HeaderProps {
   onNewChat: () => void;
+  /** 当前会话是否正在生成，控制标题旁的运行指示 */
+  isLoading?: boolean;
 }
 
 /**
  * 顶部标题栏组件，显示当前会话标题，提供语音开关、陪伴面板切换和新对话创建入口
  * @param props.onNewChat - 创建新对话的回调
+ * @param props.isLoading - 当前会话生成状态
  */
-export const Header: React.FC<HeaderProps> = ({ onNewChat }) => {
+export const Header: React.FC<HeaderProps> = ({ onNewChat, isLoading }) => {
   const { t } = useTranslation();
   const { currentSession } = useSessionStore();
   const { currentAgent } = useAgentStore();
@@ -53,6 +56,17 @@ export const Header: React.FC<HeaderProps> = ({ onNewChat }) => {
         <h1 className="font-medium text-[15px] text-foreground">
           {currentSession?.title || t('header.newChat')}
         </h1>
+        {isLoading && (
+          // 会话运行中指示：标题旁三点跳动
+          <span
+            className="flex items-center gap-1"
+            aria-label={t('header.generating')}
+          >
+            <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-typing-dot" />
+            <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-typing-dot [animation-delay:200ms]" />
+            <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-typing-dot [animation-delay:400ms]" />
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-2 pr-4">
         {currentAgent && (
