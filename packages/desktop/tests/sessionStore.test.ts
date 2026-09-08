@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { useSessionStore } from './sessionStore';
+import { useSessionStore } from '@/stores/sessionStore';
 import type { Message } from '@persona/shared';
 
-vi.mock('../lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   listSessions: vi.fn(),
   createSession: vi.fn(),
   getSession: vi.fn(),

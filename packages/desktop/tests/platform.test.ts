@@ -20,7 +20,7 @@ describe('Platform Detection', () => {
       },
     } as unknown as Window & typeof globalThis;
 
-    const { isMac, isWin, isLinux } = await import('./platform');
+    const { isMac, isWin, isLinux } = await import('@/lib/platform');
     expect(isMac).toBe(true);
     expect(isWin).toBe(false);
     expect(isLinux).toBe(false);
@@ -35,7 +35,7 @@ describe('Platform Detection', () => {
       },
     } as unknown as Window & typeof globalThis;
 
-    const { isMac, isWin, isLinux } = await import('./platform');
+    const { isMac, isWin, isLinux } = await import('@/lib/platform');
     expect(isMac).toBe(false);
     expect(isWin).toBe(true);
     expect(isLinux).toBe(false);
@@ -50,7 +50,7 @@ describe('Platform Detection', () => {
       },
     } as unknown as Window & typeof globalThis;
 
-    const { isMac, isWin, isLinux } = await import('./platform');
+    const { isMac, isWin, isLinux } = await import('@/lib/platform');
     expect(isMac).toBe(false);
     expect(isWin).toBe(false);
     expect(isLinux).toBe(true);
@@ -60,7 +60,7 @@ describe('Platform Detection', () => {
     vi.resetModules();
     global.window = {} as unknown as Window & typeof globalThis;
 
-    const { isMac, isWin, isLinux } = await import('./platform');
+    const { isMac, isWin, isLinux } = await import('@/lib/platform');
     expect(isMac).toBe(false);
     expect(isWin).toBe(false);
     expect(isLinux).toBe(false);

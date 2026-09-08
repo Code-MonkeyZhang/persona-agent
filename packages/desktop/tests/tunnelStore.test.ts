@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { useTunnelStore } from './tunnelStore';
-import * as api from '../lib/api';
+import { useTunnelStore } from '@/stores/tunnelStore';
+import * as api from '@/lib/api';
 
-vi.mock('../lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   startTunnel: vi.fn(),
   stopTunnel: vi.fn(),
   getTunnelStatus: vi.fn(),

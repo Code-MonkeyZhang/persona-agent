@@ -5,11 +5,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { PendingInput } from '@persona/shared';
 
-vi.mock('../lib/logger', () => ({
+vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-vi.mock('../lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   createMessage: (
     type: 'user' | 'assistant' | 'error',
     content: string,
@@ -35,8 +35,8 @@ vi.mock('../lib/api', () => ({
   updateSession: vi.fn(),
 }));
 
-import { useChatStore } from './chatStore';
-import { sendChatMessage } from '../lib/api';
+import { useChatStore } from '@/stores/chatStore';
+import { sendChatMessage } from '@/lib/api';
 
 /** 广播一条待注入缓冲变化 */
 function broadcastPending(sessionId: string, pending: PendingInput[]): void {

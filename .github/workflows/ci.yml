@@ -35,3 +35,6 @@ jobs:
 
       - run: bun test
         working-directory: packages/server
+
+      - run: npx vitest run
+        working-directory: packages/desktop

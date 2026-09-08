@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createMessage } from '../lib/api';
+import { createMessage } from '@/lib/api';
 
 describe('API Utilities', () => {
   it('should create a user message', () => {

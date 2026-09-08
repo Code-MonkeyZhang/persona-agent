@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { startTunnel, stopTunnel, getTunnelStatus } from './api';
+import { startTunnel, stopTunnel, getTunnelStatus } from '@/lib/api';
 
 /**
  * Stub window.api so getBaseUrl() resolves to a known URL.
