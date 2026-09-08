@@ -3,7 +3,7 @@
  *
  * Mock 策略：
  * - 文件系统：mock paths.js 到临时目录；
- * - LLM：mock llm-single-call.js 的 streamSingleTurn，用模块级变量控制返回/抛错。
+ * - LLM：mock llm-single-call.js 的 streamSingleStep，用模块级变量控制返回/抛错。
  *
  * 覆盖：MemoryStore 往返、压缩触发/no-op/批次推进、[RAW] 兜底。
  * 运行：`bun test ./tests/compress.isolated.ts`。
@@ -25,7 +25,7 @@ import * as os from 'node:os';
 let tempDir: string;
 let agentsDir: string;
 
-/** 控制 streamSingleTurn 的行为：是否抛错、返回的摘要文本 */
+/** 控制 streamSingleStep 的行为：是否抛错、返回的摘要文本 */
 let mockShouldThrow = false;
 let mockSummary = '[durable] 测试摘要';
 
@@ -43,7 +43,7 @@ mock.module('../src/util/paths.js', () => ({
 }));
 
 mock.module('../src/agent/llm-single-call.js', () => ({
-  streamSingleTurn: async (
+  streamSingleStep: async (
     _userMessage: string,
     _systemPrompt: string,
   ): Promise<string> => {

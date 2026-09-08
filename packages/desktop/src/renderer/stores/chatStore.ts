@@ -489,7 +489,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
           break;
         }
 
-        case 'round_end': {
+        case 'round_complete': {
           const sessionId = msg.sessionId;
           const sessionState = get().sessionStates.get(sessionId);
           if (sessionState) {
@@ -507,7 +507,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
           break;
         }
 
-        case 'complete': {
+        case 'turn_complete': {
           const sessionId = msg.sessionId;
           const snap = get();
           const sessionState = snap.sessionStates.get(sessionId);

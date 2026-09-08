@@ -298,9 +298,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   /**
    * 将服务端返回的 Message 数组转换为客户端 UIMessage 格式。
-   * 连续的 assistant 消息按轮次分组合并为一条 UIMessage：
+   * 每条 assistant 消息是一个步骤的落盘产物，同一轮次的连续 assistant 消息合并为一条 UIMessage：
    * - thoughts 全部拼接，保留原始顺序
-   * - 每步的 content 作为 text thought 进入时间线
+   * - 各步骤的 content 作为 text thought 进入时间线
    * - 最终回答的 content 取最后一条非空值，同时从 thoughts 移除避免重复
    * - user / error 消息作为天然分隔点打断分组
    * - system / context 消息直接跳过

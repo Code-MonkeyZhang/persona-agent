@@ -1,5 +1,5 @@
 /**
- * @fileoverview 单轮流式 LLM 调用工具。
+ * @fileoverview 单步流式 LLM 调用工具。
  *
  * 供标题生成、摘要、TTS 文本处理等需要"调用一次 LLM 并收集完整文本"的场景共用。
  * 失败时抛出异常，由调用方自行 try/catch 处理。
@@ -9,10 +9,10 @@ import { getAuth } from '../auth/index.js';
 import { models } from './pi-models.js';
 
 /**
- * 调用 LLM 进行单轮流式对话，收集完整文本返回。
+ * 调用 LLM 进行单步流式生成，收集完整文本返回。
  *
  * 内部完成 auth 检查、model 查找和流式文本收集。
- * 任何步骤失败时抛出异常，
+ * 任一环节失败时抛出异常，
  * 不做日志记录，由调用方在 catch 中决定如何处理。
  *
  * @param userMessage - 用户消息内容
@@ -22,7 +22,7 @@ import { models } from './pi-models.js';
  * @returns LLM 生成的完整文本
  * @throws auth 不存在、model 未找到、或流式请求出错时抛出 Error
  */
-export async function streamSingleTurn(
+export async function streamSingleStep(
   userMessage: string,
   systemPrompt: string,
   provider: string,

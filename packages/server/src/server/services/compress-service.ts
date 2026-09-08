@@ -4,7 +4,7 @@
 
 import { Logger } from '../../util/logger.js';
 import { errorMessage } from '../../util/errors.js';
-import { streamSingleTurn } from '../../agent/llm-single-call.js';
+import { streamSingleStep } from '../../agent/llm-single-call.js';
 import { MemoryStore } from '../../agent/memory/memory-store.js';
 import {
   estimateMessagesTokens,
@@ -59,7 +59,7 @@ export async function runCompression(opts: CompressionOptions): Promise<void> {
 
     const fromIndex = session.summarizedUpTo ?? 0;
     const unsummarized = session.messages.slice(fromIndex);
-    if (unsummarized.length < 2) return; // 不足一轮对话，无需压缩
+    if (unsummarized.length < 2) return; // 不足一个完整轮次，无需压缩
 
     const triggerTokens = Math.floor((threshold / 100) * contextWindow);
     const unsummarizedTokens = estimateMessagesTokens(unsummarized);
@@ -79,7 +79,7 @@ export async function runCompression(opts: CompressionOptions): Promise<void> {
 
     let content: string;
     try {
-      const summary = await streamSingleTurn(
+      const summary = await streamSingleStep(
         transcript,
         COMPRESS_PROMPT,
         opts.provider,
@@ -122,8 +122,8 @@ export async function runCompression(opts: CompressionOptions): Promise<void> {
 /**
  * 选定压缩批次的结束下标。
  *
- * 压缩掉最老的若干完整对话轮，使剩余未摘要消息的估算 token 降到阈值以下。
- * "完整轮"以 assistant 消息为边界——批次必须结束在 assistant 消息上，避免把半截对话拆开。
+ * 压缩掉最老的若干完整轮次，使剩余未摘要消息的估算 token 降到阈值以下。
+ * 完整轮次以 assistant 消息为边界——批次必须结束在 assistant 消息上，避免把半截对话拆开。
  *
  * @param unsummarized - 未摘要的原始消息
  * @param unsummarizedTokens - 未摘要消息的估算 token 总数

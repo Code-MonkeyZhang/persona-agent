@@ -9,7 +9,7 @@
 
 import { Logger } from '../util/logger.js';
 import { errorMessage } from '../util/errors.js';
-import { streamSingleTurn } from '../agent/llm-single-call.js';
+import { streamSingleStep } from '../agent/llm-single-call.js';
 import { loadTtsConfig } from './store.js';
 import TTS_COMPRESS_PROMPT from '../agent/prompt/tts-compress.txt';
 import TTS_ZH_PROMPT from '../agent/prompt/tts-zh.txt';
@@ -101,7 +101,7 @@ export async function processTextForTTS(
 
   let result = '';
   try {
-    result = await streamSingleTurn(
+    result = await streamSingleStep(
       userMessage,
       systemPrompt,
       options.provider,

@@ -151,9 +151,9 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
   } = request;
 
   /**
-   * 持久化错误消息并广播 error + complete 事件
+   * 持久化错误消息并广播 error + turn_complete 事件
    * - 落盘 { role: 'error', content } 到 session JSONL
-   * - 广播 WS error + complete，通知前端
+   * - 广播 WS error + turn_complete，通知前端
    */
   const emitError = (errorContent: string): ChatResponse => {
     sessionManager.appendMessage(sessionId, {
@@ -166,7 +166,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       sessionId,
       message: errorContent,
     });
-    broadcastToSession(sessionId, { type: 'complete', sessionId });
+    broadcastToSession(sessionId, { type: 'turn_complete', sessionId });
     return { success: false, error: errorContent };
   };
 
@@ -230,7 +230,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     // 把除了 SystemPrompt 以外的消息推入 Agent, 新的SystemPrompt已经在构建AgentCore时注入了。
     if (isChatSession) {
       // 聊天 Session：压缩模式。只加载 summarizedUpTo 之后的近期原始消息；
-      // 若该切片估算 token 超过上下文窗口的 90%，从头部裁掉最老的完整轮。
+      // 若该切片估算 token 超过上下文窗口的 90%，从头部裁掉最老的完整轮次。
       const summarizedUpTo = session.summarizedUpTo ?? 0;
       let messagesToLoad = session.messages.slice(summarizedUpTo);
       const safetyNetTokens = Math.floor(
@@ -254,7 +254,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       }
     }
 
-    // 遗留缓冲消费：上一回合停止后驻留的插话先于本轮新消息进入历史
+    // 遗留缓冲消费：上一回合停止后驻留的插话先于本回合新消息进入历史
     for (const input of drainPendingInputs(sessionId)) {
       agent.addUserMessage(formatPendingInputForAgent(input));
       sessionManager.appendMessage(sessionId, toPersistedMessage(input));
@@ -545,11 +545,11 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
         sessionId,
       });
       // 轮次边界信号，前端只关当前轮气泡，生成状态保持
-      broadcastToSession(sessionId, { type: 'round_end', sessionId });
+      broadcastToSession(sessionId, { type: 'round_complete', sessionId });
     }
 
-    // 发送完成信号
-    broadcastToSession(sessionId, { type: 'complete', sessionId });
+    // 回合边界信号，回合工作结束
+    broadcastToSession(sessionId, { type: 'turn_complete', sessionId });
 
     // Fire-and-forget: TTS voice processing
     // App 通知触发的回合与手动发消息同权，是否播报由客户端开关决定

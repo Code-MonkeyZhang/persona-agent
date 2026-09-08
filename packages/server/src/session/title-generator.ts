@@ -7,7 +7,7 @@
 
 import { Logger } from '../util/logger.js';
 import { errorMessage } from '../util/errors.js';
-import { streamSingleTurn } from '../agent/llm-single-call.js';
+import { streamSingleStep } from '../agent/llm-single-call.js';
 import TITLE_SYSTEM_PROMPT from '../agent/prompt/title.txt';
 
 /**
@@ -36,7 +36,7 @@ export async function generateTitle(
   modelId: string
 ): Promise<string> {
   try {
-    const raw = await streamSingleTurn(
+    const raw = await streamSingleStep(
       userMessage,
       TITLE_SYSTEM_PROMPT,
       provider,

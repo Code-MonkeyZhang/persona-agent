@@ -12,14 +12,14 @@ import { Logger } from '../../util/logger.js';
 /** 时间行刷新阈值：距上次注入不足该值时跳过时间行 */
 const REFRESH_MS = 10 * 60 * 1000;
 
-/** 一轮请求的环境快照，用于轮次间对比出变化行 */
+/** 一个回合的环境快照，用于回合间对比出变化行 */
 interface EnvSnapshot {
   mcp: Record<string, string>;
   workspacePath: string;
   model: string;
 }
 
-/** 各会话上一轮的环境快照；进程重启后为空，代价只是重新记基线 */
+/** 各会话上一回合的环境快照；进程重启后为空，代价只是重新记基线 */
 const snapshots = new Map<string, EnvSnapshot>();
 
 /**
@@ -83,7 +83,7 @@ function takeSnapshot(
   };
 }
 
-/** 对比两轮快照，产出变化通知行 */
+/** 对比两份回合快照，产出变化通知行 */
 function diffLines(prev: EnvSnapshot, curr: EnvSnapshot): string[] {
   const lines: string[] = [];
   for (const name of new Set([
@@ -110,7 +110,7 @@ function diffLines(prev: EnvSnapshot, curr: EnvSnapshot): string[] {
 /**
  * 组装本次请求的运行时上下文文本。
  *
- * 先取旧快照、立刻写入新快照——首轮旧快照不存在，只记基线，变化行为空。
+ * 先取旧快照、立刻写入新快照——首回合旧快照不存在，只记基线，变化行为空。
  * 时间节仅在距上次注入超过阈值或从未注入时出现；
  * 指令行只随时间节出现；两者皆空时返回空串，调用方整条跳过。
  *

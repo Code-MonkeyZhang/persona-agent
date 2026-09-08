@@ -4,7 +4,7 @@
 
 import { Logger } from '../../util/logger.js';
 import { errorMessage } from '../../util/errors.js';
-import { streamSingleTurn } from '../../agent/llm-single-call.js';
+import { streamSingleStep } from '../../agent/llm-single-call.js';
 import { MemoryStore } from '../../agent/memory/memory-store.js';
 import CONSOLIDATE_PROMPT from '../../agent/prompt/consolidate.txt';
 import type { AgentConfig } from '../../agent/types.js';
@@ -50,7 +50,7 @@ export async function consolidateMemory(
       `<new_summaries>\n${batch.map((e) => e.content).join('\n')}\n</new_summaries>`;
 
     const { provider, model: modelId } = agentConfig.defaultModel;
-    const raw = await streamSingleTurn(
+    const raw = await streamSingleStep(
       userMessage,
       CONSOLIDATE_PROMPT,
       provider,

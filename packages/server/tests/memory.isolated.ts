@@ -3,7 +3,7 @@
  *
  * Mock 策略：
  * - 文件系统：mock paths.js 到临时目录；
- * - LLM：mock llm-single-call.js 的 streamSingleTurn，用模块级变量控制返回/抛错。
+ * - LLM：mock llm-single-call.js 的 streamSingleStep，用模块级变量控制返回/抛错。
  *
  * 覆盖：MemoryStore 的 MEMORY.md 读写 / dream_cursor 推进 / readRecentHistorySegment
  * 上限裁切；consolidateMemory 的成功推进、no-op、LLM 失败不推进、标签剥离。
@@ -26,7 +26,7 @@ import * as os from 'node:os';
 let tempDir: string;
 let agentsDir: string;
 
-/** 控制 streamSingleTurn 的行为：是否抛错、返回的整理文本 */
+/** 控制 streamSingleStep 的行为：是否抛错、返回的整理文本 */
 let mockShouldThrow = false;
 let mockConsolidation = '## 用户\n- 张工';
 
@@ -44,7 +44,7 @@ mock.module('../src/util/paths.js', () => ({
 }));
 
 mock.module('../src/agent/llm-single-call.js', () => ({
-  streamSingleTurn: async (
+  streamSingleStep: async (
     _userMessage: string,
     _systemPrompt: string
   ): Promise<string> => {

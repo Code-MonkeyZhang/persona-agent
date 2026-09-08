@@ -152,7 +152,7 @@ describe('忙时插话发送', () => {
 });
 
 describe('轮次边界信号', () => {
-  it('round_end 后下一轮 step_complete 开新气泡，前轮内容不被覆盖', () => {
+  it('round_complete 后下一轮 step_complete 开新气泡，前轮内容不被覆盖', () => {
     const sessionId = 'round-end';
     useChatStore.getState().initSessionState(sessionId, []);
     // 通过订阅恢复广播把会话切到生成态
@@ -176,7 +176,9 @@ describe('轮次边界信号', () => {
     expect(state.streamingMessageId).not.toBeNull();
 
     // 轮次边界只清流式标记，生成状态与消息不动
-    useChatStore.getState().handleWsMessage({ type: 'round_end', sessionId });
+    useChatStore
+      .getState()
+      .handleWsMessage({ type: 'round_complete', sessionId });
     state = useChatStore.getState().sessionStates.get(sessionId)!;
     expect(state.streamingMessageId).toBeNull();
     expect(state.isLoading).toBe(true);
