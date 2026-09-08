@@ -113,7 +113,7 @@ import {
   onStatusChange,
   offStatusChange,
   _resetState,
-} from '../src/server/tunnel-service.js';
+} from '../src/server/services/tunnel-service.js';
 import { createTunnelRouter } from '../src/server/routers/tunnel.js';
 
 function findAvailablePort(): Promise<number> {

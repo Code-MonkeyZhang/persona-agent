@@ -13,7 +13,7 @@ import { getAgentAssetsDir } from '../../util/paths.js';
 import { Logger } from '../../util/logger.js';
 import { asyncHandler, getParam, requireParam, imageUpload } from './utils.js';
 import { AppError } from '../../util/errors.js';
-import { processAvatar } from '../../lib/avatar-processor.js';
+import { processAvatar } from '../services/avatar-processor.js';
 
 const AVATAR_FILENAME = 'avatar.png';
 

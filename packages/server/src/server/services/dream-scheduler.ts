@@ -6,11 +6,11 @@
  * 内存 Map 记录，重启重置——重启后首次到点会对有未处理料的 Agent 补跑。
  */
 
-import { listAgentConfigs } from '../agent/index.js';
-import { MemoryStore } from '../agent/memory/memory-store.js';
-import { consolidateMemory } from './services/memory-service.js';
-import type { AgentConfig } from '../agent/types.js';
-import { Logger } from '../util/logger.js';
+import { listAgentConfigs } from '../../agent/index.js';
+import { MemoryStore } from '../../agent/memory/memory-store.js';
+import { consolidateMemory } from './memory-service.js';
+import type { AgentConfig } from '../../agent/types.js';
+import { Logger } from '../../util/logger.js';
 
 /** 基础节拍间隔 */
 const TICK_INTERVAL_MS = 30 * 60 * 1000;

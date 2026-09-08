@@ -7,7 +7,7 @@
  */
 
 import { Router } from 'express';
-import { loadConfig, saveConfig, type AppConfig } from '../../config/index.js';
+import { loadConfig, saveConfig, type AppConfig } from '../../config.js';
 import { getConfigPath } from '../../util/paths.js';
 import { Logger } from '../../util/logger.js';
 import { asyncHandler } from './utils.js';

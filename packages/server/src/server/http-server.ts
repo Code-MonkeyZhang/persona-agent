@@ -26,7 +26,7 @@ import { createAssetsRouter } from './routers/assets.js';
 import { createAvatarRouter } from './routers/avatar.js';
 import { processAppNotification } from './services/app-notification-service.js';
 import { initWebSocket, isWebSocketInitialized } from './websocket-server.js';
-import { startDreamScheduler } from './dream-scheduler.js';
+import { startDreamScheduler } from './services/dream-scheduler.js';
 
 import { listAgentConfigs } from '../agent/index.js';
 import { initSkillPool } from '../skill/index.js';

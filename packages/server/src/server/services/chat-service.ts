@@ -23,7 +23,7 @@ import type { PendingInput } from '@persona/shared';
 import type { ToolResult } from '../../tools/index.js';
 import { Logger } from '../../util/logger.js';
 import { broadcastToSession } from '../websocket-server.js';
-import * as sessionRegistry from '../session-registry.js';
+import * as sessionRegistry from './session-registry.js';
 import {
   addPendingInput,
   drainPendingInputs,

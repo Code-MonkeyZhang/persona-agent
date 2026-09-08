@@ -6,7 +6,7 @@ import { Command } from 'commander';
 import type { Server } from 'node:http';
 import { initAllDirsAndFiles, Logger } from './util/index.js';
 import { getLogsDir, getConfigPath } from './util/paths.js';
-import { loadConfig } from './config/index.js';
+import { loadConfig } from './config.js';
 import {
   backfillDefaultWorkspacePaths,
   seedInitialAgent,
@@ -41,7 +41,7 @@ program.parse();
 function setupExitHandlers(httpServer: Server): void {
   const cleanup = (): void => {
     Logger.log('SERVER', 'Server shutting down');
-    void import('./server/tunnel-service.js')
+    void import('./server/services/tunnel-service.js')
       .then(({ stopTunnel }) => stopTunnel())
       .catch(() => {});
     httpServer.close();

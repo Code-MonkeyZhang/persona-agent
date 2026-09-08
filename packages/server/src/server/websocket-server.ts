@@ -10,7 +10,7 @@ import type { IncomingMessage } from 'http';
 import { randomUUID } from 'node:crypto';
 import type { ServerMessage, ClientMessage, DeviceType } from '@persona/shared';
 import { Logger } from '../util/logger.js';
-import * as sessionRegistry from './session-registry.js';
+import * as sessionRegistry from './services/session-registry.js';
 
 interface WebSocketClient {
   id: string;

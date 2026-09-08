@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'bun:test';
-import { shouldDream } from '../src/server/dream-scheduler.js';
+import { shouldDream } from '../src/server/services/dream-scheduler.js';
 
 const cfg = (minutes: number) => ({ dreamIntervalMinutes: minutes });
 const MIN = 60 * 1000;

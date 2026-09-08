@@ -10,8 +10,8 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import type { ChildProcess } from 'node:child_process';
-import { getCloudflaredBinPath } from '../util/paths.js';
-import { Logger } from '../util/logger.js';
+import { getCloudflaredBinPath } from '../../util/paths.js';
+import { Logger } from '../../util/logger.js';
 
 type TunnelStatus = 'stopped' | 'starting' | 'running' | 'error';
 type TunnelHealth = 'unknown' | 'healthy' | 'unhealthy';

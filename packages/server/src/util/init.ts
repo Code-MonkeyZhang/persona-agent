@@ -33,7 +33,7 @@ import {
   getWorkspaceDir,
   getTtsConfigPath,
 } from './paths.js';
-import { getDefaultConfigYaml } from '../config/index.js';
+import { getDefaultConfigYaml } from '../config.js';
 
 /**
  * @deprecated Temporary migration function. Remove in next major version after all users have upgraded.

@@ -6,7 +6,7 @@
 import type { Message, AgentEvent, ToolCall } from '../schema/index.js';
 import type { AgentRunConfig } from './types.js';
 import type { Tool, ToolResult } from '../tools/index.js';
-import { convertContext, convertPiAiToolCall } from '../converters/index.js';
+import { convertContext, convertPiAiToolCall } from './pi-ai-converter.js';
 import { formatPendingInputForAgent } from './inject.js';
 import { models } from './pi-models.js';
 import { Logger } from '../util/logger.js';

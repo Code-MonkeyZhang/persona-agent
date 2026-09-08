@@ -8,7 +8,11 @@
  */
 
 import { Router } from 'express';
-import { startTunnel, stopTunnel, getTunnelStatus } from '../tunnel-service.js';
+import {
+  startTunnel,
+  stopTunnel,
+  getTunnelStatus,
+} from '../services/tunnel-service.js';
 import { getOnlineDevices } from '../websocket-server.js';
 import { httpServer } from '../index.js';
 import { Logger } from '../../util/logger.js';

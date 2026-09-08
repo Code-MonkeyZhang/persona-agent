@@ -65,7 +65,7 @@ mock.module('../src/auth/index.js', () => ({
   listProvidersWithAuth: () => [],
 }));
 
-mock.module('../src/config/index.js', () => ({
+mock.module('../src/config.js', () => ({
   loadConfig: () => ({
     enableLogging: false,
   }),
