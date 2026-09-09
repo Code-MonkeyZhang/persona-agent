@@ -49,13 +49,14 @@ export const ConfigForm: React.FC = () => {
   if (!config) return null;
 
   /**
-   * 切换开关并即时持久化到后端，失败时回滚
+   * 切换开关并即时持久化到后端，成功后同步主进程日志开关，失败时回滚
    */
   const handleToggle = async (field: 'enableLogging', value: boolean) => {
     const prev = config[field];
     updateField(field, value);
     try {
       await saveConfig({ ...config, [field]: value });
+      await window.api?.setLoggingEnabled(value);
     } catch {
       updateField(field, prev);
     }

@@ -45,6 +45,8 @@ export interface WindowAPI {
   selectFolder: (options?: SelectFolderOptions) => Promise<string | null>;
   getServerUrl: () => Promise<string | null>;
   log: (level: string, ...args: unknown[]) => Promise<void>;
+  /** 运行时切换主进程文件日志开关，与 enableLogging 配置联动 */
+  setLoggingEnabled: (enabled: boolean) => Promise<void>;
   openExternal: (url: string) => Promise<void>;
   openPath: (filePath: string) => Promise<string>;
   proxyFetch: (

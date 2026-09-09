@@ -53,6 +53,7 @@
     "rehype-highlight": "^7.0.0",
     "remark-gfm": "^4.0.0",
     "tailwind-merge": "^2.2.0",
+    "xdg-basedir": "^5.1.0",
     "zustand": "^4.5.0"
   },
   "devDependencies": {

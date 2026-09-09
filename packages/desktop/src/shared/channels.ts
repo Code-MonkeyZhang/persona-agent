@@ -13,6 +13,7 @@ export const IPC = {
   WINDOW_IS_MAXIMIZED: 'window:is-maximized',
   WINDOW_MAXIMIZED_CHANGED: 'window:maximized-changed',
   LOG: 'log',
+  SET_LOGGING_ENABLED: 'set-logging-enabled',
   PROXY_FETCH: 'proxy-fetch',
   OPEN_EXTERNAL: 'open-external',
   OPEN_PATH: 'open-path',
