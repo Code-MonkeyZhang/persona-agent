@@ -443,7 +443,7 @@ describe('Chat Module Integration Tests', () => {
             const message = JSON.parse(data.toString()) as { type: string; sessionId?: string };
             receivedEvents.push(message.type);
 
-            if (message.type === 'turn_complete') {
+            if (message.type === 'round_complete') {
               ws.close();
               resolve();
             }
@@ -452,7 +452,7 @@ describe('Chat Module Integration Tests', () => {
           ws.on('error', reject);
 
           ws.on('close', () => {
-            if (!receivedEvents.includes('turn_complete')) {
+            if (!receivedEvents.includes('round_complete')) {
               reject(new Error('WebSocket closed without complete event'));
             }
           });
@@ -472,7 +472,7 @@ describe('Chat Module Integration Tests', () => {
         expect(receivedEvents).toContain('connected');
         expect(receivedEvents).toContain('subscribed');
         expect(receivedEvents).toContain('step_complete');
-        expect(receivedEvents).toContain('turn_complete');
+        expect(receivedEvents).toContain('round_complete');
       },
       TEST_CONFIG.timeout
     );
@@ -503,7 +503,7 @@ describe('Chat Module Integration Tests', () => {
               stepThinking.push(msg.thinking);
             }
 
-            if (msg.type === 'turn_complete') {
+            if (msg.type === 'round_complete') {
               ws.close();
               resolve();
             }
@@ -585,7 +585,7 @@ describe('Chat Module Integration Tests', () => {
               });
             }
 
-            if (msg.type === 'turn_complete') {
+            if (msg.type === 'round_complete') {
               ws.close();
               resolve();
             }
@@ -619,7 +619,7 @@ describe('Chat Module Integration Tests', () => {
         });
 
         /** 插话成功进入缓冲才会触发续跑，否则用例失去意义 */
-        expect(eventTypes).toContain('round_complete');
+        expect(eventTypes).toContain('turn_complete');
 
         /** 同一回合内不应出现载荷完全相同的两条步骤完成事件 */
         const seen = new Set<string>();
@@ -665,13 +665,13 @@ describe('Chat Module Integration Tests', () => {
         ws1.on('message', (data: Buffer) => {
           const msg = JSON.parse(data.toString()) as { type: string };
           client1Events.push(msg.type);
-          if (msg.type === 'turn_complete') checkComplete();
+          if (msg.type === 'round_complete') checkComplete();
         });
 
         ws2.on('message', (data: Buffer) => {
           const msg = JSON.parse(data.toString()) as { type: string };
           client2Events.push(msg.type);
-          if (msg.type === 'turn_complete') checkComplete();
+          if (msg.type === 'round_complete') checkComplete();
         });
 
         setTimeout(() => {

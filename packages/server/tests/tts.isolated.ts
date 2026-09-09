@@ -493,7 +493,7 @@ describe('TTS Integration Tests', () => {
         expect(speakReady!.model).toBe('speech-2.8-hd');
 
         const completeIdx = receivedEvents.findIndex(
-          (e) => e.type === 'turn_complete',
+          (e) => e.type === 'round_complete',
         );
         const speakIdx = receivedEvents.findIndex(
           (e) => e.type === 'speak_ready',
@@ -522,7 +522,7 @@ describe('TTS Integration Tests', () => {
           const msg = JSON.parse(data.toString()) as { type: string };
           receivedEvents.push(msg.type);
 
-          if (msg.type === 'turn_complete') {
+          if (msg.type === 'round_complete') {
             setTimeout(() => {
               ws.close();
               resolve();
@@ -546,7 +546,7 @@ describe('TTS Integration Tests', () => {
 
       expect(receivedEvents).not.toContain('speak_ready');
       expect(receivedEvents).not.toContain('speak_error');
-      expect(receivedEvents).toContain('turn_complete');
+      expect(receivedEvents).toContain('round_complete');
     });
 
     it('should broadcast speak_error when apiKey is empty', async () => {
