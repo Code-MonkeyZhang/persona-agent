@@ -10,6 +10,7 @@ import { spawn } from 'child_process';
 import type { ChildProcess } from 'child_process';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import log from 'electron-log';
+import { xdgData } from 'xdg-basedir';
 import net from 'net';
 import * as fs from 'fs';
 import { initStore } from './store';
@@ -62,19 +63,53 @@ async function stopServer(): Promise<void> {
   }
 }
 
-// 日志配置
-if (is.dev) {
-  const logPath = join(__dirname, '../../logs');
-  const logFile = join(logPath, 'main.log');
-  if (fs.existsSync(logFile)) {
-    fs.unlinkSync(logFile);
+// 日志配置。dev 与正式版统一写入用户数据目录 logs/desktop.log，与 server
+// 的 agent-server.log 同目录，每次启动清空，路径规则与 server 侧 util/paths.ts 一致
+if (!xdgData) {
+  throw new Error('Unable to determine XDG data directory');
+}
+const DATA_DIR = join(xdgData, 'persona-agent');
+const LOGS_DIR = join(DATA_DIR, 'logs');
+const LOG_FILE = join(LOGS_DIR, 'desktop.log');
+
+/**
+ * 从 server 的 config.yaml 读取日志开关
+ * 文件由 server 侧 yaml.stringify 写出，行格式固定，按行匹配即可
+ */
+function readEnableLogging(): boolean {
+  try {
+    const content = fs.readFileSync(
+      join(DATA_DIR, 'config', 'config.yaml'),
+      'utf-8'
+    );
+    const match = content.match(/^enableLogging:\s*(true|false)\s*$/m);
+    return match?.[1] === 'true';
+  } catch {
+    return false;
   }
-  log.transports.file.resolvePath = () => logFile;
-  log.transports.console.level = false;
-} else {
-  log.transports.file.level = false;
 }
 
+/**
+ * 切换文件日志开关，开启时确保日志目录存在
+ * @param enabled - 是否写入日志文件
+ */
+function setFileLogging(enabled: boolean): void {
+  if (enabled) {
+    fs.mkdirSync(LOGS_DIR, { recursive: true });
+  }
+  log.transports.file.level = enabled ? 'info' : false;
+}
+
+if (fs.existsSync(LOG_FILE)) {
+  fs.unlinkSync(LOG_FILE);
+}
+log.transports.file.resolvePath = () => LOG_FILE;
+setFileLogging(readEnableLogging());
+if (is.dev) {
+  log.transports.console.level = false;
+}
+
+log.info(`[log] desktop.log at ${LOG_FILE}`);
 log.info('App starting...');
 
 /** 应用主入口 */
@@ -142,12 +177,15 @@ app.whenReady().then(async () => {
 
   // IPC：将渲染进程日志转发到主进程日志
   ipcMain.handle(IPC.LOG, (_event, level: string, ...args: unknown[]) => {
-    if (is.dev) {
-      const logFn = log[level as keyof typeof log];
-      if (typeof logFn === 'function') {
-        logFn(`[Renderer]`, ...args);
-      }
+    const logFn = log[level as keyof typeof log];
+    if (typeof logFn === 'function') {
+      logFn('[Renderer]', ...args);
     }
+  });
+
+  // IPC：运行时切换文件日志开关，与设置页的 enableLogging 联动
+  ipcMain.handle(IPC.SET_LOGGING_ENABLED, (_event, enabled: boolean) => {
+    setFileLogging(enabled);
   });
 
   // IPC：代理 HTTP 请求，绕过渲染进程的 CORS 限制

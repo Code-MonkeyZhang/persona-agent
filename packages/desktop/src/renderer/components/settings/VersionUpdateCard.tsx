@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { SettingRow, SettingDivider } from '../common/SettingRow';
 import { ActionButton } from '../ui/ActionButton';
 import { Card } from '../ui/Card';
+import { logger } from '../../lib/logger';
 import type { UpdateStatus } from '@shared/api';
 
 /** 卡片内部状态，由主进程推送的 UpdateStatus 映射而来 */
@@ -65,16 +66,19 @@ export const VersionUpdateCard: React.FC = () => {
   }, []);
 
   const handleCheck = () => {
+    logger.info('updater', 'user triggered update check');
     setState({ type: 'checking' });
     window.api?.updater.checkForUpdates();
   };
 
   const handleDownload = () => {
+    logger.info('updater', 'user started update download');
     setState({ type: 'downloading', percent: 0 });
     window.api?.updater.downloadUpdate();
   };
 
   const handleInstall = () => {
+    logger.info('updater', 'user requested install and restart');
     window.api?.updater.installUpdate();
   };
 

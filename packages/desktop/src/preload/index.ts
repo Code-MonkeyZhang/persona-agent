@@ -41,6 +41,13 @@ const api: WindowAPI = {
   log: (level, ...args) => ipcRenderer.invoke(IPC.LOG, level, ...args),
 
   /**
+   * 运行时切换主进程文件日志开关
+   * @param enabled - 是否写入日志文件
+   */
+  setLoggingEnabled: (enabled) =>
+    ipcRenderer.invoke(IPC.SET_LOGGING_ENABLED, enabled),
+
+  /**
    * 通过主进程代理发起 HTTP 请求，绕过渲染进程的 CORS 限制
    * @param url - 请求目标 URL
    * @param options - 请求参数
