@@ -20,6 +20,12 @@ export interface ContentBlock {
 export interface SystemMessage {
   role: 'system';
   content: string;
+  /**
+   * 轮次边界标志。
+   * 会话接口响应把 turn_end 标记行混成此形状的条目，渲染层扫描到即结组。
+   * 落盘文件里不存在此形状，仅出现在接口层。
+   */
+  turnEnd?: boolean;
 }
 
 export interface UserMessage {

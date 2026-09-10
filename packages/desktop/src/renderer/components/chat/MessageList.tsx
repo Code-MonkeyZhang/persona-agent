@@ -144,7 +144,6 @@ const ListHeader = () => <div className="h-4" />;
 interface MessageListProps {
   messages: UIMessage[];
   isLoading?: boolean;
-  streamingMessageId?: string | null;
   sessionId: string | null;
   hasAgent?: boolean;
   agent: AgentConfig | null;
@@ -160,7 +159,6 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
     {
       messages,
       isLoading,
-      streamingMessageId,
       sessionId,
       hasAgent = true,
       agent,
@@ -222,43 +220,6 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
         });
       });
     }, [messages.length]);
-
-    /**
-     * 流式内容增长时跟随滚动到底部
-     * - step_complete 把完整回复一次性填进流式消息时消息条数不变，
-     *   依赖条数的滚动不会触发，因此额外监听流式目标消息的内容增长
-     * - 按 streamingMessageId 定位目标而非数组末位，插话灰气泡排在
-     *   流式气泡之后时滚动跟随不会盯错对象
-     * - 双 rAF 等待 Virtuoso 测量完增长后的高度再滚动，避免落到过时位置
-     * - 仅在已处于底部时跟随，流式期间回翻历史不被持续拽回底部
-     */
-    const streamingMessage = streamingMessageId
-      ? messages.find((m) => m.id === streamingMessageId)
-      : undefined;
-    const streamingContentSize =
-      (streamingMessage?.content.length ?? 0) +
-      (streamingMessage?.thoughts?.reduce(
-        (sum, t) => sum + (t.content?.length ?? 0),
-        0
-      ) ?? 0);
-
-    useEffect(() => {
-      if (!streamingMessageId || streamingContentSize === 0) return;
-      if (!isAtBottomRef.current) return;
-      logger.info('Following streaming content growth', {
-        streamingMessageId,
-        streamingContentSize,
-      });
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          virtuosoRef.current?.scrollToIndex({
-            index: 'LAST',
-            align: 'end',
-            behavior: 'smooth',
-          });
-        });
-      });
-    }, [streamingContentSize, streamingMessageId]);
 
     /** 将当前滚动状态按 sessionId 写入缓存 */
     const saveScrollState = useCallback(

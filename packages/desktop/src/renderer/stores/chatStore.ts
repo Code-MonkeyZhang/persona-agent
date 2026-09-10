@@ -75,15 +75,53 @@ function cycleToThoughts(msg: StepCompleteMessage): Thought[] {
 }
 
 /**
+ * 把轮次缓冲组装成一条助手消息，可能为空。
+ *
+ * turn_complete 正常组装与 aborted / error 的半截冲刷共用。
+ * - 最终回答的 content 同时存在于缓冲与最后一条 text thought，
+ *   组装时移除该 thought 避免重复展示
+ * - aborted 为 true 时打中止标记，保留已到达的部分内容
+ * - 缓冲全空时返回空数组，不产空泡
+ * @param state - 目标 session 的聊天状态
+ * @param aborted - 是否按中止冲刷处理
+ * @returns 待追加的助手消息数组
+ */
+function assemblePendingBubble(
+  state: SessionChatState,
+  aborted = false
+): UIMessage[] {
+  if (!state.pendingContent && state.pendingThoughts.length === 0) return [];
+  const finalThoughts = stripLastTextThought(state.pendingThoughts);
+  return [
+    {
+      id: crypto.randomUUID(),
+      type: 'assistant',
+      content: state.pendingContent,
+      timestamp: new Date(),
+      thoughts: finalThoughts.length > 0 ? finalThoughts : undefined,
+      aborted: aborted || undefined,
+    },
+  ];
+}
+
+/** 轮次缓冲的空状态，供切换生成态与回合结束时复位 */
+function emptyPending(): Pick<
+  SessionChatState,
+  'pendingThoughts' | 'pendingContent' | 'armedDiskRefresh'
+> {
+  return { pendingThoughts: [], pendingContent: '', armedDiskRefresh: false };
+}
+
+/**
  * 将 session 切到生成态。
  * 用于用户发消息以及 App 通知/恢复订阅触发的外部回合——
- * isLoading 置位后，首步 step_complete 会现场创建助手消息填入内容。
+ * isLoading 置位后，步骤事件进轮次缓冲，turn_complete 到达时组装整轮气泡。
  */
 function withLoadingState(sessionState: SessionChatState): SessionChatState {
   return {
     ...sessionState,
+    ...emptyPending(),
     isLoading: true,
-    streamingMessageId: null,
   };
 }
 
@@ -91,7 +129,11 @@ function withLoadingState(sessionState: SessionChatState): SessionChatState {
 interface SessionChatState {
   messages: UIMessage[];
   isLoading: boolean;
-  streamingMessageId: string | null;
+  /** 当前轮的步骤缓冲，轮末组装成一条助手消息 */
+  pendingThoughts: Thought[];
+  pendingContent: string;
+  /** 错过步骤事件的轮次由空缓冲 turn_complete 武装，round_complete 后从磁盘整包刷新 */
+  armedDiskRefresh: boolean;
 }
 
 interface ChatStore {
@@ -167,7 +209,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
         newStates.set(sessionId, {
           messages,
           isLoading: false,
-          streamingMessageId: null,
+          ...emptyPending(),
         });
         return { sessionStates: newStates };
       });
@@ -198,7 +240,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
           const sessionState = newStates.get(sessionId) || {
             messages: [],
             isLoading: false,
-            streamingMessageId: null,
+            ...emptyPending(),
           };
           newStates.set(sessionId, {
             messages: [
@@ -210,7 +252,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
               ),
             ],
             isLoading: false,
-            streamingMessageId: null,
+            ...emptyPending(),
           });
           return { sessionStates: newStates };
         });
@@ -252,13 +294,13 @@ export const useChatStore = create<ChatStore>((set, get) => {
         return;
       }
 
-      // 乐观追加用户消息并切生成态，助手消息由首步 step_complete 现场创建
+      // 乐观追加用户消息并切生成态，助手气泡由 turn_complete 从轮次缓冲组装
       set((state) => {
         const newStates = new Map(state.sessionStates);
         const sessionState = newStates.get(sessionId) || {
           messages: [],
           isLoading: false,
-          streamingMessageId: null,
+          ...emptyPending(),
         };
         newStates.set(sessionId, {
           ...withLoadingState(sessionState),
@@ -275,7 +317,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
 
       wsClient?.subscribe(sessionId);
 
-      /** 失败回滚：结束生成态，乐观用户消息保留 */
+      /** 失败回滚：结束生成态并清空轮次缓冲，乐观用户消息保留 */
       const rollbackLoading = () =>
         set((state) => {
           const newStates = new Map(state.sessionStates);
@@ -284,7 +326,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
             newStates.set(sessionId, {
               ...sessionState,
               isLoading: false,
-              streamingMessageId: null,
+              ...emptyPending(),
             });
           }
           return { sessionStates: newStates };
@@ -377,14 +419,15 @@ export const useChatStore = create<ChatStore>((set, get) => {
                 ? { ...m, queued: false }
                 : m
             );
-            // 服务端有而本地没有的条目：本窗口刚发的与其他客户端写入的插话，补灰气泡
+            // 服务端有而本地没有的条目：本窗口刚发的与其他客户端写入的插话，补灰气泡；
+            // app 来源的通知不在聊天窗口显示，直接过滤
             const localPendingIds = new Set(
               messages
                 .filter((m) => m.pendingId)
                 .map((m) => m.pendingId as string)
             );
             const additions = msg.pending
-              .filter((p) => !localPendingIds.has(p.id))
+              .filter((p) => !localPendingIds.has(p.id) && p.source !== 'app')
               .map((p) =>
                 createMessage('user', p.content, {
                   queued: true,
@@ -402,6 +445,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
           logger.info('Pending inputs synced', {
             sessionId,
             pendingCount: msg.pending.length,
+            appFiltered: msg.pending.filter((p) => p.source === 'app').length,
           });
           break;
         }
@@ -428,55 +472,24 @@ export const useChatStore = create<ChatStore>((set, get) => {
           const currentSnap = get();
           const sessionState = currentSnap.sessionStates.get(sessionId);
           if (sessionState) {
-            // 防御：本回合已结束后迟到的 step_complete 直接丢弃，
-            // 避免 streamingMessageId 被清成 null 后走首步分支创建孤立气泡
+            // 防御：本回合已结束后迟到的 step_complete 直接丢弃，不污染下一轮缓冲
             if (!sessionState.isLoading) {
               logger.info('Late step_complete ignored', { sessionId });
               break;
             }
 
-            const streamingId = sessionState.streamingMessageId;
-
-            if (streamingId) {
-              // 后续步骤：追加 thoughts 到已有的流式消息，content 仅在非空时覆盖
-              set((state) => {
-                const newStates = new Map(state.sessionStates);
-                newStates.set(sessionId, {
-                  ...sessionState,
-                  messages: sessionState.messages.map((m) =>
-                    m.id === streamingId
-                      ? {
-                          ...m,
-                          thoughts: [...(m.thoughts || []), ...newThoughts],
-                          content: msg.content || m.content,
-                        }
-                      : m
-                  ),
-                });
-                return { sessionStates: newStates };
+            // 步骤只进轮次缓冲，界面无中间助手内容，turn_complete 到达时整轮组装
+            set((state) => {
+              const newStates = new Map(state.sessionStates);
+              const ss = newStates.get(sessionId);
+              if (!ss) return {};
+              newStates.set(sessionId, {
+                ...ss,
+                pendingThoughts: [...ss.pendingThoughts, ...newThoughts],
+                pendingContent: msg.content || ss.pendingContent,
               });
-            } else {
-              // 首步：创建新消息并记下 streamingMessageId
-              const newId = crypto.randomUUID();
-              set((state) => {
-                const newStates = new Map(state.sessionStates);
-                newStates.set(sessionId, {
-                  ...sessionState,
-                  streamingMessageId: newId,
-                  messages: [
-                    ...sessionState.messages,
-                    {
-                      id: newId,
-                      type: 'assistant' as const,
-                      content: msg.content || '',
-                      timestamp: new Date(),
-                      thoughts: newThoughts,
-                    },
-                  ],
-                });
-                return { sessionStates: newStates };
-              });
-            }
+              return { sessionStates: newStates };
+            });
 
             // 同步更新会话预览
             useSessionStore
@@ -489,70 +502,77 @@ export const useChatStore = create<ChatStore>((set, get) => {
           break;
         }
 
-        case 'round_complete': {
+        case 'turn_complete': {
           const sessionId = msg.sessionId;
           const sessionState = get().sessionStates.get(sessionId);
-          if (sessionState) {
-            // 轮次边界：只关当前轮气泡，生成状态保持，下一轮首条 step_complete 开新气泡
+          if (!sessionState) break;
+
+          const bubble = assemblePendingBubble(sessionState);
+
+          // 空缓冲说明重载后错过了本轮步骤事件，武装刷新标志，
+          // round_complete 后从磁盘整包刷新，不打断其他客户端仍在收的后续轮次
+          if (bubble.length === 0) {
             set((state) => {
               const newStates = new Map(state.sessionStates);
-              newStates.set(sessionId, {
-                ...sessionState,
-                streamingMessageId: null,
-              });
+              const ss = newStates.get(sessionId);
+              if (ss) {
+                newStates.set(sessionId, { ...ss, armedDiskRefresh: true });
+              }
               return { sessionStates: newStates };
             });
-            logger.info('Round ended, closing streaming bubble', { sessionId });
+            logger.info('Turn end with empty buffer, arming disk refresh', {
+              sessionId,
+            });
+            break;
           }
+
+          // 组装整轮气泡追加到末尾，追加天然形成聊天顺序，插话灰气泡排在整轮之上
+          set((state) => {
+            const newStates = new Map(state.sessionStates);
+            const ss = newStates.get(sessionId);
+            if (ss) {
+              newStates.set(sessionId, {
+                ...ss,
+                messages: [...ss.messages, ...bubble],
+                pendingThoughts: [],
+                pendingContent: '',
+              });
+            }
+            return { sessionStates: newStates };
+          });
+          logger.info('Turn bubble assembled', {
+            sessionId,
+            thoughtCount: bubble[0]?.thoughts?.length ?? 0,
+            contentLength: bubble[0]?.content.length ?? 0,
+          });
           break;
         }
 
-        case 'turn_complete': {
+        case 'round_complete': {
           const sessionId = msg.sessionId;
           const snap = get();
           const sessionState = snap.sessionStates.get(sessionId);
-          const streamingId = sessionState?.streamingMessageId ?? null;
-          const streamingMsg = streamingId
-            ? sessionState?.messages.find((m) => m.id === streamingId)
-            : null;
-          // 无流式消息或流式消息无内容时，需要从磁盘刷新
-          const needsRefresh =
-            !streamingMsg ||
-            (!streamingMsg.content.trim() &&
-              !(streamingMsg.thoughts && streamingMsg.thoughts.length > 0));
+          if (!sessionState) break;
+          const needsRefresh = sessionState.armedDiskRefresh;
 
           set((state) => {
             const newStates = new Map(state.sessionStates);
             const ss = newStates.get(sessionId);
             if (ss) {
-              // 流式消息移除时间线里最后一段 text thought，让它成为正式回复
-              const messages = streamingId
-                ? ss.messages.map((m) =>
-                    m.id === streamingId
-                      ? {
-                          ...m,
-                          thoughts: stripLastTextThought(m.thoughts || []),
-                        }
-                      : m
-                  )
-                : ss.messages;
               newStates.set(sessionId, {
                 ...ss,
-                messages,
                 isLoading: false,
-                streamingMessageId: null,
+                ...emptyPending(),
               });
             }
             return { sessionStates: newStates };
           });
 
           if (needsRefresh) {
-            logger.info('Turn complete, refreshing from disk', { sessionId });
+            logger.info('Round complete, refreshing from disk', { sessionId });
             void refreshSessionMessages(sessionId);
           } else {
-            logger.info('Turn complete, stripped last text thought', {
-              sessionId,
-            });
+            logger.info('Round complete', { sessionId });
           }
           break;
         }
@@ -593,18 +613,21 @@ export const useChatStore = create<ChatStore>((set, get) => {
             const newStates = new Map(state.sessionStates);
             const sessionState = newStates.get(sessionId);
             if (sessionState) {
+              // 缓冲冲刷成半截气泡再退出，与刷新链路的 error 结组口径一致
               newStates.set(sessionId, {
                 ...sessionState,
                 messages: [
                   ...sessionState.messages,
+                  ...assemblePendingBubble(sessionState),
                   createMessage('error', msg.message),
                 ],
                 isLoading: false,
-                streamingMessageId: null,
+                ...emptyPending(),
               });
             }
             return { sessionStates: newStates };
           });
+          logger.info('Turn errored, partial flushed', { sessionId });
           break;
         }
 
@@ -614,23 +637,20 @@ export const useChatStore = create<ChatStore>((set, get) => {
             const newStates = new Map(state.sessionStates);
             const sessionState = newStates.get(sessionId);
             if (sessionState) {
-              const streamingId = sessionState.streamingMessageId;
-              // 已创建的流式消息打 aborted 标记，保留部分内容
-              const messages = streamingId
-                ? sessionState.messages.map((m) =>
-                    m.id === streamingId ? { ...m, aborted: true } : m
-                  )
-                : sessionState.messages;
+              // 缓冲冲刷成带中止标记的半截气泡，保留部分内容
               newStates.set(sessionId, {
                 ...sessionState,
-                messages,
+                messages: [
+                  ...sessionState.messages,
+                  ...assemblePendingBubble(sessionState, true),
+                ],
                 isLoading: false,
-                streamingMessageId: null,
+                ...emptyPending(),
               });
             }
             return { sessionStates: newStates };
           });
-          logger.info('Turn aborted, partial kept', { sessionId });
+          logger.info('Turn aborted, partial flushed', { sessionId });
           break;
         }
 

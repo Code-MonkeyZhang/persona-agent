@@ -20,8 +20,9 @@ import type { Message, UserMessage } from '../schema/index.js';
 /** Internal shape of one JSONL line */
 interface SessionLine {
   timestamp: string;
-  type: 'session_meta' | 'message';
-  data: unknown;
+  type: 'session_meta' | 'message' | 'turn_end';
+  /** session_meta 与 message 行携带的数据，turn_end 行无此字段 */
+  data?: unknown;
 }
 
 /**
@@ -129,6 +130,23 @@ export class SessionStore {
   }
 
   /**
+   * Append a turn end marker line to the end of a session file.
+   * Marker lines carry no data; `loadSession` records the message count
+   * before each marker.
+   * @returns `true` on success, `false` if the file does not exist
+   */
+  appendTurnEndLine(id: string): boolean {
+    const filePath = this.sessionFilePath(id);
+    if (!fs.existsSync(filePath)) return false;
+    const line: SessionLine = {
+      timestamp: new Date().toISOString(),
+      type: 'turn_end',
+    };
+    fs.appendFileSync(filePath, JSON.stringify(line) + '\n');
+    return true;
+  }
+
+  /**
    * Rewrite the first line (session_meta) of a session file.
    *
    * Reads the entire file, replaces the content before the first newline
@@ -152,7 +170,8 @@ export class SessionStore {
    * Load a full session by ID.
    *
    * Reads the JSONL file line by line. The first line is parsed as
-   * session_meta; subsequent lines are parsed as messages. Lines that
+   * session_meta; message lines are parsed as messages; turn_end marker
+   * lines record the current message count into `turnEnds`. Lines that
    * fail JSON parsing are silently skipped (crash recovery).
    * `updatedAt` is derived from the file's modification time.
    * `lastContextAt` / `lastMessageAt` are derived from the envelope
@@ -167,6 +186,7 @@ export class SessionStore {
 
     let meta: SessionMeta | null = null;
     const messages: Message[] = [];
+    let turnEnds: number[] | undefined;
     let lastContextAt: number | undefined;
     let lastMessageAt: number | undefined;
 
@@ -189,6 +209,9 @@ export class SessionStore {
         } else {
           lastMessageAt = ts;
         }
+      } else if (parsed.type === 'turn_end') {
+        turnEnds ??= [];
+        turnEnds.push(messages.length);
       }
     }
 
@@ -203,6 +226,7 @@ export class SessionStore {
       updatedAt: stat.mtimeMs,
       lastContextAt,
       lastMessageAt,
+      turnEnds,
       messages,
     };
   }
