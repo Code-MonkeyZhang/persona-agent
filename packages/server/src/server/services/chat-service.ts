@@ -539,13 +539,17 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       // 处理最后一个step
       flushCurrentStep();
 
+      // 轮次结束：先落盘标记行再广播轮次边界信号，客户端此时刷新已能看到标记，
+      // 渲染层据此组装整轮气泡；中止与错误路径提前返回，不写标记
+      sessionManager.appendTurnEnd(sessionId);
+      Logger.log('CHAT', 'Turn end marker persisted', { sessionId });
+      broadcastToSession(sessionId, { type: 'turn_complete', sessionId });
+
       // 缓冲非空说明最后一步执行期间有新插话到达，续跑下一轮消费
       if (!hasPendingInputs(sessionId)) break;
       Logger.log('CHAT', 'Starting next round for pending inputs', {
         sessionId,
       });
-      // 轮次边界信号，前端只关当前轮气泡，生成状态保持
-      broadcastToSession(sessionId, { type: 'turn_complete', sessionId });
     }
 
     // 回合边界信号，回合工作结束

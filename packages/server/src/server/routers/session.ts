@@ -73,7 +73,8 @@ export function createSessionRouter(
     asyncHandler('SESSION', 'Error getting session', (req, res) => {
       const manager = getSessionManager(req);
       const id = requireParam(getParam(req.params['id']), 'Session ID');
-      const session = manager.getSession(id);
+      // 客户端视角：messages 混入轮次边界条目供渲染层结组
+      const session = manager.getSessionForClient(id);
 
       if (!session) throw new AppError(404, 'Session not found');
 

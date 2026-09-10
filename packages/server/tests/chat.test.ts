@@ -621,6 +621,19 @@ describe('Chat Module Integration Tests', () => {
         /** 插话成功进入缓冲才会触发续跑，否则用例失去意义 */
         expect(eventTypes).toContain('turn_complete');
 
+        /** 客户端视角的 messages 应混入轮次边界条目 */
+        const sessionResponse = await fetch(
+          `${BASE_URL}/api/agents/${agentId}/sessions/${sessionId}`
+        );
+        const { session } = (await sessionResponse.json()) as {
+          session: Session;
+        };
+        expect(
+          session.messages.some(
+            (m) => m.role === 'system' && (m as { turnEnd?: boolean }).turnEnd
+          )
+        ).toBe(true);
+
         /** 同一回合内不应出现载荷完全相同的两条步骤完成事件 */
         const seen = new Set<string>();
         for (const p of stepPayloads) {
@@ -628,6 +641,77 @@ describe('Chat Module Integration Tests', () => {
           expect(seen.has(key)).toBe(false);
           seen.add(key);
         }
+      },
+      TEST_CONFIG.timeout
+    );
+
+    /** 测试：用户中止的回合不落盘轮次标记 */
+    it(
+      'should not persist turn end marker for aborted turn',
+      async () => {
+        await new Promise<void>((resolve, reject) => {
+          ws = new WebSocket(WS_URL);
+
+          ws.on('open', () => {
+            ws.send(JSON.stringify({
+              type: 'subscribe',
+              payload: { sessionId },
+            }));
+
+            ws.on('message', (data: Buffer) => {
+              const msg = JSON.parse(data.toString()) as { type: string };
+              if (msg.type === 'aborted') {
+                ws.close();
+                resolve();
+              }
+            });
+
+            ws.on('error', reject);
+
+            fetch(
+              `${BASE_URL}/api/agents/${agentId}/sessions/${sessionId}/chat`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  content: '请写一篇两千字的文章，主题是海洋文明的历史',
+                }),
+              }
+            ).catch(reject);
+
+            /** 回合跑到轮末前打断，中止路径提前返回不写标记 */
+            setTimeout(() => {
+              ws.send(JSON.stringify({
+                type: 'abort',
+                payload: { sessionId },
+              }));
+            }, 800);
+          });
+        });
+
+        const sessionResponse = await fetch(
+          `${BASE_URL}/api/agents/${agentId}/sessions/${sessionId}`
+        );
+        const { session } = (await sessionResponse.json()) as {
+          session: Session;
+        };
+        expect(
+          session.messages.some(
+            (m) => m.role === 'system' && (m as { turnEnd?: boolean }).turnEnd
+          )
+        ).toBe(false);
+
+        const filePath = path.join(
+          agentsDir,
+          agentId,
+          'sessions',
+          `${sessionId}.jsonl`
+        );
+        const hasMarker = fs
+          .readFileSync(filePath, 'utf8')
+          .split('\n')
+          .some((line) => line.includes('"type":"turn_end"'));
+        expect(hasMarker).toBe(false);
       },
       TEST_CONFIG.timeout
     );
