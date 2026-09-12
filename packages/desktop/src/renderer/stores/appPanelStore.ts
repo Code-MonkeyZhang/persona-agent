@@ -5,7 +5,8 @@
  */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { appStorage } from '../lib/appStorage';
 import { listMcpServers } from '../lib/api';
 import { logger } from '../lib/logger';
 
@@ -57,6 +58,7 @@ export const useAppPanelStore = create<AppPanelState>()(
     }),
     {
       name: 'app-panel-store',
+      storage: createJSONStorage(() => appStorage),
       partialize: (s) => ({ sidebarVisible: s.sidebarVisible }),
     }
   )

@@ -7,7 +7,8 @@
  */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { appStorage } from '../lib/appStorage';
 import { synthesize } from '../lib/tts';
 import { audioPlayer } from '../lib/audio-player';
 import { toast } from './toastStore';
@@ -68,6 +69,7 @@ export const useVoiceStore = create<VoiceStore>()(
     }),
     {
       name: 'voice-store',
+      storage: createJSONStorage(() => appStorage),
       partialize: (state) => ({
         voiceEnabled: state.voiceEnabled,
       }),

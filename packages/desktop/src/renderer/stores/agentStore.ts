@@ -17,6 +17,7 @@ import {
   deleteAgent,
 } from '../lib/api';
 import { logger } from '../lib/logger';
+import { appStorage } from '../lib/appStorage';
 
 const LAST_AGENT_KEY = 'last-agent-id';
 interface AgentStore {
@@ -61,7 +62,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
       set({ agents });
 
       if (agents.length > 0) {
-        const lastAgentId = localStorage.getItem(LAST_AGENT_KEY);
+        const lastAgentId = appStorage.getItem(LAST_AGENT_KEY);
         const targetId =
           lastAgentId && agents.some((a) => a.id === lastAgentId)
             ? lastAgentId
@@ -86,7 +87,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
   switchAgent: async (id: string) => {
     try {
       const agent = await getAgent(id);
-      localStorage.setItem(LAST_AGENT_KEY, id);
+      appStorage.setItem(LAST_AGENT_KEY, id);
       set({ currentAgent: agent });
       return agent;
     } catch {
@@ -98,7 +99,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     try {
       const agent = await createAgent(input);
       const { agents } = get();
-      localStorage.setItem(LAST_AGENT_KEY, agent.id);
+      appStorage.setItem(LAST_AGENT_KEY, agent.id);
       set({ agents: [...agents, agent], currentAgent: agent });
       return agent;
     } catch {
@@ -129,10 +130,10 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
         if (isCurrentDeleted) {
           if (newAgents.length > 0) {
             const nextAgent = await getAgent(newAgents[0].id);
-            localStorage.setItem(LAST_AGENT_KEY, nextAgent.id);
+            appStorage.setItem(LAST_AGENT_KEY, nextAgent.id);
             set({ agents: newAgents, currentAgent: nextAgent });
           } else {
-            localStorage.removeItem(LAST_AGENT_KEY);
+            appStorage.removeItem(LAST_AGENT_KEY);
             set({ agents: newAgents, currentAgent: null });
           }
         } else {

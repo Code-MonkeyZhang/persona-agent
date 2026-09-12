@@ -56,6 +56,7 @@ import { useViewStore } from './stores/viewStore';
 import { useTunnelStore } from './stores/tunnelStore';
 import { useAppPanelStore } from './stores/appPanelStore';
 import { logger } from './lib/logger';
+import { appStorage } from './lib/appStorage';
 import { getSeedStatus } from './lib/api';
 
 /**
@@ -233,7 +234,7 @@ function AppContent() {
   const agentsLoaded = useAgentStore((s) => s.agents.length > 0);
   useEffect(() => {
     if (connectionStatus !== 'connected' || !agentsLoaded) return;
-    if (localStorage.getItem('landing-completed')) return;
+    if (appStorage.getItem('landing-completed')) return;
     let cancelled = false;
     void getSeedStatus()
       .then((status) => {
@@ -393,12 +394,12 @@ function AppContent() {
   };
 
   /**
-   * 清空当前会话回到新建聊天状态，同时丢弃草稿暂存
+   * 清空当前会话回到新建聊天状态，同时丢弃草稿暂存与上次会话记录
    * @returns void
    */
   const handleNewChat = () => {
     clearPendingDraft();
-    useSessionStore.setState({ currentSession: null });
+    useSessionStore.getState().clearCurrentSession();
   };
 
   /**

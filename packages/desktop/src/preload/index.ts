@@ -5,6 +5,7 @@
  * 通过 contextBridge 将以下操作暴露到 window.api：
  * - 系统文件夹选择器
  * - 后端服务地址查询
+ * - 应用状态读写
  * - 日志代理写入
  * - 窗口控制
  * - 网络代理请求
@@ -32,6 +33,15 @@ const api: WindowAPI = {
    * @returns 服务地址，未启动则返回 null
    */
   getServerUrl: () => ipcRenderer.invoke(IPC.GET_SERVER_URL),
+
+  /** 整取主进程持久化的应用状态，渲染层启动时调用一次 */
+  stateGetAll: () => ipcRenderer.invoke(IPC.STATE_GET_ALL),
+
+  /** 写入单项应用状态，主进程同步落盘 */
+  stateSet: (key, value) => ipcRenderer.invoke(IPC.STATE_SET, key, value),
+
+  /** 删除单项应用状态 */
+  stateDelete: (key) => ipcRenderer.invoke(IPC.STATE_DELETE, key),
 
   /**
    * 让前端通过主进程写入日志 的传递

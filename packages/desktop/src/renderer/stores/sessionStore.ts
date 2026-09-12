@@ -15,6 +15,7 @@ import {
 import type { UIMessage, Thought } from '../types/chat';
 import type { Message } from '@persona/shared';
 import { deleteScrollPosition } from './scrollPositionCache';
+import { appStorage } from '../lib/appStorage';
 
 const LAST_SESSION_KEY = 'last-session-id';
 
@@ -43,6 +44,7 @@ interface SessionStore {
   ) => Promise<Session | null>;
   switchSession: (agentId: string, id: string) => Promise<Session | null>;
   deleteSessionById: (agentId: string, id: string) => Promise<boolean>;
+  clearCurrentSession: () => void;
   updateSessionTitle: (
     agentId: string,
     id: string,
@@ -83,7 +85,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       set({ sessions });
 
       if (sessions.length > 0) {
-        const lastSessionId = localStorage.getItem(LAST_SESSION_KEY);
+        const lastSessionId = appStorage.getItem(LAST_SESSION_KEY);
         const chatSession = sessions.find((s) => s.id.startsWith('chat'));
 
         let targetId: string;
@@ -115,7 +117,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     try {
       const session = await createSession(agentId, title);
       const { sessions } = get();
-      localStorage.setItem(LAST_SESSION_KEY, session.id);
+      appStorage.setItem(LAST_SESSION_KEY, session.id);
       set({
         sessions: [session, ...sessions],
         currentSession: session,
@@ -136,7 +138,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   switchSession: async (agentId: string, id: string) => {
     try {
       const session = await getSession(agentId, id);
-      localStorage.setItem(LAST_SESSION_KEY, id);
+      appStorage.setItem(LAST_SESSION_KEY, id);
       set({ currentSession: session });
       return session;
     } catch {
@@ -163,14 +165,14 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         if (isCurrentDeleted) {
           if (newSessions.length > 0) {
             const nextSession = await getSession(agentId, newSessions[0].id);
-            localStorage.setItem(LAST_SESSION_KEY, nextSession.id);
+            appStorage.setItem(LAST_SESSION_KEY, nextSession.id);
             set({
               sessions: newSessions,
               currentSession: nextSession,
               sessionPreviews: remainingPreviews,
             });
           } else {
-            localStorage.removeItem(LAST_SESSION_KEY);
+            appStorage.removeItem(LAST_SESSION_KEY);
             set({
               sessions: newSessions,
               currentSession: null,
@@ -185,6 +187,15 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     } catch {
       return false;
     }
+  },
+
+  /**
+   * 清空当前会话回到新建聊天状态，同时删除上次会话记录
+   * 保证下次启动不再恢复已主动放掉的会话
+   */
+  clearCurrentSession: () => {
+    appStorage.removeItem(LAST_SESSION_KEY);
+    set({ currentSession: null });
   },
 
   /**

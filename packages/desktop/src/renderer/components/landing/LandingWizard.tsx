@@ -26,6 +26,7 @@ import { useTranslation } from 'react-i18next';
 import type { AgentConfigUpdate, ProviderStatus } from '@persona/shared';
 import { cn } from '../../lib/utils';
 import { logger } from '../../lib/logger';
+import { appStorage } from '../../lib/appStorage';
 import {
   getAgent,
   updateAgent,
@@ -238,7 +239,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
       logger.error('[Landing] failed to update agent:', err);
       toast.error(t('common.saveFailed'));
     } finally {
-      localStorage.setItem('landing-completed', 'true');
+      appStorage.setItem('landing-completed', 'true');
       onComplete();
     }
   };

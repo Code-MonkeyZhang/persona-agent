@@ -47,6 +47,10 @@ export interface WindowAPI {
   log: (level: string, ...args: unknown[]) => Promise<void>;
   /** 运行时切换主进程文件日志开关，与 enableLogging 配置联动 */
   setLoggingEnabled: (enabled: boolean) => Promise<void>;
+  /** 应用状态存储，读写主进程 electron-store，值统一为字符串 */
+  stateGetAll: () => Promise<Record<string, string>>;
+  stateSet: (key: string, value: string) => Promise<void>;
+  stateDelete: (key: string) => Promise<void>;
   openExternal: (url: string) => Promise<void>;
   openPath: (filePath: string) => Promise<string>;
   proxyFetch: (

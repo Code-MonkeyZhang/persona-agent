@@ -3,7 +3,8 @@
  * @description 主窗口视图状态管理，控制全局视图切换以及 MainView 内部导航、侧边栏折叠
  */
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { appStorage } from '../lib/appStorage';
 
 /** 全局视图：设置页、商城与聊天页互斥切换 */
 type ViewType = 'chat' | 'settings' | 'marketplace';
@@ -67,6 +68,7 @@ export const useViewStore = create<ViewStore>()(
     }),
     {
       name: 'view-store',
+      storage: createJSONStorage(() => appStorage),
       partialize: (s) => ({
         sessionSidebarCollapsed: s.sessionSidebarCollapsed,
         sessionSidebarWidth: s.sessionSidebarWidth,

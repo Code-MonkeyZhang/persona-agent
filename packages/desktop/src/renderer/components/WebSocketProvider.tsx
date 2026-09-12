@@ -10,17 +10,18 @@ import { useTunnelStore } from '../stores/tunnelStore';
 import { toast } from '../stores/toastStore';
 import i18n from '../i18n';
 import { logger } from '../lib/logger';
+import { appStorage } from '../lib/appStorage';
 
 const DEVICE_ID_KEY = 'deviceId';
 
 /**
- * 从 localStorage 获取或生成永久 deviceId。
+ * 从 appStorage 获取或生成永久 deviceId。
  */
 function getOrCreateDeviceId(): string {
-  let id = localStorage.getItem(DEVICE_ID_KEY);
+  let id = appStorage.getItem(DEVICE_ID_KEY);
   if (!id) {
     id = crypto.randomUUID();
-    localStorage.setItem(DEVICE_ID_KEY, id);
+    appStorage.setItem(DEVICE_ID_KEY, id);
     logger.info(`[WebSocket] Generated new deviceId: ${id}`);
   }
   return id;

@@ -1,29 +1,25 @@
 /**
  * @file store/index.ts
- * @description 本地配置存储模块 - 基于 electron-store 实现持久化配置
+ * @description 应用状态存储模块 - 基于 electron-store 实现跨源持久化
  */
 
 import Store from 'electron-store';
-import { app } from 'electron';
-import { is } from '@electron-toolkit/utils';
 import log from 'electron-log';
 
-let store: Store | null = null;
+let store: Store<Record<string, string>> | null = null;
 
 /**
- * 初始化 electron-store 实例，开发环境使用项目根目录，生产环境使用 Electron userData 目录
+ * 初始化 electron-store 实例，默认写入 Electron userData 目录
+ * 开发与生产共用同一份文件，避免应用状态随运行环境分裂
  * 重复调用时直接返回已有实例
  * @returns 初始化后的 Store 实例
  */
-export function initStore(): Store {
+export function initStore(): Store<Record<string, string>> {
   if (store) {
     return store;
   }
 
-  const cwd = is.dev ? process.cwd() : app.getPath('userData');
-
-  store = new Store({
-    cwd,
+  store = new Store<Record<string, string>>({
     clearInvalidConfig: true,
   });
 

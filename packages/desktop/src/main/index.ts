@@ -114,7 +114,7 @@ log.info('App starting...');
 
 /** 应用主入口 */
 app.whenReady().then(async () => {
-  initStore();
+  const store = initStore();
 
   process.on('SIGINT', () => {
     serverProcess?.kill();
@@ -137,6 +137,21 @@ app.whenReady().then(async () => {
   ipcMain.handle(IPC.GET_SERVER_URL, () => {
     return getServerUrl();
   });
+
+  // IPC：应用状态整取，渲染层启动时一次取回全部键值
+  ipcMain.handle(IPC.STATE_GET_ALL, () => {
+    const all = store.store;
+    log.info(`[store] state getAll, ${Object.keys(all).length} keys`);
+    return all;
+  });
+
+  // IPC：应用状态单项写入，electron-store 同步落盘
+  ipcMain.handle(IPC.STATE_SET, (_event, key: string, value: string) =>
+    store.set(key, value)
+  );
+
+  // IPC：应用状态单项删除
+  ipcMain.handle(IPC.STATE_DELETE, (_event, key: string) => store.delete(key));
 
   // IPC：打开文件夹选择对话框
   ipcMain.handle(

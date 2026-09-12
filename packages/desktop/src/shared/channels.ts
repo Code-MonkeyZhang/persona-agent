@@ -6,6 +6,9 @@
 export const IPC = {
   GET_SERVER_URL: 'get-server-url',
   SELECT_FOLDER: 'select-folder',
+  STATE_GET_ALL: 'state:get-all',
+  STATE_SET: 'state:set',
+  STATE_DELETE: 'state:delete',
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_MAXIMIZE: 'window:maximize',
   WINDOW_UNMAXIMIZE: 'window:unmaximize',

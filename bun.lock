@@ -13,7 +13,7 @@
     },
     "packages/desktop": {
       "name": "persona-agent-desktop",
-      "version": "1.9.1",
+      "version": "1.9.2",
       "dependencies": {
         "@lobehub/icons": "^5.16.0",
         "@radix-ui/react-scroll-area": "^1.2.12",
@@ -28,7 +28,6 @@
         "framer-motion": "^11.18.0",
         "highlight.js": "^11.9.0",
         "i18next": "^26.2.0",
-        "i18next-browser-languagedetector": "^8.2.1",
         "lucide-react": "^0.300.0",
         "qrcode.react": "^4.2.0",
         "react": "^18.2.0",
@@ -65,7 +64,7 @@
     },
     "packages/server": {
       "name": "persona-agent-server",
-      "version": "1.9.1",
+      "version": "1.9.2",
       "bin": {
         "persona-agent-server": "dist/src/index.js",
       },
@@ -99,7 +98,7 @@
     },
     "packages/shared": {
       "name": "@persona/shared",
-      "version": "1.9.1",
+      "version": "1.9.2",
       "dependencies": {
         "zod": "^4.3.5",
       },
@@ -1478,8 +1477,6 @@
     "husky": ["husky@9.1.7", "https://registry.npmmirror.com/husky/-/husky-9.1.7.tgz", { "bin": "bin.js" }, "sha512-5gs5ytaNjBrh5Ow3zrvdUUY+0VxIuWVL4i9irt6friV+BqdCfmV11CQTWMiBYWHbXhco+J1kHfTOUkePhCDvMA=="],
 
     "i18next": ["i18next@26.3.1", "https://registry.npmmirror.com/i18next/-/i18next-26.3.1.tgz", { "peerDependencies": { "typescript": "^5 || ^6" }, "optionalPeers": ["typescript"] }, "sha512-txQqd5EULsqEh9OJqRH15aCaOuy/nLJyhw5EHCSKLKJE1aBbb3Zve2+uQIxgWhPm1QqUQoWyQBm2kfmmIrzkcQ=="],
-
-    "i18next-browser-languagedetector": ["i18next-browser-languagedetector@8.2.1", "https://registry.npmmirror.com/i18next-browser-languagedetector/-/i18next-browser-languagedetector-8.2.1.tgz", { "dependencies": { "@babel/runtime": "^7.23.2" } }, "sha512-bZg8+4bdmaOiApD7N7BPT9W8MLZG+nPTOFlLiJiT8uzKXFjhxw4v2ierCXOwB5sFDMtuA5G4kgYZ0AznZxQ/cw=="],
 
     "iconv-corefoundation": ["iconv-corefoundation@1.1.7", "https://registry.npmmirror.com/iconv-corefoundation/-/iconv-corefoundation-1.1.7.tgz", { "dependencies": { "cli-truncate": "^2.1.0", "node-addon-api": "^1.6.3" }, "os": "darwin" }, "sha512-T10qvkw0zz4wnm560lOEg0PovVqUXuOFhhHAkixw8/sycy7TJt7v/RrkEKEQnAw2viPSJu6iAkErxnzR0g8PpQ=="],
 

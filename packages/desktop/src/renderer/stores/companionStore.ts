@@ -1,10 +1,11 @@
 /**
  * @file src/renderer/stores/companionStore.ts
  * @description Companion 面板状态管理，控制显示/隐藏和姿态切换
- * 面板可见性通过 zustand persist 中间件持久化到 localStorage，重启后自动恢复
+ * 面板可见性通过 zustand persist 中间件持久化到 appStorage，重启后自动恢复
  */
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { appStorage } from '../lib/appStorage';
 
 interface CompanionStore {
   visible: boolean;
@@ -26,6 +27,7 @@ export const useCompanionStore = create<CompanionStore>()(
     }),
     {
       name: 'companion-store',
+      storage: createJSONStorage(() => appStorage),
       partialize: (state) => ({ visible: state.visible }),
     }
   )
