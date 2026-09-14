@@ -319,6 +319,7 @@ function AppContent() {
     } else {
       chatStore.setCurrentSessionId(null);
       setAgentId(currentAgent?.id ?? null);
+      useCompanionStore.getState().setPose('default');
     }
   }, [activeSessionId, currentAgent, setAgentId, convertSessionMessages]);
 
