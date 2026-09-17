@@ -31,5 +31,36 @@
     --placeholder: 0 0% 80%;
     --card-bg: 0 0% 98%;
     --card-border: 0 0% 93.3%;
+
+    /* 字体族。Inter 覆盖西文字形与数字，中文字形由系统栈兜底。 */
+    --font-family-sans: 'Inter', -apple-system, 'Segoe UI', 'Roboto', sans-serif;
+    --font-family-mono: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
+
+    /* 数值层字号。这七个档位是全站唯一允许的字号，档位之外视为违规。 */
+    --text-11: 11px;
+    --text-11-line-height: 15px;
+    --text-12: 12px;
+    --text-12-line-height: 17px;
+    --text-13: 13px;
+    --text-13-line-height: 19px;
+    --text-14: 14px;
+    --text-14-line-height: 22px;
+    --text-16: 16px;
+    --text-16-line-height: 21px;
+    --text-20: 20px;
+    --text-20-line-height: 26px;
+    --text-26: 26px;
+    --text-26-line-height: 32px;
+
+    /* 语义层字号。按角色引用数值层，整体调比例只动数值层。 */
+    --font-micro: var(--text-11);
+    --font-caption: var(--text-12);
+    --font-body: var(--text-13);
+    --font-body-strong: var(--text-13);
+    --font-content: var(--text-14);
+    --font-title-section: var(--text-16);
+    --font-title-page: var(--text-20);
+    --font-title-display: var(--text-26);
+    --font-code: var(--text-13);
   }
 }
