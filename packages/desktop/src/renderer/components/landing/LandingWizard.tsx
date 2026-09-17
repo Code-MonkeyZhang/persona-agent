@@ -295,11 +295,11 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                           {p.name}
                         </span>
                         {p.hasAuth ? (
-                          <span className="block text-[11.5px] text-emerald-600">
+                          <span className="block text-caption text-emerald-600">
                             ✓ {t('landing.configured')}
                           </span>
                         ) : (
-                          <span className="block text-[11.5px] text-muted-foreground">
+                          <span className="block text-caption text-muted-foreground">
                             {t('landing.notConfigured')}
                           </span>
                         )}
@@ -315,7 +315,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
               /* 单个供应商的 key 表单：同一个框内切换，模型为该供应商自己的列表 */
               <div className="flex-1 min-h-0 overflow-y-auto pr-1">
                 <button
-                  className="text-[12.5px] leading-none text-muted-foreground hover:text-foreground mb-3 flex items-center gap-1"
+                  className="text-caption leading-none text-muted-foreground hover:text-foreground mb-3 flex items-center gap-1"
                   onClick={() => setSelectedProvider(null)}
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
@@ -339,7 +339,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                 <div className="flex gap-2">
                   <div className="flex-1 min-w-0">
                     <PasswordInput
-                      className="w-full h-9 text-[13.5px]"
+                      className="w-full h-9 text-body"
                       placeholder={t('landing.apiKeyPlaceholder', {
                         name: provider.name,
                       })}
@@ -384,7 +384,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                   {t('landing.modelLabel')}
                 </label>
                 <Select value={modelId} onValueChange={setModelId}>
-                  <SelectTrigger className="w-full h-9 text-[13.5px]">
+                  <SelectTrigger className="w-full h-9 text-body">
                     {/* SelectValue 显式 children 覆盖选中项 ItemText 的镜像，避免 trigger 与选项各渲染一个图标 */}
                     <SelectValue>
                       <span className="flex items-center gap-2 min-w-0">
@@ -421,13 +421,13 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
             <div className="flex items-center gap-3 pt-5">
               {!skipConfirm ? (
                 <button
-                  className="text-[12.5px] text-muted-foreground/70 hover:text-muted-foreground"
+                  className="text-caption text-muted-foreground/70 hover:text-muted-foreground"
                   onClick={() => setSkipConfirm(true)}
                 >
                   {t('landing.skipSetup')}
                 </button>
               ) : (
-                <span className="text-[12.5px] text-muted-foreground">
+                <span className="text-caption text-muted-foreground">
                   {t('landing.skipConsequence')}{' '}
                   <button
                     className="text-primary underline underline-offset-2"
@@ -645,7 +645,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
 
             <div className="flex items-center pt-5">
               <button
-                className="flex items-center gap-1 text-[12.5px] leading-none text-muted-foreground hover:text-foreground"
+                className="flex items-center gap-1 text-caption leading-none text-muted-foreground hover:text-foreground"
                 onClick={() => setPage(0)}
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
@@ -686,10 +686,10 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                       <Icon className="w-4 h-4" />
                     </span>
                     <span className="min-w-0 flex-1 pt-0.5">
-                      <span className="block text-[13.5px] font-semibold leading-tight text-foreground mb-0.5">
+                      <span className="block text-body-strong leading-tight text-foreground mb-0.5">
                         {t(`landing.${id}ConceptTitle`)}
                       </span>
-                      <span className="block text-[12.5px] text-muted-foreground leading-relaxed">
+                      <span className="block text-caption text-muted-foreground leading-relaxed">
                         {t(`landing.${id}ConceptDesc`)}
                       </span>
                     </span>
@@ -700,7 +700,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
 
             <div className="flex items-center mt-3.5">
               <button
-                className="flex items-center gap-1 text-[12.5px] leading-none text-muted-foreground hover:text-foreground"
+                className="flex items-center gap-1 text-caption leading-none text-muted-foreground hover:text-foreground"
                 onClick={() => setPage(1)}
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
