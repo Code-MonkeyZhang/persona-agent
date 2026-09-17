@@ -134,10 +134,10 @@ function ServerSection({
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-[15px] text-foreground">
+        <div className="font-medium text-content text-foreground">
           {t('server.agentServer')}
         </div>
-        <div className="flex items-center gap-1.5 text-[14px] text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-content text-muted-foreground">
           <StatusDot color={config.dotColor} />
           <span className={config.color}>{t(config.labelKey)}</span>
         </div>
@@ -145,7 +145,7 @@ function ServerSection({
       {connectionStatus === 'connected' && serverUrl && (
         <div className="flex items-center gap-2 shrink-0">
           <Globe className="w-4 h-4 text-blue-500" />
-          <code className="text-[13px] bg-secondary px-2 py-1 rounded-[12px] text-foreground">
+          <code className="text-body bg-secondary px-2 py-1 rounded-[12px] text-foreground">
             {serverUrl}
           </code>
           <CopyButton text={serverUrl} />
@@ -198,16 +198,16 @@ function TunnelSection({
       <div>
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-medium text-[14px] text-foreground">
+            <p className="font-medium text-content text-foreground">
               {t('server.remoteAccess')}
             </p>
-            <p className="text-[13px] text-muted-foreground">
+            <p className="text-body text-muted-foreground">
               {t('server.connectFirst')}
             </p>
           </div>
           <button
             disabled
-            className="px-3 py-1.5 rounded-xl text-[13px] bg-foreground/10 text-foreground opacity-50 cursor-not-allowed"
+            className="px-3 py-1.5 rounded-xl text-body bg-foreground/10 text-foreground opacity-50 cursor-not-allowed"
           >
             {t('server.startTunnel')}
           </button>
@@ -220,17 +220,17 @@ function TunnelSection({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="font-medium text-[14px] text-foreground">
+          <p className="font-medium text-content text-foreground">
             {t('server.remoteAccess')}
           </p>
-          <p className="text-[13px] text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             {t('server.tunnelDesc')}
           </p>
         </div>
         <button
           onClick={handleToggle}
           disabled={status === 'starting'}
-          className={`px-3 py-1.5 rounded-xl text-[13px] transition-colors ${
+          className={`px-3 py-1.5 rounded-xl text-body transition-colors ${
             status === 'running'
               ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30'
               : 'bg-foreground/10 text-foreground hover:bg-foreground/20'
@@ -247,7 +247,7 @@ function TunnelSection({
       {status === 'starting' && (
         <div className="rounded-[16px] border border-border p-3 flex items-center gap-2">
           <Loader2 className="w-4 h-4 animate-spin text-yellow-500" />
-          <span className="text-[14px] text-muted-foreground">
+          <span className="text-content text-muted-foreground">
             {t('server.tunnelConnectingMsg')}
           </span>
         </div>
@@ -257,17 +257,17 @@ function TunnelSection({
         <div className="bg-orange-500/10 border border-orange-500/30 rounded-[16px] p-3 space-y-3">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-orange-500 shrink-0" />
-            <span className="text-[14px] text-orange-500">
+            <span className="text-content text-orange-500">
               {t('server.tunnelUnreachable')}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <code className="text-[13px] bg-white px-2 py-1 rounded-[12px] text-orange-500">
+            <code className="text-body bg-white px-2 py-1 rounded-[12px] text-orange-500">
               {url}
             </code>
             <button
               onClick={handleRetry}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[13px] bg-orange-500/20 text-orange-500 hover:bg-orange-500/30 transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-body bg-orange-500/20 text-orange-500 hover:bg-orange-500/30 transition-colors"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               {t('server.retry')}
@@ -281,13 +281,13 @@ function TunnelSection({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Cloud className="w-4 h-4 text-green-500" />
-              <span className="text-[14px] text-green-500">
+              <span className="text-content text-green-500">
                 {t('server.publicUrl')}
               </span>
               <StatusDot color="bg-green-500" />
             </div>
             <div className="flex items-center gap-2">
-              <code className="text-[13px] bg-white px-2 py-1 rounded-[12px] text-green-500">
+              <code className="text-body bg-white px-2 py-1 rounded-[12px] text-green-500">
                 {url}
               </code>
               <CopyButton
@@ -298,7 +298,7 @@ function TunnelSection({
           </div>
           <div className="flex flex-col items-center gap-2 mt-3">
             <QRCodeSVG value={url} size={180} />
-            <span className="text-[13px] text-muted-foreground">
+            <span className="text-body text-muted-foreground">
               {t('server.scanToConnect')}
             </span>
           </div>
@@ -307,7 +307,7 @@ function TunnelSection({
 
       {status === 'error' && error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-[16px] p-3">
-          <p className="text-[14px] text-red-500">
+          <p className="text-content text-red-500">
             {t('server.tunnelFailed')}: {error}
           </p>
         </div>

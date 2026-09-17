@@ -272,10 +272,10 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
         {/* ---- P1 密钥与模型：header 持久，画廊 ⇄ 表单同框切换 ---- */}
         {step === 0 && (
           <section className="flex-1 min-h-0 flex flex-col">
-            <h1 className="text-[19px] font-semibold text-foreground">
+            <h1 className="text-title-page font-semibold text-foreground">
               {t('landing.welcomeTitle')}
             </h1>
-            <p className="text-[13px] text-muted-foreground mt-0.5 mb-4">
+            <p className="text-body text-muted-foreground mt-0.5 mb-4">
               {t('landing.welcomeSub')}
             </p>
 
@@ -291,7 +291,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                     >
                       <ProviderMark providerId={p.id} name={p.name} size={32} />
                       <span className="min-w-0 flex-1">
-                        <span className="block text-[13px] font-semibold leading-tight truncate text-foreground">
+                        <span className="block text-body font-semibold leading-tight truncate text-foreground">
                           {p.name}
                         </span>
                         {p.hasAuth ? (
@@ -304,7 +304,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                           </span>
                         )}
                       </span>
-                      <span className="text-muted-foreground/50 text-[14px]">
+                      <span className="text-muted-foreground/50 text-content">
                         ›
                       </span>
                     </button>
@@ -328,12 +328,12 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                     name={provider.name}
                     size={36}
                   />
-                  <span className="text-[15px] font-semibold text-foreground">
+                  <span className="text-content font-semibold text-foreground">
                     {provider.name}
                   </span>
                 </div>
 
-                <label className="block text-[12px] text-muted-foreground mt-4 mb-1.5">
+                <label className="block text-caption text-muted-foreground mt-4 mb-1.5">
                   {t('landing.apiKeyLabel')}
                 </label>
                 <div className="flex gap-2">
@@ -351,7 +351,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                     />
                   </div>
                   <button
-                    className="shrink-0 px-4 h-9 rounded-full border border-border text-[13px] font-medium text-foreground hover:border-primary/60 disabled:opacity-40 transition-colors"
+                    className="shrink-0 px-4 h-9 rounded-full border border-border text-body font-medium text-foreground hover:border-primary/60 disabled:opacity-40 transition-colors"
                     disabled={!apiKey.trim() || verifying || keyVerified}
                     onClick={() => void handleVerifyKey()}
                   >
@@ -368,19 +368,19 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                   </button>
                 </div>
                 {keyVerified && (
-                  <p className="text-[12px] text-emerald-600 mt-1.5">
+                  <p className="text-caption text-emerald-600 mt-1.5">
                     ✓ {t('landing.keySaved', { name: provider.name })}
                   </p>
                 )}
                 {KEY_URLS[provider.id] && (
-                  <p className="text-[11px] text-muted-foreground/70 mt-2">
+                  <p className="text-caption text-muted-foreground/70 mt-2">
                     {t('landing.keyHelp', {
                       url: KEY_URLS[provider.id],
                     })}
                   </p>
                 )}
 
-                <label className="block text-[12px] text-muted-foreground mt-4 mb-1.5">
+                <label className="block text-caption text-muted-foreground mt-4 mb-1.5">
                   {t('landing.modelLabel')}
                 </label>
                 <Select value={modelId} onValueChange={setModelId}>
@@ -442,14 +442,14 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                 </span>
               )}
               <Button
-                className="ml-auto h-9 px-6 text-[13px]"
+                className="ml-auto h-9 px-6 text-body"
                 disabled={!canNext || verifying}
                 onClick={() => setPage(1)}
               >
                 {t('landing.next')}
               </Button>
             </div>
-            <p className="text-[11px] text-muted-foreground/70 mt-3">
+            <p className="text-caption text-muted-foreground/70 mt-3">
               {t('landing.p1Hint')}
             </p>
           </section>
@@ -458,7 +458,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
         {/* ---- P2 身份与提示词：两张卡（AgentEditor 卡片形态），定高不滚动 ---- */}
         {step === 1 && (
           <section className="flex-1 min-h-0 flex flex-col">
-            <h1 className="text-[19px] font-semibold text-foreground">
+            <h1 className="text-title-page font-semibold text-foreground">
               {t('landing.identityTitle')}
             </h1>
 
@@ -466,7 +466,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
               {/* 卡片1 身份：头像+名字/简介，音色与朗读语言（AgentEditor 基本信息区+音色区合并） */}
               <div className="rounded-xl border border-border bg-white px-4 py-3.5">
                 <div className="flex items-center mb-3">
-                  <h3 className="text-[14px] font-bold text-foreground flex items-center gap-1.5">
+                  <h3 className="text-content font-bold text-foreground flex items-center gap-1.5">
                     <PenLine className="w-4 h-4 text-muted-foreground -mt-0.5" />
                     {t('landing.identityCard')}
                   </h3>
@@ -482,21 +482,21 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                   )}
                   {/* 标签列自适应最宽标签，避免长标签溢出，两行输入框左缘对齐 */}
                   <div className="flex-1 min-w-0 grid grid-cols-[max-content_1fr] items-center gap-x-2.5 gap-y-2.5">
-                    <span className="text-[13px] text-muted-foreground">
+                    <span className="text-body text-muted-foreground">
                       {t('landing.nameLabel')}
                     </span>
                     <input
-                      className="h-8 rounded-lg border border-border px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      className="h-8 rounded-lg border border-border px-3 text-body focus:outline-none focus:ring-2 focus:ring-primary/40"
                       value={profile.name}
                       onChange={(e) =>
                         setProfile({ ...profile, name: e.target.value })
                       }
                     />
-                    <span className="text-[13px] text-muted-foreground">
+                    <span className="text-body text-muted-foreground">
                       {t('landing.descLabel')}
                     </span>
                     <input
-                      className="h-8 rounded-lg border border-border px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      className="h-8 rounded-lg border border-border px-3 text-body focus:outline-none focus:ring-2 focus:ring-primary/40"
                       value={profile.desc}
                       onChange={(e) =>
                         setProfile({ ...profile, desc: e.target.value })
@@ -509,7 +509,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                   {/* 语音服务行：未配置时可轻量填 key（与 VoiceConfigPanel 同一 API），已配置显示绿字状态 */}
                   {ttsKeyConfigured ? (
                     <SettingRow label={t('landing.ttsServiceLabel')}>
-                      <span className="text-[12px] text-emerald-600 flex items-center gap-1">
+                      <span className="text-caption text-emerald-600 flex items-center gap-1">
                         <Check className="w-3.5 h-3.5" />
                         {t('landing.ttsConfigured')}
                       </span>
@@ -518,7 +518,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                     <SettingRow label={t('landing.ttsServiceLabel')}>
                       <div className="flex items-center gap-2">
                         <PasswordInput
-                          className="w-48 h-8 text-[13px]"
+                          className="w-48 h-8 text-body"
                           placeholder={t('landing.ttsKeyPlaceholder')}
                           value={ttsKey}
                           onChange={(e) => setTtsKey(e.target.value)}
@@ -543,14 +543,14 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                     <SettingRow label={t('landing.voiceLabel')}>
                       <div className="flex items-center gap-2">
                         <Select value={voiceId} onValueChange={setVoiceId}>
-                          <SelectTrigger className="w-48 h-8 text-[13px]">
+                          <SelectTrigger className="w-48 h-8 text-body">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             {voices.filter((v) => v.group === 'cloned').length >
                               0 && (
                               <SelectGroup>
-                                <SelectLabel className="text-[11px] text-muted-foreground uppercase">
+                                <SelectLabel className="text-caption text-muted-foreground uppercase">
                                   {t('agentEditor.clonedVoices')}
                                 </SelectLabel>
                                 {voices
@@ -563,7 +563,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                               </SelectGroup>
                             )}
                             <SelectGroup>
-                              <SelectLabel className="text-[11px] text-muted-foreground uppercase">
+                              <SelectLabel className="text-caption text-muted-foreground uppercase">
                                 {t('agentEditor.presetVoices')}
                               </SelectLabel>
                               {voices
@@ -609,7 +609,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                           value={voiceLanguage}
                           onValueChange={setVoiceLanguage}
                         >
-                          <SelectTrigger className="w-48 h-8 text-[13px]">
+                          <SelectTrigger className="w-48 h-8 text-body">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -629,12 +629,12 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
 
               {/* 卡片2 系统提示词：撑满剩余高度 */}
               <div className="flex-1 min-h-0 rounded-xl border border-border bg-white px-4 py-3.5 flex flex-col">
-                <h3 className="text-[14px] font-bold text-foreground flex items-center gap-1.5 mb-2">
+                <h3 className="text-content font-bold text-foreground flex items-center gap-1.5 mb-2">
                   <FileText className="w-4 h-4 text-muted-foreground -mt-0.5" />
                   {t('landing.promptCard')}
                 </h3>
                 <Textarea
-                  className="flex-1 min-h-[120px] text-[13px] resize-none"
+                  className="flex-1 min-h-[120px] text-body resize-none"
                   value={profile.systemPrompt}
                   onChange={(e) =>
                     setProfile({ ...profile, systemPrompt: e.target.value })
@@ -652,13 +652,13 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                 {t('landing.back')}
               </button>
               <Button
-                className="ml-auto h-9 px-6 text-[13px]"
+                className="ml-auto h-9 px-6 text-body"
                 onClick={() => setPage(2)}
               >
                 {t('landing.next')}
               </Button>
             </div>
-            <p className="text-[11px] text-muted-foreground/70 mt-3">
+            <p className="text-caption text-muted-foreground/70 mt-3">
               {t('landing.p2Hint')}
             </p>
           </section>
@@ -667,10 +667,10 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
         {/* ---- P3 能力概念介绍：不列条目、零网络，唯一出口「开始对话」 ---- */}
         {step === 2 && (
           <section className="flex-1 min-h-0 flex flex-col">
-            <h1 className="text-[19px] font-semibold text-foreground">
+            <h1 className="text-title-page font-semibold text-foreground">
               {t('landing.toolsTitle')}
             </h1>
-            <p className="text-[13px] text-muted-foreground mt-0.5 mb-3">
+            <p className="text-body text-muted-foreground mt-0.5 mb-3">
               {t('landing.toolsSub')}
             </p>
 
@@ -707,7 +707,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                 {t('landing.back')}
               </button>
               <Button
-                className="ml-auto h-9 px-6 text-[13px]"
+                className="ml-auto h-9 px-6 text-body"
                 onClick={() => void finish()}
               >
                 {t('landing.finish')}

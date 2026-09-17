@@ -72,7 +72,7 @@ export const ConfigForm: React.FC = () => {
           <div className="flex rounded-lg border border-border overflow-hidden">
             <button
               onClick={() => i18n.changeLanguage('zh-CN')}
-              className={`px-3 py-1 text-[13px] leading-[18px] transition-colors ${
+              className={`px-3 py-1 text-body leading-[18px] transition-colors ${
                 i18n.language === 'zh-CN'
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-white text-muted-foreground hover:bg-secondary'
@@ -82,7 +82,7 @@ export const ConfigForm: React.FC = () => {
             </button>
             <button
               onClick={() => i18n.changeLanguage('en')}
-              className={`px-3 py-1 text-[13px] leading-[18px] transition-colors border-l border-border ${
+              className={`px-3 py-1 text-body leading-[18px] transition-colors border-l border-border ${
                 i18n.language === 'en'
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-white text-muted-foreground hover:bg-secondary'

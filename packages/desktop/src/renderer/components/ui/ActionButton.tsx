@@ -24,7 +24,7 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
 }) => (
   <button
     onClick={onClick}
-    className="ml-2 flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[12px] text-foreground hover:bg-secondary transition-colors"
+    className="ml-2 flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-caption text-foreground hover:bg-secondary transition-colors"
   >
     {icon}
     {label}

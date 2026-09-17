@@ -133,7 +133,7 @@ export const ProviderConfigPanel: React.FC = () => {
         {/* 左栏: 供应商列表 */}
         <div className="w-56 shrink-0 border-r border-border py-3 flex flex-col min-h-0">
           <div className="px-4 pb-2 mb-1 shrink-0">
-            <span className="text-[13px] font-medium text-muted-foreground">
+            <span className="text-body font-medium text-muted-foreground">
               {t('provider.selectProvider')}
             </span>
           </div>
@@ -144,7 +144,7 @@ export const ProviderConfigPanel: React.FC = () => {
                   key={provider.id}
                   onClick={() => handleSelectProvider(provider.id)}
                   className={cn(
-                    'w-full px-3 py-2 text-left text-[13px] rounded-lg transition-colors flex items-center justify-between',
+                    'w-full px-3 py-2 text-left text-body rounded-lg transition-colors flex items-center justify-between',
                     selectedProvider === provider.id
                       ? 'bg-secondary text-foreground font-medium'
                       : 'text-muted-foreground hover:bg-secondary/80'
@@ -178,10 +178,10 @@ export const ProviderConfigPanel: React.FC = () => {
                     size={36}
                   />
                   <div className="min-w-0">
-                    <h3 className="text-[14px] font-bold text-foreground mb-1">
+                    <h3 className="text-content font-bold text-foreground mb-1">
                       {currentProvider.name}
                     </h3>
-                    <p className="text-[12px] text-muted-foreground">
+                    <p className="text-caption text-muted-foreground">
                       {t('provider.configDesc', { name: currentProvider.name })}
                     </p>
                   </div>
@@ -201,7 +201,7 @@ export const ProviderConfigPanel: React.FC = () => {
                       variant="outline"
                       onClick={handleVerify}
                       disabled={verifyingProvider === currentProvider.id}
-                      className="rounded-lg border-input h-8 text-[13px] px-3"
+                      className="rounded-lg border-input h-8 text-body px-3"
                     >
                       {verifyingProvider === currentProvider.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -213,17 +213,17 @@ export const ProviderConfigPanel: React.FC = () => {
                 </SettingRow>
 
                 {currentProvider.hasAuth && !apiKey && !verifyStatus && (
-                  <p className="text-[12px] text-green-600 mt-2 flex items-center gap-1">
+                  <p className="text-caption text-green-600 mt-2 flex items-center gap-1">
                     <Check className="w-3 h-3" /> {t('provider.configured')}
                   </p>
                 )}
                 {verifyStatus?.valid && (
-                  <p className="text-[12px] text-green-600 mt-2 flex items-center gap-1">
+                  <p className="text-caption text-green-600 mt-2 flex items-center gap-1">
                     <Check className="w-3 h-3" /> {t('provider.apiKeyValid')}
                   </p>
                 )}
                 {verifyStatus?.error && (
-                  <p className="text-[12px] text-red-500 mt-2">
+                  <p className="text-caption text-red-500 mt-2">
                     {verifyStatus.error}
                   </p>
                 )}
@@ -231,7 +231,7 @@ export const ProviderConfigPanel: React.FC = () => {
 
               {/* 模型列表: 内嵌分隔线而非独立卡片，区域独立滚动 */}
               <ScrollArea className="mt-4 pt-4 border-t border-border flex-1 min-h-0">
-                <h3 className="text-[14px] font-bold text-foreground mb-3">
+                <h3 className="text-content font-bold text-foreground mb-3">
                   {t('provider.availableModels')}
                 </h3>
                 <div className="flex flex-col divide-y divide-border">
@@ -247,7 +247,7 @@ export const ProviderConfigPanel: React.FC = () => {
                           name={currentProvider.name}
                           size={16}
                         />
-                        <span className="font-mono text-[13px] text-foreground truncate">
+                        <span className="font-mono text-body text-foreground truncate">
                           {model}
                         </span>
                       </span>
@@ -259,7 +259,7 @@ export const ProviderConfigPanel: React.FC = () => {
               {currentProvider.hasAuth && (
                 <button
                   onClick={handleDelete}
-                  className="text-[12px] text-placeholder hover:text-red-400 transition-colors mt-4 shrink-0"
+                  className="text-caption text-placeholder hover:text-red-400 transition-colors mt-4 shrink-0"
                 >
                   {t('provider.deleteApiKey')}
                 </button>

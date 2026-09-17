@@ -46,7 +46,7 @@ const NavItem: React.FC<{
       <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-primary rounded-r" />
     )}
     <Icon className="w-4 h-4" />
-    <span className="flex-1 text-left text-sm truncate">{label}</span>
+    <span className="flex-1 text-left text-content truncate">{label}</span>
   </button>
 );
 
@@ -134,15 +134,15 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
           {currentAgent ? (
             <AgentAvatar agent={currentAgent} size="md" />
           ) : (
-            <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium bg-muted text-foreground">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center text-content font-medium bg-muted text-foreground">
               ?
             </div>
           )}
           <div className="min-w-0 flex-1 text-left">
-            <div className="font-medium text-[15px] text-foreground truncate">
+            <div className="font-medium text-content text-foreground truncate">
               {currentAgent?.name || t('common.noAgentSelected')}
             </div>
-            <div className="text-[13px] text-muted-foreground truncate">
+            <div className="text-body text-muted-foreground truncate">
               {currentAgent?.description || ''}
             </div>
           </div>
@@ -170,10 +170,10 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
                 )}
               <MessageCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-muted-foreground" />
               <div className="flex-1 min-w-0 text-left">
-                <span className="text-sm text-foreground block">
+                <span className="text-content text-foreground block">
                   {t('sessionSidebar.chat')}
                 </span>
-                <span className="text-xs text-muted-foreground truncate block">
+                <span className="text-caption text-muted-foreground truncate block">
                   {chatPreview}
                 </span>
               </div>
@@ -206,7 +206,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
         {/* 「会话」标题行，右侧 Plus 按钮进入新对话草稿态 */}
         <div className="w-full flex items-center gap-2.5 px-3 py-2">
           <MessagesSquare className="w-4 h-4 text-muted-foreground" />
-          <span className="flex-1 text-left text-sm text-muted-foreground truncate">
+          <span className="flex-1 text-left text-content text-muted-foreground truncate">
             {t('sessionSidebar.sessions')}
           </span>
           <button
@@ -232,7 +232,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
       >
         <div className="pb-1">
           {regularSessions.length === 0 ? (
-            <div className="px-7 py-3 text-xs text-muted-foreground">
+            <div className="px-7 py-3 text-caption text-muted-foreground">
               {currentAgent
                 ? t('sessionSidebar.noTaskSessions')
                 : t('common.noAgent')}

@@ -92,7 +92,7 @@ export const AppWebViewPanel: React.FC = () => {
               }}
             />
           )}
-          <span className="font-medium text-[15px] text-foreground truncate">
+          <span className="font-medium text-content text-foreground truncate">
             {selectedApp
               .split('-')
               .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
@@ -120,19 +120,19 @@ export const AppWebViewPanel: React.FC = () => {
         <div ref={containerRef} className="absolute inset-0" />
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-background">
-            <div className="text-sm text-muted-foreground animate-pulse">
+            <div className="text-content text-muted-foreground animate-pulse">
               Loading...
             </div>
           </div>
         )}
         {hasError && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background">
-            <span className="text-sm text-muted-foreground">
+            <span className="text-content text-muted-foreground">
               Failed to load app
             </span>
             <button
               onClick={handleReload}
-              className="px-3 py-1 text-xs rounded border border-border hover:bg-muted"
+              className="px-3 py-1 text-caption rounded border border-border hover:bg-muted"
             >
               Retry
             </button>

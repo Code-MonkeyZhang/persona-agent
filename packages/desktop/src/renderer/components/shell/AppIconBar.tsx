@@ -41,7 +41,7 @@ export const AppIconBar: React.FC = () => {
                     : 'border-transparent bg-secondary'
                 )}
               >
-                <span className="text-sm font-medium text-muted-foreground">
+                <span className="text-content font-medium text-muted-foreground">
                   {app.name.charAt(0).toUpperCase()}
                 </span>
                 {baseUrl && (

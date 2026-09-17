@@ -70,14 +70,14 @@ export const ManageRow: React.FC<ManageRowProps> = (props) => {
           <button
             onClick={() => setConfirming(false)}
             disabled={uninstalling}
-            className="h-7 px-2.5 text-[11px] rounded-full border border-input text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
+            className="h-7 px-2.5 text-caption rounded-full border border-input text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
           >
             {t('common.cancel')}
           </button>
           <button
             onClick={handleConfirm}
             disabled={uninstalling}
-            className="h-7 px-2.5 text-[11px] rounded-full bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 flex items-center gap-1 transition-colors"
+            className="h-7 px-2.5 text-caption rounded-full bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 flex items-center gap-1 transition-colors"
           >
             {uninstalling ? (
               <Loader2 className="w-3 h-3 animate-spin" />
@@ -93,7 +93,7 @@ export const ManageRow: React.FC<ManageRowProps> = (props) => {
             <button
               onClick={props.onAuthorize}
               disabled={props.authorizing}
-              className="shrink-0 h-7 px-2.5 text-[11px] rounded-full border border-input text-muted-foreground hover:text-foreground hover:border-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 transition-colors"
+              className="shrink-0 h-7 px-2.5 text-caption rounded-full border border-input text-muted-foreground hover:text-foreground hover:border-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 transition-colors"
             >
               {props.authorizing ? (
                 <Loader2 className="w-3 h-3 animate-spin" />
@@ -105,7 +105,7 @@ export const ManageRow: React.FC<ManageRowProps> = (props) => {
           )}
           <button
             onClick={() => setConfirming(true)}
-            className="shrink-0 h-7 px-2.5 text-[11px] rounded-full border border-input text-muted-foreground hover:text-red-500 hover:border-red-300 flex items-center gap-1 transition-colors"
+            className="shrink-0 h-7 px-2.5 text-caption rounded-full border border-input text-muted-foreground hover:text-red-500 hover:border-red-300 flex items-center gap-1 transition-colors"
           >
             <Trash2 className="w-3 h-3" />
             {t('marketplace.uninstall')}

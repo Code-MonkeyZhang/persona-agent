@@ -86,7 +86,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   if (filteredProviders.length === 0) {
     return (
       <div
-        className={`px-3 py-2 border border-gray-200 rounded-md text-sm text-gray-400 ${className}`}
+        className={`px-3 py-2 border border-gray-200 rounded-md text-content text-gray-400 ${className}`}
       >
         {t('model.noModels')}
       </div>
@@ -105,7 +105,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
           onValueChange={handleValueChange}
           disabled={disabled}
         >
-          <SelectTrigger className="h-8 w-auto min-w-[120px] max-w-[200px] border-0 bg-transparent hover:bg-muted/50 px-2.5 text-xs text-muted-foreground/60 hover:text-muted-foreground shadow-none focus:ring-0 focus:ring-offset-0">
+          <SelectTrigger className="h-8 w-auto min-w-[120px] max-w-[200px] border-0 bg-transparent hover:bg-muted/50 px-2.5 text-caption text-muted-foreground/60 hover:text-muted-foreground shadow-none focus:ring-0 focus:ring-offset-0">
             <SelectValue placeholder={t('model.selectModel')}>
               <span className="truncate">{displayText}</span>
             </SelectValue>
@@ -116,7 +116,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                 <SelectItem
                   key={`${opt.modelId}-${opt.providerId}`}
                   value={`${opt.modelId}::${opt.providerId}`}
-                  className="text-sm"
+                  className="text-content"
                 >
                   <span className="flex min-w-0 items-center gap-1.5">
                     <ProviderMark
@@ -148,7 +148,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
         onValueChange={handleValueChange}
         disabled={disabled}
       >
-        <SelectTrigger className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm hover:bg-gray-50 focus:ring-blue-500">
+        <SelectTrigger className="w-full px-3 py-2 border border-gray-200 rounded-md text-content hover:bg-gray-50 focus:ring-blue-500">
           <SelectValue placeholder={t('model.selectModel')}>
             {currentModel ? (
               <>
@@ -168,7 +168,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
               <SelectItem
                 key={`${opt.modelId}-${opt.providerId}`}
                 value={`${opt.modelId}::${opt.providerId}`}
-                className="text-sm"
+                className="text-content"
               >
                 <span className="flex min-w-0 items-center gap-1.5">
                   <ProviderMark

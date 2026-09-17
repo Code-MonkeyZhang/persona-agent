@@ -52,7 +52,7 @@ export const Header: React.FC<HeaderProps> = ({ isLoading }) => {
   return (
     <header className="h-14 border-b border-border flex items-center justify-between bg-background">
       <div className="flex items-center gap-4 px-6">
-        <h1 className="font-medium text-[15px] text-foreground">
+        <h1 className="font-medium text-content text-foreground">
           {currentSession?.title || t('header.newChat')}
         </h1>
         {isLoading && (
@@ -73,7 +73,7 @@ export const Header: React.FC<HeaderProps> = ({ isLoading }) => {
             <button
               onClick={handleVoiceToggle}
               disabled={!voiceConfigured}
-              className={`inline-flex items-center justify-center h-8 px-3 text-xs rounded-xl border transition-colors ${
+              className={`inline-flex items-center justify-center h-8 px-3 text-caption rounded-xl border transition-colors ${
                 !voiceConfigured
                   ? 'border-border text-muted-foreground cursor-not-allowed'
                   : voiceEnabled
@@ -91,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({ isLoading }) => {
             </button>
             <button
               onClick={toggleCompanion}
-              className={`inline-flex items-center justify-center h-8 px-3 text-xs rounded-xl border transition-colors ${
+              className={`inline-flex items-center justify-center h-8 px-3 text-caption rounded-xl border transition-colors ${
                 visible
                   ? 'border-primary/20 bg-primary/10 text-primary hover:bg-primary/15'
                   : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'

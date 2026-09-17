@@ -83,10 +83,10 @@ export function CompanionContent({ agentId }: CompanionContentProps) {
       >
         <div className="flex h-full items-center justify-center px-8">
           <div className="text-center">
-            <p className="text-[18px] font-medium text-muted-foreground leading-relaxed">
+            <p className="text-title-page font-medium text-muted-foreground leading-relaxed">
               {t('companion.noAppearance')}
             </p>
-            <p className="text-[14px] text-muted-foreground mt-3 leading-relaxed">
+            <p className="text-content text-muted-foreground mt-3 leading-relaxed">
               {t('companion.uploadPoseHint')}
             </p>
           </div>
@@ -128,7 +128,7 @@ export function CompanionContent({ agentId }: CompanionContentProps) {
       )}
       {hasAssets === true && poseError && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <p className="text-[14px] text-muted-foreground">
+          <p className="text-content text-muted-foreground">
             {t('companion.poseLoadError')}
           </p>
         </div>

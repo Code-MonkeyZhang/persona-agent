@@ -86,7 +86,7 @@ const ThoughtItem = memo(function ThoughtItem({
     }`;
 
   return (
-    <div className="flex gap-3 py-1 text-xs">
+    <div className="flex gap-3 py-1 text-caption">
       {/* Timeline: circular icon + connector line */}
       <div className="flex flex-col items-center shrink-0">
         <div
@@ -178,7 +178,7 @@ const ThoughtItem = memo(function ThoughtItem({
 
         {/* Raw JSON display */}
         {hasToolInput && showRawJson && (
-          <pre className="mt-2 p-2 rounded bg-muted/40 text-[10px] text-gray-600 overflow-x-auto">
+          <pre className="mt-2 p-2 rounded bg-muted/40 text-micro text-gray-600 overflow-x-auto">
             {JSON.stringify(thought.toolInput, null, 2)}
           </pre>
         )}
@@ -186,7 +186,7 @@ const ThoughtItem = memo(function ThoughtItem({
         {/* Tool result */}
         {hasResultOutput && showResult && (
           <div
-            className={`mt-1.5 p-2 rounded text-[10px] overflow-x-auto ${
+            className={`mt-1.5 p-2 rounded text-micro overflow-x-auto ${
               thought.toolResult!.isError
                 ? 'bg-amber-50 text-amber-700'
                 : 'bg-muted/40 text-gray-600'
@@ -223,7 +223,7 @@ export function CollapsedThoughtProcess({
     <div className="mb-2 w-full">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-caption
           transition-opacity duration-200 w-full hover:opacity-60"
       >
         <ChevronRight
@@ -260,7 +260,7 @@ export function CollapsedThoughtProcess({
             <div className="flex justify-end px-3 mt-1">
               <button
                 onClick={() => setIsMaximized(!isMaximized)}
-                className="flex items-center gap-0.5 px-1 py-0.5 rounded text-xs text-gray-400 hover:text-gray-600 hover:bg-muted-foreground/10 transition-colors"
+                className="flex items-center gap-0.5 px-1 py-0.5 rounded text-caption text-gray-400 hover:text-gray-600 hover:bg-muted-foreground/10 transition-colors"
               >
                 {isMaximized ? (
                   <ChevronUp size={12} />
