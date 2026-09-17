@@ -31,7 +31,7 @@ export const LabelWithTooltip: React.FC<LabelWithTooltipProps> = ({
       {tooltip && (
         <span className="relative group">
           <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
-          <span className="absolute left-5 top-1/2 -translate-y-1/2 w-56 px-3 py-2 text-[12px] text-muted-foreground bg-popover border border-input rounded-lg shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10 pointer-events-none">
+          <span className="absolute left-5 top-1/2 -translate-y-1/2 w-56 px-3 py-2 text-caption text-muted-foreground bg-popover border border-input rounded-lg shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10 pointer-events-none">
             {tooltip}
           </span>
         </span>

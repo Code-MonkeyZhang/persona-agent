@@ -63,23 +63,23 @@ export const BasicInfoCard: React.FC<BasicInfoCardProps> = ({
         </div>
         {/* 标签列自适应最宽标签，避免长标签溢出，两行输入框左缘对齐 */}
         <div className="flex-1 min-w-0 grid grid-cols-[max-content_1fr] items-center gap-x-3 gap-y-2.5">
-          <span className="text-[13px] text-muted-foreground">
+          <span className="text-body text-muted-foreground">
             {t('agentEditor.name')}
           </span>
           <Input
             value={name}
             onChange={(e) => onNameChange(e.target.value)}
             placeholder={t('agentEditor.namePlaceholder')}
-            className="rounded-lg border-border h-8 text-[13px]"
+            className="rounded-lg border-border h-8 text-body"
           />
-          <span className="text-[13px] text-muted-foreground">
+          <span className="text-body text-muted-foreground">
             {t('agentEditor.description')}
           </span>
           <Input
             value={description}
             onChange={(e) => onDescriptionChange(e.target.value)}
             placeholder={t('agentEditor.descPlaceholder')}
-            className="rounded-lg border-border h-8 text-[13px]"
+            className="rounded-lg border-border h-8 text-body"
           />
         </div>
       </div>

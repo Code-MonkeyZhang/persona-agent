@@ -41,7 +41,7 @@ export const Card: React.FC<CardProps> = ({
   const titleNode = (
     <h3
       className={cn(
-        'text-[14px] font-bold text-foreground',
+        'text-content font-bold text-foreground',
         !action && (desc ? 'mb-1' : 'mb-3')
       )}
     >
@@ -72,7 +72,9 @@ export const Card: React.FC<CardProps> = ({
       ) : (
         titleNode
       )}
-      {desc && <p className="text-[12px] text-muted-foreground mb-4">{desc}</p>}
+      {desc && (
+        <p className="text-caption text-muted-foreground mb-4">{desc}</p>
+      )}
       {children}
     </div>
   );

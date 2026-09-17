@@ -45,7 +45,7 @@ export const ListState: React.FC<ListStateProps> = ({
           </p>
           <button
             onClick={onRetry}
-            className="mt-2 text-[13px] text-muted-foreground hover:text-foreground"
+            className="mt-2 text-body text-muted-foreground hover:text-foreground"
           >
             {t('common.retry')}
           </button>

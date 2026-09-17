@@ -25,9 +25,9 @@
 }
 
 .code-block-lang-name {
-  font-size: 12px;
+  font-size: var(--font-caption);
   font-weight: 600;
-  font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+  font-family: var(--font-family-mono);
   color: hsl(var(--muted-foreground));
 }
 
@@ -43,7 +43,7 @@
   gap: 3px;
   padding: 3px 8px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: var(--font-micro);
   color: hsl(var(--muted-foreground));
   background: transparent;
   border: none;
@@ -67,13 +67,13 @@
   background: transparent !important;
   border: none !important;
   border-radius: 0 !important;
-  font-size: 13px;
+  font-size: var(--font-code);
   line-height: 1.6;
 }
 
 .code-block-body code {
-  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
-  font-size: 13px;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-code);
   background: transparent !important;
 }
 
@@ -90,7 +90,7 @@
   gap: 4px;
   width: 100%;
   padding: 8px;
-  font-size: 12px;
+  font-size: var(--font-caption);
   color: hsl(var(--muted-foreground));
   background: linear-gradient(to bottom, transparent, hsl(var(--card)) 30%);
   border: none;

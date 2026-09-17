@@ -8,6 +8,10 @@ import ReactDOM from 'react-dom/client';
 import { setupGlobalErrorLogging } from './lib/logger';
 import { initAppStorage } from './lib/appStorage';
 import 'highlight.js/styles/github.css';
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
 import './assets/styles/index.css';
 
 setupGlobalErrorLogging();

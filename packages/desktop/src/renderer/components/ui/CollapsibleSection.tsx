@@ -37,10 +37,10 @@ export function CollapsibleSection({
             !open && '-rotate-90'
           )}
         />
-        <span className="text-[13px] font-medium text-muted-foreground">
+        <span className="text-body font-medium text-muted-foreground">
           {title}
         </span>
-        <span className="text-[11px] text-muted-foreground/60">({count})</span>
+        <span className="text-caption text-muted-foreground/60">({count})</span>
       </button>
       <div
         className="grid transition-[grid-template-rows] duration-300 ease-in-out"

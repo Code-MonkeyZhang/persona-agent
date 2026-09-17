@@ -2,10 +2,11 @@
  * @file src/renderer/components/settings/ProviderConfigPanel.tsx
  * @description 模型供应商配置面板，管理 API Key 的输入、验证、保存和删除
  * 使用单张大卡片内左右分栏布局，左栏供应商列表、右栏配置详情
+ * 头部提供官方文档外链，API Key 区为加粗标签行加输入行两行结构
  */
 
-import React, { useState, useEffect } from 'react';
-import { Check, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { CheckCircle2, ExternalLink, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useProviderStore } from '../../stores/providerStore';
 import { Button } from '../ui/Button';
@@ -13,7 +14,7 @@ import { PasswordInput } from '../ui/PasswordInput';
 import { ScrollArea } from '../ui/ScrollArea';
 import { StatusDot } from '../ui/StatusDot';
 import { ProviderMark, ModelMark } from '../common/ProviderMark';
-import { SettingRow } from '../common/SettingRow';
+import { orderProviders } from '../../lib/providerOrder';
 import { toast } from '../../stores/toastStore';
 import { logger } from '../../lib/logger';
 import { cn } from '../../lib/utils';
@@ -38,10 +39,7 @@ export const ProviderConfigPanel: React.FC = () => {
 
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState('');
-  const [verifyStatus, setVerifyStatus] = useState<{
-    valid: boolean;
-    error?: string;
-  } | null>(null);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
 
   useEffect(() => {
     loadProviders();
@@ -53,36 +51,46 @@ export const ProviderConfigPanel: React.FC = () => {
     }
   }, [providers, selectedProvider]);
 
+  /**
+   * 配置态的单一真相：左栏绿点、标签行绿勾、删除按钮三处统一读本集合
+   * 密钥保存或删除后 loadProviders 刷新 hasAuth，集合随之更新
+   */
+  const configuredIds = useMemo(
+    () => new Set(providers.filter((p) => p.hasAuth).map((p) => p.id)),
+    [providers]
+  );
   const currentProvider = providers.find((p) => p.id === selectedProvider);
-  const displayApiKey = apiKey || '';
+  const isConfigured = currentProvider
+    ? configuredIds.has(currentProvider.id)
+    : false;
+  // 选中置顶仅保留给模型下拉场景，面板排序只按已配置置顶加名称字母序
+  const orderedProviders = useMemo(
+    () => orderProviders(providers, undefined, configuredIds),
+    [providers, configuredIds]
+  );
 
   /**
-   * 切换当前选中的供应商，重置 API Key 输入和验证状态
+   * 切换当前选中的供应商，重置 API Key 输入和错误提示
    * @param providerId 目标供应商 ID
    */
   const handleSelectProvider = (providerId: string) => {
     setSelectedProvider(providerId);
     setApiKey('');
-    setVerifyStatus(null);
+    setVerifyError(null);
   };
 
   /**
-   * 验证当前输入的 API Key，验证通过后自动保存到后端
+   * 验证当前输入的 API Key，验证通过后自动保存到后端，成功即清空输入框不回显
    */
   const handleVerify = async () => {
     if (!currentProvider) return;
 
-    if (!displayApiKey.trim()) {
-      setVerifyStatus({ valid: false, error: t('provider.enterApiKey') });
-      return;
-    }
-
-    setPendingCredential(currentProvider.id, displayApiKey);
-    const result = await verifyCredential(currentProvider.id, displayApiKey);
-    setVerifyStatus({ valid: result.valid, error: result.error });
+    setPendingCredential(currentProvider.id, apiKey);
+    const result = await verifyCredential(currentProvider.id, apiKey);
+    setVerifyError(result.error ?? null);
 
     if (result.valid) {
-      const success = await setCredential(currentProvider.id, displayApiKey);
+      const success = await setCredential(currentProvider.id, apiKey);
       if (success) {
         toast.success(t('common.saveSuccess'));
         setApiKey('');
@@ -107,8 +115,10 @@ export const ProviderConfigPanel: React.FC = () => {
       const success = await deleteCredential(currentProvider.id);
       if (success) {
         setApiKey('');
-        setVerifyStatus(null);
+        setVerifyError(null);
         clearPendingCredential(currentProvider.id);
+      } else {
+        logger.error('[ProviderConfig] Failed to delete credential');
       }
     }
   };
@@ -133,18 +143,18 @@ export const ProviderConfigPanel: React.FC = () => {
         {/* 左栏: 供应商列表 */}
         <div className="w-56 shrink-0 border-r border-border py-3 flex flex-col min-h-0">
           <div className="px-4 pb-2 mb-1 shrink-0">
-            <span className="text-[13px] font-medium text-muted-foreground">
+            <span className="text-body font-medium text-muted-foreground">
               {t('provider.selectProvider')}
             </span>
           </div>
           <ScrollArea className="flex-1 min-h-0">
             <div className="px-2 flex flex-col gap-0.5">
-              {providers.map((provider) => (
+              {orderedProviders.map((provider) => (
                 <button
                   key={provider.id}
                   onClick={() => handleSelectProvider(provider.id)}
                   className={cn(
-                    'w-full px-3 py-2 text-left text-[13px] rounded-lg transition-colors flex items-center justify-between',
+                    'w-full px-3 py-2 text-left text-body rounded-lg transition-colors flex items-center justify-between',
                     selectedProvider === provider.id
                       ? 'bg-secondary text-foreground font-medium'
                       : 'text-muted-foreground hover:bg-secondary/80'
@@ -158,7 +168,9 @@ export const ProviderConfigPanel: React.FC = () => {
                     />
                     <span className="truncate">{provider.name}</span>
                   </span>
-                  {provider.hasAuth && <StatusDot color="bg-green-500" />}
+                  {configuredIds.has(provider.id) && (
+                    <StatusDot color="bg-green-500" />
+                  )}
                 </button>
               ))}
             </div>
@@ -175,33 +187,67 @@ export const ProviderConfigPanel: React.FC = () => {
                   <ProviderMark
                     providerId={currentProvider.id}
                     name={currentProvider.name}
-                    size={36}
+                    size={48}
                   />
                   <div className="min-w-0">
-                    <h3 className="text-[14px] font-bold text-foreground mb-1">
+                    <h3 className="text-body font-bold text-foreground mb-1">
                       {currentProvider.name}
                     </h3>
-                    <p className="text-[12px] text-muted-foreground">
+                    <p className="text-caption text-muted-foreground">
                       {t('provider.configDesc', { name: currentProvider.name })}
                     </p>
                   </div>
+                  {/* 官方文档外链：方钮停靠头部右缘，地址来自后端返回的 docUrl 字段 */}
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="ml-auto shrink-0 h-8 w-8 rounded-lg p-0 text-muted-foreground hover:text-foreground"
+                  >
+                    <a
+                      href={currentProvider.docUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={t('provider.officialDocs')}
+                      aria-label={t('provider.officialDocs')}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </Button>
                 </div>
 
-                <SettingRow label="API Key">
-                  <div className="flex items-center gap-2">
-                    <PasswordInput
-                      value={displayApiKey}
-                      onChange={(e) => {
-                        setApiKey(e.target.value);
-                        setVerifyStatus(null);
-                      }}
-                      placeholder="sk-..."
-                    />
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-content font-bold text-foreground">
+                      API Key
+                    </span>
+                    {isConfigured && (
+                      <span className="flex items-center gap-0.5 text-caption text-green-600">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        {t('provider.configured')}
+                      </span>
+                    )}
+                  </div>
+                  {/* 验证按钮外置于输入框右侧，已配置态由标签行的绿勾表达 */}
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <PasswordInput
+                        value={apiKey}
+                        onChange={(e) => {
+                          setApiKey(e.target.value);
+                          setVerifyError(null);
+                        }}
+                        placeholder="sk-..."
+                        className="w-full"
+                      />
+                    </div>
                     <Button
                       variant="outline"
                       onClick={handleVerify}
-                      disabled={verifyingProvider === currentProvider.id}
-                      className="rounded-lg border-input h-8 text-[13px] px-3"
+                      disabled={
+                        !apiKey.trim() ||
+                        verifyingProvider === currentProvider.id
+                      }
+                      className="rounded-lg border-input h-8 text-body px-3 shrink-0"
                     >
                       {verifyingProvider === currentProvider.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -210,28 +256,17 @@ export const ProviderConfigPanel: React.FC = () => {
                       )}
                     </Button>
                   </div>
-                </SettingRow>
-
-                {currentProvider.hasAuth && !apiKey && !verifyStatus && (
-                  <p className="text-[12px] text-green-600 mt-2 flex items-center gap-1">
-                    <Check className="w-3 h-3" /> {t('provider.configured')}
-                  </p>
-                )}
-                {verifyStatus?.valid && (
-                  <p className="text-[12px] text-green-600 mt-2 flex items-center gap-1">
-                    <Check className="w-3 h-3" /> {t('provider.apiKeyValid')}
-                  </p>
-                )}
-                {verifyStatus?.error && (
-                  <p className="text-[12px] text-red-500 mt-2">
-                    {verifyStatus.error}
-                  </p>
-                )}
+                  {verifyError && (
+                    <p className="text-caption text-red-500 mt-2">
+                      {verifyError}
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* 模型列表: 内嵌分隔线而非独立卡片，区域独立滚动 */}
               <ScrollArea className="mt-4 pt-4 border-t border-border flex-1 min-h-0">
-                <h3 className="text-[14px] font-bold text-foreground mb-3">
+                <h3 className="text-content font-bold text-foreground mb-3">
                   {t('provider.availableModels')}
                 </h3>
                 <div className="flex flex-col divide-y divide-border">
@@ -247,7 +282,7 @@ export const ProviderConfigPanel: React.FC = () => {
                           name={currentProvider.name}
                           size={16}
                         />
-                        <span className="font-mono text-[13px] text-foreground truncate">
+                        <span className="font-mono text-body text-foreground truncate">
                           {model}
                         </span>
                       </span>
@@ -256,10 +291,10 @@ export const ProviderConfigPanel: React.FC = () => {
                 </div>
               </ScrollArea>
 
-              {currentProvider.hasAuth && (
+              {isConfigured && (
                 <button
                   onClick={handleDelete}
-                  className="text-[12px] text-placeholder hover:text-red-400 transition-colors mt-4 shrink-0"
+                  className="text-caption text-placeholder hover:text-red-400 transition-colors mt-4 shrink-0"
                 >
                   {t('provider.deleteApiKey')}
                 </button>

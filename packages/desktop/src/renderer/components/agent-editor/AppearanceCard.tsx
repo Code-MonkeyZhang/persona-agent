@@ -50,7 +50,7 @@ export const AppearanceCard: React.FC<AppearanceCardProps> = ({
       <LabelWithTooltip
         label={t('agentEditor.poseImage')}
         tooltip={t('agentEditor.poseTooltip')}
-        className="text-[13px] mb-2"
+        className="text-body mb-2"
       />
       <PoseImageCardList
         images={poseImages}
@@ -65,7 +65,7 @@ export const AppearanceCard: React.FC<AppearanceCardProps> = ({
       <LabelWithTooltip
         label={t('agentEditor.backgroundImage')}
         tooltip={t('agentEditor.bgTooltip')}
-        className="text-[13px] mb-2"
+        className="text-body mb-2"
       />
       {bgPreviewUrl ? (
         <div className="relative group inline-block">

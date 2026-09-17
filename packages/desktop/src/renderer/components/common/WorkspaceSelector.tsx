@@ -73,7 +73,7 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
       <button
         onClick={handleSelectFolder}
         disabled={disabled}
-        className="h-8 px-2 flex items-center gap-1 rounded-lg text-xs text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted/50 transition-colors duration-150 max-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed"
+        className="h-8 px-2 flex items-center gap-1 rounded-lg text-caption text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted/50 transition-colors duration-150 max-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed"
         title={value || resolvedPlaceholder}
       >
         <FolderOpen className="h-4 w-4 shrink-0 text-blue-500" />
@@ -92,11 +92,13 @@ export const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
       >
         <FolderOpen className="w-4 h-4 text-gray-400 flex-shrink-0" />
         {value ? (
-          <span className="text-sm text-gray-900 truncate" title={value}>
+          <span className="text-content text-gray-900 truncate" title={value}>
             {getFolderName(value)}
           </span>
         ) : (
-          <span className="text-sm text-gray-400">{resolvedPlaceholder}</span>
+          <span className="text-content text-gray-400">
+            {resolvedPlaceholder}
+          </span>
         )}
       </div>
       {value && !disabled && (

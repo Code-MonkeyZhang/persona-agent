@@ -59,6 +59,32 @@ const PROVIDER_NAMES: Record<string, string> = {
   'xiaomi-token-plan-cn': 'Xiaomi Token Plan CN',
 };
 
+/**
+ * Mapping of provider IDs to their official docs portal.
+ * Values are copied from the provider-level doc field on models.dev.
+ * kimi-coding and openai-codex have no upstream entry of their own and
+ * fall back to the parent brand portal.
+ */
+const PROVIDER_DOCS: Record<string, string> = {
+  anthropic: 'https://docs.anthropic.com/en/docs/about-claude/models',
+  google: 'https://ai.google.dev/gemini-api/docs/models',
+  openai: 'https://platform.openai.com/docs/models',
+  xai: 'https://docs.x.ai/docs/models',
+  openrouter: 'https://openrouter.ai/models',
+  zai: 'https://docs.z.ai/guides/overview/pricing',
+  minimax: 'https://platform.minimax.io/docs/guides/quickstart',
+  'minimax-cn': 'https://platform.minimaxi.com/docs/guides/quickstart',
+  'opencode-go': 'https://opencode.ai/docs/zen',
+  'kimi-coding': 'https://platform.moonshot.cn/docs/api/chat',
+  deepseek: 'https://api-docs.deepseek.com/quick_start/pricing',
+  huggingface: 'https://huggingface.co/docs/inference-providers',
+  'openai-codex': 'https://platform.openai.com/docs/models',
+  xiaomi: 'https://platform.xiaomimimo.com/#/docs',
+  moonshotai: 'https://platform.moonshot.ai/docs/api/chat',
+  'moonshotai-cn': 'https://platform.moonshot.cn/docs/api/chat',
+  'xiaomi-token-plan-cn': 'https://platform.xiaomimimo.com/#/docs',
+};
+
 /** Read auth store from file */
 function readAuthStore(): AuthStore {
   return readJsonFile<AuthStore>(getAuthPath(), {});
@@ -110,6 +136,7 @@ export function listProvidersWithAuth(): ProviderStatus[] {
       name: PROVIDER_NAMES[p] || p,
       models: providerModels.map((m) => m.id),
       hasAuth: hasAuthFlag,
+      docUrl: PROVIDER_DOCS[p] ?? '',
     };
   });
 }

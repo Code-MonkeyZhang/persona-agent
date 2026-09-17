@@ -64,17 +64,17 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
           />
         )}
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-medium text-foreground truncate">
+          <div className="text-body font-medium text-foreground truncate">
             {item.name}
           </div>
-          <div className="text-[11px] text-muted-foreground truncate">
+          <div className="text-caption text-muted-foreground truncate">
             @{item.author}
           </div>
         </div>
       </div>
 
       {/* 两行简介（超出截断） */}
-      <p className="text-[11px] text-muted-foreground line-clamp-2 leading-[18px] h-[36px]">
+      <p className="text-caption text-muted-foreground line-clamp-2 leading-[18px] h-[36px]">
         {item.description}
       </p>
 
@@ -89,19 +89,19 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
         </button>
         <div className="flex-1" />
         {installed ? (
-          <span className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-muted text-muted-foreground text-[12px]">
+          <span className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-muted text-muted-foreground text-caption">
             <Check className="w-3.5 h-3.5" />
             {t('marketplace.installed')}
           </span>
         ) : installing ? (
-          <span className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary/10 text-primary text-[12px]">
+          <span className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary/10 text-primary text-caption">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
             {t('marketplace.installing')}
           </span>
         ) : (
           <button
             onClick={onInstall}
-            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary text-white hover:bg-primary/90 text-[12px] transition-colors"
+            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary text-white hover:bg-primary/90 text-caption transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
             {t('marketplace.install')}

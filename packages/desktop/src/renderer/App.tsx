@@ -395,12 +395,15 @@ function AppContent() {
   };
 
   /**
-   * 清空当前会话回到新建聊天状态，同时丢弃草稿暂存与上次会话记录
+   * 清空当前会话回到新建聊天草稿态，丢弃草稿暂存与上次会话记录并切回聊天导航。
+   * 入口在 SessionSidebar 的「会话」标题行，首条消息发出时才真正建会话。
    * @returns void
    */
   const handleNewChat = () => {
     clearPendingDraft();
     useSessionStore.getState().clearCurrentSession();
+    useViewStore.getState().setActiveNav('chat');
+    logger.info('[App] new chat draft opened');
   };
 
   /**
@@ -486,7 +489,7 @@ function AppContent() {
                       minSize="15"
                       maxSize="30"
                     >
-                      <SessionSidebar />
+                      <SessionSidebar onNewChat={handleNewChat} />
                     </Panel>
                     <Separator className="w-0.5 bg-border/50 hover:bg-primary/40 transition-colors" />
                   </>
@@ -495,10 +498,7 @@ function AppContent() {
                   <div className="h-full overflow-hidden">
                     {activeNav === 'chat' && (
                       <div className="h-full flex flex-col">
-                        <Header
-                          onNewChat={handleNewChat}
-                          isLoading={isLoading}
-                        />
+                        <Header isLoading={isLoading} />
                         <div className="flex-1 min-h-0 relative">
                           {/* 双 pane 横向滑动容器，整屏滑动同一时间只看到一个 pane */}
                           <div className="absolute inset-0 overflow-hidden">

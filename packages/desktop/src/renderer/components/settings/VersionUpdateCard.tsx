@@ -85,7 +85,7 @@ export const VersionUpdateCard: React.FC = () => {
   return (
     <Card title={t('config.versionAndUpdate')}>
       <SettingRow label={t('config.currentVersion')} desc="Persona Desktop">
-        <span className="font-mono text-[13px] text-muted-foreground">
+        <span className="font-mono text-body text-muted-foreground">
           v{version}
         </span>
       </SettingRow>
@@ -112,7 +112,7 @@ export const VersionUpdateCard: React.FC = () => {
         >
           <div className="flex items-center gap-1.5 text-blue-500">
             <RefreshCw className="w-4 h-4 animate-spin" />
-            <span className="text-[13px]">{t('config.checkingUpdate')}</span>
+            <span className="text-body">{t('config.checkingUpdate')}</span>
           </div>
         </SettingRow>
       )}
@@ -142,7 +142,7 @@ export const VersionUpdateCard: React.FC = () => {
 
       {state.type === 'downloading' && (
         <div className="flex flex-col gap-2 py-1">
-          <div className="flex items-center justify-between text-[13px]">
+          <div className="flex items-center justify-between text-body">
             <span className="text-muted-foreground">
               {t('config.downloading')}
             </span>

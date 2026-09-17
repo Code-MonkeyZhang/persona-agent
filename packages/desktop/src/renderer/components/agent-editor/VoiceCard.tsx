@@ -60,7 +60,7 @@ export const VoiceCard: React.FC<VoiceCardProps> = ({
       >
         <div className="flex items-center gap-2">
           <Select value={voiceId || '__none__'} onValueChange={onVoiceChange}>
-            <SelectTrigger className="rounded-lg border-border h-8 w-48 text-[13px]">
+            <SelectTrigger className="rounded-lg border-border h-8 w-48 text-body">
               <SelectValue placeholder={t('agentEditor.noVoice')} />
             </SelectTrigger>
             <SelectContent>
@@ -69,7 +69,7 @@ export const VoiceCard: React.FC<VoiceCardProps> = ({
               </SelectItem>
               {voices.filter((v) => v.group === 'cloned').length > 0 && (
                 <SelectGroup>
-                  <SelectLabel className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">
+                  <SelectLabel className="text-caption text-muted-foreground font-medium uppercase tracking-wide">
                     {t('agentEditor.clonedVoices')}
                   </SelectLabel>
                   {voices
@@ -83,7 +83,7 @@ export const VoiceCard: React.FC<VoiceCardProps> = ({
               )}
               <SelectSeparator />
               <SelectGroup>
-                <SelectLabel className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">
+                <SelectLabel className="text-caption text-muted-foreground font-medium uppercase tracking-wide">
                   {t('agentEditor.presetVoices')}
                 </SelectLabel>
                 {voices
@@ -128,7 +128,7 @@ export const VoiceCard: React.FC<VoiceCardProps> = ({
             tooltip={t('agentEditor.ttsLanguageTooltip')}
           >
             <Select value={voiceLanguage} onValueChange={onVoiceLanguageChange}>
-              <SelectTrigger className="rounded-lg border-border h-8 w-48 text-[13px]">
+              <SelectTrigger className="rounded-lg border-border h-8 w-48 text-body">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

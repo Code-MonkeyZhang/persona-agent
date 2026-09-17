@@ -4,7 +4,34 @@
  */
 
 import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { extendTailwindMerge } from 'tailwind-merge';
+
+/**
+ * 自定义合并器，把语义字号档位注册进 font-size 分组。
+ * tailwind-merge 默认只认识 T 恤尺码命名的字号，陌生的 text- 前缀词会被误判为
+ * 文字颜色并在合并时删除。这份名单必须与 tailwind.config.js 的 fontSize 定义
+ * 保持同步，任何一边增删档位都要同步另一边。
+ */
+const twMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      'font-size': [
+        {
+          text: [
+            'micro',
+            'caption',
+            'body',
+            'body-strong',
+            'content',
+            'title-section',
+            'title-page',
+            'title-display',
+          ],
+        },
+      ],
+    },
+  },
+});
 
 /**
  * 合并多个 className 值，自动处理 Tailwind CSS 类名冲突

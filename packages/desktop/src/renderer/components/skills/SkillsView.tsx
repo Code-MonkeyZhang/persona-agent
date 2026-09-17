@@ -74,14 +74,14 @@ export const SkillsView: React.FC = () => {
       <div className="shrink-0 flex items-center gap-2 px-5 h-14 border-b border-border bg-muted">
         <BackButton onClick={() => setActiveNav('chat')} />
         <Sparkles className="w-4 h-4 text-muted-foreground" />
-        <h1 className="text-[16px] font-bold text-foreground">
+        <h1 className="text-title-section font-bold text-foreground">
           {t('skills.viewTitle')}
         </h1>
         <div className="flex-1" />
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="bg-foreground text-background hover:bg-foreground/90 rounded-lg h-8 px-5 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-foreground text-background hover:bg-foreground/90 rounded-lg h-8 px-5 text-body disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSaving ? t('common.saving') : t('common.save')}
         </button>
@@ -97,7 +97,7 @@ export const SkillsView: React.FC = () => {
               onToggle={() => setAssignedOpen(!assignedOpen)}
             >
               {selectedSkillIds.length === 0 ? (
-                <div className="px-1 py-3 text-[12px] text-muted-foreground/60">
+                <div className="px-1 py-3 text-caption text-muted-foreground/60">
                   {t('skills.emptyAssigned')}
                 </div>
               ) : (
@@ -131,7 +131,7 @@ export const SkillsView: React.FC = () => {
               onToggle={() => setLibraryOpen(!libraryOpen)}
             >
               {librarySkills.length === 0 ? (
-                <div className="px-1 py-3 text-[12px] text-muted-foreground/60">
+                <div className="px-1 py-3 text-caption text-muted-foreground/60">
                   {t('skills.emptyLibrary')}
                 </div>
               ) : (

@@ -95,7 +95,7 @@ export const SettingsPage: React.FC = () => {
       <div className="w-52 border-r border-border bg-white flex flex-col shrink-0">
         <div className="px-4 py-4 flex items-center gap-2">
           <BackButton onClick={handleClose} />
-          <h1 className="text-[16px] font-bold text-foreground">
+          <h1 className="text-title-section font-bold text-foreground">
             {t('settings.title')}
           </h1>
         </div>
@@ -106,7 +106,7 @@ export const SettingsPage: React.FC = () => {
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={cn(
-                'w-full flex items-center gap-2.5 px-3 py-2 text-[13px] rounded-lg transition-colors',
+                'w-full flex items-center gap-2.5 px-3 py-2 text-body rounded-lg transition-colors',
                 activeTab === tab.key
                   ? 'bg-secondary text-foreground font-medium'
                   : 'text-muted-foreground hover:bg-secondary/80'

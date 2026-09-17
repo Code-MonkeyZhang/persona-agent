@@ -25,6 +25,6 @@ export const NumberInput: React.FC<NumberInputProps> = ({
     onChange={(e) => onChange(e.target.value)}
     min={min}
     max={max}
-    className="rounded-lg border border-border h-8 w-24 px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+    className="rounded-lg border border-border h-8 w-24 px-3 text-body focus:outline-none focus:ring-2 focus:ring-blue-500"
   />
 );

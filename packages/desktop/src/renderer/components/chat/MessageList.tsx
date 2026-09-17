@@ -74,7 +74,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
     >
       {/* 头像 */}
       {isUser ? (
-        <div className="h-7 w-7 shrink-0 mt-0.5 rounded-full flex items-center justify-center text-xs font-medium bg-gray-100 text-gray-600">
+        <div className="h-7 w-7 shrink-0 mt-0.5 rounded-full flex items-center justify-center text-caption font-medium bg-gray-100 text-gray-600">
           U
         </div>
       ) : (
@@ -126,7 +126,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
           {hasContent && (
             <CopyButton
               text={message.content}
-              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+              className="flex items-center gap-1 text-caption text-gray-500 hover:text-gray-700 transition-colors"
               title={t('messageList.copyContent')}
               onCopied={() => toast.success(t('messageList.copiedToClipboard'))}
               onError={() => toast.error(t('messageList.failedToCopy'))}

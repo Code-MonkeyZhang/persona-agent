@@ -307,7 +307,7 @@ export const VoiceConfigPanel: React.FC = () => {
             <button
               onClick={handleSaveKey}
               disabled={!inputKey.trim() || verifying}
-              className="h-8 px-3 text-[13px] rounded-lg border border-input text-muted-foreground hover:text-foreground hover:border-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="h-8 px-3 text-body rounded-lg border border-input text-muted-foreground hover:text-foreground hover:border-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {verifying ? t('voice.verifying') : t('voice.verifyAndSave')}
             </button>
@@ -316,7 +316,7 @@ export const VoiceConfigPanel: React.FC = () => {
 
         {feedback && (
           <p
-            className={`text-[12px] mt-2 flex items-center gap-1 ${feedback.type === 'success' ? 'text-green-600' : 'text-red-500'}`}
+            className={`text-caption mt-2 flex items-center gap-1 ${feedback.type === 'success' ? 'text-green-600' : 'text-red-500'}`}
           >
             {feedback.type === 'success' ? (
               <CheckCircle className="w-3.5 h-3.5" />
@@ -336,7 +336,7 @@ export const VoiceConfigPanel: React.FC = () => {
             onValueChange={handleModelChange}
             disabled={savingModel}
           >
-            <SelectTrigger className="rounded-lg border-input h-8 w-48 text-[13px]">
+            <SelectTrigger className="rounded-lg border-input h-8 w-48 text-body">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -361,9 +361,9 @@ export const VoiceConfigPanel: React.FC = () => {
               onChange={(e) => handleThresholdChange(e.target.value)}
               onBlur={handleThresholdBlur}
               disabled={savingThreshold}
-              className="w-20 h-8 px-3 text-[13px] text-right border border-input rounded-lg focus:outline-none focus:ring-1 focus:ring-muted-foreground"
+              className="w-20 h-8 px-3 text-body text-right border border-input rounded-lg focus:outline-none focus:ring-1 focus:ring-muted-foreground"
             />
-            <span className="text-[12px] text-muted-foreground">
+            <span className="text-caption text-muted-foreground">
               {t('voice.characters')}
             </span>
           </div>
@@ -378,7 +378,7 @@ export const VoiceConfigPanel: React.FC = () => {
           !showCloneForm && (
             <button
               onClick={() => setShowCloneForm(true)}
-              className="h-8 px-3 text-[13px] rounded-lg border border-input text-muted-foreground hover:text-foreground hover:border-muted-foreground transition-colors flex items-center gap-1"
+              className="h-8 px-3 text-body rounded-lg border border-input text-muted-foreground hover:text-foreground hover:border-muted-foreground transition-colors flex items-center gap-1"
             >
               <Plus className="w-3.5 h-3.5" />
               {t('voice.cloneNew')}
@@ -389,7 +389,7 @@ export const VoiceConfigPanel: React.FC = () => {
         {showCloneForm && (
           <div className="mb-4 p-4 rounded-lg border border-dashed border-input bg-card-bg">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[13px] font-medium text-foreground">
+              <span className="text-body font-medium text-foreground">
                 {t('voice.uploadClone')}
               </span>
               <button
@@ -402,7 +402,7 @@ export const VoiceConfigPanel: React.FC = () => {
 
             <div className="flex flex-col gap-3">
               <div>
-                <div className="text-[12px] text-muted-foreground mb-1">
+                <div className="text-caption text-muted-foreground mb-1">
                   {t('voice.voiceName')}
                 </div>
                 <input
@@ -410,16 +410,16 @@ export const VoiceConfigPanel: React.FC = () => {
                   value={cloneName}
                   onChange={(e) => setCloneName(e.target.value)}
                   placeholder={t('voice.voiceNamePlaceholder')}
-                  className="w-full h-8 px-3 text-[13px] border border-input rounded-lg focus:outline-none focus:ring-1 focus:ring-muted-foreground"
+                  className="w-full h-8 px-3 text-body border border-input rounded-lg focus:outline-none focus:ring-1 focus:ring-muted-foreground"
                 />
               </div>
 
               <div>
-                <div className="text-[12px] text-muted-foreground mb-1">
+                <div className="text-caption text-muted-foreground mb-1">
                   {t('voice.audioFile')}
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-dashed border-input hover:border-muted-foreground transition-colors cursor-pointer text-[12px] text-muted-foreground">
+                  <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-dashed border-input hover:border-muted-foreground transition-colors cursor-pointer text-caption text-muted-foreground">
                     <Upload className="w-3.5 h-3.5" />
                     <span>
                       {cloneFileName || t('voice.selectAudioFileBtn')}
@@ -432,7 +432,7 @@ export const VoiceConfigPanel: React.FC = () => {
                       className="hidden"
                     />
                   </label>
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-caption text-muted-foreground">
                     {t('voice.audioFileHint')}
                   </span>
                 </div>
@@ -441,14 +441,14 @@ export const VoiceConfigPanel: React.FC = () => {
               <div className="flex justify-end gap-2 mt-1">
                 <button
                   onClick={resetCloneForm}
-                  className="h-8 px-3 text-[13px] rounded-lg border border-input text-muted-foreground hover:text-foreground transition-colors"
+                  className="h-8 px-3 text-body rounded-lg border border-input text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleClone}
                   disabled={!cloneName.trim() || !cloneFile || cloning}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg h-8 px-4 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg h-8 px-4 text-body disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {cloning ? (
                     <span className="flex items-center gap-1.5">
@@ -465,7 +465,7 @@ export const VoiceConfigPanel: React.FC = () => {
         )}
 
         {clonedVoices.length === 0 ? (
-          <div className="text-placeholder text-[13px] py-6 text-center border border-dashed border-border rounded-lg">
+          <div className="text-placeholder text-body py-6 text-center border border-dashed border-border rounded-lg">
             {t('voice.noClonedVoices')}
           </div>
         ) : (
@@ -476,7 +476,7 @@ export const VoiceConfigPanel: React.FC = () => {
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-card-border bg-card-bg"
               >
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-medium text-foreground">
+                  <div className="text-body font-medium text-foreground">
                     {v.name}
                   </div>
                 </div>

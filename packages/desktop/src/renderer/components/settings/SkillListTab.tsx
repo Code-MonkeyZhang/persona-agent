@@ -34,7 +34,7 @@ export const SkillListTab: React.FC = () => {
           action={
             <button
               onClick={() => window.api?.openPath(dataPath('skills'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] text-muted-foreground border border-border bg-white hover:bg-secondary transition-colors shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-body text-muted-foreground border border-border bg-white hover:bg-secondary transition-colors shadow-sm"
             >
               <FolderOpen className="w-4 h-4" />
               {t('common.openDirectory')}
@@ -42,7 +42,7 @@ export const SkillListTab: React.FC = () => {
           }
         >
           {skills.length === 0 ? (
-            <div className="text-placeholder text-[13px] py-4 text-center">
+            <div className="text-placeholder text-body py-4 text-center">
               {t('skills.empty')}
             </div>
           ) : (

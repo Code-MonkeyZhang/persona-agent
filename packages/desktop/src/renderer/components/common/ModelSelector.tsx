@@ -1,11 +1,13 @@
 /**
  * @file src/renderer/components/common/ModelSelector.tsx
- * @description 模型选择器组件，支持按 Provider 分组展示模型列表并切换
+ * @description 模型选择器组件，按供应商分组展示模型列表并切换，选中态为整行背景高亮
  */
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ProviderStatus } from '../../lib/api';
+import { logger } from '../../lib/logger';
+import { orderProviders } from '../../lib/providerOrder';
 import { ProviderMark } from './ProviderMark';
 import {
   Select,
@@ -58,12 +60,23 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   );
   const currentModel = currentProvider?.models.find((m) => m === value);
 
-  const flatOptions: FlatModelOption[] = filteredProviders.flatMap((provider) =>
-    provider.models.map((model) => ({
-      modelId: model,
-      providerId: provider.id,
-      providerName: provider.name,
-    }))
+  const configuredIds = new Set(
+    filteredProviders.filter((p) => p.hasAuth).map((p) => p.id)
+  );
+  const orderedProviders = orderProviders(
+    filteredProviders,
+    currentProvider?.id,
+    configuredIds
+  );
+
+  const flatOptions: FlatModelOption[] = orderedProviders.flatMap((provider) =>
+    [...provider.models]
+      .sort((a, b) => a.localeCompare(b))
+      .map((model) => ({
+        modelId: model,
+        providerId: provider.id,
+        providerName: provider.name,
+      }))
   );
 
   const currentValue =
@@ -77,6 +90,10 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
    */
   const handleValueChange = (combinedValue: string) => {
     const [modelId, providerId] = combinedValue.split('::');
+    logger.info('[ModelSelector]', 'select', {
+      model: modelId,
+      provider: providerId,
+    });
     if (onProviderChange && providerId !== providerValue) {
       onProviderChange(providerId);
     }
@@ -86,60 +103,18 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   if (filteredProviders.length === 0) {
     return (
       <div
-        className={`px-3 py-2 border border-gray-200 rounded-md text-sm text-gray-400 ${className}`}
+        className={`px-3 py-2 border border-gray-200 rounded-md text-content text-gray-400 ${className}`}
       >
         {t('model.noModels')}
       </div>
     );
   }
 
-  const displayText = currentModel
-    ? `${currentModel} (${currentProvider?.name || ''})`
-    : t('model.selectModel');
+  const displayText = currentModel || t('model.selectModel');
 
-  if (compact) {
-    return (
-      <div className={className}>
-        <Select
-          value={currentValue}
-          onValueChange={handleValueChange}
-          disabled={disabled}
-        >
-          <SelectTrigger className="h-8 w-auto min-w-[120px] max-w-[200px] border-0 bg-transparent hover:bg-muted/50 px-2.5 text-xs text-muted-foreground/60 hover:text-muted-foreground shadow-none focus:ring-0 focus:ring-offset-0">
-            <SelectValue placeholder={t('model.selectModel')}>
-              <span className="truncate">{displayText}</span>
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent className="w-[280px]">
-            <SelectGroup>
-              {flatOptions.map((opt) => (
-                <SelectItem
-                  key={`${opt.modelId}-${opt.providerId}`}
-                  value={`${opt.modelId}::${opt.providerId}`}
-                  className="text-sm"
-                >
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    <ProviderMark
-                      providerId={opt.providerId}
-                      name={opt.providerName}
-                      size={14}
-                    />
-                    <span className="truncate text-foreground">
-                      {opt.modelId}
-                    </span>
-                    <span className="shrink-0 text-muted-foreground">-</span>
-                    <span className="truncate text-muted-foreground">
-                      {opt.providerName}
-                    </span>
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </div>
-    );
-  }
+  const triggerClassName = compact
+    ? 'h-8 w-auto max-w-[140px] border-0 bg-transparent hover:bg-muted/50 px-2.5 text-caption text-muted-foreground/60 hover:text-muted-foreground shadow-none focus:ring-0 focus:ring-offset-0 [&>svg]:hidden'
+    : 'w-full px-3 py-2 border border-gray-200 rounded-md text-content hover:bg-gray-50 focus:ring-blue-500';
 
   return (
     <div className={className}>
@@ -148,40 +123,43 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
         onValueChange={handleValueChange}
         disabled={disabled}
       >
-        <SelectTrigger className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm hover:bg-gray-50 focus:ring-blue-500">
+        <SelectTrigger className={triggerClassName}>
           <SelectValue placeholder={t('model.selectModel')}>
-            {currentModel ? (
-              <>
-                <span className="font-medium">{currentModel}</span>
-                <span className="text-gray-400 ml-1">
-                  ({currentProvider?.name})
-                </span>
-              </>
-            ) : (
-              <span className="text-gray-400">{t('model.selectModel')}</span>
-            )}
+            <span className="flex min-w-0 items-center gap-1.5">
+              {currentProvider && (
+                <ProviderMark
+                  providerId={currentProvider.id}
+                  name={currentProvider.name}
+                  size={18}
+                />
+              )}
+              <span
+                className={`truncate ${compact ? '' : 'font-medium'} text-foreground`}
+              >
+                {displayText}
+              </span>
+            </span>
           </SelectValue>
         </SelectTrigger>
-        <SelectContent className="w-[320px]">
+        <SelectContent>
           <SelectGroup>
             {flatOptions.map((opt) => (
               <SelectItem
                 key={`${opt.modelId}-${opt.providerId}`}
                 value={`${opt.modelId}::${opt.providerId}`}
-                className="text-sm"
+                className="text-content"
               >
-                <span className="flex min-w-0 items-center gap-1.5">
+                <span className="flex w-full min-w-0 items-center gap-1.5">
                   <ProviderMark
                     providerId={opt.providerId}
                     name={opt.providerName}
-                    size={14}
+                    size={18}
                   />
-                  <span className="truncate text-foreground">
+                  <span
+                    title={opt.modelId}
+                    className="min-w-0 flex-1 truncate text-foreground"
+                  >
                     {opt.modelId}
-                  </span>
-                  <span className="shrink-0 text-muted-foreground">-</span>
-                  <span className="truncate text-muted-foreground">
-                    {opt.providerName}
                   </span>
                 </span>
               </SelectItem>
