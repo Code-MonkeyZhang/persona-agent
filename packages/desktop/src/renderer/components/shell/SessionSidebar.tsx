@@ -2,8 +2,8 @@
  * @file src/renderer/components/shell/SessionSidebar.tsx
  * @description 会话列表侧边栏，展示当前 Agent 的常驻聊天入口、任务会话列表及底部资源入口。
  * 信息架构：Header → 聊天入口 → 分隔线 → 工具/技能 → 分隔线 →
- * 「会话」折叠头 → 平铺会话列表（钉底）。
- * 折叠状态由 viewStore 管理，开关位于 TitleBar。
+ * 「会话」标题行 → 平铺会话列表（钉底）。
+ * 「会话」标题行右侧提供新对话按钮，走 App 的懒创建链路进入草稿态。
  * 整体宽度由外层 react-resizable-panels 控制，自身使用 w-full 跟随面板实际尺寸。
  */
 
@@ -11,10 +11,10 @@ import React, { useEffect } from 'react';
 import {
   MessageCircle,
   MessagesSquare,
-  ChevronDown,
   ChevronRight,
   Wrench,
   Sparkles,
+  Plus,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '../../stores/sessionStore';
@@ -48,11 +48,18 @@ const NavItem: React.FC<{
   </button>
 );
 
+interface SessionSidebarProps {
+  /** 进入新对话草稿态的回调，由 App 的懒创建链路提供 */
+  onNewChat: () => void;
+}
+
 /**
  * 会话列表侧边栏组件。
- * 折叠状态由 viewStore.sessionSidebarCollapsed 管理，折叠开关位于 TitleBar。
+ * 侧栏整体的收起与展开由 viewStore.sessionSidebarCollapsed 管理，开关位于 TitleBar。
  */
-export const SessionSidebar: React.FC = () => {
+export const SessionSidebar: React.FC<SessionSidebarProps> = ({
+  onNewChat,
+}) => {
   const { t } = useTranslation();
   const {
     sessions,
@@ -65,10 +72,6 @@ export const SessionSidebar: React.FC = () => {
   } = useSessionStore();
 
   const { currentAgent } = useAgentStore();
-  const sessionsCollapsed = useViewStore((s) => s.sessionsCollapsed);
-  const toggleSessionsCollapsed = useViewStore(
-    (s) => s.toggleSessionsCollapsed
-  );
   const activeNav = useViewStore((s) => s.activeNav);
   const setActiveNav = useViewStore((s) => s.setActiveNav);
   const openAgentEditor = useViewStore((s) => s.openAgentEditor);
@@ -195,37 +198,28 @@ export const SessionSidebar: React.FC = () => {
         />
       </div>
 
-      {/* - 下半区：「会话」折叠头 + 会话列表，钉底 */}
+      {/* - 下半区：「会话」标题行 + 会话列表，钉底 */}
       <div className="shrink-0 px-2 pt-1">
-        {/* 「会话」折叠头 */}
-        <button
-          onClick={toggleSessionsCollapsed}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted transition-colors"
-        >
+        {/* 「会话」标题行，右侧 Plus 按钮进入新对话草稿态 */}
+        <div className="w-full flex items-center gap-2.5 px-3 py-2">
           <MessagesSquare className="w-4 h-4 text-muted-foreground" />
           <span className="flex-1 text-left text-sm text-muted-foreground truncate">
             {t('sessionSidebar.sessions')}
           </span>
-          <ChevronDown
-            className={cn(
-              'w-4 h-4 text-muted-foreground transition-transform duration-150',
-              sessionsCollapsed && '-rotate-90'
-            )}
-          />
-        </button>
+          <button
+            onClick={onNewChat}
+            title={t('sessionSidebar.newChat')}
+            className="p-1 -mr-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
-      {/* 普通会话列表，平铺无分组，折叠时 flex-grow 1→0 动画，占据底部剩余空间 */}
+      {/* 普通会话列表，平铺无分组，占据底部剩余空间 */}
       <div
-        className={cn(
-          'min-h-0 hover-scroll px-2',
-          sessionsCollapsed ? 'overflow-hidden' : 'overflow-y-auto'
-        )}
-        style={{
-          flexGrow: sessionsCollapsed ? 0 : 1,
-          flexBasis: 0,
-          transition: 'flex-grow 0.3s ease-in-out',
-        }}
+        className="min-h-0 hover-scroll px-2 overflow-y-auto"
+        style={{ flexGrow: 1, flexBasis: 0 }}
       >
         <div className="pb-1">
           {regularSessions.length === 0 ? (

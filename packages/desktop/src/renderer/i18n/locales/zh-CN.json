@@ -27,6 +27,7 @@
 
   "sessionSidebar.chat": "聊天",
   "sessionSidebar.sessions": "会话",
+  "sessionSidebar.newChat": "新会话",
   "sessionSidebar.noTaskSessions": "暂无会话",
   "sessionSidebar.startChat": "开始聊天...",
   "sessionSidebar.tools": "工具",

@@ -1,10 +1,11 @@
 /**
  * @file src/renderer/components/shell/Header.tsx
- * @description 聊天区顶部标题栏，显示当前会话标题，提供语音开关、陪伴面板切换和新对话按钮。
+ * @description 聊天区顶部标题栏，显示当前会话标题，提供语音开关和陪伴面板切换。
+ * 新对话入口位于 SessionSidebar 的「会话」标题行，Header 不再承载。
  * 窗口拖拽和红绿灯由 TitleBar 统一管理，Header 不再承担拖拽职责。
  */
 import React, { useCallback } from 'react';
-import { Plus, VenetianMask, Volume2, VolumeX } from 'lucide-react';
+import { VenetianMask, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useAgentStore } from '../../stores/agentStore';
@@ -13,17 +14,15 @@ import { useVoiceStore } from '../../stores/voiceStore';
 import { toast } from '../../stores/toastStore';
 
 interface HeaderProps {
-  onNewChat: () => void;
   /** 当前会话是否正在生成，控制标题旁的运行指示 */
   isLoading?: boolean;
 }
 
 /**
- * 顶部标题栏组件，显示当前会话标题，提供语音开关、陪伴面板切换和新对话创建入口
- * @param props.onNewChat - 创建新对话的回调
+ * 顶部标题栏组件，显示当前会话标题，提供语音开关和陪伴面板切换
  * @param props.isLoading - 当前会话生成状态
  */
-export const Header: React.FC<HeaderProps> = ({ onNewChat, isLoading }) => {
+export const Header: React.FC<HeaderProps> = ({ isLoading }) => {
   const { t } = useTranslation();
   const { currentSession } = useSessionStore();
   const { currentAgent } = useAgentStore();
@@ -103,13 +102,6 @@ export const Header: React.FC<HeaderProps> = ({ onNewChat, isLoading }) => {
             >
               <VenetianMask className="w-4 h-4 mr-1" />
               <span>{t('header.avatar')}</span>
-            </button>
-            <button
-              onClick={onNewChat}
-              className="inline-flex items-center justify-center h-8 px-3 text-xs rounded-xl border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              <span>{t('header.newChat')}</span>
             </button>
           </>
         )}

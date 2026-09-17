@@ -27,6 +27,7 @@
 
   "sessionSidebar.chat": "Chat",
   "sessionSidebar.sessions": "Sessions",
+  "sessionSidebar.newChat": "New Chat",
   "sessionSidebar.noTaskSessions": "No task sessions",
   "sessionSidebar.startChat": "Start chatting...",
   "sessionSidebar.tools": "Tools",
