@@ -4,6 +4,7 @@
  * 信息架构：Header → 聊天入口 → 分隔线 → 工具/技能 → 分隔线 →
  * 「会话」标题行 → 平铺会话列表（钉底）。
  * 「会话」标题行右侧提供新对话按钮，走 App 的懒创建链路进入草稿态。
+ * 会话列表隐藏滚动条，由 useScrollFade 的边缘渐隐提供滚动位置指示。
  * 整体宽度由外层 react-resizable-panels 控制，自身使用 w-full 跟随面板实际尺寸。
  */
 
@@ -20,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useAgentStore } from '../../stores/agentStore';
 import { useViewStore } from '../../stores/viewStore';
+import { useScrollFade } from '../../hooks/useScrollFade';
 import { SessionItem } from './SessionItem';
 import { AgentAvatar } from '../common/AgentAvatar';
 import { cn } from '../../lib/utils';
@@ -72,6 +74,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   } = useSessionStore();
 
   const { currentAgent } = useAgentStore();
+  const { scrollRef, maskImage } = useScrollFade();
   const activeNav = useViewStore((s) => s.activeNav);
   const setActiveNav = useViewStore((s) => s.setActiveNav);
   const openAgentEditor = useViewStore((s) => s.openAgentEditor);
@@ -216,10 +219,16 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
         </div>
       </div>
 
-      {/* 普通会话列表，平铺无分组，占据底部剩余空间 */}
+      {/* 普通会话列表，平铺无分组，占据底部剩余空间；滚动条隐藏，边缘渐隐指示可滚方向 */}
       <div
-        className="min-h-0 hover-scroll px-2 overflow-y-auto"
-        style={{ flexGrow: 1, flexBasis: 0 }}
+        ref={scrollRef}
+        className="min-h-0 scroll-hidden px-2 overflow-y-auto"
+        style={{
+          flexGrow: 1,
+          flexBasis: 0,
+          maskImage,
+          WebkitMaskImage: maskImage,
+        }}
       >
         <div className="pb-1">
           {regularSessions.length === 0 ? (

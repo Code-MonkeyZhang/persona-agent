@@ -73,7 +73,7 @@ export function CompanionReplyBubble({
           <div
             ref={bubbleRef}
             onScroll={updateScrollState}
-            className="companion-scroll-hidden px-4 pt-7 pb-7 max-h-[160px] overflow-y-auto text-[14px] text-foreground leading-relaxed"
+            className="scroll-hidden px-4 pt-7 pb-7 max-h-[160px] overflow-y-auto text-[14px] text-foreground leading-relaxed"
           >
             <Markdown content={lastAgentMessage.content} />
           </div>
