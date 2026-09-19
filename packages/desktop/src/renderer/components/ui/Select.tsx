@@ -5,8 +5,9 @@
 
 import * as React from 'react';
 import * as SelectPrimitive from '@radix-ui/react-select';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useScrollFade } from '../../hooks/useScrollFade';
 
 const Select = SelectPrimitive.Root;
 
@@ -35,45 +36,35 @@ const SelectTrigger = React.forwardRef<
 ));
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 
-/** 选择器向上滚动按钮 */
-const SelectScrollUpButton = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.ScrollUpButton>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.ScrollUpButton>
->(({ className, ...props }, ref) => (
-  <SelectPrimitive.ScrollUpButton
-    ref={ref}
-    className={cn(
-      'flex cursor-default items-center justify-center py-1',
-      className
-    )}
-    {...props}
-  >
-    <ChevronUp className="h-4 w-4" />
-  </SelectPrimitive.ScrollUpButton>
-));
-SelectScrollUpButton.displayName = SelectPrimitive.ScrollUpButton.displayName;
-
-/** 选择器向下滚动按钮 */
-const SelectScrollDownButton = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.ScrollDownButton>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.ScrollDownButton>
->(({ className, ...props }, ref) => (
-  <SelectPrimitive.ScrollDownButton
-    ref={ref}
-    className={cn(
-      'flex cursor-default items-center justify-center py-1',
-      className
-    )}
-    {...props}
-  >
-    <ChevronDown className="h-4 w-4" />
-  </SelectPrimitive.ScrollDownButton>
-));
-SelectScrollDownButton.displayName =
-  SelectPrimitive.ScrollDownButton.displayName;
+/** 下拉渐隐区高度，下拉面板比侧边栏列表紧凑，取值低于 hook 默认的 48px */
+const SELECT_FADE_SIZE = 32;
 
 /**
- * 选择器下拉内容面板，包含滚动按钮和选项列表
+ * 选择器下拉视口，滚动条完全隐藏，由上下边缘渐隐提示可滚方向
+ * @param position - 定位模式，跟随 SelectContent 的取值
+ */
+const SelectViewport: React.FC<{
+  children: React.ReactNode;
+  position: 'item-aligned' | 'popper';
+}> = ({ children, position }) => {
+  const { scrollRef, maskImage } = useScrollFade(SELECT_FADE_SIZE);
+  return (
+    <SelectPrimitive.Viewport
+      ref={scrollRef}
+      className={cn(
+        'scroll-hidden p-1',
+        position === 'popper' &&
+          'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]'
+      )}
+      style={{ maskImage, WebkitMaskImage: maskImage }}
+    >
+      {children}
+    </SelectPrimitive.Viewport>
+  );
+};
+
+/**
+ * 选择器下拉内容面板，选项列表的滚动方向由边缘渐隐指示
  * @param position - 定位模式，默认 popper
  */
 const SelectContent = React.forwardRef<
@@ -92,17 +83,7 @@ const SelectContent = React.forwardRef<
       position={position}
       {...props}
     >
-      <SelectScrollUpButton />
-      <SelectPrimitive.Viewport
-        className={cn(
-          'p-1',
-          position === 'popper' &&
-            'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]'
-        )}
-      >
-        {children}
-      </SelectPrimitive.Viewport>
-      <SelectScrollDownButton />
+      <SelectViewport position={position}>{children}</SelectViewport>
     </SelectPrimitive.Content>
   </SelectPrimitive.Portal>
 ));
