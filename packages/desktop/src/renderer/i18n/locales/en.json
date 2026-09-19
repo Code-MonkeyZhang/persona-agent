@@ -27,6 +27,7 @@
 
   "sessionSidebar.chat": "Chat",
   "sessionSidebar.sessions": "Sessions",
+  "sessionSidebar.newChat": "New Chat",
   "sessionSidebar.noTaskSessions": "No task sessions",
   "sessionSidebar.startChat": "Start chatting...",
   "sessionSidebar.tools": "Tools",
@@ -112,13 +113,12 @@
   "config.updateErrorDesc": "Check your network and retry",
   "config.retry": "Retry",
 
-  "provider.enterApiKey": "Please enter API Key",
   "provider.confirmDeleteKey": "Are you sure you want to delete {{name}}'s API Key?",
   "provider.selectProvider": "Select Provider",
   "provider.configDesc": "Configure {{name}} API key to enable related models",
   "provider.verify": "Verify",
   "provider.configured": "Configured",
-  "provider.apiKeyValid": "API Key is valid",
+  "provider.officialDocs": "Official Docs",
   "provider.availableModels": "Available Models",
   "provider.deleteApiKey": "Delete API Key",
   "provider.selectToConfigure": "Select a provider to configure",

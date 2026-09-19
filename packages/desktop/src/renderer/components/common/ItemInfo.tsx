@@ -23,11 +23,11 @@ type ItemInfoProps = { name: string } & (
  */
 export const ItemInfo: React.FC<ItemInfoProps> = (props) => (
   <div className="min-w-0 flex-1">
-    <div className="text-[13px] font-medium text-foreground truncate">
+    <div className="text-body font-medium text-foreground truncate">
       {props.name}
     </div>
     {props.type === 'mcp' ? (
-      <div className="flex items-center gap-1 text-[11px] text-muted-foreground min-w-0">
+      <div className="flex items-center gap-1 text-caption text-muted-foreground min-w-0">
         <StatusDot
           color={mcpStatusColor(props.mcp?.status, !!props.mcp?.error)}
         />
@@ -36,7 +36,7 @@ export const ItemInfo: React.FC<ItemInfoProps> = (props) => (
         </span>
       </div>
     ) : (
-      <div className="text-[11px] text-muted-foreground truncate">
+      <div className="text-caption text-muted-foreground truncate">
         {props.description}
       </div>
     )}

@@ -40,7 +40,7 @@ const ToastItem: React.FC<{
       )}
     >
       {iconMap[type]}
-      <span className="flex-1 text-sm text-gray-800">{message}</span>
+      <span className="flex-1 text-content text-gray-800">{message}</span>
       <button
         onClick={() => onRemove(id)}
         className="text-gray-400 hover:text-gray-600 transition-colors"

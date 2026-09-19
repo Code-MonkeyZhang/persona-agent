@@ -71,13 +71,13 @@ export const MarketplaceView: React.FC = () => {
           {/* 标题行：当前 tab 图标 + 名称 */}
           <div className="flex items-center gap-3">
             <active.Icon className="w-8 h-8 text-primary" />
-            <h1 className="text-[32px] font-bold text-foreground leading-none">
+            <h1 className="text-title-display font-bold text-foreground leading-none">
               {t(active.labelKey)}
             </h1>
           </div>
 
           {/* 副标题（每 tab 一句描述性文案） */}
-          <p className="text-[13px] text-muted-foreground mt-5">
+          <p className="text-body text-muted-foreground mt-5">
             {t(`marketplace.subtitle.${tab}`)}
           </p>
 
@@ -89,7 +89,7 @@ export const MarketplaceView: React.FC = () => {
                   key={tabItem.id}
                   onClick={() => setTab(tabItem.id)}
                   className={cn(
-                    'px-4 h-9 rounded-lg text-[14px] font-medium transition-colors',
+                    'px-4 h-9 rounded-lg text-content font-medium transition-colors',
                     tab === tabItem.id
                       ? 'bg-black/5 text-foreground'
                       : 'text-muted-foreground hover:text-foreground'
@@ -105,7 +105,7 @@ export const MarketplaceView: React.FC = () => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t('marketplace.search')}
-                className="w-full pl-9 pr-3 py-2 text-[14px] bg-background border border-border rounded-xl outline-none focus:border-primary/30"
+                className="w-full pl-9 pr-3 py-2 text-content bg-background border border-border rounded-xl outline-none focus:border-primary/30"
               />
             </div>
           </div>
@@ -229,7 +229,7 @@ function CardGrid<T extends CardItem>({
 }) {
   if (entries.length === 0) {
     return (
-      <div className="text-muted-foreground text-[13px] py-12 text-center">
+      <div className="text-muted-foreground text-body py-12 text-center">
         {emptyText}
       </div>
     );

@@ -4,4 +4,6 @@ export interface ProviderStatus {
   name: string;
   models: string[];
   hasAuth: boolean;
+  /** Official docs portal URL copied from the provider-level doc field on models.dev */
+  docUrl: string;
 }

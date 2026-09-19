@@ -34,6 +34,12 @@ export interface SessionMeta {
 export interface Session extends SessionMeta {
   messages: Message[];
   /**
+   * 各 turn_end 标记行之前的消息数，loadSession 逐行解析派生，不落盘。
+   * 会话接口据此把边界条目混入 messages 供渲染层结组；
+   * undefined 表示文件无标记行，属旧数据。
+   */
+  turnEnds?: number[];
+  /**
    * 最后一条 context 消息的信封时间戳，loadSession 逐行解析派生，不落盘。
    * undefined 表示该会话从未注入过运行时上下文。
    */

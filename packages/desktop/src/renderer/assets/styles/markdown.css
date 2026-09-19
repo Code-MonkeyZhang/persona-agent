@@ -3,7 +3,7 @@
    ============================================ */
 
 .msg-content {
-  font-size: 14px;
+  font-size: var(--font-content);
   line-height: 1.6;
   overflow-x: auto;
 }
@@ -31,9 +31,9 @@
   line-height: 1.4;
 }
 
-.msg-content h1 { font-size: 1.25rem; }
-.msg-content h2 { font-size: 1.125rem; }
-.msg-content h3 { font-size: 1.05rem; }
+.msg-content h1 { font-size: 1.4em; }
+.msg-content h2 { font-size: 1.22em; }
+.msg-content h3 { font-size: 1.08em; }
 
 .msg-content ul,
 .msg-content ol {
@@ -97,7 +97,7 @@
   border-radius: 4px;
   padding: 0.1em 0.35em;
   font-size: 0.875em;
-  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
+  font-family: var(--font-family-mono);
   color: hsl(var(--foreground));
 }
 
@@ -120,7 +120,7 @@
 .msg-content table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--font-code);
 }
 
 .msg-content thead th {

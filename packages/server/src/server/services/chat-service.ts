@@ -151,9 +151,9 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
   } = request;
 
   /**
-   * 持久化错误消息并广播 error + turn_complete 事件
+   * 持久化错误消息并广播 error + round_complete 事件
    * - 落盘 { role: 'error', content } 到 session JSONL
-   * - 广播 WS error + turn_complete，通知前端
+   * - 广播 WS error + round_complete，通知前端
    */
   const emitError = (errorContent: string): ChatResponse => {
     sessionManager.appendMessage(sessionId, {
@@ -166,7 +166,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       sessionId,
       message: errorContent,
     });
-    broadcastToSession(sessionId, { type: 'turn_complete', sessionId });
+    broadcastToSession(sessionId, { type: 'round_complete', sessionId });
     return { success: false, error: errorContent };
   };
 
@@ -539,17 +539,21 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       // 处理最后一个step
       flushCurrentStep();
 
+      // 轮次结束：先落盘标记行再广播轮次边界信号，客户端此时刷新已能看到标记，
+      // 渲染层据此组装整轮气泡；中止与错误路径提前返回，不写标记
+      sessionManager.appendTurnEnd(sessionId);
+      Logger.log('CHAT', 'Turn end marker persisted', { sessionId });
+      broadcastToSession(sessionId, { type: 'turn_complete', sessionId });
+
       // 缓冲非空说明最后一步执行期间有新插话到达，续跑下一轮消费
       if (!hasPendingInputs(sessionId)) break;
       Logger.log('CHAT', 'Starting next round for pending inputs', {
         sessionId,
       });
-      // 轮次边界信号，前端只关当前轮气泡，生成状态保持
-      broadcastToSession(sessionId, { type: 'round_complete', sessionId });
     }
 
     // 回合边界信号，回合工作结束
-    broadcastToSession(sessionId, { type: 'turn_complete', sessionId });
+    broadcastToSession(sessionId, { type: 'round_complete', sessionId });
 
     // Fire-and-forget: TTS voice processing
     // App 通知触发的回合与手动发消息同权，是否播报由客户端开关决定

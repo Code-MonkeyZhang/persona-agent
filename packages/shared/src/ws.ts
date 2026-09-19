@@ -49,8 +49,8 @@ export interface StepCompleteMessage {
  * 回合边界信号。
  * 回合的工作结束时广播，出错路径随 error 一起发出，用户中止走 aborted。
  */
-interface TurnCompleteMessage {
-  type: 'turn_complete';
+interface RoundCompleteMessage {
+  type: 'round_complete';
   sessionId: string;
 }
 
@@ -59,8 +59,8 @@ interface TurnCompleteMessage {
  * 续跑判定处缓冲非空决定续跑下一轮时广播，客户端据此关闭当前轮气泡，
  * 生成状态保持，下一轮首条 step_complete 创建新气泡。
  */
-interface RoundCompleteMessage {
-  type: 'round_complete';
+interface TurnCompleteMessage {
+  type: 'turn_complete';
   sessionId: string;
 }
 

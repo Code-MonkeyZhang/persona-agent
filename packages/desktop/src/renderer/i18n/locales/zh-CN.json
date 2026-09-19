@@ -27,6 +27,7 @@
 
   "sessionSidebar.chat": "聊天",
   "sessionSidebar.sessions": "会话",
+  "sessionSidebar.newChat": "新会话",
   "sessionSidebar.noTaskSessions": "暂无会话",
   "sessionSidebar.startChat": "开始聊天...",
   "sessionSidebar.tools": "工具",
@@ -112,13 +113,12 @@
   "config.updateErrorDesc": "请检查网络后重试",
   "config.retry": "重试",
 
-  "provider.enterApiKey": "请输入 API Key",
   "provider.confirmDeleteKey": "确定要删除 {{name}} 的 API Key 吗？",
   "provider.selectProvider": "选择供应商",
   "provider.configDesc": "配置 {{name}} 的 API 密钥以启用相关模型",
   "provider.verify": "验证",
   "provider.configured": "已配置",
-  "provider.apiKeyValid": "API Key 有效",
+  "provider.officialDocs": "官方文档",
   "provider.availableModels": "可用模型",
   "provider.deleteApiKey": "删除 API Key",
   "provider.selectToConfigure": "选择一个供应商进行配置",

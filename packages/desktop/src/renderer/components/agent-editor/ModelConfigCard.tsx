@@ -71,13 +71,13 @@ export const ModelConfigCard: React.FC<ModelConfigCardProps> = ({
         <LabelWithTooltip
           label={t('agentEditor.systemPrompt')}
           tooltip={t('agentEditor.systemPromptTooltip')}
-          className="text-[14px] leading-[18px] min-h-[32px] mb-2"
+          className="text-content leading-[18px] min-h-[32px] mb-2"
         />
         <textarea
           value={systemPrompt}
           onChange={(e) => onSystemPromptChange(e.target.value)}
           placeholder={t('agentEditor.systemPromptPlaceholder')}
-          className="w-full min-h-[360px] rounded-lg border border-border px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+          className="w-full min-h-[360px] rounded-lg border border-border px-3 py-2 text-body focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
         />
       </div>
     </Card>

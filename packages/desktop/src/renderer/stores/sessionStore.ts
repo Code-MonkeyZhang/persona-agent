@@ -297,13 +297,15 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   /**
-   * 将服务端返回的 Message 数组转换为客户端 UIMessage 格式。
+   * 将服务端返回的 Message 数组转换为客户端 UIMessage 格式，双信号单规则。
    * 每条 assistant 消息是一个步骤的落盘产物，同一轮次的连续 assistant 消息合并为一条 UIMessage：
    * - thoughts 全部拼接，保留原始顺序
    * - 各步骤的 content 作为 text thought 进入时间线
    * - 最终回答的 content 取最后一条非空值，同时从 thoughts 移除避免重复
-   * - user / error 消息作为天然分隔点打断分组
-   * - system / context 消息直接跳过
+   * - 用户消息原地显示从不结组，插话因此排在整轮回复之前
+   * - 收尾信号取双信号，遇到边界条目或不带 tool_calls 的助手消息即结组
+   * - app_notification 跳过，不显示也不结组；error 保持结组，错误截断的半截组不与下一轮合并
+   * - 扫描结束强制结一次，兜底崩溃留下的半截内容；旧数据没有边界条目，形状信号单独工作
    * @param messages - 服务端返回的原始消息数组
    * @returns 转换后的客户端 UIMessage 数组
    */
@@ -332,7 +334,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     for (let i = 0; i < messages.length; i++) {
       const msg = messages[i];
 
-      if (msg.role === 'system' || msg.role === 'context') {
+      if (msg.role === 'system') {
+        // 边界条目结组，普通 system 消息照旧跳过
+        if (msg.turnEnd) flushPending();
+        continue;
+      }
+
+      if (msg.role === 'context' || msg.role === 'app_notification') {
         continue;
       }
 
@@ -375,14 +383,18 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
             content: msg.content,
           });
         }
-      } else if (msg.role === 'app_notification') {
-        flushPending();
-      } else {
-        flushPending();
+
+        // 形状信号：不带 tool_calls 的助手消息是收尾步，整轮打包
+        if (!msg.tool_calls || msg.tool_calls.length === 0) {
+          flushPending();
+        }
+      } else if (msg.role === 'user' || msg.role === 'error') {
+        // error 保持结组，错误截断的半截组不与下一轮合并；用户消息从不结组
+        if (msg.role === 'error') flushPending();
 
         result.push({
           id: `session-msg-${i}`,
-          type: msg.role === 'user' ? 'user' : 'error',
+          type: msg.role,
           content: typeof msg.content === 'string' ? msg.content : '',
           timestamp: new Date(),
         });

@@ -36,11 +36,11 @@ export function SettingRow({
         <LabelWithTooltip
           label={label}
           tooltip={tooltip}
-          className="text-[14px] leading-[18px]"
+          className="text-content leading-[18px]"
         />
         {desc && (
           <div
-            className={`text-[12px] text-muted-foreground mt-0.5 ${descClassName ?? ''}`}
+            className={`text-caption text-muted-foreground mt-0.5 ${descClassName ?? ''}`}
           >
             {desc}
           </div>

@@ -1,6 +1,6 @@
 {
   "name": "persona-agent-desktop",
-  "version": "1.9.2",
+  "version": "1.10.0",
   "description": "Persona Desktop - Electron GUI for Persona",
   "type": "module",
   "main": "./out/main/index.js",
@@ -28,6 +28,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@fontsource/inter": "^5.3.0",
     "@lobehub/icons": "^5.16.0",
     "@radix-ui/react-scroll-area": "^1.2.12",
     "@radix-ui/react-select": "^2.2.6",

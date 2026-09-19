@@ -90,13 +90,13 @@ const GitBashRow: React.FC = () => {
       {status === 'ready' && (
         <div className="flex items-center gap-1.5 text-green-600">
           <CheckCircle className="w-4 h-4" />
-          <span className="text-[13px]">{t('config.gitBashReady')}</span>
+          <span className="text-body">{t('config.gitBashReady')}</span>
         </div>
       )}
       {status === 'missing' && (
         <div className="flex items-center gap-1.5 text-orange-500">
           <AlertCircle className="w-4 h-4" />
-          <span className="text-[13px]">{t('config.gitBashMissing')}</span>
+          <span className="text-body">{t('config.gitBashMissing')}</span>
           <ActionButton
             icon={<ExternalLink className="w-3 h-3" />}
             label={t('config.gitBashDownload')}
@@ -105,7 +105,7 @@ const GitBashRow: React.FC = () => {
         </div>
       )}
       {status === 'loading' && (
-        <span className="text-[13px] text-muted-foreground">
+        <span className="text-body text-muted-foreground">
           {t('config.gitBashChecking')}
         </span>
       )}
@@ -165,13 +165,13 @@ const UvRow: React.FC = () => {
       {state === 'ready' && (
         <div className="flex items-center gap-1.5 text-green-600">
           <CheckCircle className="w-4 h-4" />
-          <span className="text-[13px]">{t('config.uvReady')}</span>
+          <span className="text-body">{t('config.uvReady')}</span>
         </div>
       )}
       {state === 'missing' && (
         <div className="flex items-center gap-1.5 text-orange-500">
           <AlertCircle className="w-4 h-4" />
-          <span className="text-[13px]">{t('config.uvMissing')}</span>
+          <span className="text-body">{t('config.uvMissing')}</span>
           <ActionButton
             icon={<Download className="w-3 h-3" />}
             label={t('config.uvDownload')}
@@ -182,13 +182,13 @@ const UvRow: React.FC = () => {
       {state === 'installing' && (
         <div className="flex items-center gap-1.5 text-blue-500">
           <Loader2 className="w-4 h-4 animate-spin" />
-          <span className="text-[13px]">{t('config.uvInstalling')}</span>
+          <span className="text-body">{t('config.uvInstalling')}</span>
         </div>
       )}
       {state === 'error' && (
         <div className="flex items-center gap-1.5 text-red-500">
           <AlertCircle className="w-4 h-4" />
-          <span className="text-[13px]">{t('config.uvInstallFailed')}</span>
+          <span className="text-body">{t('config.uvInstallFailed')}</span>
           <ActionButton
             icon={<RotateCcw className="w-3 h-3" />}
             label={t('config.uvRetry')}
@@ -197,7 +197,7 @@ const UvRow: React.FC = () => {
         </div>
       )}
       {state === 'loading' && (
-        <span className="text-[13px] text-muted-foreground">
+        <span className="text-body text-muted-foreground">
           {t('config.gitBashChecking')}
         </span>
       )}

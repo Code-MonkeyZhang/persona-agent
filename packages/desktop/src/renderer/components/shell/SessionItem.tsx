@@ -124,7 +124,7 @@ export const SessionItem: React.FC<SessionItemProps> = ({
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  className="flex-1 px-2 py-0.5 text-sm border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="flex-1 px-2 py-0.5 text-content border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
                 <button
                   onClick={(e) => {
@@ -148,7 +148,10 @@ export const SessionItem: React.FC<SessionItemProps> = ({
             ) : (
               <>
                 <p
-                  className={cn('text-sm truncate', isActive && 'font-medium')}
+                  className={cn(
+                    'text-content truncate',
+                    isActive && 'font-medium'
+                  )}
                 >
                   {session.title}
                 </p>
@@ -182,14 +185,14 @@ export const SessionItem: React.FC<SessionItemProps> = ({
           >
             <button
               onClick={handleMenuRename}
-              className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-foreground hover:bg-muted"
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-content text-foreground hover:bg-muted"
             >
               <Pencil className="w-3.5 h-3.5" />
               <span>{t('sessionItem.rename')}</span>
             </button>
             <button
               onClick={handleMenuDelete}
-              className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-red-500 hover:bg-red-50"
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-content text-red-500 hover:bg-red-50"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>{t('sessionItem.delete')}</span>

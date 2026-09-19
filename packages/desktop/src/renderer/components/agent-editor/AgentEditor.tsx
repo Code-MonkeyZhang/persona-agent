@@ -414,7 +414,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     <div className="h-full w-full flex flex-col bg-muted">
       <div className="shrink-0 flex items-center gap-2 px-5 h-14 border-b border-border bg-muted">
         <BackButton onClick={closeAgentEditor} />
-        <h1 className="text-[16px] font-bold text-foreground">
+        <h1 className="text-title-section font-bold text-foreground">
           {editingAgentId
             ? t('agentEditor.editAgent')
             : t('agentEditor.addAgent')}
@@ -423,14 +423,14 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
         <div className="flex gap-2">
           <button
             onClick={closeAgentEditor}
-            className="rounded-lg border border-border h-8 px-5 text-[13px] hover:bg-muted"
+            className="rounded-lg border border-border h-8 px-5 text-body hover:bg-muted"
           >
             {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={!name.trim() || isLoading}
-            className="bg-foreground text-background hover:bg-foreground/90 rounded-lg h-8 px-5 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-foreground text-background hover:bg-foreground/90 rounded-lg h-8 px-5 text-body disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading
               ? t('common.saving')
@@ -498,7 +498,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                 <div className="flex justify-center pb-6">
                   <button
                     onClick={handleDelete}
-                    className="text-[13px] text-red-400 hover:text-red-500 transition-colors"
+                    className="text-body text-red-400 hover:text-red-500 transition-colors"
                   >
                     {t('agentEditor.deleteAgent')}
                   </button>

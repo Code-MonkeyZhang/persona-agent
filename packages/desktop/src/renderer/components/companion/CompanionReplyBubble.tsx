@@ -73,7 +73,7 @@ export function CompanionReplyBubble({
           <div
             ref={bubbleRef}
             onScroll={updateScrollState}
-            className="companion-scroll-hidden px-4 pt-7 pb-7 max-h-[160px] overflow-y-auto text-[14px] text-foreground leading-relaxed"
+            className="scroll-hidden px-4 pt-7 pb-7 max-h-[160px] overflow-y-auto text-content text-foreground leading-relaxed"
           >
             <Markdown content={lastAgentMessage.content} />
           </div>
@@ -89,7 +89,7 @@ export function CompanionReplyBubble({
           )}
         </div>
       ) : (
-        <div className="rounded-[24px] bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)] px-4 py-2 text-[13px] text-muted-foreground animate-pulse text-center">
+        <div className="rounded-[24px] bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)] px-4 py-2 text-body text-muted-foreground animate-pulse text-center">
           {t('companion.thinking')}
         </div>
       )}

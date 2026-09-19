@@ -294,6 +294,64 @@ describe('Session Module Integration Tests', () => {
       });
     });
 
+    /** appendTurnEndLine 测试 */
+    describe('appendTurnEndLine', () => {
+      /** 测试追加标记行后 loadSession 收集 turnEnds 下标 */
+      it('should append marker and collect turnEnds via loadSession', () => {
+        store.createSessionFile(createMeta('turn-end-test'));
+        store.appendMessageLine('turn-end-test', createUserMessage('q1'));
+        store.appendMessageLine('turn-end-test', {
+          role: 'assistant',
+          content: 'a1',
+        });
+        expect(store.appendTurnEndLine('turn-end-test')).toBe(true);
+        store.appendMessageLine('turn-end-test', createUserMessage('interject'));
+        store.appendMessageLine('turn-end-test', {
+          role: 'assistant',
+          content: 'a2',
+        });
+        store.appendTurnEndLine('turn-end-test');
+
+        const loaded = store.loadSession('turn-end-test');
+        // 标记行不进 messages，turnEnds 记录各标记之前的消息数
+        expect(loaded?.messages.length).toBe(4);
+        expect(loaded?.turnEnds).toEqual([2, 4]);
+      });
+
+      /** 测试标记行信封只有 timestamp 与 type 两字段 */
+      it('should write marker line without data field', () => {
+        store.createSessionFile(createMeta('marker-shape'));
+        store.appendTurnEndLine('marker-shape');
+
+        const filePath = path.join(
+          store.getSessionsPath(),
+          'marker-shape.jsonl'
+        );
+        const lines = fs
+          .readFileSync(filePath, 'utf8')
+          .split('\n')
+          .filter((l) => l.trim());
+        const marker = JSON.parse(lines[lines.length - 1] as string);
+        expect(marker.type).toBe('turn_end');
+        expect(marker.data).toBeUndefined();
+        expect(marker.timestamp).toBeDefined();
+      });
+
+      /** 测试旧格式文件无标记行时 turnEnds 为 undefined */
+      it('should leave turnEnds undefined for legacy files', () => {
+        store.createSessionFile(createMeta('legacy-turn-end'));
+        store.appendMessageLine('legacy-turn-end', createUserMessage('old'));
+
+        const loaded = store.loadSession('legacy-turn-end');
+        expect(loaded?.turnEnds).toBeUndefined();
+      });
+
+      /** 测试向不存在的 session 追加标记返回 false */
+      it('should return false for non-existent session', () => {
+        expect(store.appendTurnEndLine('non-existent')).toBe(false);
+      });
+    });
+
     /** rewriteMetaLine 测试 */
     describe('rewriteMetaLine', () => {
       /** 测试重写元数据后消息不丢失 */
@@ -534,6 +592,79 @@ describe('Session Module Integration Tests', () => {
       it('should return null for non-existent session', () => {
         const session = manager.getSession('non-existent');
         expect(session).toBeNull();
+      });
+    });
+
+    /** getSessionForClient 测试 */
+    describe('getSessionForClient', () => {
+      /** 测试按 turnEnds 把边界条目混入 messages，内部视角不受影响 */
+      it('should interleave boundary entries by turnEnds', () => {
+        const created = manager.createSession();
+        manager.appendMessage(created.id, { role: 'user', content: 'q1' });
+        manager.appendMessage(created.id, {
+          role: 'assistant',
+          content: 'a1',
+        });
+        manager.appendTurnEnd(created.id);
+        manager.appendMessage(created.id, { role: 'user', content: 'interject' });
+        manager.appendMessage(created.id, {
+          role: 'assistant',
+          content: 'a2',
+        });
+        manager.appendTurnEnd(created.id);
+
+        const client = manager.getSessionForClient(created.id);
+        expect(client?.messages.length).toBe(6);
+        // 边界条目插在标记前消息数的下标处，借用 system 角色与 turnEnd 标志
+        expect(client?.messages[2]).toEqual({
+          role: 'system',
+          content: '',
+          turnEnd: true,
+        });
+        expect(client?.messages[5]).toEqual({
+          role: 'system',
+          content: '',
+          turnEnd: true,
+        });
+        expect(client?.messages[3]?.content).toBe('interject');
+
+        // 内部视角不含边界，下标语义不变
+        const internal = manager.getSession(created.id);
+        expect(internal?.messages.length).toBe(4);
+        expect(
+          internal?.messages.some((m) => m.role === 'system')
+        ).toBe(false);
+      });
+
+      /** 测试重复下标连插边界条目，对空缓冲结组是空操作 */
+      it('should tolerate duplicate marker counts', () => {
+        const created = manager.createSession();
+        manager.appendMessage(created.id, { role: 'user', content: 'q1' });
+        manager.appendTurnEnd(created.id);
+        manager.appendTurnEnd(created.id);
+
+        const client = manager.getSessionForClient(created.id);
+        expect(client?.messages.length).toBe(3);
+        expect(client?.messages[1]).toEqual({
+          role: 'system',
+          content: '',
+          turnEnd: true,
+        });
+        expect(client?.messages[2]).toEqual({
+          role: 'system',
+          content: '',
+          turnEnd: true,
+        });
+      });
+
+      /** 测试旧数据无标记行时原样返回 */
+      it('should return session as-is for legacy files without markers', () => {
+        const created = manager.createSession();
+        manager.appendMessage(created.id, { role: 'user', content: 'q1' });
+
+        const client = manager.getSessionForClient(created.id);
+        expect(client?.messages.length).toBe(1);
+        expect(client?.messages[0]?.role).toBe('user');
       });
     });
 

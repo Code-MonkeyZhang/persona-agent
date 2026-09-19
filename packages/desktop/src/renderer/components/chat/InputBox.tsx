@@ -97,7 +97,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
             onBlur={() => setIsFocused(false)}
             placeholder={t('inputBox.placeholder')}
             rows={1}
-            className="w-full bg-transparent resize-none focus:outline-none text-[15px] text-foreground placeholder:text-placeholder min-h-[24px]"
+            className="w-full bg-transparent resize-none focus:outline-none text-content text-foreground placeholder:text-placeholder min-h-[24px]"
             style={{ maxHeight: '200px' }}
           />
         </div>
