@@ -108,7 +108,7 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = ({
   };
 
   return (
-    <aside className="w-[72px] h-full bg-muted border-r border-border flex flex-col shrink-0">
+    <aside className="w-[72px] h-full bg-gradient-to-b from-muted via-muted to-muted/60 border-r border-border flex flex-col shrink-0">
       <div className="flex-1 overflow-y-auto py-2">
         {agents.map((agent) => {
           const isSelected = currentAgent?.id === agent.id;
@@ -123,7 +123,7 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = ({
                   <motion.div
                     layoutId="agent-selected-bg"
                     transition={springTransition}
-                    className="absolute left-0 top-2 bottom-2 right-3 rounded-r-2xl bg-background shadow-sm"
+                    className="absolute left-0 top-2 bottom-2 right-3 rounded-r-2xl bg-background shadow-soft"
                   />
                 )}
                 <AgentAvatar
@@ -146,9 +146,9 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = ({
 
         <button
           onClick={handleAddClick}
-          className="w-full h-auto py-3 flex flex-col items-center text-muted-foreground"
+          className="w-full h-auto py-3 flex flex-col items-center text-muted-foreground rounded-md transition-colors hover:bg-accent"
         >
-          <div className="w-10 h-10 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
+          <div className="w-10 h-10 rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
             <Plus className="w-5 h-5" />
           </div>
         </button>

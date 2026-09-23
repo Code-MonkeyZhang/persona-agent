@@ -80,10 +80,10 @@ export const InputBox: React.FC<InputBoxProps> = ({
       {/* 输入框容器：聚焦时显示描边和阴影，失焦时显示半透明背景 */}
       <div
         className={cn(
-          'relative flex flex-col rounded-2xl transition-all duration-200',
+          'relative flex flex-col rounded-[24px] transition-all duration-200',
           isFocused
-            ? 'ring-1 ring-foreground/20 bg-background'
-            : 'bg-secondary hover:bg-secondary/80'
+            ? 'ring-1 ring-foreground/20 bg-background shadow-none'
+            : 'bg-muted hover:bg-secondary/80'
         )}
       >
         {/* 文本输入区域 */}
@@ -108,7 +108,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
           <div className="flex items-center gap-1">
             {/* 添加附件按钮 */}
             <button
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50 transition-colors duration-150"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors duration-150"
               title={t('inputBox.addAttachment')}
             >
               <Plus size={18} />

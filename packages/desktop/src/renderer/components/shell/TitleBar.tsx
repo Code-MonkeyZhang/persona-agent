@@ -11,6 +11,7 @@ import { useViewStore } from '../../stores/viewStore';
 import { useAppPanelStore } from '../../stores/appPanelStore';
 import { WindowControls } from './WindowControls';
 import { isMac } from '../../lib/platform';
+import { cn } from '../../lib/utils';
 
 /**
  * 顶部状态条组件。
@@ -24,6 +25,7 @@ export const TitleBar: React.FC = () => {
   );
   const toggleSessionSidebar = useViewStore((s) => s.toggleSessionSidebar);
   const toggleAppSidebar = useAppPanelStore((s) => s.toggleSidebar);
+  const appSidebarVisible = useAppPanelStore((s) => s.sidebarVisible);
 
   const showSessionToggle = currentView === 'chat';
 
@@ -38,7 +40,7 @@ export const TitleBar: React.FC = () => {
         {showSessionToggle && (
           <button
             onClick={toggleSessionSidebar}
-            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1.5 rounded-md hover:bg-black/[0.06] text-muted-foreground hover:text-foreground transition-colors"
             title={
               sessionSidebarCollapsed
                 ? t('common.expandSidebar')
@@ -60,7 +62,12 @@ export const TitleBar: React.FC = () => {
         >
           <button
             onClick={toggleAppSidebar}
-            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            className={cn(
+              'p-1.5 rounded-md hover:bg-black/[0.06] transition-colors',
+              appSidebarVisible
+                ? 'text-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
             title={t('common.toggleAppSidebar')}
           >
             <LayoutGrid className="w-4 h-4" />

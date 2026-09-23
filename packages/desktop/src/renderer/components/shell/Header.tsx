@@ -53,8 +53,8 @@ export const Header: React.FC<HeaderProps> = ({ isLoading }) => {
 
   return (
     <header className="h-14 border-b border-border flex items-center justify-between bg-background">
-      <div className="flex items-center gap-4 px-6">
-        <h1 className="font-semibold text-title-section text-foreground">
+      <div className="flex items-center gap-3 pl-4 min-w-0">
+        <h1 className="font-semibold text-title-section text-foreground truncate">
           {currentSession?.title || t('header.newChat')}
         </h1>
         {isLoading && (
