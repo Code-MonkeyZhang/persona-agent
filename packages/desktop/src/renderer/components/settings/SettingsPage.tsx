@@ -5,7 +5,7 @@
  * 使用浅灰背景 + 白色卡片 + 左侧圆角 Tab 的 Demo 视觉风格
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Key, Speech, Wrench, Settings, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ProviderConfigPanel } from './ProviderConfigPanel';
@@ -15,36 +15,44 @@ import { SkillListTab } from './SkillListTab';
 import { VoiceConfigPanel } from './VoiceConfigPanel';
 import { useConfigStore } from '../../stores/configStore';
 import { useProviderStore } from '../../stores/providerStore';
-import { useViewStore } from '../../stores/viewStore';
+import { useViewStore, type SettingsTab } from '../../stores/viewStore';
 import { cn } from '../../lib/utils';
 import { BackButton } from '../ui/BackButton';
 
-type TabKey = 'general' | 'providers' | 'voice' | 'mcp' | 'skills';
-
-const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
+const tabs: {
+  key: SettingsTab;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+}[] = [
   {
     key: 'general',
     label: 'settings.tabs.general',
+    description: 'settings.tabs.generalDesc',
     icon: <Settings className="w-4 h-4" />,
   },
   {
     key: 'providers',
     label: 'settings.tabs.providers',
+    description: 'settings.tabs.providersDesc',
     icon: <Key className="w-4 h-4" />,
   },
   {
     key: 'voice',
     label: 'settings.tabs.voice',
+    description: 'settings.tabs.voiceDesc',
     icon: <Speech className="w-4 h-4" />,
   },
   {
     key: 'mcp',
     label: 'settings.tabs.mcp',
+    description: 'settings.tabs.mcpDesc',
     icon: <Wrench className="w-4 h-4" />,
   },
   {
     key: 'skills',
     label: 'settings.tabs.skills',
+    description: 'settings.tabs.skillsDesc',
     icon: <Sparkles className="w-4 h-4" />,
   },
 ];
@@ -58,7 +66,8 @@ export const SettingsPage: React.FC = () => {
   const { loading, error, loadConfig } = useConfigStore();
   const { saveAllPending } = useProviderStore();
   const setView = useViewStore((s) => s.setView);
-  const [activeTab, setActiveTab] = useState<TabKey>('general');
+  const activeTab = useViewStore((s) => s.settingsTab);
+  const setActiveTab = useViewStore((s) => s.setSettingsTab);
 
   useEffect(() => {
     loadConfig();
@@ -74,7 +83,7 @@ export const SettingsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center bg-general-bg">
+      <div className="h-full flex items-center justify-center bg-muted/30">
         <div className="text-muted-foreground">{t('common.loading')}</div>
       </div>
     );
@@ -82,7 +91,7 @@ export const SettingsPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="h-full flex items-center justify-center bg-general-bg">
+      <div className="h-full flex items-center justify-center bg-muted/30">
         <div className="text-red-500">
           {t('settings.loadError')}：{error}
         </div>
@@ -91,30 +100,61 @@ export const SettingsPage: React.FC = () => {
   }
 
   return (
-    <div className="h-full w-full flex bg-general-bg">
+    <div className="h-full w-full flex bg-muted/30">
       <div className="w-52 border-r border-border bg-white flex flex-col shrink-0">
         <div className="px-4 py-4 flex items-center gap-2">
           <BackButton onClick={handleClose} />
-          <h1 className="text-title-section font-bold text-foreground">
+          <h1 className="text-title-section font-semibold text-foreground">
             {t('settings.title')}
           </h1>
         </div>
 
-        <nav className="flex-1 py-1 px-2">
-          {tabs.map((tab) => (
-            <button
+        <nav className="flex-1 pt-3 pb-1 px-2">
+          {tabs.map((tab, index) => (
+            <div
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={cn(
-                'w-full flex items-center gap-2.5 px-3 py-2 text-body rounded-lg transition-colors',
-                activeTab === tab.key
-                  ? 'bg-secondary text-foreground font-medium'
-                  : 'text-muted-foreground hover:bg-secondary/80'
-              )}
+              className="settings-item"
+              data-selected={activeTab === tab.key || undefined}
             >
-              {tab.icon}
-              {t(tab.label)}
-            </button>
+              {index > 0 && (
+                <div className="settings-separator ml-10 mr-4 h-px bg-border" />
+              )}
+              <button
+                onClick={() => setActiveTab(tab.key)}
+                className={cn(
+                  'w-full flex items-start gap-2.5 px-3 py-3 rounded-lg transition-[background-color] duration-75 text-left',
+                  activeTab === tab.key
+                    ? 'bg-secondary'
+                    : 'hover:bg-secondary/80'
+                )}
+              >
+                <span
+                  className={cn(
+                    'mt-px shrink-0',
+                    activeTab === tab.key
+                      ? 'text-foreground'
+                      : 'text-muted-foreground'
+                  )}
+                >
+                  {tab.icon}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span
+                    className={cn(
+                      'block truncate text-content font-medium',
+                      activeTab === tab.key
+                        ? 'text-foreground'
+                        : 'text-foreground/80'
+                    )}
+                  >
+                    {t(tab.label)}
+                  </span>
+                  <span className="mt-0.5 block truncate text-caption text-muted-foreground">
+                    {t(tab.description)}
+                  </span>
+                </span>
+              </button>
+            </div>
           ))}
         </nav>
       </div>

@@ -1,0 +1,11 @@
+/* 文件职责:设置页左侧导航的分隔线显隐规则。 */
+
+.settings-item:hover > .settings-separator,
+.settings-item[data-selected] > .settings-separator {
+  opacity: 0;
+}
+
+.settings-item:hover + .settings-item > .settings-separator,
+.settings-item[data-selected] + .settings-item > .settings-separator {
+  opacity: 0;
+}
