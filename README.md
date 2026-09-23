@@ -27,7 +27,7 @@ Persona-agent 是一个开源的个人 AI Agent 聊天平台，让你能够完�
 
 <table>
   <tr>
-    <td align="center"><b>💬 清新的对话界面，模拟正常聊天App的体验</b></td>
+    <td align="center"><b>💬 清新的对话界面，如同经典聊天App的体验</b></td>
     <td align="center"><b>🌸 随时切换到立绘界面，表情会按照对话情绪切换</b></td>
   </tr>
   <tr>
