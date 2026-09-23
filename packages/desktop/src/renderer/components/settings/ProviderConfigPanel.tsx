@@ -2,18 +2,17 @@
  * @file src/renderer/components/settings/ProviderConfigPanel.tsx
  * @description 模型供应商配置面板，管理 API Key 的输入、验证、保存和删除
  * 使用单张大卡片内左右分栏布局，左栏供应商列表、右栏配置详情
- * 头部提供官方文档外链，API Key 区为加粗标签行加输入行两行结构
+ * 头部与密钥区由 ApiKeyCard 渲染，与语音服务面板共用
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { CheckCircle2, ExternalLink, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useProviderStore } from '../../stores/providerStore';
-import { Button } from '../ui/Button';
-import { PasswordInput } from '../ui/PasswordInput';
 import { ScrollArea } from '../ui/ScrollArea';
 import { StatusDot } from '../ui/StatusDot';
 import { ProviderMark, ModelMark } from '../common/ProviderMark';
+import { ApiKeyCard } from './ApiKeyCard';
 import { orderProviders } from '../../lib/providerOrder';
 import { toast } from '../../stores/toastStore';
 import { logger } from '../../lib/logger';
@@ -181,113 +180,71 @@ export const ProviderConfigPanel: React.FC = () => {
         <div className="flex-1 min-w-0 px-5 py-4 flex flex-col min-h-0">
           {currentProvider ? (
             <>
-              {/* 固定区: 标题、API Key 与状态提示 */}
+              {/* 固定区: 品牌头部、API Key 与状态提示 */}
               <div className="shrink-0">
-                <div className="mb-4 flex items-center gap-3">
-                  <ProviderMark
-                    providerId={currentProvider.id}
-                    name={currentProvider.name}
-                    size={48}
-                  />
-                  <div className="min-w-0">
-                    <h3 className="text-body font-bold text-foreground mb-1">
-                      {currentProvider.name}
-                    </h3>
-                    <p className="text-caption text-muted-foreground">
-                      {t('provider.configDesc', { name: currentProvider.name })}
-                    </p>
-                  </div>
-                  {/* 官方文档外链：方钮停靠头部右缘，地址来自后端返回的 docUrl 字段 */}
-                  <Button
-                    asChild
-                    variant="outline"
-                    className="ml-auto shrink-0 h-8 w-8 rounded-lg p-0 text-muted-foreground hover:text-foreground"
-                  >
-                    <a
-                      href={currentProvider.docUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title={t('provider.officialDocs')}
-                      aria-label={t('provider.officialDocs')}
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  </Button>
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-content font-bold text-foreground">
-                      API Key
-                    </span>
-                    {isConfigured && (
-                      <span className="flex items-center gap-0.5 text-caption text-green-600">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        {t('provider.configured')}
-                      </span>
-                    )}
-                  </div>
-                  {/* 验证按钮外置于输入框右侧，已配置态由标签行的绿勾表达 */}
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="flex-1 min-w-0">
-                      <PasswordInput
-                        value={apiKey}
-                        onChange={(e) => {
-                          setApiKey(e.target.value);
-                          setVerifyError(null);
-                        }}
-                        placeholder="sk-..."
-                        className="w-full"
-                      />
-                    </div>
-                    <Button
-                      variant="outline"
-                      onClick={handleVerify}
-                      disabled={
-                        !apiKey.trim() ||
-                        verifyingProvider === currentProvider.id
-                      }
-                      className="rounded-lg border-input h-8 text-body px-3 shrink-0"
-                    >
-                      {verifyingProvider === currentProvider.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        t('provider.verify')
-                      )}
-                    </Button>
-                  </div>
-                  {verifyError && (
-                    <p className="text-caption text-red-500 mt-2">
-                      {verifyError}
-                    </p>
-                  )}
-                </div>
+                <ApiKeyCard
+                  providerId={currentProvider.id}
+                  providerName={currentProvider.name}
+                  desc={t('provider.configDesc', {
+                    name: currentProvider.name,
+                  })}
+                  docsUrl={currentProvider.docUrl}
+                  apiKey={apiKey}
+                  onApiKeyChange={(value) => {
+                    setApiKey(value);
+                    setVerifyError(null);
+                  }}
+                  placeholder="sk-..."
+                  verifyLabel={t('provider.verify')}
+                  verifying={verifyingProvider === currentProvider.id}
+                  verified={isConfigured}
+                  onVerify={handleVerify}
+                  feedback={
+                    verifyError && (
+                      <p className="text-caption text-red-500 mt-2">
+                        {verifyError}
+                      </p>
+                    )
+                  }
+                />
               </div>
 
-              {/* 模型列表: 内嵌分隔线而非独立卡片，区域独立滚动 */}
-              <ScrollArea className="mt-4 pt-4 border-t border-border flex-1 min-h-0">
-                <h3 className="text-content font-bold text-foreground mb-3">
-                  {t('provider.availableModels')}
-                </h3>
-                <div className="flex flex-col divide-y divide-border">
-                  {currentProvider.models.map((model) => (
-                    <div
-                      key={model}
-                      className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0"
-                    >
-                      <span className="flex min-w-0 items-center gap-2">
-                        <ModelMark
-                          modelId={model}
-                          providerId={currentProvider.id}
-                          name={currentProvider.name}
-                          size={16}
-                        />
-                        <span className="font-mono text-body text-foreground truncate">
-                          {model}
+              {/* 模型列表: 独立滚动区块，标题行带模型计数，外框容器加行 hover */}
+              <ScrollArea className="mt-6 flex-1 min-h-0">
+                <div className="mb-3 flex items-baseline justify-between">
+                  <h3 className="text-title-section font-semibold text-foreground">
+                    {t('provider.availableModels')}
+                  </h3>
+                  <span className="text-caption text-muted-foreground">
+                    {t('provider.modelCount', {
+                      count: currentProvider.models.length,
+                    })}
+                  </span>
+                </div>
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <div className="flex flex-col">
+                    {currentProvider.models.map((model) => (
+                      <div
+                        key={model}
+                        className="flex items-center justify-between px-3 py-2.5 transition-colors hover:bg-secondary/50"
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <ModelMark
+                            modelId={model}
+                            providerId={currentProvider.id}
+                            name={currentProvider.name}
+                            size={16}
+                          />
+                          <span
+                            title={model}
+                            className="font-mono text-body text-foreground truncate"
+                          >
+                            {model}
+                          </span>
                         </span>
-                      </span>
-                    </div>
-                  ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </ScrollArea>
 

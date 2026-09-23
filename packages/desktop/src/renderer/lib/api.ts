@@ -1463,3 +1463,27 @@ export async function deleteClonedVoice(voiceId: string): Promise<void> {
     );
   }
 }
+
+/** 重命名克隆音色，只改服务端本地配置不调 MiniMax 接口 */
+export async function renameClonedVoice(
+  voiceId: string,
+  name: string
+): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/voices/clone/${encodeURIComponent(voiceId)}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    }
+  );
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to rename cloned voice: ${response.status}`
+    );
+  }
+}

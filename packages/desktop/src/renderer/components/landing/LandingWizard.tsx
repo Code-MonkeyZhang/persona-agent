@@ -292,7 +292,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                     >
                       <ProviderMark providerId={p.id} name={p.name} size={32} />
                       <span className="min-w-0 flex-1">
-                        <span className="block text-body font-semibold leading-tight truncate text-foreground">
+                        <span className="block text-body font-semibold truncate text-foreground">
                           {p.name}
                         </span>
                         {p.hasAuth ? (
@@ -374,7 +374,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                   </p>
                 )}
                 {KEY_URLS[provider.id] && (
-                  <p className="text-caption text-muted-foreground/70 mt-2">
+                  <p className="text-micro text-muted-foreground/70 mt-2">
                     {t('landing.keyHelp', {
                       url: KEY_URLS[provider.id],
                     })}
@@ -450,7 +450,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                 {t('landing.next')}
               </Button>
             </div>
-            <p className="text-caption text-muted-foreground/70 mt-3">
+            <p className="text-micro text-muted-foreground/70 mt-3">
               {t('landing.p1Hint')}
             </p>
           </section>
@@ -551,7 +551,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                             {voices.filter((v) => v.group === 'cloned').length >
                               0 && (
                               <SelectGroup>
-                                <SelectLabel className="text-caption text-muted-foreground uppercase">
+                                <SelectLabel className="text-micro text-muted-foreground uppercase">
                                   {t('agentEditor.clonedVoices')}
                                 </SelectLabel>
                                 {voices
@@ -564,7 +564,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                               </SelectGroup>
                             )}
                             <SelectGroup>
-                              <SelectLabel className="text-caption text-muted-foreground uppercase">
+                              <SelectLabel className="text-micro text-muted-foreground uppercase">
                                 {t('agentEditor.presetVoices')}
                               </SelectLabel>
                               {voices
@@ -687,7 +687,7 @@ export function LandingWizard({ agentId, onComplete }: LandingWizardProps) {
                       <Icon className="w-4 h-4" />
                     </span>
                     <span className="min-w-0 flex-1 pt-0.5">
-                      <span className="block text-body-strong leading-tight text-foreground mb-0.5">
+                      <span className="block text-body font-semibold text-foreground mb-0.5">
                         {t(`landing.${id}ConceptTitle`)}
                       </span>
                       <span className="block text-caption text-muted-foreground leading-relaxed">

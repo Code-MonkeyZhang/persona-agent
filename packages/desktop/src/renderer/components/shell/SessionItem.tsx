@@ -163,7 +163,7 @@ export const SessionItem: React.FC<SessionItemProps> = ({
         {!isEditing && !session.id.startsWith('chat') && (
           <button
             onClick={handleMenuClick}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+            className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-black/5 text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
             title={t('sessionItem.moreActions')}
           >
             <MoreVertical className="w-3.5 h-3.5" />
@@ -176,7 +176,7 @@ export const SessionItem: React.FC<SessionItemProps> = ({
         createPortal(
           <div
             ref={menuRef}
-            className="fixed z-[9999] min-w-[140px] bg-background border border-border rounded-lg shadow-lg py-1"
+            className="fixed z-[9999] min-w-[140px] bg-background border border-border rounded-lg shadow-pop py-1"
             style={{
               top: menuPosition.top,
               left: menuPosition.left,

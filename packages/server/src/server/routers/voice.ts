@@ -4,6 +4,7 @@
  * Routes:
  * - GET    /api/voices          - Get all voices (cloned first, then preset)
  * - POST   /api/voices/clone    - Clone a new voice (upload + clone + verify)
+ * - PUT    /api/voices/clone/:voiceId - Rename a cloned voice in local config
  * - DELETE /api/voices/clone/:voiceId - Delete a cloned voice
  */
 
@@ -13,6 +14,7 @@ import {
   getAllVoices,
   addClonedVoice,
   removeClonedVoice,
+  renameClonedVoice,
 } from '../../tts/voices.js';
 import { asyncHandler, getParam } from './utils.js';
 import { Logger } from '../../util/logger.js';
@@ -86,6 +88,26 @@ export function createVoiceRouter(): Router {
       );
 
       Logger.log('VOICE', `Cloned voice: ${voiceId}`);
+      res.json({ success: true });
+    })
+  );
+
+  router.put(
+    '/clone/:voiceId',
+    asyncHandler('VOICE', 'Voice rename failed', (req, res) => {
+      const voiceId = getParam(req.params['voiceId']);
+      if (!voiceId) throw new AppError(400, 'voiceId is required');
+
+      const name =
+        typeof req.body['name'] === 'string' ? req.body['name'].trim() : '';
+      if (!name) throw new AppError(400, 'name is required');
+
+      const renamed = renameClonedVoice(voiceId, name);
+      if (!renamed) {
+        throw new AppError(404, `Cloned voice not found: ${voiceId}`);
+      }
+
+      Logger.log('VOICE', `Renamed voice: ${voiceId}`);
       res.json({ success: true });
     })
   );

@@ -6,7 +6,6 @@
 import React, { useState } from 'react';
 import { VenetianMask } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { SettingDivider } from '../common/SettingRow';
 import { HoverDeleteButton } from '../ui/HoverDeleteButton';
 import { ImagePreviewOverlay } from '../ui/ImagePreviewOverlay';
 import { ImageAddTile } from '../ui/ImageAddTile';
@@ -47,55 +46,59 @@ export const AppearanceCard: React.FC<AppearanceCardProps> = ({
 
   return (
     <Card title={t('agentEditor.appearance')} icon={VenetianMask}>
-      <LabelWithTooltip
-        label={t('agentEditor.poseImage')}
-        tooltip={t('agentEditor.poseTooltip')}
-        className="text-body mb-2"
-      />
-      <PoseImageCardList
-        images={poseImages}
-        onAdd={onPoseAdd}
-        onRemove={onPoseRemove}
-        onRename={onPoseRename}
-        agentId={agentId}
-      />
-
-      <SettingDivider />
-
-      <LabelWithTooltip
-        label={t('agentEditor.backgroundImage')}
-        tooltip={t('agentEditor.bgTooltip')}
-        className="text-body mb-2"
-      />
-      {bgPreviewUrl ? (
-        <div className="relative group inline-block">
-          <div
-            className="relative rounded-lg overflow-hidden cursor-pointer"
-            style={{ width: 90, height: 160 }}
-            onClick={() => setBgPreviewOpen(true)}
-          >
-            <img
-              src={bgPreviewUrl}
-              alt=""
-              className="w-full h-full object-cover"
-              onError={onBgPreviewError}
-            />
-          </div>
-          <HoverDeleteButton
-            variant="dark"
-            className="absolute top-1 right-1"
-            onClick={onBgRemove}
+      <div className="flex flex-col gap-4">
+        <div>
+          <LabelWithTooltip
+            label={t('agentEditor.poseImage')}
+            tooltip={t('agentEditor.poseTooltip')}
+            className="text-body mb-2"
           />
-          {bgPreviewOpen && (
-            <ImagePreviewOverlay
-              src={bgPreviewUrl}
-              onClose={() => setBgPreviewOpen(false)}
-            />
+          <PoseImageCardList
+            images={poseImages}
+            onAdd={onPoseAdd}
+            onRemove={onPoseRemove}
+            onRename={onPoseRename}
+            agentId={agentId}
+          />
+        </div>
+
+        <div>
+          <LabelWithTooltip
+            label={t('agentEditor.backgroundImage')}
+            tooltip={t('agentEditor.bgTooltip')}
+            className="text-body mb-2"
+          />
+          {bgPreviewUrl ? (
+            <div className="relative group inline-block">
+              <div
+                className="relative rounded-lg overflow-hidden cursor-pointer"
+                style={{ width: 90, height: 160 }}
+                onClick={() => setBgPreviewOpen(true)}
+              >
+                <img
+                  src={bgPreviewUrl}
+                  alt=""
+                  className="w-full h-full object-cover"
+                  onError={onBgPreviewError}
+                />
+              </div>
+              <HoverDeleteButton
+                variant="dark"
+                className="absolute top-1 right-1"
+                onClick={onBgRemove}
+              />
+              {bgPreviewOpen && (
+                <ImagePreviewOverlay
+                  src={bgPreviewUrl}
+                  onClose={() => setBgPreviewOpen(false)}
+                />
+              )}
+            </div>
+          ) : (
+            <ImageAddTile width={90} height={160} onPick={onBgUpload} />
           )}
         </div>
-      ) : (
-        <ImageAddTile width={90} height={160} onPick={onBgUpload} />
-      )}
+      </div>
     </Card>
   );
 };

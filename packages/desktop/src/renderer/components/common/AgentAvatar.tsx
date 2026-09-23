@@ -13,18 +13,20 @@ import type { AgentConfig } from '../../types/agent';
 const sizeMap = {
   sm: 'w-8 h-8',
   md: 'w-10 h-10',
+  'md-plus': 'w-11 h-11',
   lg: 'w-16 h-16',
 };
 
 const iconSizeMap = {
   sm: 14,
   md: 18,
+  'md-plus': 20,
   lg: 28,
 };
 
 interface AgentAvatarProps {
   agent: AgentConfig;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'md-plus' | 'lg';
   className?: string;
   editingPreviewUrl?: string;
 }

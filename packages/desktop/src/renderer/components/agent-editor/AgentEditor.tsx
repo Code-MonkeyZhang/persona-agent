@@ -414,7 +414,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     <div className="h-full w-full flex flex-col bg-muted">
       <div className="shrink-0 flex items-center gap-2 px-5 h-14 border-b border-border bg-muted">
         <BackButton onClick={closeAgentEditor} />
-        <h1 className="text-title-section font-bold text-foreground">
+        <h1 className="text-title-page font-bold text-foreground">
           {editingAgentId
             ? t('agentEditor.editAgent')
             : t('agentEditor.addAgent')}
