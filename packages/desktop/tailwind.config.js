@@ -47,6 +47,10 @@ export default {
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
+      boxShadow: {
+        soft: 'var(--shadow-soft)',
+        pop: 'var(--shadow-pop)',
+      },
       fontFamily: {
         sans: ['var(--font-family-sans)'],
         mono: ['var(--font-family-mono)'],

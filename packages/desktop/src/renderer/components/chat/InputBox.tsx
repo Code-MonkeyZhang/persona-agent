@@ -58,7 +58,6 @@ export const InputBox: React.FC<InputBoxProps> = ({
   onWorkspaceChange,
 }) => {
   const { t } = useTranslation();
-  const [isFocused, setIsFocused] = React.useState(false);
 
   /** 发送当前输入：空闲与生成中均可用，生成中由上层作为插话排队 */
   const submit = () => {
@@ -77,15 +76,8 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
   return (
     <div className="px-4 pb-4">
-      {/* 输入框容器：聚焦时显示描边和阴影，失焦时显示半透明背景 */}
-      <div
-        className={cn(
-          'relative flex flex-col rounded-2xl transition-all duration-200',
-          isFocused
-            ? 'ring-1 ring-foreground/20 bg-background'
-            : 'bg-secondary hover:bg-secondary/80'
-        )}
-      >
+      {/* 输入框容器：常驻激活态，白底加淡描边，不随焦点切换 */}
+      <div className="relative flex flex-col rounded-[24px] ring-1 ring-foreground/20 bg-background shadow-none">
         {/* 文本输入区域 */}
         <div className="px-3 pt-3 pb-1">
           <textarea
@@ -93,11 +85,9 @@ export const InputBox: React.FC<InputBoxProps> = ({
             value={input}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
             placeholder={t('inputBox.placeholder')}
             rows={1}
-            className="w-full bg-transparent resize-none focus:outline-none text-content text-foreground placeholder:text-placeholder min-h-[24px]"
+            className="w-full bg-transparent resize-none focus:outline-none text-content text-foreground placeholder:text-placeholder min-h-[30px]"
             style={{ maxHeight: '200px' }}
           />
         </div>
@@ -108,7 +98,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
           <div className="flex items-center gap-1">
             {/* 添加附件按钮 */}
             <button
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50 transition-colors duration-150"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors duration-150"
               title={t('inputBox.addAttachment')}
             >
               <Plus size={18} />

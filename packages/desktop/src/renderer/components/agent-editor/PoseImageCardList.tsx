@@ -92,18 +92,18 @@ export const PoseImageCardList: React.FC<PoseImageCardListProps> = ({
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onBlur={confirmRename}
-                className="text-micro text-white bg-background/20 rounded px-1 py-0.5 leading-tight w-full outline-none border border-white/30"
+                className="text-micro text-white bg-background/20 rounded px-1 py-0.5 w-full outline-none border border-white/30"
               />
             ) : (
               <div className="flex items-center gap-1">
                 <div
-                  className="text-micro text-white/90 truncate leading-tight flex-1"
+                  className="text-micro text-white/90 truncate flex-1"
                   onDoubleClick={() => handleStartRename(idx)}
                 >
                   {img.name}
                 </div>
                 {img.name === 'default' ? (
-                  <span className="shrink-0 text-micro bg-background/25 text-white/90 rounded px-1 leading-tight">
+                  <span className="shrink-0 text-micro bg-background/25 text-white/90 rounded px-1">
                     {t('agentEditor.defaultPose')}
                   </span>
                 ) : (

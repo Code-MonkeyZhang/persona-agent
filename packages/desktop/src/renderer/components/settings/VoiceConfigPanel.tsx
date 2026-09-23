@@ -3,16 +3,19 @@
  * @description 语音服务配置面板，管理 MiniMax TTS API Key、模型选择、语音摘要阈值和克隆音色
  * 设置页面是独立 Electron 窗口，Toast 不可见，因此使用内联 UI 反馈
  * 所有配置通过服务端 API 读写，不依赖本地 store
+ * 密钥不回显，已配置状态由服务端配置驱动，验证通过即清空输入框
  */
 
 import React, { useEffect, useState, useRef } from 'react';
 import {
+  Check,
   CheckCircle,
   XCircle,
   Volume2,
   Trash2,
   Upload,
   Plus,
+  Pencil,
   X,
   Loader2,
 } from 'lucide-react';
@@ -25,13 +28,15 @@ import {
   getVoices,
   cloneVoice,
   deleteClonedVoice,
+  renameClonedVoice,
   type TtsModel,
   type VoiceOption,
 } from '../../lib/api';
 import { synthesize } from '../../lib/tts';
-import { SettingRow, SettingDivider } from '../common/SettingRow';
+import { SettingRow } from '../common/SettingRow';
 import { Card } from '../ui/Card';
-import { PasswordInput } from '../ui/PasswordInput';
+import { ApiKeyCard } from './ApiKeyCard';
+import { Button } from '../ui/Button';
 import {
   Select,
   SelectTrigger,
@@ -45,6 +50,8 @@ import { toast } from '../../stores/toastStore';
 import { logger } from '../../lib/logger';
 
 const VERIFY_TEXT = '测试语音功能连接';
+
+const MINIMAX_DOCS_URL = 'https://platform.minimaxi.com/docs/guides/quickstart';
 
 const ALLOWED_AUDIO_TYPES = new Set([
   'audio/mpeg',
@@ -93,6 +100,7 @@ function generateVoiceId(): string {
 export const VoiceConfigPanel: React.FC = () => {
   const { t } = useTranslation();
   const [inputKey, setInputKey] = useState('');
+  const [keyConfigured, setKeyConfigured] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
@@ -111,6 +119,9 @@ export const VoiceConfigPanel: React.FC = () => {
   const [cloneName, setCloneName] = useState('');
   const [cloning, setCloning] = useState(false);
 
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const MIN_THRESHOLD = 0;
@@ -127,7 +138,7 @@ export const VoiceConfigPanel: React.FC = () => {
         getTtsModels(),
         getVoices(),
       ]);
-      setInputKey(config.apiKey);
+      setKeyConfigured(Boolean(config.apiKey));
       setSelectedModel(config.model);
       setThresholdInput(String(config.summaryThreshold));
       setModels(modelsData);
@@ -140,7 +151,7 @@ export const VoiceConfigPanel: React.FC = () => {
   /**
    * 验证并保存 API Key：
    * - 用输入的 Key 调一次 synthesize 合成测试文本
-   * - 验证通过：保存 Key 到服务端 + 显示成功提示
+   * - 验证通过：保存 Key 到服务端 + 清空输入框 + 显示成功提示
    * - 验证失败：显示错误提示，不保存
    */
   const handleSaveKey = async () => {
@@ -160,6 +171,8 @@ export const VoiceConfigPanel: React.FC = () => {
         selectedModel || 'speech-2.8-hd'
       );
       await updateTtsConfig({ apiKey: key });
+      setInputKey('');
+      setKeyConfigured(true);
       setFeedback({ type: 'success', message: t('voice.apiKeyVerified') });
     } catch (err) {
       const message =
@@ -216,6 +229,23 @@ export const VoiceConfigPanel: React.FC = () => {
     } catch (err) {
       const message =
         err instanceof Error ? err.message : t('common.deleteFailed');
+      toast.error(message);
+    }
+  };
+
+  /** 行内重命名克隆音色，只改服务端本地配置不调 MiniMax 接口 */
+  const handleRename = async (voiceId: string) => {
+    const name = renameValue.trim();
+    if (!name) return;
+    try {
+      await renameClonedVoice(voiceId, name);
+      setClonedVoices((prev) =>
+        prev.map((v) => (v.id === voiceId ? { ...v, name } : v))
+      );
+      setRenamingId(null);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : t('common.saveFailed');
       toast.error(message);
     }
   };
@@ -295,99 +325,103 @@ export const VoiceConfigPanel: React.FC = () => {
 
   return (
     <div className="p-5 flex flex-col gap-4">
-      {/* API Key 配置 */}
-      <Card title={t('voice.minimaxTitle')} desc={t('voice.minimaxDesc')}>
-        <SettingRow label="API Key">
-          <div className="flex items-center gap-2">
-            <PasswordInput
-              value={inputKey}
-              onChange={(e) => setInputKey(e.target.value)}
-              placeholder={t('voice.enterMinimaxApiKey')}
-            />
-            <button
-              onClick={handleSaveKey}
-              disabled={!inputKey.trim() || verifying}
-              className="h-8 px-3 text-body rounded-lg border border-input text-muted-foreground hover:text-foreground hover:border-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      {/* API Key 配置：品牌头部与密钥区，密钥不回显，绿勾由服务端配置驱动 */}
+      <ApiKeyCard
+        providerId="minimax"
+        providerName="MiniMax"
+        desc={t('voice.minimaxDesc')}
+        docsUrl={MINIMAX_DOCS_URL}
+        apiKey={inputKey}
+        onApiKeyChange={setInputKey}
+        placeholder={t('voice.enterMinimaxApiKey')}
+        verifyLabel={t('voice.verifyAndSave')}
+        verifyingLabel={t('voice.verifying')}
+        verifying={verifying}
+        verified={keyConfigured}
+        onVerify={handleSaveKey}
+        feedback={
+          feedback && (
+            <p
+              className={`text-caption mt-2 flex items-center gap-1 ${feedback.type === 'success' ? 'text-green-600' : 'text-red-500'}`}
             >
-              {verifying ? t('voice.verifying') : t('voice.verifyAndSave')}
-            </button>
-          </div>
-        </SettingRow>
-
-        {feedback && (
-          <p
-            className={`text-caption mt-2 flex items-center gap-1 ${feedback.type === 'success' ? 'text-green-600' : 'text-red-500'}`}
-          >
-            {feedback.type === 'success' ? (
-              <CheckCircle className="w-3.5 h-3.5" />
-            ) : (
-              <XCircle className="w-3.5 h-3.5" />
-            )}
-            {feedback.message}
-          </p>
-        )}
-      </Card>
+              {feedback.type === 'success' ? (
+                <CheckCircle className="w-3.5 h-3.5" />
+              ) : (
+                <XCircle className="w-3.5 h-3.5" />
+              )}
+              {feedback.message}
+            </p>
+          )
+        }
+        className="rounded-xl border border-border bg-background px-4 py-4"
+      />
 
       {/* 语音参数 */}
-      <Card title={t('voice.params')}>
-        <SettingRow label={t('voice.ttsModel')}>
-          <Select
-            value={selectedModel}
-            onValueChange={handleModelChange}
-            disabled={savingModel}
+      <Card
+        title={t('voice.params')}
+        titleClassName="text-title-section font-semibold"
+      >
+        <div className="flex flex-col gap-4">
+          <SettingRow label={t('voice.ttsModel')}>
+            <Select
+              value={selectedModel}
+              onValueChange={handleModelChange}
+              disabled={savingModel}
+            >
+              <SelectTrigger className="rounded-lg border-input h-8 w-48 text-body">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {models.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </SettingRow>
+          <SettingRow
+            label={t('voice.summaryThreshold')}
+            tooltip={t('voice.summaryThresholdTooltip')}
           >
-            <SelectTrigger className="rounded-lg border-input h-8 w-48 text-body">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {models.map((m) => (
-                <SelectItem key={m.id} value={m.id}>
-                  {m.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </SettingRow>
-        <SettingDivider />
-        <SettingRow
-          label={t('voice.summaryThreshold')}
-          tooltip={t('voice.summaryThresholdTooltip')}
-        >
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              inputMode="numeric"
-              value={thresholdInput}
-              onChange={(e) => handleThresholdChange(e.target.value)}
-              onBlur={handleThresholdBlur}
-              disabled={savingThreshold}
-              className="w-20 h-8 px-3 text-body text-right border border-input rounded-lg focus:outline-none focus:ring-1 focus:ring-muted-foreground"
-            />
-            <span className="text-caption text-muted-foreground">
-              {t('voice.characters')}
-            </span>
-          </div>
-        </SettingRow>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={thresholdInput}
+                onChange={(e) => handleThresholdChange(e.target.value)}
+                onBlur={handleThresholdBlur}
+                disabled={savingThreshold}
+                className="w-20 h-8 px-3 text-body text-right border border-input rounded-lg focus:outline-none focus:ring-1 focus:ring-muted-foreground"
+              />
+              <span className="text-caption text-muted-foreground">
+                {t('voice.characters')}
+              </span>
+            </div>
+          </SettingRow>
+        </div>
       </Card>
 
       {/* 克隆音色管理 */}
       <Card
         title={t('voice.cloneManagement')}
+        titleClassName="text-title-section font-semibold"
         desc={t('voice.cloneDesc')}
         action={
           !showCloneForm && (
-            <button
+            <Button
+              variant="outline"
               onClick={() => setShowCloneForm(true)}
-              className="h-8 px-3 text-body rounded-lg border border-input text-muted-foreground hover:text-foreground hover:border-muted-foreground transition-colors flex items-center gap-1"
+              className="rounded-lg border-border h-8 text-body px-3"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5 mr-1" />
               {t('voice.cloneNew')}
-            </button>
+            </Button>
           )
         }
       >
         {showCloneForm && (
-          <div className="mb-4 p-4 rounded-lg border border-dashed border-input bg-card-bg">
+          <div className="mb-4 p-4 rounded-lg border border-dashed border-border bg-muted">
             <div className="flex items-center justify-between mb-3">
               <span className="text-body font-medium text-foreground">
                 {t('voice.uploadClone')}
@@ -419,7 +453,7 @@ export const VoiceConfigPanel: React.FC = () => {
                   {t('voice.audioFile')}
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-dashed border-input hover:border-muted-foreground transition-colors cursor-pointer text-caption text-muted-foreground">
+                  <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-dashed border-border hover:border-foreground/40 transition-colors cursor-pointer text-caption text-muted-foreground">
                     <Upload className="w-3.5 h-3.5" />
                     <span>
                       {cloneFileName || t('voice.selectAudioFileBtn')}
@@ -432,23 +466,24 @@ export const VoiceConfigPanel: React.FC = () => {
                       className="hidden"
                     />
                   </label>
-                  <span className="text-caption text-muted-foreground">
+                  <span className="text-micro text-muted-foreground">
                     {t('voice.audioFileHint')}
                   </span>
                 </div>
               </div>
 
               <div className="flex justify-end gap-2 mt-1">
-                <button
+                <Button
+                  variant="outline"
                   onClick={resetCloneForm}
-                  className="h-8 px-3 text-body rounded-lg border border-input text-muted-foreground hover:text-foreground transition-colors"
+                  className="rounded-lg border-border h-8 text-body px-3"
                 >
                   {t('common.cancel')}
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={handleClone}
                   disabled={!cloneName.trim() || !cloneFile || cloning}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg h-8 px-4 text-body disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="bg-foreground text-white hover:bg-foreground/90 rounded-lg h-8 text-body px-4"
                 >
                   {cloning ? (
                     <span className="flex items-center gap-1.5">
@@ -458,14 +493,14 @@ export const VoiceConfigPanel: React.FC = () => {
                   ) : (
                     t('voice.startClone')
                   )}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
         )}
 
         {clonedVoices.length === 0 ? (
-          <div className="text-placeholder text-body py-6 text-center border border-dashed border-border rounded-lg">
+          <div className="text-muted-foreground text-body py-6 text-center border border-dashed border-border rounded-lg">
             {t('voice.noClonedVoices')}
           </div>
         ) : (
@@ -473,40 +508,83 @@ export const VoiceConfigPanel: React.FC = () => {
             {clonedVoices.map((v) => (
               <div
                 key={v.id}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-card-border bg-card-bg"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border bg-muted"
               >
-                <div className="flex-1 min-w-0">
-                  <div className="text-body font-medium text-foreground">
-                    {v.name}
+                {renamingId === v.id ? (
+                  <div className="flex-1 flex items-center gap-2 min-w-0">
+                    <input
+                      autoFocus
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') void handleRename(v.id);
+                        if (e.key === 'Escape') setRenamingId(null);
+                      }}
+                      className="rounded-lg border border-input h-7 px-2 text-body flex-1 focus:outline-none focus:ring-1 focus:ring-muted-foreground"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0"
+                      onClick={() => void handleRename(v.id)}
+                    >
+                      <Check className="w-3.5 h-3.5 text-green-600" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0"
+                      onClick={() => setRenamingId(null)}
+                    >
+                      <X className="w-3.5 h-3.5 text-muted-foreground" />
+                    </Button>
                   </div>
-                </div>
+                ) : (
+                  <div className="flex-1 min-w-0">
+                    <div className="text-body font-medium text-foreground truncate">
+                      {v.name}
+                    </div>
+                  </div>
+                )}
 
-                <div className="shrink-0 flex items-center gap-1">
-                  <button
-                    onClick={() =>
-                      previewVoice(v.id, getRandomPreviewText(t), {
-                        noKey: t('voice.configureApiKeyFirst'),
-                        failed: t('voice.previewFailed'),
-                      })
-                    }
-                    disabled={previewingId === v.id}
-                    className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={t('voice.preview')}
-                  >
-                    {previewingId === v.id ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Volume2 className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                  <button
-                    onClick={() => handleDeleteVoice(v.id)}
-                    className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors"
-                    title={t('common.delete')}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                {renamingId !== v.id && (
+                  <div className="shrink-0 flex items-center gap-1">
+                    <button
+                      onClick={() =>
+                        previewVoice(v.id, getRandomPreviewText(t), {
+                          noKey: t('voice.configureApiKeyFirst'),
+                          failed: t('voice.previewFailed'),
+                        })
+                      }
+                      disabled={previewingId === v.id}
+                      className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={t('voice.preview')}
+                    >
+                      {previewingId === v.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Volume2 className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setRenamingId(v.id);
+                        setRenameValue(v.name);
+                      }}
+                      className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
+                      title={t('common.rename')}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteVoice(v.id)}
+                      className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors"
+                      title={t('common.delete')}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

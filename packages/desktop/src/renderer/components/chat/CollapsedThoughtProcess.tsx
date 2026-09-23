@@ -228,14 +228,14 @@ export function CollapsedThoughtProcess({
       >
         <ChevronRight
           size={12}
-          className={`text-gray-400 transition-transform duration-200 ${
+          className={`text-muted-foreground transition-transform duration-200 ${
             isExpanded ? 'rotate-90' : ''
           }`}
         />
 
         {errorCount > 0 && <XCircle size={14} className="text-red-500" />}
 
-        <span className="text-gray-500">
+        <span className="text-muted-foreground">
           {t('thoughtProcess.showThinking')}
         </span>
       </button>

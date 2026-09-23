@@ -71,7 +71,7 @@ export const AgentToolsView: React.FC = () => {
     <div className="h-full w-full flex flex-col bg-general-bg">
       <div className="shrink-0 flex items-center gap-2 px-5 h-14 border-b border-border bg-muted">
         <BackButton onClick={() => setActiveNav('chat')} />
-        <Wrench className="w-4 h-4 text-muted-foreground" />
+        <Wrench className="w-[18px] h-[18px] text-muted-foreground" />
         <h1 className="text-title-section font-bold text-foreground">
           {t('tools.title')}
         </h1>

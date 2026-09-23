@@ -15,3 +15,17 @@ export const isLinux = platform === 'linux';
 export function dataPath(sub: string): string {
   return `~/.local/share/persona-agent/${sub}/`;
 }
+
+/**
+ * 数据根目录路径。dataPath 固定追加尾斜杠，空子目录会产生双斜杠，故单独提供。
+ */
+export function dataRootPath(): string {
+  return '~/.local/share/persona-agent/';
+}
+
+/**
+ * config.yaml 配置文件路径。dataPath 会给文件路径追加多余尾斜杠，故单独拼接。
+ */
+export function configFilePath(): string {
+  return '~/.local/share/persona-agent/config/config.yaml';
+}

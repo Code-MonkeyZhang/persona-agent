@@ -10,16 +10,18 @@ import { useTranslation } from 'react-i18next';
 import { useConfigStore } from '../../stores/configStore';
 import { Switch } from '../ui/Switch';
 import { Card } from '../ui/Card';
-import { SettingRow, SettingDivider } from '../common/SettingRow';
+import { SettingRow } from '../common/SettingRow';
 import { EnvironmentCard } from './EnvironmentCard';
 import { VersionUpdateCard } from './VersionUpdateCard';
-import { dataPath } from '../../lib/platform';
+import { configFilePath, dataPath, dataRootPath } from '../../lib/platform';
 
 const STORAGE_PATHS = [
-  { labelKey: 'config.agentDir', dir: 'agents' },
-  { labelKey: 'config.skillDir', dir: 'skills' },
-  { labelKey: 'config.mcpDir', dir: 'mcp' },
-  { labelKey: 'config.logDir', dir: 'logs' },
+  { labelKey: 'config.dataDir', path: dataRootPath() },
+  { labelKey: 'config.configFile', path: configFilePath() },
+  { labelKey: 'config.agentDir', path: dataPath('agents') },
+  { labelKey: 'config.skillDir', path: dataPath('skills') },
+  { labelKey: 'config.mcpDir', path: dataPath('mcp') },
+  { labelKey: 'config.logDir', path: dataPath('logs') },
 ] as const;
 
 function PathRow({ label, path }: { label: string; path: string }) {
@@ -64,55 +66,65 @@ export const ConfigForm: React.FC = () => {
 
   return (
     <div className="p-5 flex flex-col gap-4">
-      <Card title={t('config.basic')}>
-        <SettingRow
-          label={t('config.language')}
-          desc={t('config.languageDesc')}
-        >
-          <div className="flex rounded-lg border border-border overflow-hidden">
-            <button
-              onClick={() => i18n.changeLanguage('zh-CN')}
-              className={`px-3 py-1 text-body leading-[18px] transition-colors ${
-                i18n.language === 'zh-CN'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-white text-muted-foreground hover:bg-secondary'
-              }`}
-            >
-              中文
-            </button>
-            <button
-              onClick={() => i18n.changeLanguage('en')}
-              className={`px-3 py-1 text-body leading-[18px] transition-colors border-l border-border ${
-                i18n.language === 'en'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-white text-muted-foreground hover:bg-secondary'
-              }`}
-            >
-              English
-            </button>
-          </div>
-        </SettingRow>
-        <SettingDivider />
-        <SettingRow
-          label={t('config.enableLogging')}
-          desc={t('config.enableLoggingDesc')}
-        >
-          <Switch
-            checked={config.enableLogging}
-            onCheckedChange={(checked) =>
-              handleToggle('enableLogging', checked)
-            }
-          />
-        </SettingRow>
+      <Card
+        title={t('config.basic')}
+        titleClassName="text-title-section font-semibold"
+      >
+        <div className="flex flex-col gap-4">
+          <SettingRow
+            label={t('config.language')}
+            desc={t('config.languageDesc')}
+          >
+            <div className="flex rounded-lg border border-border overflow-hidden">
+              <button
+                onClick={() => i18n.changeLanguage('zh-CN')}
+                className={`px-3 py-1 text-body transition-colors ${
+                  i18n.language === 'zh-CN'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-white text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                中文
+              </button>
+              <button
+                onClick={() => i18n.changeLanguage('en')}
+                className={`px-3 py-1 text-body transition-colors border-l border-border ${
+                  i18n.language?.startsWith('en')
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-white text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                English
+              </button>
+            </div>
+          </SettingRow>
+          <SettingRow
+            label={t('config.enableLogging')}
+            desc={t('config.enableLoggingDesc')}
+          >
+            <Switch
+              checked={config.enableLogging}
+              onCheckedChange={(checked) =>
+                handleToggle('enableLogging', checked)
+              }
+            />
+          </SettingRow>
+        </div>
       </Card>
 
-      <Card title={t('config.storagePaths')}>
-        {STORAGE_PATHS.map((item, i) => (
-          <React.Fragment key={item.labelKey}>
-            {i > 0 && <SettingDivider />}
-            <PathRow label={t(item.labelKey)} path={dataPath(item.dir)} />
-          </React.Fragment>
-        ))}
+      <Card
+        title={t('config.storagePaths')}
+        titleClassName="text-title-section font-semibold"
+      >
+        <div className="flex flex-col gap-4">
+          {STORAGE_PATHS.map((item) => (
+            <PathRow
+              key={item.labelKey}
+              label={t(item.labelKey)}
+              path={item.path}
+            />
+          ))}
+        </div>
       </Card>
 
       <EnvironmentCard />

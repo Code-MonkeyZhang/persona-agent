@@ -1,6 +1,6 @@
 /**
  * @file src/renderer/components/common/SettingRow.tsx
- * @description 通用设置行组件，提供左标签 + 右控件的统一布局，以及细分割线
+ * @description 通用设置行组件，提供左标签 + 右控件的统一布局
  */
 
 import type { ReactNode } from 'react';
@@ -36,7 +36,7 @@ export function SettingRow({
         <LabelWithTooltip
           label={label}
           tooltip={tooltip}
-          className="text-content leading-[18px]"
+          className="text-content"
         />
         {desc && (
           <div
@@ -49,11 +49,4 @@ export function SettingRow({
       {children && <div className="shrink-0">{children}</div>}
     </div>
   );
-}
-
-/**
- * 设置项之间的细分割线
- */
-export function SettingDivider() {
-  return <hr className="my-2 border-t-[0.5px] border-border" />;
 }
