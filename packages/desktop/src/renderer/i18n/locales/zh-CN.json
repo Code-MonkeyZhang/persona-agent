@@ -83,6 +83,8 @@
   "config.enableLogging": "启用日志",
   "config.enableLoggingDesc": "将运行日志记录到本地文件",
   "config.storagePaths": "存储路径",
+  "config.dataDir": "数据目录",
+  "config.configFile": "配置文件",
   "config.agentDir": "智能体目录",
   "config.skillDir": "技能目录",
   "config.mcpDir": "工具配置",

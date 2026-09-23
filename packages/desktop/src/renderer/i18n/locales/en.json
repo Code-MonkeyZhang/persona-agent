@@ -83,6 +83,8 @@
   "config.enableLogging": "Enable Logging",
   "config.enableLoggingDesc": "Record runtime logs to local files",
   "config.storagePaths": "Storage Paths",
+  "config.dataDir": "Data Directory",
+  "config.configFile": "Config File",
   "config.agentDir": "Agents Directory",
   "config.skillDir": "Skills Directory",
   "config.mcpDir": "MCP Config",
