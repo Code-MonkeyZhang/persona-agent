@@ -69,7 +69,7 @@ export const VoiceCard: React.FC<VoiceCardProps> = ({
               </SelectItem>
               {voices.filter((v) => v.group === 'cloned').length > 0 && (
                 <SelectGroup>
-                  <SelectLabel className="text-caption text-muted-foreground font-medium uppercase tracking-wide">
+                  <SelectLabel className="text-micro text-muted-foreground font-medium uppercase tracking-wide">
                     {t('agentEditor.clonedVoices')}
                   </SelectLabel>
                   {voices
@@ -83,7 +83,7 @@ export const VoiceCard: React.FC<VoiceCardProps> = ({
               )}
               <SelectSeparator />
               <SelectGroup>
-                <SelectLabel className="text-caption text-muted-foreground font-medium uppercase tracking-wide">
+                <SelectLabel className="text-micro text-muted-foreground font-medium uppercase tracking-wide">
                   {t('agentEditor.presetVoices')}
                 </SelectLabel>
                 {voices

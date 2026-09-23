@@ -45,8 +45,10 @@ const NavItem: React.FC<{
     {active && (
       <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-primary rounded-r" />
     )}
-    <Icon className="w-4 h-4" />
-    <span className="flex-1 text-left text-content truncate">{label}</span>
+    <Icon className="w-[18px] h-[18px]" />
+    <span className="flex-1 text-left text-title-section truncate">
+      {label}
+    </span>
   </button>
 );
 
@@ -139,7 +141,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
             </div>
           )}
           <div className="min-w-0 flex-1 text-left">
-            <div className="font-medium text-content text-foreground truncate">
+            <div className="font-semibold text-title-section text-foreground truncate">
               {currentAgent?.name || t('common.noAgentSelected')}
             </div>
             <div className="text-body text-muted-foreground truncate">
@@ -168,9 +170,9 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
                 activeNav === 'chat' && (
                   <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-primary rounded-r" />
                 )}
-              <MessageCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-muted-foreground" />
+              <MessageCircle className="w-[18px] h-[18px] flex-shrink-0 mt-0.5 text-muted-foreground" />
               <div className="flex-1 min-w-0 text-left">
-                <span className="text-content text-foreground block">
+                <span className="text-title-section text-foreground block">
                   {t('sessionSidebar.chat')}
                 </span>
                 <span className="text-caption text-muted-foreground truncate block">
@@ -205,8 +207,8 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
       <div className="shrink-0 px-2 pt-1">
         {/* 「会话」标题行，右侧 Plus 按钮进入新对话草稿态 */}
         <div className="w-full flex items-center gap-2.5 px-3 py-2">
-          <MessagesSquare className="w-4 h-4 text-muted-foreground" />
-          <span className="flex-1 text-left text-content text-muted-foreground truncate">
+          <MessagesSquare className="w-[18px] h-[18px] text-muted-foreground" />
+          <span className="flex-1 text-left text-title-section text-muted-foreground truncate">
             {t('sessionSidebar.sessions')}
           </span>
           <button

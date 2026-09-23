@@ -73,7 +73,7 @@ export const SkillsView: React.FC = () => {
     <div className="h-full w-full flex flex-col bg-general-bg">
       <div className="shrink-0 flex items-center gap-2 px-5 h-14 border-b border-border bg-muted">
         <BackButton onClick={() => setActiveNav('chat')} />
-        <Sparkles className="w-4 h-4 text-muted-foreground" />
+        <Sparkles className="w-[18px] h-[18px] text-muted-foreground" />
         <h1 className="text-title-section font-bold text-foreground">
           {t('skills.viewTitle')}
         </h1>

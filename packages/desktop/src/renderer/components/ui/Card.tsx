@@ -13,6 +13,7 @@ interface CardProps {
   desc?: string;
   action?: React.ReactNode;
   className?: string;
+  titleClassName?: string;
   children?: React.ReactNode;
 }
 
@@ -27,6 +28,7 @@ interface CardProps {
  * @param desc - 可选的标题下说明文字
  * @param action - 可选的标题行右侧操作区
  * @param className - 追加到容器根节点的样式类
+ * @param titleClassName - 覆盖标题默认字号与字重的样式类
  * @param children - 卡片内容
  */
 export const Card: React.FC<CardProps> = ({
@@ -35,6 +37,7 @@ export const Card: React.FC<CardProps> = ({
   desc,
   action,
   className,
+  titleClassName,
   children,
 }) => {
   const Icon = icon;
@@ -42,6 +45,7 @@ export const Card: React.FC<CardProps> = ({
     <h3
       className={cn(
         'text-content font-bold text-foreground',
+        titleClassName,
         !action && (desc ? 'mb-1' : 'mb-3')
       )}
     >

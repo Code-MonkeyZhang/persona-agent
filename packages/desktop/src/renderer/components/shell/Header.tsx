@@ -12,6 +12,8 @@ import { useAgentStore } from '../../stores/agentStore';
 import { useCompanionStore } from '../../stores/companionStore';
 import { useVoiceStore } from '../../stores/voiceStore';
 import { toast } from '../../stores/toastStore';
+import { Button } from '../ui/Button';
+import { cn } from '../../lib/utils';
 
 interface HeaderProps {
   /** 当前会话是否正在生成，控制标题旁的运行指示 */
@@ -52,7 +54,7 @@ export const Header: React.FC<HeaderProps> = ({ isLoading }) => {
   return (
     <header className="h-14 border-b border-border flex items-center justify-between bg-background">
       <div className="flex items-center gap-4 px-6">
-        <h1 className="font-medium text-content text-foreground">
+        <h1 className="font-semibold text-title-section text-foreground">
           {currentSession?.title || t('header.newChat')}
         </h1>
         {isLoading && (
@@ -70,16 +72,17 @@ export const Header: React.FC<HeaderProps> = ({ isLoading }) => {
       <div className="flex items-center gap-2 pr-4">
         {currentAgent && (
           <>
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleVoiceToggle}
               disabled={!voiceConfigured}
-              className={`inline-flex items-center justify-center h-8 px-3 text-caption rounded-xl border transition-colors ${
-                !voiceConfigured
-                  ? 'border-border text-muted-foreground cursor-not-allowed'
-                  : voiceEnabled
-                    ? 'border-primary/20 bg-primary/10 text-primary hover:bg-primary/15'
-                    : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
-              }`}
+              className={cn(
+                'rounded-xl transition-colors',
+                voiceEnabled
+                  ? 'border-primary/20 bg-primary/10 text-primary hover:bg-primary/15'
+                  : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
+              )}
               title={t('header.voice')}
             >
               {voiceEnabled ? (
@@ -88,21 +91,24 @@ export const Header: React.FC<HeaderProps> = ({ isLoading }) => {
                 <VolumeX className="w-4 h-4 mr-1" />
               )}
               <span>{t('header.voice')}</span>
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={toggleCompanion}
-              className={`inline-flex items-center justify-center h-8 px-3 text-caption rounded-xl border transition-colors ${
+              className={cn(
+                'rounded-xl transition-colors',
                 visible
                   ? 'border-primary/20 bg-primary/10 text-primary hover:bg-primary/15'
                   : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
-              }`}
+              )}
               title={
                 visible ? t('header.hideCompanion') : t('header.showCompanion')
               }
             >
               <VenetianMask className="w-4 h-4 mr-1" />
               <span>{t('header.avatar')}</span>
-            </button>
+            </Button>
           </>
         )}
       </div>

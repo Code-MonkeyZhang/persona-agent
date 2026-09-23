@@ -103,7 +103,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   if (filteredProviders.length === 0) {
     return (
       <div
-        className={`px-3 py-2 border border-gray-200 rounded-md text-content text-gray-400 ${className}`}
+        className={`px-3 py-2 border border-border rounded-md text-body text-gray-400 ${className}`}
       >
         {t('model.noModels')}
       </div>
@@ -114,7 +114,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
 
   const triggerClassName = compact
     ? 'h-8 w-auto max-w-[140px] border-0 bg-transparent hover:bg-muted/50 px-2.5 text-caption text-muted-foreground/60 hover:text-muted-foreground shadow-none focus:ring-0 focus:ring-offset-0 [&>svg]:hidden'
-    : 'w-full px-3 py-2 border border-gray-200 rounded-md text-content hover:bg-gray-50 focus:ring-blue-500';
+    : 'w-full px-3 py-2 border border-border rounded-md text-body focus:ring-blue-500';
 
   return (
     <div className={className}>

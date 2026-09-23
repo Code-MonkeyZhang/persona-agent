@@ -83,7 +83,7 @@ export function CompanionContent({ agentId }: CompanionContentProps) {
       >
         <div className="flex h-full items-center justify-center px-8">
           <div className="text-center">
-            <p className="text-title-page font-medium text-muted-foreground leading-relaxed">
+            <p className="text-title-display font-semibold text-muted-foreground leading-relaxed">
               {t('companion.noAppearance')}
             </p>
             <p className="text-content text-muted-foreground mt-3 leading-relaxed">

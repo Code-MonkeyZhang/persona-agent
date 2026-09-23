@@ -67,14 +67,14 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
           <div className="text-body font-medium text-foreground truncate">
             {item.name}
           </div>
-          <div className="text-caption text-muted-foreground truncate">
+          <div className="text-micro text-muted-foreground truncate">
             @{item.author}
           </div>
         </div>
       </div>
 
       {/* 两行简介（超出截断） */}
-      <p className="text-caption text-muted-foreground line-clamp-2 leading-[18px] h-[36px]">
+      <p className="text-micro text-muted-foreground line-clamp-2 leading-[18px] h-[36px]">
         {item.description}
       </p>
 
