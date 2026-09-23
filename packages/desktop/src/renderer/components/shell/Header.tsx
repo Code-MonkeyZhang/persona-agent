@@ -52,7 +52,7 @@ export const Header: React.FC<HeaderProps> = ({ isLoading }) => {
   }, [voiceConfigured, voiceEnabled, stopSpeaking, toggleVoice, t]);
 
   return (
-    <header className="h-14 border-b border-border flex items-center justify-between bg-background">
+    <header className="h-[65px] border-b border-border flex items-center justify-between bg-background">
       <div className="flex items-center gap-3 pl-4 min-w-0">
         <h1 className="font-semibold text-title-section text-foreground truncate">
           {currentSession?.title || t('header.newChat')}

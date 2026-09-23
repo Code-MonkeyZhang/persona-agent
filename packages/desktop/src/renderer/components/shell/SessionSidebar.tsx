@@ -128,7 +128,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   return (
     <aside className="h-full w-full bg-gradient-to-b from-background to-muted/40 flex flex-col overflow-hidden">
       {/* - Header：Agent 信息块，整块可点击进入编辑 */}
-      <div className="h-20 px-4 border-b border-border flex items-center shrink-0">
+      <div className="h-[65px] px-4 border-b border-border flex items-center shrink-0">
         <button
           onClick={() => currentAgent && openAgentEditor(currentAgent.id)}
           className="w-full flex items-center gap-3.5"
