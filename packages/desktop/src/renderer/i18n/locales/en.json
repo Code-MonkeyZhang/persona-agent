@@ -128,6 +128,7 @@
   "provider.configured": "Configured",
   "provider.officialDocs": "Official Docs",
   "provider.availableModels": "Available Models",
+  "provider.modelCount": "{{count}} models",
   "provider.deleteApiKey": "Delete API Key",
   "provider.selectToConfigure": "Select a provider to configure",
 

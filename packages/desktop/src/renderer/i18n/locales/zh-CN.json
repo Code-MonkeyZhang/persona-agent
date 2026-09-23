@@ -128,6 +128,7 @@
   "provider.configured": "已配置",
   "provider.officialDocs": "官方文档",
   "provider.availableModels": "可用模型",
+  "provider.modelCount": "{{count}} 个",
   "provider.deleteApiKey": "删除 API Key",
   "provider.selectToConfigure": "选择一个供应商进行配置",
 
