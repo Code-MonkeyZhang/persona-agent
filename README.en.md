@@ -18,26 +18,39 @@ Persona is an open-source personal AI Agent chat platform that lets you give you
 
 Install agents, MCP tools, and Skills from the Agent Marketplace in one click.
 
-## 📷 Preview
+## 📷 Screenshots
 
 <table>
   <tr>
-    <td><img src="assets/screenshot-main.jpg" width="400" /></td>
-    <td><img src="assets/screenshot-companion.jpg" width="400" /></td>
+    <td align="center"><b>Chat & Task Execution</b></td>
+    <td align="center"><b>Companion Portrait</b></td>
+  </tr>
+  <tr>
+    <td><img src="assets/preview-chat.jpg" width="400" /></td>
+    <td><img src="assets/preview-companion.jpg" width="400" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Agent Marketplace</b></td>
+    <td align="center"><b>Agent Editor</b></td>
+  </tr>
+  <tr>
+    <td><img src="assets/preview-marketplace.jpg" width="400" /></td>
+    <td><img src="assets/preview-agent-editor.jpg" width="400" /></td>
   </tr>
 </table>
 
 ## ✨ Key Features
-- **Multi-Agent Management** — Create multiple independent Agents with character settings, model configuration, MCP tools, Agent Skills, and conversation history
+- **Multi-Agent Management** — Create multiple independent Agents, each with its own character settings, model configuration, MCP tools, Agent Skills, and conversation history
 - **17 LLM Providers** — DeepSeek, MiniMax, Zhipu, Kimi, Moonshot, OpenAI, Anthropic, Google, OpenRouter, and more
-- **Custom Agent Portraits** — Add custom character portraits and backgrounds. Agents automatically switch expressions based on conversation context
-- **Voice Synthesis** — TTS voice synthesis powered by MiniMax API
+- **Custom Agent Portraits** — Assign character portraits and conversation backgrounds; agents automatically switch expressions based on conversation mood
+- **Custom Agent Voice** — TTS replies powered by MiniMax, with preset voices and custom voice cloning from recordings
 - **Interject While Generating** — Send messages while the Agent is replying; interjections are queued and handled between steps without interrupting generation
-- **MCP & Agent Skills** — Configure custom MCP tools and Agent Skills for each Agent, including OAuth-based MCP services (Notion, GitHub)
+- **MCP & Agent Skills** — Assign MCP tools and Agent Skills to each agent individually, including OAuth-based MCP services (Notion, GitHub)
 - **Agent Apps** — Install dedicated mini-apps for your Agent, interact via the app panel and receive app notifications
 - **Remote Access** — Built-in Cloudflare Tunnel for connecting from the mobile app
 
-## 📢 News
+## 📢 Changelog
+- 2026-09-23 — **v1.10.1**: app-wide visual refresh, collapsible session sidebar with animation and width memory, cloned voice renaming, permanently active input box.
 - 2026-09-19 — **v1.10.0**: global Inter font and unified type scale, per-turn assistant message bubbles, redesigned provider config panel, edge-fade scroll indicators.
 - 2026-09-09 — **v1.9.2**: desktop logs persisted to the user data directory for easier troubleshooting.
 - 2026-09-08 — **v1.9.1**: interjections while generating, draggable session sidebar width, project adopted the MIT License.
@@ -71,11 +84,11 @@ Install agents, MCP tools, and Skills from the Agent Marketplace in one click.
 
 This project supports macOS and Windows. Download the installer from [GitHub Releases](https://github.com/Code-MonkeyZhang/persona-agent/releases):
 
-| Platform            | File                              |
-| ------------------- | --------------------------------- |
-| macOS Apple Silicon | `Persona-mac-arm64-{version}.dmg` |
-| macOS Intel         | `Persona-mac-x64-{version}.dmg`   |
-| Windows x64         | `Persona-win-x64-{version}.exe`   |
+| Platform            | Download                                                                                                         |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| macOS Apple Silicon | [Download installer](https://github.com/Code-MonkeyZhang/persona-agent/releases)                                 |
+| macOS Intel         | [Download installer](https://github.com/Code-MonkeyZhang/persona-agent/releases)                                 |
+| Windows x64         | [Download installer](https://github.com/Code-MonkeyZhang/persona-agent/releases)                                 |
 
 Open the DMG file and drag the app to Applications; on Windows, run the exe installer and follow the prompts.
 

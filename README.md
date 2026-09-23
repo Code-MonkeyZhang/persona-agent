@@ -16,26 +16,39 @@
 
 Persona-agent 是一个开源的个人 AI Agent 聊天平台，让你能够完全自定义属于自己的 AI Agent，包括性格、声音和立绘形象，还支持从 Agent 商城一键安装 Agent、MCP 工具和 Skill。Persona-agent 期望创建一个适配LLM时代的人机关系的应用平台
 
-## 📷 预览
+## 📷 实机画面展示
 
 <table>
   <tr>
-    <td><img src="assets/screenshot-main.jpg" width="400" /></td>
-    <td><img src="assets/screenshot-companion.jpg" width="400" /></td>
+    <td align="center"><b>对话与任务执行</b></td>
+    <td align="center"><b>陪伴形象</b></td>
+  </tr>
+  <tr>
+    <td><img src="assets/preview-chat.jpg" width="400" /></td>
+    <td><img src="assets/preview-companion.jpg" width="400" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Agent 商城</b></td>
+    <td align="center"><b>Agent 编辑器</b></td>
+  </tr>
+  <tr>
+    <td><img src="assets/preview-marketplace.jpg" width="400" /></td>
+    <td><img src="assets/preview-agent-editor.jpg" width="400" /></td>
   </tr>
 </table>
 
 ## ✨ 核心功能
-- **多 Agent 管理** — 创建多个独立 Agent, 角色设定、模型配置MCP、Agent Skill以及会话历史
-- **支持 17 家 LLM 供应商** — DeepSeek、MiniMax、智谱、Kimi、月之暗面、OpenAI、Anthropic、Google、OpenRouter 等多供应商支持
-- **自定义 Agent 形象界面** — 支持自定义Agent的角色立绘和背景，Agent 会根据对话自动切换表情
-- **自定义 Agent 语音朗读** - 支持Minimax TTS API的语音合成回复
+- **多 Agent 管理** — 创建多个独立 Agent，各自拥有角色设定、模型配置、MCP 工具、Agent Skill 与会话历史
+- **支持 17 家 LLM 供应商** — DeepSeek、MiniMax、智谱、Kimi、月之暗面、OpenAI、Anthropic、Google、OpenRouter 等
+- **自定义 Agent 形象** — 为 Agent 配置角色立绘与对话背景，Agent 根据对话情绪自动切换表情
+- **自定义 Agent 语音** — MiniMax TTS 驱动的语音合成回复，支持预设音色与录音克隆
 - **生成中插话** — Agent 回复过程中可直接发送消息，插话进入队列在步骤间隙被响应，无需中断生成
-- **支持 MCP 与 Agent Skill** — 支持自定义给每个Agent自定义MCP工具和Agent Skill，同时支持需要OAuth的MCP服务 （Notion， Github）
+- **MCP 与 Agent Skill** — 为每个 Agent 单独分配 MCP 工具与 Agent Skill，支持需要 OAuth 的 MCP 服务（Notion、GitHub）
 - **Agent App** — 为 Agent 安装专属小应用，通过应用面板交互并接收应用通知
-- **远程访问** — 内置 Cloudflare Tunnel，可以通过移动端App远程连接Agent
+- **远程访问** — 内置 Cloudflare Tunnel，移动端 App 可远程连接 Agent
 
-## 📢 News
+## 📢 更新日志
+- 2026-09-23 — **v1.10.1**：全应用界面视觉升级、会话侧栏收合动画与宽度记忆、克隆音色重命名、输入框常驻激活态。
 - 2026-09-19 — **v1.10.0**：全局 Inter 字体与统一字号体系、对话按轮次气泡重组、供应商配置面板重设计、边缘渐隐滚动提示。
 - 2026-09-09 — **v1.9.2**：桌面端运行日志持久化到用户数据目录，问题排查有据可查。
 - 2026-09-08 — **v1.9.1**：生成中插话、会话侧边栏宽度拖拽调整、项目采用 MIT License 开源。
@@ -67,13 +80,13 @@ Persona-agent 是一个开源的个人 AI Agent 聊天平台，让你能够完�
 
 ## 🚀 快速开始
 
-本项目支持 macOS 和 Windows 平台. 前往 [GitHub Releases](https://github.com/Code-MonkeyZhang/persona-agent/releases) 下载对应平台的安装包：
+本项目支持 macOS 和 Windows 平台。前往 [GitHub Releases](https://github.com/Code-MonkeyZhang/persona-agent/releases) 下载对应平台的安装包：
 
-| 平台                | 文件                              |
-| ------------------- | --------------------------------- |
-| macOS Apple Silicon | `Persona-mac-arm64-{version}.dmg` |
-| macOS Intel         | `Persona-mac-x64-{version}.dmg`   |
-| Windows x64         | `Persona-win-x64-{version}.exe`   |
+| 平台                | 下载                                                                                                             |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| macOS Apple Silicon | [下载安装包](https://github.com/Code-MonkeyZhang/persona-agent/releases)                                        |
+| macOS Intel         | [下载安装包](https://github.com/Code-MonkeyZhang/persona-agent/releases)                                        |
+| Windows x64         | [下载安装包](https://github.com/Code-MonkeyZhang/persona-agent/releases)                                        |
 
 macOS 打开 DMG 拖入 Applications 即可；Windows 运行 exe 安装程序按提示完成安装。
 
