@@ -53,3 +53,17 @@ export async function removeClonedVoice(voiceId: string): Promise<void> {
   );
   saveTtsConfig(config);
 }
+
+/**
+ * Rename a cloned voice in local config only.
+ * Does NOT call any MiniMax API, the clone name is local metadata.
+ * @returns true when the voice exists and was renamed
+ */
+export function renameClonedVoice(voiceId: string, name: string): boolean {
+  const config = loadTtsConfig();
+  const voice = config.clonedVoices.find((v) => v.voice_id === voiceId);
+  if (!voice) return false;
+  voice.name = name;
+  saveTtsConfig(config);
+  return true;
+}
