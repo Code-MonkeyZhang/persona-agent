@@ -15,7 +15,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { SettingRow, SettingDivider } from '../common/SettingRow';
+import { SettingRow } from '../common/SettingRow';
 import { ActionButton } from '../ui/ActionButton';
 import { Card } from '../ui/Card';
 import {
@@ -36,14 +36,14 @@ export const EnvironmentCard: React.FC = () => {
   const { t } = useTranslation();
 
   return (
-    <Card title={t('config.environment')}>
-      {isWin && (
-        <>
-          <GitBashRow />
-          <SettingDivider />
-        </>
-      )}
-      <UvRow />
+    <Card
+      title={t('config.environment')}
+      titleClassName="text-title-section font-semibold"
+    >
+      <div className="flex flex-col gap-4">
+        {isWin && <GitBashRow />}
+        <UvRow />
+      </div>
     </Card>
   );
 };

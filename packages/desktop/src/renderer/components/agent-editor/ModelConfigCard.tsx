@@ -7,7 +7,7 @@ import React from 'react';
 import { Brain } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ModelSelector } from '../common/ModelSelector';
-import { SettingRow, SettingDivider } from '../common/SettingRow';
+import { SettingRow } from '../common/SettingRow';
 import { LabelWithTooltip } from '../common/LabelWithTooltip';
 import { Card } from '../ui/Card';
 import { NumberInput } from './NumberInput';
@@ -41,44 +41,44 @@ export const ModelConfigCard: React.FC<ModelConfigCardProps> = ({
 
   return (
     <Card title={t('agentEditor.modelConfig')} icon={Brain}>
-      <SettingRow
-        label={t('agentEditor.defaultModel')}
-        tooltip={t('agentEditor.defaultModelTooltip')}
-      >
-        <ModelSelector
-          providers={providers}
-          value={modelId}
-          onChange={onModelChange}
-          providerValue={provider}
-          onProviderChange={onProviderChange}
-          showOnlyVerified={true}
-        />
-      </SettingRow>
-      <SettingDivider />
-      <SettingRow
-        label={t('agentEditor.maxSteps')}
-        tooltip={t('agentEditor.maxStepsTooltip')}
-      >
-        <NumberInput
-          value={maxSteps}
-          onChange={onMaxStepsChange}
-          min={1}
-          max={50}
-        />
-      </SettingRow>
-      <SettingDivider />
-      <div>
-        <LabelWithTooltip
-          label={t('agentEditor.systemPrompt')}
-          tooltip={t('agentEditor.systemPromptTooltip')}
-          className="text-content leading-[18px] min-h-[32px] mb-2"
-        />
-        <textarea
-          value={systemPrompt}
-          onChange={(e) => onSystemPromptChange(e.target.value)}
-          placeholder={t('agentEditor.systemPromptPlaceholder')}
-          className="w-full min-h-[360px] rounded-lg border border-border px-3 py-2 text-body focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-        />
+      <div className="flex flex-col gap-4">
+        <SettingRow
+          label={t('agentEditor.defaultModel')}
+          tooltip={t('agentEditor.defaultModelTooltip')}
+        >
+          <ModelSelector
+            providers={providers}
+            value={modelId}
+            onChange={onModelChange}
+            providerValue={provider}
+            onProviderChange={onProviderChange}
+            showOnlyVerified={true}
+          />
+        </SettingRow>
+        <SettingRow
+          label={t('agentEditor.maxSteps')}
+          tooltip={t('agentEditor.maxStepsTooltip')}
+        >
+          <NumberInput
+            value={maxSteps}
+            onChange={onMaxStepsChange}
+            min={1}
+            max={50}
+          />
+        </SettingRow>
+        <div>
+          <LabelWithTooltip
+            label={t('agentEditor.systemPrompt')}
+            tooltip={t('agentEditor.systemPromptTooltip')}
+            className="text-content font-bold min-h-[32px] mb-2"
+          />
+          <textarea
+            value={systemPrompt}
+            onChange={(e) => onSystemPromptChange(e.target.value)}
+            placeholder={t('agentEditor.systemPromptPlaceholder')}
+            className="w-full min-h-[360px] rounded-lg border border-border px-3 py-2 text-body focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+          />
+        </div>
       </div>
     </Card>
   );

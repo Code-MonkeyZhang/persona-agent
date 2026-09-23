@@ -9,7 +9,7 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, Download, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { SettingRow, SettingDivider } from '../common/SettingRow';
+import { SettingRow } from '../common/SettingRow';
 import { ActionButton } from '../ui/ActionButton';
 import { Card } from '../ui/Card';
 import { logger } from '../../lib/logger';
@@ -83,104 +83,107 @@ export const VersionUpdateCard: React.FC = () => {
   };
 
   return (
-    <Card title={t('config.versionAndUpdate')}>
-      <SettingRow label={t('config.currentVersion')} desc="Persona Desktop">
-        <span className="font-mono text-body text-muted-foreground">
-          v{version}
-        </span>
-      </SettingRow>
+    <Card
+      title={t('config.versionAndUpdate')}
+      titleClassName="text-title-section font-semibold"
+    >
+      <div className="flex flex-col gap-4">
+        <SettingRow label={t('config.currentVersion')} desc="Persona Desktop">
+          <span className="font-mono text-body text-muted-foreground">
+            v{version}
+          </span>
+        </SettingRow>
 
-      <SettingDivider />
-
-      {state.type === 'idle' && (
-        <SettingRow
-          label={t('config.checkUpdate')}
-          desc={t('config.checkUpdateDesc')}
-        >
-          <ActionButton
-            icon={<RefreshCw className="w-3 h-3" />}
+        {state.type === 'idle' && (
+          <SettingRow
             label={t('config.checkUpdate')}
-            onClick={handleCheck}
-          />
-        </SettingRow>
-      )}
-
-      {state.type === 'checking' && (
-        <SettingRow
-          label={t('config.checkingUpdate')}
-          desc={t('config.checkingDesc')}
-        >
-          <div className="flex items-center gap-1.5 text-blue-500">
-            <RefreshCw className="w-4 h-4 animate-spin" />
-            <span className="text-body">{t('config.checkingUpdate')}</span>
-          </div>
-        </SettingRow>
-      )}
-
-      {state.type === 'upToDate' && (
-        <SettingRow label={t('config.upToDate')}>
-          <ActionButton
-            icon={<RefreshCw className="w-3 h-3" />}
-            label={t('config.checkUpdate')}
-            onClick={handleCheck}
-          />
-        </SettingRow>
-      )}
-
-      {state.type === 'available' && (
-        <SettingRow
-          label={t('config.updateAvailable')}
-          desc={`v${state.version}`}
-        >
-          <ActionButton
-            icon={<Download className="w-3 h-3" />}
-            label={t('config.downloadUpdate')}
-            onClick={handleDownload}
-          />
-        </SettingRow>
-      )}
-
-      {state.type === 'downloading' && (
-        <div className="flex flex-col gap-2 py-1">
-          <div className="flex items-center justify-between text-body">
-            <span className="text-muted-foreground">
-              {t('config.downloading')}
-            </span>
-            <span className="font-mono text-foreground">
-              {Math.round(state.percent)}%
-            </span>
-          </div>
-          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
-              style={{ width: `${state.percent}%` }}
+            desc={t('config.checkUpdateDesc')}
+          >
+            <ActionButton
+              icon={<RefreshCw className="w-3 h-3" />}
+              label={t('config.checkUpdate')}
+              onClick={handleCheck}
             />
+          </SettingRow>
+        )}
+
+        {state.type === 'checking' && (
+          <SettingRow
+            label={t('config.checkingUpdate')}
+            desc={t('config.checkingDesc')}
+          >
+            <div className="flex items-center gap-1.5 text-blue-500">
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              <span className="text-body">{t('config.checkingUpdate')}</span>
+            </div>
+          </SettingRow>
+        )}
+
+        {state.type === 'upToDate' && (
+          <SettingRow label={t('config.upToDate')}>
+            <ActionButton
+              icon={<RefreshCw className="w-3 h-3" />}
+              label={t('config.checkUpdate')}
+              onClick={handleCheck}
+            />
+          </SettingRow>
+        )}
+
+        {state.type === 'available' && (
+          <SettingRow
+            label={t('config.updateAvailable')}
+            desc={`v${state.version}`}
+          >
+            <ActionButton
+              icon={<Download className="w-3 h-3" />}
+              label={t('config.downloadUpdate')}
+              onClick={handleDownload}
+            />
+          </SettingRow>
+        )}
+
+        {state.type === 'downloading' && (
+          <div className="flex flex-col gap-2 py-1">
+            <div className="flex items-center justify-between text-body">
+              <span className="text-muted-foreground">
+                {t('config.downloading')}
+              </span>
+              <span className="font-mono text-foreground">
+                {Math.round(state.percent)}%
+              </span>
+            </div>
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
+                style={{ width: `${state.percent}%` }}
+              />
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {state.type === 'downloaded' && (
-        <SettingRow label={t('config.downloadComplete')} desc={`v${version}`}>
-          <ActionButton
-            icon={<RotateCcw className="w-3 h-3" />}
-            label={t('config.restartAndInstall')}
-            onClick={handleInstall}
-          />
-        </SettingRow>
-      )}
+        {state.type === 'downloaded' && (
+          <SettingRow label={t('config.downloadComplete')} desc={`v${version}`}>
+            <ActionButton
+              icon={<RotateCcw className="w-3 h-3" />}
+              label={t('config.restartAndInstall')}
+              onClick={handleInstall}
+            />
+          </SettingRow>
+        )}
 
-      {state.type === 'error' && (
-        <SettingRow
-          label={t('config.updateError')}
-          desc={t('config.updateErrorDesc')}
-        >
-          <ActionButton
-            icon={<RefreshCw className="w-3 h-3" />}
-            label={t('config.retry')}
-            onClick={handleCheck}
-          />
-        </SettingRow>
-      )}
+        {state.type === 'error' && (
+          <SettingRow
+            label={t('config.updateError')}
+            desc={t('config.updateErrorDesc')}
+          >
+            <ActionButton
+              icon={<RefreshCw className="w-3 h-3" />}
+              label={t('config.retry')}
+              onClick={handleCheck}
+            />
+          </SettingRow>
+        )}
+      </div>
     </Card>
   );
 };

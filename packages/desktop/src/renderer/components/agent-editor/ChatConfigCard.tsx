@@ -6,7 +6,7 @@
 import React from 'react';
 import { MessageSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { SettingRow, SettingDivider } from '../common/SettingRow';
+import { SettingRow } from '../common/SettingRow';
 import { Card } from '../ui/Card';
 import { NumberInput } from './NumberInput';
 
@@ -28,28 +28,29 @@ export const ChatConfigCard: React.FC<ChatConfigCardProps> = ({
 
   return (
     <Card title={t('agentEditor.chatConfig')} icon={MessageSquare}>
-      <SettingRow
-        label={t('agentEditor.compressionThreshold')}
-        tooltip={t('agentEditor.compressionThresholdTooltip')}
-      >
-        <NumberInput
-          value={compressionThreshold}
-          onChange={onCompressionThresholdChange}
-          min={1}
-          max={100}
-        />
-      </SettingRow>
-      <SettingDivider />
-      <SettingRow
-        label={t('agentEditor.dreamInterval')}
-        tooltip={t('agentEditor.dreamIntervalTooltip')}
-      >
-        <NumberInput
-          value={dreamIntervalMinutes}
-          onChange={onDreamIntervalChange}
-          min={1}
-        />
-      </SettingRow>
+      <div className="flex flex-col gap-4">
+        <SettingRow
+          label={t('agentEditor.compressionThreshold')}
+          tooltip={t('agentEditor.compressionThresholdTooltip')}
+        >
+          <NumberInput
+            value={compressionThreshold}
+            onChange={onCompressionThresholdChange}
+            min={1}
+            max={100}
+          />
+        </SettingRow>
+        <SettingRow
+          label={t('agentEditor.dreamInterval')}
+          tooltip={t('agentEditor.dreamIntervalTooltip')}
+        >
+          <NumberInput
+            value={dreamIntervalMinutes}
+            onChange={onDreamIntervalChange}
+            min={1}
+          />
+        </SettingRow>
+      </div>
     </Card>
   );
 };

@@ -87,8 +87,6 @@ export const ServerManagerModal: React.FC<ServerManagerModalProps> = ({
               config={config}
             />
 
-            <div className="border-t border-border" />
-
             <TunnelSection connectionStatus={connectionStatus} />
           </div>
         </div>
