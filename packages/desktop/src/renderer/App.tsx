@@ -44,7 +44,12 @@ import { CompanionReplyBubble } from './components/companion/CompanionReplyBubbl
 import { AppIconBar } from './components/shell/AppIconBar';
 import { AppWebViewPanel } from './components/AppWebViewPanel';
 import { LandingWizard } from './components/landing/LandingWizard';
-import { Group, Panel, Separator, useGroupRef } from 'react-resizable-panels';
+import {
+  Group,
+  Panel,
+  ResizeSeparator,
+  usePanelRef,
+} from './components/common/resizable';
 import { ToastContainer } from './components/Toast';
 import { WebSocketProvider } from './components/WebSocketProvider';
 import { useChatStore } from './stores/chatStore';
@@ -56,7 +61,14 @@ import { useViewStore } from './stores/viewStore';
 import { useTunnelStore } from './stores/tunnelStore';
 import { useAppPanelStore } from './stores/appPanelStore';
 import { logger } from './lib/logger';
+import { cn } from './lib/utils';
 import { getSeedStatus } from './lib/api';
+
+/**
+ * 侧栏收合展开过渡的收尾延时，毫秒。
+ * 比 animations.css 里 220ms 的 flex-grow 过渡略长，动画结束后再摘除过渡类。
+ */
+const PANEL_COLLAPSE_TRANSITION_MS = 280;
 
 /**
  * 主聊天界面组件，整合所有子组件并管理核心交互逻辑
@@ -73,12 +85,16 @@ function AppContent() {
   );
   const sessionSidebarWidth = useViewStore((s) => s.sessionSidebarWidth);
   const setSessionSidebarWidth = useViewStore((s) => s.setSessionSidebarWidth);
+  const setSessionSidebarCollapsed = useViewStore(
+    (s) => s.setSessionSidebarCollapsed
+  );
 
   /**
-   * 拖拽侧边栏 Separator 时同步宽度到 viewStore，由 zustand persist 持久化。
+   * 拖拽侧边栏分隔条时同步宽度到 viewStore，由 zustand persist 持久化。
    * 仅在用户实际操作后写入，避免初次挂载时把 Group 的 defaultLayout 又写回 store。
-   * `LayoutChangedMeta.isUserInteraction === true` 时表示 Separator 拖拽 / 键盘调整；
-   * 初挂载、约束重算、defaultSize 应用等都视为 false，不回写。
+   * `LayoutChangedMeta.isUserInteraction === true` 时表示分隔条拖拽与键盘调整；
+   * 初挂载、约束重算、defaultSize 应用、程序化收合展开都视为 false，不回写。
+   * 拖到极限触发库自动收起时宽度归零，此时只同步收起态，零宽度不落盘。
    */
   const handleLayoutChanged = useCallback(
     (
@@ -87,39 +103,51 @@ function AppContent() {
     ) => {
       if (!meta.isUserInteraction) return;
       const next = layout['session-sidebar'];
-      if (typeof next === 'number' && next !== sessionSidebarWidth) {
+      if (typeof next !== 'number') return;
+      if (next <= 0.5) {
+        setSessionSidebarCollapsed(true);
+        return;
+      }
+      if (next !== sessionSidebarWidth) {
         setSessionSidebarWidth(next);
       }
     },
-    [sessionSidebarWidth, setSessionSidebarWidth]
+    [sessionSidebarWidth, setSessionSidebarWidth, setSessionSidebarCollapsed]
   );
 
   /**
-   * 折叠时不让 session-sidebar 占宽度：折叠瞬间通过 imperative API 把它的尺寸
-   * 收回 0%，避免展开时按 persisted 值跳跃。展开后由 Panel 的 defaultSize
-   * （同样来自 store）自动应用回持久化宽度。
+   * 会话侧栏走库的 collapsible 通道：Panel 常驻挂载，收起靠 collapse() 归零，
+   * 展开靠 expand() 恢复最近一次拖拽宽度。程序化收合展开期间给 Group 挂过渡类，
+   * flex-grow 由 CSS 缓动补间；手动拖拽不经过这里，保持零延迟跟手。
+   * 首次挂载按持久化状态直接就位，不播动画。
    */
-  const groupRef = useGroupRef();
+  const sessionPanelRef = usePanelRef();
+  const [panelsAnimating, setPanelsAnimating] = useState(false);
+  const panelAnimationTimerRef = useRef<number | undefined>(undefined);
+  const sessionPanelMountedRef = useRef(false);
 
-  useEffect(() => {
-    const api = groupRef.current;
-    if (!api) return;
-    const layout = api.getLayout();
-    if (sessionSidebarCollapsed) {
-      if (typeof layout['session-sidebar'] === 'number') {
-        api.setLayout({ ...layout, 'session-sidebar': 0 });
-      }
-    } else if (
-      typeof layout['session-sidebar'] === 'number' &&
-      Math.abs(layout['session-sidebar'] - sessionSidebarWidth) > 0.5
-    ) {
-      // 折叠后再展开，Group 自留的 0% 需要手动写回持久化值
-      api.setLayout({
-        ...layout,
-        'session-sidebar': sessionSidebarWidth,
-      });
+  useLayoutEffect(() => {
+    const panel = sessionPanelRef.current;
+    if (!panel) return;
+    if (!sessionPanelMountedRef.current) {
+      sessionPanelMountedRef.current = true;
+      if (sessionSidebarCollapsed) panel.collapse();
+      return;
     }
-  }, [sessionSidebarCollapsed, sessionSidebarWidth, groupRef]);
+    if (sessionSidebarCollapsed === panel.isCollapsed()) return;
+    setPanelsAnimating(true);
+    if (sessionSidebarCollapsed) {
+      panel.collapse();
+    } else {
+      panel.expand();
+    }
+    window.clearTimeout(panelAnimationTimerRef.current);
+    panelAnimationTimerRef.current = window.setTimeout(
+      () => setPanelsAnimating(false),
+      PANEL_COLLAPSE_TRANSITION_MS
+    );
+    return () => window.clearTimeout(panelAnimationTimerRef.current);
+  }, [sessionSidebarCollapsed, sessionPanelRef]);
 
   const pendingProviderRef = useRef<string | undefined>();
   const messageListRef = useRef<MessageListRef>(null);
@@ -475,24 +503,24 @@ function AppContent() {
           ) : (
             <>
               <Group
-                groupRef={groupRef}
                 orientation="horizontal"
-                className="flex-1 min-w-0"
+                className={cn(
+                  'flex-1 min-w-0',
+                  panelsAnimating && 'panels-animating'
+                )}
                 onLayoutChanged={handleLayoutChanged}
               >
-                {!sessionSidebarCollapsed && (
-                  <>
-                    <Panel
-                      id="session-sidebar"
-                      defaultSize={`${sessionSidebarWidth}`}
-                      minSize="15"
-                      maxSize="30"
-                    >
-                      <SessionSidebar onNewChat={handleNewChat} />
-                    </Panel>
-                    <Separator className="w-0.5 bg-border/50 hover:bg-primary/40 transition-colors" />
-                  </>
-                )}
+                <Panel
+                  id="session-sidebar"
+                  defaultSize={`${sessionSidebarWidth}`}
+                  minSize="15"
+                  maxSize="30"
+                  collapsible
+                  panelRef={sessionPanelRef}
+                >
+                  <SessionSidebar onNewChat={handleNewChat} />
+                </Panel>
+                {!sessionSidebarCollapsed && <ResizeSeparator />}
                 <Panel id="chat" minSize="40">
                   <div className="h-full overflow-hidden">
                     {activeNav === 'chat' && (
@@ -574,7 +602,7 @@ function AppContent() {
                 </Panel>
                 {!panelCollapsed && selectedApp && (
                   <>
-                    <Separator className="w-0.5 bg-border hover:bg-primary/20 transition-colors" />
+                    <ResizeSeparator />
                     <Panel id="app-webview" minSize="20" maxSize="50">
                       <AppWebViewPanel />
                     </Panel>

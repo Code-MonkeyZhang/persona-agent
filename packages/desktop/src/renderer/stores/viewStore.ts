@@ -34,6 +34,11 @@ interface ViewStore {
   setActiveNav: (nav: MainNav) => void;
   setSettingsTab: (tab: SettingsTab) => void;
   toggleSessionSidebar: () => void;
+  /**
+   * 幂等写入会话侧边栏收起态。
+   * 拖拽分隔条触发库自动收起时由 App 反向同步，TitleBar 图标随之翻转。
+   */
+  setSessionSidebarCollapsed: (collapsed: boolean) => void;
   setSessionSidebarWidth: (width: number) => void;
   openAgentEditor: (agentId: string | null) => void;
   closeAgentEditor: () => void;
@@ -54,6 +59,8 @@ export const useViewStore = create<ViewStore>()(
       setSettingsTab: (tab) => set({ settingsTab: tab }),
       toggleSessionSidebar: () =>
         set((s) => ({ sessionSidebarCollapsed: !s.sessionSidebarCollapsed })),
+      setSessionSidebarCollapsed: (collapsed) =>
+        set({ sessionSidebarCollapsed: collapsed }),
       setSessionSidebarWidth: (width) => set({ sessionSidebarWidth: width }),
 
       /**
