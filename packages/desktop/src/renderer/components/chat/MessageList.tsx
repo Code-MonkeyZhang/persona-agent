@@ -242,7 +242,7 @@ export const MessageList = React.forwardRef<MessageListRef, MessageListProps>(
 
     if (messages.length === 0 && !isLoading) {
       return (
-        <div className="flex-1 min-h-0 flex items-center justify-center text-title-display font-semibold text-muted-foreground">
+        <div className="flex-1 min-h-0 flex items-start justify-center pt-[30vh] text-title-display font-semibold text-muted-foreground">
           <p>
             {hasAgent
               ? t('messageList.startConversation')
