@@ -126,17 +126,17 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
     : '';
 
   return (
-    <aside className="h-full w-full bg-background flex flex-col overflow-hidden">
+    <aside className="h-full w-full bg-gradient-to-b from-background to-muted/40 flex flex-col overflow-hidden">
       {/* - Header：Agent 信息块，整块可点击进入编辑 */}
-      <div className="h-14 px-4 border-b border-border flex items-center shrink-0">
+      <div className="h-20 px-4 border-b border-border flex items-center shrink-0">
         <button
           onClick={() => currentAgent && openAgentEditor(currentAgent.id)}
-          className="w-full flex items-center gap-3"
+          className="w-full flex items-center gap-3.5"
         >
           {currentAgent ? (
-            <AgentAvatar agent={currentAgent} size="md" />
+            <AgentAvatar agent={currentAgent} size="md-plus" />
           ) : (
-            <div className="w-10 h-10 rounded-full flex items-center justify-center text-content font-medium bg-muted text-foreground">
+            <div className="w-11 h-11 rounded-full flex items-center justify-center text-content font-medium bg-muted text-foreground">
               ?
             </div>
           )}
@@ -144,11 +144,11 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
             <div className="font-semibold text-title-section text-foreground truncate">
               {currentAgent?.name || t('common.noAgentSelected')}
             </div>
-            <div className="text-body text-muted-foreground truncate">
+            <div className="text-content text-muted-foreground truncate">
               {currentAgent?.description || ''}
             </div>
           </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
         </button>
       </div>
 
@@ -204,7 +204,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
       </div>
 
       {/* - 下半区：「会话」标题行 + 会话列表，钉底 */}
-      <div className="shrink-0 px-2 pt-1">
+      <div className="shrink-0 px-2">
         {/* 「会话」标题行，右侧 Plus 按钮进入新对话草稿态 */}
         <div className="w-full flex items-center gap-2.5 px-3 py-2">
           <MessagesSquare className="w-[18px] h-[18px] text-muted-foreground" />
