@@ -224,8 +224,8 @@ function AppContent() {
     useAgentStore();
   const { providers, loadProviders } = useProviderStore();
 
-  /** 首启向导：播种 Agent 的 id（null = 不弹） */
-  const [landingAgentId, setLandingAgentId] = useState<string | null>(null);
+  /** 向导打开状态已提升进 viewStore，首启门控与设置页重放入口共用 */
+  const landing = useViewStore((s) => s.landing);
 
   /**
    * 删除指定 Agent
@@ -271,7 +271,7 @@ function AppContent() {
           .agents.some((a) => a.id === status.agentId);
         if (status.seeded && status.agentId && exists) {
           logger.info(`[Landing] showing wizard for seeded agent`);
-          setLandingAgentId(status.agentId);
+          useViewStore.getState().openLanding(status.agentId, 'first-run');
         }
       })
       .catch(() => {
@@ -282,14 +282,15 @@ function AppContent() {
     };
   }, [connectionStatus, agentsLoaded]);
 
-  /** 向导唯一出口：切换到播种 Agent 并进入聊天视图 */
+  /** 向导完成出口，首启与重放共用：切换到目标 Agent 并进入聊天视图 */
   const handleLandingComplete = async () => {
-    const agentId = landingAgentId;
-    setLandingAgentId(null);
+    const { landing, closeLanding, setView, setActiveNav } =
+      useViewStore.getState();
+    const agentId = landing.agentId;
+    closeLanding();
     if (!agentId) return;
-    const view = useViewStore.getState();
-    view.setView('chat');
-    view.setActiveNav('chat');
+    setView('chat');
+    setActiveNav('chat');
     if (useAgentStore.getState().currentAgent?.id !== agentId) {
       await switchAgent(agentId);
     }
@@ -615,10 +616,16 @@ function AppContent() {
         </div>
       </div>
       <ToastContainer />
-      {landingAgentId && (
+      {landing.agentId && (
         <LandingWizard
-          agentId={landingAgentId}
+          agentId={landing.agentId}
+          mode={landing.mode}
           onComplete={() => void handleLandingComplete()}
+          onClose={
+            landing.mode === 'replay'
+              ? () => useViewStore.getState().closeLanding()
+              : undefined
+          }
         />
       )}
     </div>

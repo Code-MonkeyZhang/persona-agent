@@ -1,6 +1,6 @@
 /**
  * @file src/renderer/components/settings/ConfigForm.tsx
- * @description 应用通用配置表单，包括日志开关和存储路径展示
+ * @description 应用通用配置表单，包括日志开关、首启引导重放入口和存储路径展示
  * 使用卡片分组 + Switch 组件 + SettingRow 统一行布局
  */
 
@@ -8,7 +8,10 @@ import React from 'react';
 import { FolderOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useConfigStore } from '../../stores/configStore';
+import { useAgentStore } from '../../stores/agentStore';
+import { useViewStore } from '../../stores/viewStore';
 import { Switch } from '../ui/Switch';
+import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { SettingRow } from '../common/SettingRow';
 import { EnvironmentCard } from './EnvironmentCard';
@@ -47,6 +50,7 @@ function PathRow({ label, path }: { label: string; path: string }) {
 export const ConfigForm: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { config, updateField, saveConfig } = useConfigStore();
+  const currentAgent = useAgentStore((s) => s.currentAgent);
 
   if (!config) return null;
 
@@ -108,6 +112,26 @@ export const ConfigForm: React.FC = () => {
                 handleToggle('enableLogging', checked)
               }
             />
+          </SettingRow>
+          <SettingRow
+            label={t('config.replayLanding')}
+            desc={
+              currentAgent
+                ? t('config.replayLandingDesc')
+                : t('config.replayLandingEmptyDesc')
+            }
+          >
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={!currentAgent}
+              onClick={() =>
+                currentAgent &&
+                useViewStore.getState().openLanding(currentAgent.id, 'replay')
+              }
+            >
+              {t('config.replayLandingOpen')}
+            </Button>
           </SettingRow>
         </div>
       </Card>
