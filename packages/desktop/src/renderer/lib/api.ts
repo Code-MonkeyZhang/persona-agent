@@ -20,6 +20,7 @@ import type {
   McpOAuthStatus,
   ProviderStatus,
   SkillInfo,
+  SkillDetail,
   MarketplaceEntry,
   McpMarketplaceEntry,
   AgentMarketplaceEntry,
@@ -79,6 +80,7 @@ export type {
   McpServerInfo,
   ProviderStatus,
   SkillInfo,
+  SkillDetail,
   MarketplaceEntry,
   McpMarketplaceEntry,
   AgentMarketplaceEntry,
@@ -94,6 +96,10 @@ interface ListMcpsResponse {
 
 interface ListSkillsResponse {
   skills: SkillInfo[];
+}
+
+interface GetSkillResponse {
+  skill: SkillDetail;
 }
 
 interface ListMarketplaceSkillsResponse {
@@ -844,6 +850,29 @@ export async function listSkills(): Promise<SkillInfo[]> {
 
   const data: ListSkillsResponse = await response.json();
   return data.skills;
+}
+
+/**
+ * 获取单个技能的完整详情，正文按需单查。
+ * @param name - 技能的机器键
+ * @returns 含正文的技能详情
+ */
+export async function getSkill(name: string): Promise<SkillDetail> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/skills/${encodeURIComponent(name)}`,
+    {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to get skill: ${response.status}`);
+  }
+
+  const data: GetSkillResponse = await response.json();
+  return data.skill;
 }
 
 /**

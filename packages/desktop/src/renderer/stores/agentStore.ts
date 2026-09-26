@@ -17,6 +17,8 @@ import {
   deleteAgent,
 } from '../lib/api';
 import { logger } from '../lib/logger';
+import { toast } from './toastStore';
+import i18n from '../i18n';
 
 const LAST_AGENT_KEY = 'last-agent-id';
 interface AgentStore {
@@ -39,6 +41,8 @@ interface AgentStore {
     agentId: string,
     skillNames: string[]
   ) => Promise<void>;
+  assignSkill: (agentId: string, skillName: string) => Promise<void>;
+  unassignSkill: (agentId: string, skillName: string) => Promise<void>;
 }
 
 export const useAgentStore = create<AgentStore>((set, get) => ({
@@ -164,5 +168,41 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
   /** 仅更新 Agent 的 Skill 分配 */
   updateAgentSkillNames: async (agentId: string, skillNames: string[]) => {
     await get().updateAgentById(agentId, { skillNames });
+  },
+
+  /** 给 Agent 追加一个技能，已分配过则跳过，失败时提示并上抛 */
+  assignSkill: async (agentId: string, skillName: string) => {
+    const agent = get().agents.find((a) => a.id === agentId);
+    if (!agent || agent.skillNames.includes(skillName)) return;
+    try {
+      await get().updateAgentSkillNames(agentId, [
+        ...agent.skillNames,
+        skillName,
+      ]);
+      logger.info(
+        `[AgentStore] Assigned skill ${skillName} to agent ${agentId}`
+      );
+    } catch (err) {
+      logger.error(`[AgentStore] Failed to assign skill ${skillName}:`, err);
+      toast.error(i18n.t('skills.assignFailed'));
+    }
+  },
+
+  /** 从 Agent 移除一个技能，未分配则跳过，失败时提示并上抛 */
+  unassignSkill: async (agentId: string, skillName: string) => {
+    const agent = get().agents.find((a) => a.id === agentId);
+    if (!agent || !agent.skillNames.includes(skillName)) return;
+    try {
+      await get().updateAgentSkillNames(
+        agentId,
+        agent.skillNames.filter((n) => n !== skillName)
+      );
+      logger.info(
+        `[AgentStore] Unassigned skill ${skillName} from agent ${agentId}`
+      );
+    } catch (err) {
+      logger.error(`[AgentStore] Failed to unassign skill ${skillName}:`, err);
+      toast.error(i18n.t('skills.assignFailed'));
+    }
   },
 }));
