@@ -80,7 +80,7 @@ export const AppWebViewPanel: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col bg-background">
-      <div className="h-14 flex items-center justify-between px-4 border-b border-border shrink-0">
+      <div className="h-[65px] flex items-center justify-between px-4 border-b border-border shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           {baseUrl && (
             <img
