@@ -16,10 +16,17 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Logger } from '../util/logger.js';
 import { getSkillsDir } from '../util/paths.js';
-import { SkillMetaSchema, type Skill, type SkillInfo } from './types.js';
+import {
+  SkillMetaSchema,
+  type Skill,
+  type SkillInfo,
+  type SkillDetail,
+} from './types.js';
+import type { MarketplaceEntry } from '@persona/shared';
 
 const SKILL_FILE_NAME = 'SKILL.md';
 const FRONTMATTER_DELIMITER = '---';
+export const SKILL_META_FILE_NAME = 'skill-meta.json';
 
 /**
  * Parse YAML frontmatter from markdown content.
@@ -90,6 +97,7 @@ export function loadSkillFile(filePath: string): Skill | null {
     return {
       name: result.data.name,
       description: result.data.description ?? '',
+      ...readSkillMeta(path.dirname(filePath)),
       content: body,
       filePath,
       skillDir: path.dirname(filePath),
@@ -144,5 +152,74 @@ export function toSkillInfo(skill: Skill): SkillInfo {
   return {
     name: skill.name,
     description: skill.description,
+    displayName: skill.displayName,
+    author: skill.author,
+    location: skill.skillDir,
   };
+}
+
+/**
+ * Convert a Skill to SkillDetail, adding the full content for the single-skill API.
+ */
+export function toSkillDetail(skill: Skill): SkillDetail {
+  return {
+    ...toSkillInfo(skill),
+    content: skill.content,
+  };
+}
+
+/** Metadata keys kept in skill-meta.json, written by the marketplace installer. */
+interface SkillMetaFile {
+  displayName?: string;
+  author?: string;
+}
+
+/**
+ * Persist marketplace entry metadata beside SKILL.md so the display name and
+ * author survive after the manifest entry is discarded.
+ */
+export function writeSkillMeta(destDir: string, entry: MarketplaceEntry): void {
+  const meta = {
+    displayName: entry.name,
+    author: entry.author,
+    homepage: entry.homepage,
+  };
+  fs.writeFileSync(
+    path.join(destDir, SKILL_META_FILE_NAME),
+    JSON.stringify(meta, null, 2)
+  );
+}
+
+/**
+ * Read optional install-time metadata placed beside SKILL.md.
+ * Returns undefined when the file is missing or invalid, so the skill stays usable.
+ */
+function readSkillMeta(skillDir: string): SkillMetaFile | undefined {
+  try {
+    const metaPath = path.join(skillDir, SKILL_META_FILE_NAME);
+    if (!fs.existsSync(metaPath)) return undefined;
+
+    const raw = JSON.parse(fs.readFileSync(metaPath, 'utf-8')) as Record<
+      string,
+      unknown
+    >;
+    const meta: SkillMetaFile = {};
+    if (
+      typeof raw['displayName'] === 'string' &&
+      raw['displayName'].length > 0
+    ) {
+      meta.displayName = raw['displayName'];
+    }
+    if (typeof raw['author'] === 'string' && raw['author'].length > 0) {
+      meta.author = raw['author'];
+    }
+    return meta;
+  } catch (error) {
+    Logger.log(
+      'SKILL',
+      `Failed to read skill metadata in ${skillDir}, skipping`,
+      error
+    );
+    return undefined;
+  }
 }

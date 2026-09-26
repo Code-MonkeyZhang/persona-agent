@@ -25,7 +25,7 @@ import {
 import { downloadSkill } from '../../marketplace/downloader.js';
 import { isSafeSkillName, folderNameOf } from '../../marketplace/util.js';
 import { getSkillsDir } from '../../util/paths.js';
-import { getSkill, hasSkill } from '../../skill/index.js';
+import { getSkill, hasSkill, writeSkillMeta } from '../../skill/index.js';
 import { installMcp, uninstallMcp } from '../../marketplace/mcp-installer.js';
 import { installAgentFromMarketplace } from '../../marketplace/agent-installer.js';
 import { cdnUrl, REPO_OWNER, REPO_NAME } from '../../marketplace/config.js';
@@ -86,6 +86,10 @@ export function createMarketplaceRouter(
       // 下载
       const skillDir = await downloadSkill(entry);
 
+      // 落盘商城元数据：清单里的显示名与作者只在此刻可得，SKILL.md 本身不带
+      writeSkillMeta(skillDir, entry);
+      Logger.log('MARKETPLACE', `Wrote skill metadata for ${name}`);
+
       // 入池：listSkills 不扫目录，必须主动按名加载一次，否则商城"已安装"状态对不上。
       // 若 getSkill 返回 undefined，说明下载下来的 SKILL.md 无法解析——回滚并报错。
       const loaded = getSkill(name);
@@ -113,9 +117,17 @@ export function createMarketplaceRouter(
           throw new AppError(400, 'Invalid skill name');
         }
 
-        const skillDir = path.join(getSkillsDir(), name);
+        // 池子按 frontmatter name 索引，手建技能的目录名可能不同，优先取真实目录
+        const loaded = getSkill(name);
+        const skillDir = loaded?.skillDir ?? path.join(getSkillsDir(), name);
         if (fs.existsSync(skillDir)) {
+          Logger.log('MARKETPLACE', `Removed skill directory ${skillDir}`);
           fs.rmSync(skillDir, { recursive: true });
+        } else {
+          Logger.log(
+            'MARKETPLACE',
+            `Skill directory not found for ${name}, nothing to remove`
+          );
         }
         res.json({ success: true, name });
       }
