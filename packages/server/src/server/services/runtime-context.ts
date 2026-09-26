@@ -17,6 +17,7 @@ interface EnvSnapshot {
   mcp: Record<string, string>;
   workspacePath: string;
   model: string;
+  skills: string[];
 }
 
 /** 各会话上一回合的环境快照；进程重启后为空，代价只是重新记基线 */
@@ -63,12 +64,14 @@ function formatNow(now: Date): string {
  * 采集当前环境快照。
  *
  * MCP 状态复用 getMcpPromptInfo，与 buildSystemPrompt 同源；
- * 目录用调用方已解析的 workspaceDir，不读 session.workspacePath。
+ * 目录用调用方已解析的 workspaceDir，不读 session.workspacePath；
+ * 技能清单存排序副本，让 diff 不受分配顺序影响。
  */
 function takeSnapshot(
   session: Session,
   workspaceDir: string,
-  mcpNames?: string[]
+  mcpNames?: string[],
+  skillNames?: string[]
 ): EnvSnapshot {
   const mcp: Record<string, string> = {};
   if (mcpNames?.length) {
@@ -80,6 +83,7 @@ function takeSnapshot(
     mcp,
     workspacePath: workspaceDir,
     model: `${session.model.provider}/${session.model.model}`,
+    skills: [...(skillNames ?? [])].sort(),
   };
 }
 
@@ -104,6 +108,16 @@ function diffLines(prev: EnvSnapshot, curr: EnvSnapshot): string[] {
   if (prev.model !== curr.model) {
     lines.push(`- 模型已从 ${prev.model} 切换为 ${curr.model}`);
   }
+  const addedSkills = curr.skills.filter((name) => !prev.skills.includes(name));
+  const removedSkills = prev.skills.filter(
+    (name) => !curr.skills.includes(name)
+  );
+  if (addedSkills.length > 0) {
+    lines.push(`- 技能清单已更新：新增 ${addedSkills.join('、')}`);
+  }
+  if (removedSkills.length > 0) {
+    lines.push(`- 技能清单已更新：移除 ${removedSkills.join('、')}`);
+  }
   return lines;
 }
 
@@ -118,6 +132,7 @@ function diffLines(prev: EnvSnapshot, curr: EnvSnapshot): string[] {
  * @param session - 当前 Session，提供模型配置与派生时间戳
  * @param workspaceDir - 调用方已解析的工作目录
  * @param mcpNames - Agent 配置的 MCP 服务名列表
+ * @param skillNames - Agent 配置的技能名列表，变化时产出通知行
  * @param now - 当前时间，测试可注入
  * @returns 注入文本；空串表示本次无需注入
  */
@@ -126,10 +141,11 @@ export function buildRuntimeContext(
   session: Session,
   workspaceDir: string,
   mcpNames?: string[],
+  skillNames?: string[],
   now: Date = new Date()
 ): string {
   const prev = snapshots.get(sessionId);
-  const curr = takeSnapshot(session, workspaceDir, mcpNames);
+  const curr = takeSnapshot(session, workspaceDir, mcpNames, skillNames);
   snapshots.set(sessionId, curr);
   const changes = prev ? diffLines(prev, curr) : [];
 
