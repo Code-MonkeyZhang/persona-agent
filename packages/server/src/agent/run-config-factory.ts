@@ -43,6 +43,7 @@ import type { SessionManager } from '../session/session-manager.js';
  * - Working directory: {workspaceDir}
  *
  * ## Available Skills
+ * {manifest statement declaring the list below complete and pool skills not owned}
  *
  * ### {skillName1}
  * [Skill directory: {skillDir1}]
@@ -88,10 +89,15 @@ function buildSystemPrompt(
 - Model: ${provider}/${modelId}
 - Working directory: ${workspaceDir}`;
 
+  // The skills manifest fixes the agent's self knowledge to the assignment
+  // list, so the model answers inventory questions from the prompt instead of
+  // enumerating the shared skills directory with file tools.
   if (skills && skills.length > 0) {
     prompt += `
 
-## Available Skills`;
+## Available Skills
+
+You have exactly the following skills and no others. When asked which skills you have, report from this list only. The skills directory on disk may contain other installed skills that are not assigned to you; they are not yours, so do not claim, list, or use them.`;
 
     for (const skill of skills) {
       prompt += `
@@ -103,6 +109,12 @@ Resolve any relative paths in this skill against the above directory.
 
 ${skill.content}`;
     }
+  } else {
+    prompt += `
+
+## Available Skills
+
+No skill is assigned to you. Any skills found on disk belong to the shared pool and are not yours, so do not claim, list, or use them.`;
   }
 
   if (mcpNames && mcpNames.length > 0) {
