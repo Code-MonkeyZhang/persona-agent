@@ -1,7 +1,7 @@
 /**
  * @file src/renderer/components/skills/SkillDetailPanel.tsx
  * @description 技能页右栏详情
- * 头部是 icon 盒加显示名与单行截断简介，行尾放打开目录按钮
+ * 头部与其他详情页共用 IntroHead，行尾放打开目录按钮
  * 基本信息卡按名称、技能 ID、简介、作者的定序收进白底卡
  * 正文按需单查，内容区 markdown 限高滚动加全屏阅读入口
  */
@@ -19,8 +19,10 @@ import {
   DocBox,
   SectionHint,
 } from '../common/DetailSection';
+import { IntroHead } from '../common/IntroHead';
 import { UninstallButton } from '../common/UninstallButton';
 import { ScrollArea } from '../ui/ScrollArea';
+import { MarketplaceLogo } from '../marketplace/MarketplaceLogo';
 import { SkillInstructionsOverlay } from './SkillInstructionsOverlay';
 
 interface SkillDetailPanelProps {
@@ -65,27 +67,28 @@ export function SkillDetailPanel({
   return (
     <ScrollArea className="h-full bg-general-bg">
       <div className="mx-auto max-w-2xl space-y-6 px-6 py-6">
-        {/* 头部，icon 盒加显示名与单行截断的简介，行尾是打开目录动作 */}
-        <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Sparkles className="h-5 w-5" />
-          </div>
-          <div className="min-w-0 flex-1 pt-0.5">
-            <h3 className="break-all text-title-section font-semibold text-foreground">
-              {skill.displayName ?? skill.name}
-            </h3>
-            <p className="mt-0.5 truncate text-caption text-muted-foreground">
-              {skill.description}
-            </p>
-          </div>
-          <button
-            onClick={handleOpenDir}
-            className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-white px-3 text-caption text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <FolderOpen className="h-3.5 w-3.5" />
-            {t('common.openDirectory')}
-          </button>
-        </div>
+        {/* 头部，与其他详情页共用 IntroHead，缺图兜底技能图标，行尾是打开目录动作 */}
+        <IntroHead
+          icon={
+            <MarketplaceLogo
+              logoUrl={skill.logoUrl}
+              name={skill.displayName ?? skill.name}
+              fallbackIcon={Sparkles}
+              size="lg"
+            />
+          }
+          name={skill.displayName ?? skill.name}
+          desc={skill.description}
+          action={
+            <button
+              onClick={handleOpenDir}
+              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-white px-3 text-caption text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <FolderOpen className="h-3.5 w-3.5" />
+              {t('common.openDirectory')}
+            </button>
+          }
+        />
 
         {/* 基本信息段，键值行收进白底卡，名称永远显示并在缺失时回退技能 ID，技能 ID 与作者缺省时省略对应行 */}
         <DetailSection title={t('skills.sectionBasic')}>
