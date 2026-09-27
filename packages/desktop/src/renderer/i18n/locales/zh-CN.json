@@ -21,14 +21,12 @@
   "common.saving": "保存中...",
   "common.previewFailed": "试听失败",
   "common.configureApiKeyInSettings": "请先在设置中配置 MiniMax API Key",
-
   "header.newChat": "新会话",
   "header.hideCompanion": "隐藏陪伴面板",
   "header.showCompanion": "显示陪伴面板",
   "header.avatar": "形象",
   "header.voice": "语音",
   "header.generating": "正在回复",
-
   "sessionSidebar.chat": "聊天",
   "sessionSidebar.sessions": "会话",
   "sessionSidebar.newChat": "新会话",
@@ -36,24 +34,20 @@
   "sessionSidebar.startChat": "开始聊天...",
   "sessionSidebar.tools": "工具",
   "sessionSidebar.skills": "技能",
-
   "sessionItem.moreActions": "更多操作",
   "sessionItem.rename": "重命名",
   "sessionItem.delete": "删除",
-
   "inputBox.placeholder": "输入消息...",
   "inputBox.addAttachment": "添加附件",
   "inputBox.sendMessage": "发送消息",
   "inputBox.stopGeneration": "停止生成",
   "inputBox.queueMessage": "发送，将插入当前回复",
   "inputBox.queueFailed": "插话发送失败",
-
   "messageList.copiedToClipboard": "已复制到剪贴板",
   "messageList.failedToCopy": "复制失败",
   "messageList.startConversation": "开始会话...",
   "messageList.copyContent": "复制内容",
   "messageList.scrollToBottom": "滚动到底部",
-
   "thoughtProcess.collapse": "收起",
   "thoughtProcess.expand": "展开",
   "thoughtProcess.thinking": "思考",
@@ -67,7 +61,6 @@
   "thoughtProcess.showThinking": "显示思考过程",
   "thoughtProcess.compact": "紧凑",
   "thoughtProcess.full": "完整",
-
   "settings.title": "设置中心",
   "settings.loadError": "加载配置失败",
   "settings.tabs.general": "通用设置",
@@ -80,7 +73,6 @@
   "settings.tabs.mcpDesc": "MCP 服务与功能管理",
   "settings.tabs.skills": "技能",
   "settings.tabs.skillsDesc": "技能查看与卸载",
-
   "config.basic": "基本",
   "config.language": "语言",
   "config.languageDesc": "切换界面显示语言",
@@ -127,7 +119,6 @@
   "config.updateError": "检查失败",
   "config.updateErrorDesc": "请检查网络后重试",
   "config.retry": "重试",
-
   "provider.confirmDeleteKey": "确定要删除 {{name}} 的 API Key 吗？",
   "provider.selectProvider": "选择供应商",
   "provider.configDesc": "配置 {{name}} 的 API 密钥以启用相关模型",
@@ -138,7 +129,6 @@
   "provider.modelCount": "{{count}} 个",
   "provider.deleteApiKey": "删除 API Key",
   "provider.selectToConfigure": "选择一个供应商进行配置",
-
   "voice.cannotReadAudio": "无法读取音频文件",
   "voice.enterApiKey": "请输入 API Key",
   "voice.apiKeyVerified": "API Key 验证通过，已保存",
@@ -178,16 +168,6 @@
   "voice.startClone": "开始克隆",
   "voice.noClonedVoices": "暂无克隆音色，点击上方按钮开始克隆",
   "voice.preview": "试听",
-
-  "mcp.title": "工具",
-  "mcp.desc": "查看已配置的工具状态",
-  "mcp.empty": "暂无已加载的工具",
-  "mcp.needsAuth": "需要授权",
-  "mcp.connecting": "连接中",
-  "mcp.disconnected": "未连接",
-  "mcp.loadFailed": "加载工具失败",
-  "mcp.toolsCount": "{{count}} 个功能",
-
   "skills.title": "技能",
   "skills.empty": "暂无已加载的技能",
   "skills.loadFailed": "加载技能失败",
@@ -206,7 +186,6 @@
   "skills.openFullscreen": "全屏阅读",
   "skills.instructionsMissing": "暂无使用说明",
   "skills.confirmUninstall": "卸载后技能将从本机移除，确定要卸载吗",
-
   "marketplace.tabs.agent": "智能体",
   "marketplace.tabs.mcp": "工具",
   "marketplace.tabs.app": "应用",
@@ -228,16 +207,8 @@
   "marketplace.uninstallSuccess": "已卸载 {{name}}",
   "marketplace.assign": "分配",
   "marketplace.remove": "移除",
-
-  "tools.title": "工具",
-  "tools.assignedTo": "已分配给 {{name}}",
-  "tools.available": "可用工具",
-  "tools.emptyAssigned": "暂未分配工具",
-  "tools.emptyAvailable": "已全部分配",
-
   "model.noModels": "暂无可用模型",
   "model.selectModel": "选择模型",
-
   "agentEditor.editAgent": "编辑 Agent",
   "agentEditor.addAgent": "添加 Agent",
   "agentEditor.basicInfo": "基本信息",
@@ -338,13 +309,11 @@
   "agentEditor.langZh": "中文",
   "agentEditor.langEn": "英语",
   "agentEditor.langJa": "日语",
-
   "companion.noAppearance": "该 Agent 还未配置陪伴形象",
   "companion.uploadPoseHint": "请在 Agent 编辑器的「形象」栏中上传立绘图片",
   "companion.poseLoadError": "立绘加载失败",
   "companion.thinking": "思考中...",
   "companion.configureVoiceFirst": "请先在 Agent 编辑器中配置音色",
-
   "server.title": "服务器管理",
   "server.agentServer": "Agent 服务器",
   "server.connected": "已连接",
@@ -366,22 +335,17 @@
   "server.waitingForPhone": "等待手机连接",
   "server.allConnected": "全部已连接",
   "server.retry": "重试",
-
   "workspace.selectWorkspace": "选择工作空间",
   "workspace.clearWorkspace": "清除工作空间",
   "workspace.fallbackNotice": "配置的工作目录不可用，已重置为：{{path}}",
-
   "codeBlock.expand": "展开",
   "codeBlock.collapse": "折叠",
   "codeBlock.copy": "复制",
   "codeBlock.copied": "已复制",
   "codeBlock.expandAllLines": "展开全部 {{count}} 行",
-
   "tts.networkError": "TTS 网络请求失败",
   "tts.invalidJson": "TTS API 返回了非法的 JSON",
-
   "voice.broadcastFailed": "语音播报失败",
-
   "voicePreset.male-qn-qingse": "青涩青年音色",
   "voicePreset.male-qn-jingying": "精英青年音色",
   "voicePreset.male-qn-badao": "霸道青年音色",
@@ -439,5 +403,39 @@
   "voicePreset.Chinese (Mandarin)_Stubborn_Friend": "嘴硬竹马",
   "voicePreset.Chinese (Mandarin)_Crisp_Girl": "清脆少女",
   "voicePreset.Chinese (Mandarin)_Pure-hearted_Boy": "清澈邻家弟弟",
-  "voicePreset.Chinese (Mandarin)_Soft_Girl": "柔和少女"
+  "voicePreset.Chinese (Mandarin)_Soft_Girl": "柔和少女",
+  "mcpPool.statusConnected": "已连接",
+  "mcpPool.statusConnecting": "连接中",
+  "mcpPool.statusNeedsAuth": "需要授权",
+  "mcpPool.statusDisconnected": "未连接",
+  "mcpPool.statusError": "连接失败",
+  "mcpPool.authorizing": "授权中…",
+  "mcpPool.sectionConnection": "连接状态",
+  "mcpPool.fieldType": "类型",
+  "mcpPool.fieldUrl": "服务地址",
+  "mcpPool.fieldStatus": "状态",
+  "mcpPool.sectionTools": "功能",
+  "mcpPool.toolsNeedsAuth": "完成授权后可查看功能",
+  "mcpPool.toolsUnavailable": "连接后可查看功能",
+  "mcpPool.toolsEmpty": "该服务未暴露功能",
+  "mcpPool.sectionDocs": "文档",
+  "mcpPool.docsNeedsAuth": "完成授权后可查看文档",
+  "mcpPool.docsUnavailable": "连接后可查看文档",
+  "mcpPool.docsMissing": "该服务未在握手中提供文档",
+  "mcpPool.connect": "授权",
+  "mcpPool.colTool": "功能",
+  "mcpPool.colDesc": "描述",
+  "mcpPool.confirmUninstallHint": "卸载后会断开连接并从池中移除该服务",
+  "tools.assigned": "已分配工具",
+  "tools.pool": "未分配工具",
+  "tools.emptyPool": "没有可挂载的 MCP",
+  "tools.noneSelected": "未选中工具",
+  "tools.typeBuiltin": "内置工具",
+  "tools.typeMcp": "MCP",
+  "tools.typeAgentApp": "Agent App",
+  "tools.assignFailed": "分配未生效，请重试",
+  "mcpPool.title": "已安装工具",
+  "mcpPool.empty": "暂无已加载的工具",
+  "mcpPool.retry": "重试",
+  "mcpPool.retrying": "重试中…"
 }

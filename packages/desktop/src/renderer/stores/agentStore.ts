@@ -36,13 +36,16 @@ interface AgentStore {
   deleteAgentById: (id: string) => Promise<boolean>;
   setAvatarPreview: (id: string, base64: string) => void;
   removeAvatarPreview: (id: string) => void;
-  updateAgentMcpNames: (agentId: string, mcpNames: string[]) => Promise<void>;
+  assignSkill: (agentId: string, skillName: string) => Promise<void>;
+  unassignSkill: (agentId: string, skillName: string) => Promise<void>;
+  /** 给 Agent 追加一个 MCP 服务，已分配过则跳过，失败时 toast 提示 */
+  assignMcp: (agentId: string, mcpName: string) => Promise<void>;
+  /** 从 Agent 移除一个 MCP 服务，未分配则跳过，失败时 toast 提示 */
+  unassignMcp: (agentId: string, mcpName: string) => Promise<void>;
   updateAgentSkillNames: (
     agentId: string,
     skillNames: string[]
   ) => Promise<void>;
-  assignSkill: (agentId: string, skillName: string) => Promise<void>;
-  unassignSkill: (agentId: string, skillName: string) => Promise<void>;
 }
 
 export const useAgentStore = create<AgentStore>((set, get) => ({
@@ -160,9 +163,36 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     set({ agentAvatarPreviews: rest });
   },
 
-  /** 仅更新 Agent 的 MCP 工具分配 */
-  updateAgentMcpNames: async (agentId: string, mcpNames: string[]) => {
-    await get().updateAgentById(agentId, { mcpNames });
+  /** 给 Agent 追加一个 MCP 服务，已分配过则跳过，失败时 toast 提示 */
+  assignMcp: async (agentId, mcpName) => {
+    const agent = get().agents.find((a) => a.id === agentId);
+    if (!agent || agent.mcpNames.includes(mcpName)) return;
+    try {
+      await get().updateAgentById(agentId, {
+        mcpNames: [...agent.mcpNames, mcpName],
+      });
+      logger.info(`[AgentStore] Assigned MCP ${mcpName} to agent ${agentId}`);
+    } catch (err) {
+      logger.error(`[AgentStore] Failed to assign MCP ${mcpName}:`, err);
+      toast.error(i18n.t('tools.assignFailed'));
+    }
+  },
+
+  /** 从 Agent 移除一个 MCP 服务，未分配则跳过，失败时 toast 提示 */
+  unassignMcp: async (agentId, mcpName) => {
+    const agent = get().agents.find((a) => a.id === agentId);
+    if (!agent || !agent.mcpNames.includes(mcpName)) return;
+    try {
+      await get().updateAgentById(agentId, {
+        mcpNames: agent.mcpNames.filter((n) => n !== mcpName),
+      });
+      logger.info(
+        `[AgentStore] Unassigned MCP ${mcpName} from agent ${agentId}`
+      );
+    } catch (err) {
+      logger.error(`[AgentStore] Failed to unassign MCP ${mcpName}:`, err);
+      toast.error(i18n.t('tools.assignFailed'));
+    }
   },
 
   /** 仅更新 Agent 的 Skill 分配 */
@@ -170,7 +200,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     await get().updateAgentById(agentId, { skillNames });
   },
 
-  /** 给 Agent 追加一个技能，已分配过则跳过，失败时提示并上抛 */
+  /** 给 Agent 追加一个技能，已分配过则跳过，失败时 toast 提示 */
   assignSkill: async (agentId: string, skillName: string) => {
     const agent = get().agents.find((a) => a.id === agentId);
     if (!agent || agent.skillNames.includes(skillName)) return;
@@ -188,7 +218,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     }
   },
 
-  /** 从 Agent 移除一个技能，未分配则跳过，失败时提示并上抛 */
+  /** 从 Agent 移除一个技能，未分配则跳过，失败时 toast 提示 */
   unassignSkill: async (agentId: string, skillName: string) => {
     const agent = get().agents.find((a) => a.id === agentId);
     if (!agent || !agent.skillNames.includes(skillName)) return;

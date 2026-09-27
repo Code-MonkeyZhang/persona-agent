@@ -29,19 +29,13 @@ export function DetailTable({ children }: { children: ReactNode }) {
 
 interface DetailSectionProps {
   title: string;
-  subtitle?: string;
   /** 区标题行尾的动作插槽，如文档区的全屏入口 */
   extra?: ReactNode;
   children: ReactNode;
 }
 
 /** 详情区块壳，区标题在卡外，内容收进白底圆角卡 */
-export function DetailSection({
-  title,
-  subtitle,
-  extra,
-  children,
-}: DetailSectionProps) {
+export function DetailSection({ title, extra, children }: DetailSectionProps) {
   return (
     <section>
       <div className="mb-2 flex items-start justify-between pl-1">
@@ -49,11 +43,6 @@ export function DetailSection({
           <h4 className="text-title-section font-semibold text-foreground">
             {title}
           </h4>
-          {subtitle && (
-            <p className="mt-0.5 text-caption text-muted-foreground">
-              {subtitle}
-            </p>
-          )}
         </div>
         {extra && <div className="shrink-0 pt-0.5">{extra}</div>}
       </div>
