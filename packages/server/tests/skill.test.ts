@@ -36,7 +36,6 @@ import {
   toSkillDetail,
   writeSkillMeta,
 } from '../src/skill/loader.js';
-import type { MarketplaceEntry } from '@persona/shared';
 import {
   initSkillPool,
   listSkills,
@@ -266,22 +265,22 @@ Content without description`
   });
 
   describe('writeSkillMeta', () => {
-    it('should persist entry metadata that loadSkillFile reads back', () => {
+    it('should persist install metadata that loadSkillFile reads back', () => {
       const skillDir = path.join(skillsDir, 'meta-roundtrip');
       createSkillFile(skillDir, 'meta-roundtrip', 'Roundtrip', 'Content');
-      const entry: MarketplaceEntry = {
-        name: '往返测试',
-        description: 'Roundtrip',
-        author: 'persona-agent',
-        homepage: 'https://example.com',
-        path: 'skills/meta-roundtrip',
-      };
 
-      writeSkillMeta(skillDir, entry);
+      writeSkillMeta(skillDir, {
+        displayName: '往返测试',
+        author: 'persona-agent',
+        logoUrl: 'https://cdn.example.com/skills/meta-roundtrip/logo.svg',
+      });
       const skill = loadSkillFile(path.join(skillDir, 'SKILL.md'));
 
       expect(skill?.displayName).toBe('往返测试');
       expect(skill?.author).toBe('persona-agent');
+      expect(skill?.logoUrl).toBe(
+        'https://cdn.example.com/skills/meta-roundtrip/logo.svg'
+      );
     });
   });
 });

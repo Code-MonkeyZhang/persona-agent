@@ -22,7 +22,6 @@ import {
   type SkillInfo,
   type SkillDetail,
 } from './types.js';
-import type { MarketplaceEntry } from '@persona/shared';
 
 const SKILL_FILE_NAME = 'SKILL.md';
 const FRONTMATTER_DELIMITER = '---';
@@ -154,6 +153,7 @@ export function toSkillInfo(skill: Skill): SkillInfo {
     description: skill.description,
     displayName: skill.displayName,
     author: skill.author,
+    logoUrl: skill.logoUrl,
     location: skill.skillDir,
   };
 }
@@ -168,22 +168,23 @@ export function toSkillDetail(skill: Skill): SkillDetail {
   };
 }
 
-/** Metadata keys kept in skill-meta.json, written by the marketplace installer. */
-interface SkillMetaFile {
+/** Install-time metadata kept in skill-meta.json, written by the marketplace installer. */
+export interface SkillInstallMeta {
   displayName?: string;
   author?: string;
+  logoUrl?: string;
 }
 
+/** Keys read back from skill-meta.json; anything else in the file is ignored. */
+const META_STRING_KEYS = ['displayName', 'author', 'logoUrl'] as const;
+
 /**
- * Persist marketplace entry metadata beside SKILL.md so the display name and
- * author survive after the manifest entry is discarded.
+ * Persist install-time metadata beside SKILL.md so the display name, author,
+ * and card icon URL survive after the manifest entry is discarded.
+ * The marketplace router builds the meta so this module stays independent
+ * of marketplace concerns.
  */
-export function writeSkillMeta(destDir: string, entry: MarketplaceEntry): void {
-  const meta = {
-    displayName: entry.name,
-    author: entry.author,
-    homepage: entry.homepage,
-  };
+export function writeSkillMeta(destDir: string, meta: SkillInstallMeta): void {
   fs.writeFileSync(
     path.join(destDir, SKILL_META_FILE_NAME),
     JSON.stringify(meta, null, 2)
@@ -194,7 +195,7 @@ export function writeSkillMeta(destDir: string, entry: MarketplaceEntry): void {
  * Read optional install-time metadata placed beside SKILL.md.
  * Returns undefined when the file is missing or invalid, so the skill stays usable.
  */
-function readSkillMeta(skillDir: string): SkillMetaFile | undefined {
+function readSkillMeta(skillDir: string): SkillInstallMeta | undefined {
   try {
     const metaPath = path.join(skillDir, SKILL_META_FILE_NAME);
     if (!fs.existsSync(metaPath)) return undefined;
@@ -203,15 +204,12 @@ function readSkillMeta(skillDir: string): SkillMetaFile | undefined {
       string,
       unknown
     >;
-    const meta: SkillMetaFile = {};
-    if (
-      typeof raw['displayName'] === 'string' &&
-      raw['displayName'].length > 0
-    ) {
-      meta.displayName = raw['displayName'];
-    }
-    if (typeof raw['author'] === 'string' && raw['author'].length > 0) {
-      meta.author = raw['author'];
+    const meta: SkillInstallMeta = {};
+    for (const key of META_STRING_KEYS) {
+      const value = raw[key];
+      if (typeof value === 'string' && value.length > 0) {
+        meta[key] = value;
+      }
     }
     return meta;
   } catch (error) {

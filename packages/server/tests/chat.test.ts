@@ -35,8 +35,13 @@ if (!TEST_API_KEY) {
     'Skipping chat integration tests: TEST_LLM_API_KEY not set. ' +
       'See packages/server/.env.test.example for setup instructions.'
   );
-  process.exit(0);
 }
+
+/**
+ * 未配置真实 LLM Key 时整套跳过。
+ * 用 skip 而不是 process.exit，退出进程会截断并行执行的其他测试文件，造成假绿。
+ */
+const chatDescribe = TEST_API_KEY ? describe : describe.skip;
 
 /** 测试配置 */
 const TEST_CONFIG = {
@@ -148,7 +153,7 @@ async function createTestSession(agentId: string): Promise<string> {
   return session.id;
 }
 
-describe('Chat Module Integration Tests', () => {
+chatDescribe('Chat Module Integration Tests', () => {
   /** 初始化测试环境：创建临时目录、启动服务器 */
   beforeAll(async () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chat-test-'));

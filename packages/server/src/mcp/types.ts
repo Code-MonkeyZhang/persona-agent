@@ -5,6 +5,7 @@
 import type { JsonSchema } from '../tools/base.js';
 import type { Tool } from '../tools/base.js';
 import type { McpServerStatus, SupportedUI } from '@persona/shared';
+import type { McpServerMeta } from './meta.js';
 
 export type ConnectionType = 'stdio' | 'streamable_http';
 
@@ -74,6 +75,10 @@ export interface McpServerEntry {
   agentApp?: boolean;
   /** 支持的端，从 config 投影，随 /api/mcp 透出给客户端筛选 */
   supportedUI?: SupportedUI[];
+  /** 安装时落盘的商城显示信息，手动添加的服务缺省 */
+  meta?: McpServerMeta;
+  /** 握手时服务端声明的使用文档，连接成功后写入 */
+  instructions?: string;
   error?: string;
   oauthUrl?: string;
 }

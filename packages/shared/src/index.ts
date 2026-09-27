@@ -38,6 +38,8 @@ export type {
   McpServerStatus,
   SupportedUI,
   McpServerInfo,
+  McpToolInfo,
+  McpConnectionType,
   McpOAuthStatus,
 } from './mcp.js';
 export type { SkillInfo, SkillDetail } from './skill.js';

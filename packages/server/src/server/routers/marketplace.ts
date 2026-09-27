@@ -40,7 +40,7 @@ export function createMarketplaceRouter(
 ): Router {
   const router = Router();
 
-  /** GET /api/marketplace/skills - 拉取 Skill 清单 */
+  /** GET /api/marketplace/skills - 拉取 Skill 清单, 每条附带 logoUrl; 无 logo 时为 undefined, 前端用技能图标兜底 */
   router.get(
     '/skills',
     asyncHandler(
@@ -48,7 +48,11 @@ export function createMarketplaceRouter(
       'Error listing marketplace skills',
       async (_req, res) => {
         const skills = await fetchManifest();
-        res.json({ skills });
+        const withLogos = skills.map((e) => ({
+          ...e,
+          logoUrl: e.logo ? cdnUrl(e.path, e.logo) : undefined,
+        }));
+        res.json({ skills: withLogos });
       }
     )
   );
@@ -86,8 +90,12 @@ export function createMarketplaceRouter(
       // 下载
       const skillDir = await downloadSkill(entry);
 
-      // 落盘商城元数据：清单里的显示名与作者只在此刻可得，SKILL.md 本身不带
-      writeSkillMeta(skillDir, entry);
+      // 落盘商城元数据：清单里的显示名作者与图标只在此刻可得，SKILL.md 本身不带
+      writeSkillMeta(skillDir, {
+        displayName: entry.name,
+        author: entry.author,
+        logoUrl: entry.logo ? cdnUrl(entry.path, entry.logo) : undefined,
+      });
       Logger.log('MARKETPLACE', `Wrote skill metadata for ${name}`);
 
       // 入池：listSkills 不扫目录，必须主动按名加载一次，否则商城"已安装"状态对不上。
@@ -215,7 +223,7 @@ export function createMarketplaceRouter(
 
   // --- Agent 商城 ---
 
-  /** GET /api/marketplace/agents - 拉取 Agent 清单, 卡片图固定取自 assets/avatar.png, 与聊天头像共用 */
+  /** GET /api/marketplace/agents - 拉取 Agent 清单, 卡片图优先取条目 logo, 缺失回退 assets/avatar.png 与聊天头像共用 */
   router.get(
     '/agents',
     asyncHandler(
@@ -225,7 +233,9 @@ export function createMarketplaceRouter(
         const agents = await fetchAgentManifest();
         const withLogos = agents.map((e) => ({
           ...e,
-          logoUrl: cdnUrl(e.path, 'assets/avatar.png'),
+          logoUrl: e.logo
+            ? cdnUrl(e.path, e.logo)
+            : cdnUrl(e.path, 'assets/avatar.png'),
           source: `${REPO_OWNER}/${REPO_NAME}/${folderNameOf(e)}`,
         }));
         res.json({ agents: withLogos });

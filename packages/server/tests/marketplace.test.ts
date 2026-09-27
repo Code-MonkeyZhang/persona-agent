@@ -78,6 +78,18 @@ describe('folderNameOf', () => {
     expect(folderNameOf({ path: 'skills/group/sub' })).toBe('sub');
     expect(folderNameOf({ path: 'skills/a' })).toBe('a');
   });
+
+  it('prefers a valid id over path derivation', () => {
+    expect(folderNameOf({ id: 'dida365', path: 'mcp/some-folder' })).toBe(
+      'dida365'
+    );
+  });
+
+  it('falls back to path derivation when id is missing or unsafe', () => {
+    expect(folderNameOf({ path: 'mcp/notion' })).toBe('notion');
+    expect(folderNameOf({ id: '../etc', path: 'mcp/notion' })).toBe('notion');
+    expect(folderNameOf({ id: 'Bad_Name', path: 'skills/a' })).toBe('a');
+  });
 });
 
 describe('downloadSkill', () => {
