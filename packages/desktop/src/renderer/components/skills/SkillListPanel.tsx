@@ -1,10 +1,11 @@
 /**
  * @file src/renderer/components/skills/SkillListPanel.tsx
  * @description 技能页左栏，上为已分配技能，下为技能库
- * 行不放图标与状态点，名字行干净，副行是截断的描述，分配加减号与工具页同制
+ * 行放图标盒加两行文字，图标有 logoUrl 显图缺失兜底技能图标，副行是截断的描述，分配加减号与工具页同制
  */
 
 import { useState, type ReactNode } from 'react';
+import { Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { SkillInfo } from '../../lib/api';
 import { useAgentStore } from '../../stores/agentStore';
@@ -13,6 +14,7 @@ import { RowCard } from '../common/RowCard';
 import { AssignButton, UnassignButton } from '../common/AssignButtons';
 import { SidePanelShell, EmptyHint } from '../common/SidePanel';
 import { CollapsibleGroup } from '../common/CollapsibleGroup';
+import { MarketplaceLogo } from '../marketplace/MarketplaceLogo';
 
 interface SkillRowProps {
   skill: SkillInfo;
@@ -21,10 +23,16 @@ interface SkillRowProps {
   action?: ReactNode;
 }
 
-/** 技能行，第一行显示名，副行截断的描述，技能页与设置页共用 */
+/** 技能行，图标盒加两行文字，技能页与设置页共用 */
 export function SkillRow({ skill, selected, onClick, action }: SkillRowProps) {
   return (
     <RowCard selected={selected} onClick={onClick}>
+      <MarketplaceLogo
+        logoUrl={skill.logoUrl}
+        name={skill.displayName ?? skill.name}
+        fallbackIcon={Sparkles}
+        size="sm"
+      />
       <div className="min-w-0 flex-1">
         <span className="block truncate text-content text-foreground">
           {skill.displayName ?? skill.name}
