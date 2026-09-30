@@ -7,6 +7,15 @@ import { persist } from 'zustand/middleware';
 import { logger } from '../lib/logger';
 import type { LandingMode } from '../lib/landing';
 
+/** 会话侧边栏最小宽度，单位像素，窗口缩放不改变此下限 */
+export const SESSION_SIDEBAR_MIN_PX = 240;
+
+/** 会话侧边栏最大宽度，单位像素 */
+export const SESSION_SIDEBAR_MAX_PX = 340;
+
+/** 会话侧边栏默认宽度，单位像素 */
+export const SESSION_SIDEBAR_DEFAULT_PX = 280;
+
 /** 全局视图：设置页、商城与聊天页互斥切换 */
 type ViewType = 'chat' | 'settings' | 'marketplace';
 
@@ -33,8 +42,8 @@ interface ViewStore {
   settingsTab: SettingsTab;
   sessionSidebarCollapsed: boolean;
   /**
-   * 会话侧边栏宽度（占 Group 的百分比，15–30）。
-   * 与 minSize/maxSize 保持一致，避免 Panel 警告并保证拖拽范围。
+   * 会话侧边栏宽度，单位像素，取值区间见常量 MIN 到 MAX。
+   * Panel 声明为 preserve-pixel-size，窗口缩放不改变此值。
    */
   sessionSidebarWidth: number;
   /** 不进 partialize，跨应用重启保持关闭 */
@@ -64,7 +73,7 @@ export const useViewStore = create<ViewStore>()(
       activeNav: 'chat',
       settingsTab: 'general',
       sessionSidebarCollapsed: false,
-      sessionSidebarWidth: 20,
+      sessionSidebarWidth: SESSION_SIDEBAR_DEFAULT_PX,
       landing: { agentId: null, mode: 'first-run' },
 
       setView: (view) => set({ currentView: view }),
@@ -108,6 +117,21 @@ export const useViewStore = create<ViewStore>()(
     }),
     {
       name: 'view-store',
+      version: 1,
+      /**
+       * 旧版把宽度存成 Group 百分比，百分比依赖当时的窗口尺寸，无法无损换算像素。
+       * 版本低于 1 的存量数据直接重置为像素默认值，收起态原样保留。
+       */
+      migrate: (persisted, version) => {
+        const state = persisted as ViewStore;
+        if (version < 1) {
+          logger.info(
+            `[ViewStore] sidebar width migrated: ${state.sessionSidebarWidth} -> ${SESSION_SIDEBAR_DEFAULT_PX}px`
+          );
+          return { ...state, sessionSidebarWidth: SESSION_SIDEBAR_DEFAULT_PX };
+        }
+        return state;
+      },
       partialize: (s) => ({
         sessionSidebarCollapsed: s.sessionSidebarCollapsed,
         sessionSidebarWidth: s.sessionSidebarWidth,

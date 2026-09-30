@@ -10,12 +10,13 @@ import {
   usePanelRef,
   type GroupProps,
   type PanelProps,
+  type PanelSize,
   type SeparatorProps,
 } from 'react-resizable-panels';
 import { cn } from '../../lib/utils';
 
 export { Group, Panel, useGroupRef, usePanelRef };
-export type { GroupProps, PanelProps };
+export type { GroupProps, PanelProps, PanelSize };
 
 /**
  * 可拖拽竖条：全高细线常显边界，短胶囊把手提示可抓。
