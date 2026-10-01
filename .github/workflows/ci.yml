@@ -33,7 +33,7 @@ jobs:
 
       - run: bun run check
 
-      - run: bun test
+      - run: bun run test
         working-directory: packages/server
 
       - run: npx vitest run

@@ -13,8 +13,8 @@ import {
   beforeAll,
   afterAll,
   beforeEach,
-  vi,
-} from 'vitest';
+  mock,
+} from 'bun:test';
 import express, { type Express } from 'express';
 import { createServer, type Server } from 'http';
 import * as fs from 'node:fs';
@@ -22,6 +22,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import * as net from 'node:net';
 import { EventEmitter } from 'node:events';
+import * as realChildProcess from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
 
 // --- Mocks (paths are relative from tests/ to src/) ---
@@ -30,22 +31,22 @@ let tempDir: string;
 let cloudflaredBinPath: string;
 let PORT: number;
 
-vi.mock('../src/util/paths.js', () => ({
+mock.module('../src/util/paths.js', () => ({
   getConfigDir: () => path.dirname(cloudflaredBinPath),
   getCloudflaredBinPath: () => cloudflaredBinPath,
 }));
 
-vi.mock('../src/util/logger.js', () => ({
+mock.module('../src/util/logger.js', () => ({
   Logger: {
-    log: vi.fn(),
-    initialize: vi.fn(),
-    setEnabled: vi.fn(),
-    setSessionManagers: vi.fn(),
+    log: () => {},
+    initialize: () => '',
+    setEnabled: () => {},
+    setSessionManagers: () => {},
   },
 }));
 
-vi.mock('../src/server/index.js', () => ({
-  startServer: vi.fn(),
+mock.module('../src/server/index.js', () => ({
+  startServer: mock(() => Promise.resolve()),
   httpServer: {
     address: () => ({ port: PORT, family: 'IPv4', address: '127.0.0.1' }),
   },
@@ -68,7 +69,7 @@ function createFakeChildProcess(
 
   emitter.stderr = stderr;
   emitter.stdout = stdout;
-  emitter.kill = vi.fn(() => {
+  emitter.kill = mock(() => {
     emitter.emit('exit', 0);
   });
 
@@ -95,14 +96,16 @@ function createStuckChildProcess(): ChildProcess {
   const emitter = new EventEmitter() as ChildProcess;
   emitter.stderr = new EventEmitter();
   emitter.stdout = new EventEmitter();
-  emitter.kill = vi.fn();
+  emitter.kill = mock();
   return emitter;
 }
 
-let mockSpawn: ReturnType<typeof vi.fn>;
+let spawnImpl: (...args: unknown[]) => ChildProcess = () =>
+  createStuckChildProcess();
 
-vi.mock('node:child_process', () => ({
-  spawn: (...args: unknown[]) => mockSpawn(...args),
+mock.module('node:child_process', () => ({
+  ...realChildProcess,
+  spawn: (...args: unknown[]) => spawnImpl(...args),
 }));
 
 // Import after mocks are set up
@@ -160,7 +163,7 @@ describe('Cloudflare Tunnel Integration', () => {
 
   beforeEach(() => {
     _resetState();
-    mockSpawn = vi.fn();
+    spawnImpl = () => createStuckChildProcess();
   });
 
   // ================================================================
@@ -180,7 +183,7 @@ describe('Cloudflare Tunnel Integration', () => {
     it('startTunnel returns URL from cloudflared stderr', async () => {
       const fakeUrl = 'https://test-tunnel.trycloudflare.com';
       const fake = createFakeChildProcess(fakeUrl, 50);
-      mockSpawn.mockReturnValue(fake);
+      spawnImpl = () => fake;
 
       const url = await startTunnel(3000);
       expect(url).toBe(fakeUrl);
@@ -191,7 +194,7 @@ describe('Cloudflare Tunnel Integration', () => {
     it('startTunnel returns existing URL when already running', async () => {
       const fakeUrl = 'https://already-running.trycloudflare.com';
       const fake = createFakeChildProcess(fakeUrl, 50);
-      mockSpawn.mockReturnValue(fake);
+      spawnImpl = () => fake;
 
       const url1 = await startTunnel(3000);
       const url2 = await startTunnel(3000);
@@ -201,7 +204,7 @@ describe('Cloudflare Tunnel Integration', () => {
 
     it('startTunnel rejects when already starting', async () => {
       const fake = createStuckChildProcess();
-      mockSpawn.mockReturnValue(fake);
+      spawnImpl = () => fake;
 
       const promise = startTunnel(3000);
 
@@ -220,7 +223,7 @@ describe('Cloudflare Tunnel Integration', () => {
     it('stopTunnel resets state to stopped', async () => {
       const fakeUrl = 'https://to-be-stopped.trycloudflare.com';
       const fake = createFakeChildProcess(fakeUrl, 50);
-      mockSpawn.mockReturnValue(fake);
+      spawnImpl = () => fake;
 
       await startTunnel(3000);
       expect(getTunnelStatus().status).toBe('running');
@@ -237,7 +240,7 @@ describe('Cloudflare Tunnel Integration', () => {
     it('onStatusChange fires callback on state transitions', async () => {
       const fakeUrl = 'https://callback-test.trycloudflare.com';
       const fake = createFakeChildProcess(fakeUrl, 50);
-      mockSpawn.mockReturnValue(fake);
+      spawnImpl = () => fake;
 
       const states: string[] = [];
       const cb = (s: { status: string }) => states.push(s.status);
@@ -253,7 +256,7 @@ describe('Cloudflare Tunnel Integration', () => {
     it('process exit resets state to stopped', async () => {
       const fakeUrl = 'https://exit-test.trycloudflare.com';
       const fake = createFakeChildProcess(fakeUrl, 50);
-      mockSpawn.mockReturnValue(fake);
+      spawnImpl = () => fake;
 
       await startTunnel(3000);
       expect(getTunnelStatus().status).toBe('running');
@@ -266,9 +269,9 @@ describe('Cloudflare Tunnel Integration', () => {
       const fake = new EventEmitter() as ChildProcess;
       fake.stderr = new EventEmitter();
       fake.stdout = new EventEmitter();
-      fake.kill = vi.fn();
+      fake.kill = mock();
 
-      mockSpawn.mockReturnValue(fake);
+      spawnImpl = () => fake;
 
       setTimeout(
         () => fake.emit('error', new Error('spawn ENOENT')),
@@ -297,7 +300,7 @@ describe('Cloudflare Tunnel Integration', () => {
     it('POST /start returns 202 and starts tunnel', async () => {
       const fakeUrl = 'https://api-test.trycloudflare.com';
       const fake = createFakeChildProcess(fakeUrl, 300);
-      mockSpawn.mockReturnValue(fake);
+      spawnImpl = () => fake;
 
       const res = await fetch(`${BASE_URL}/api/tunnel/start`, {
         method: 'POST',
@@ -320,7 +323,7 @@ describe('Cloudflare Tunnel Integration', () => {
     it('POST /start returns running URL when already running', async () => {
       const fakeUrl = 'https://already-api.trycloudflare.com';
       const fake = createFakeChildProcess(fakeUrl, 50);
-      mockSpawn.mockReturnValue(fake);
+      spawnImpl = () => fake;
 
       await startTunnel(3000);
 
