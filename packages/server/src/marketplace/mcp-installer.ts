@@ -33,13 +33,21 @@ import type { McpServerConfig } from '../mcp/types.js';
  * serversDir 经 JSON.stringify 转义并去掉首尾引号后，得到可安全嵌入
  * JSON 字符串字面量的形式，使 Windows 路径的反斜杠被正确处理，避免
  * \U 等非法转义导致 JSON.parse 失败。
+ *
+ * 清单里的占位符统一用正斜杠拼接（${SERVERS_DIR}/xxx），Windows 上
+ * 替换后会把正斜杠一并替换为平台分隔符，保证产物是原生分隔符路径。
  */
 function substitutePlaceholders(
   config: McpServerConfig,
   serversDir: string
 ): McpServerConfig {
   const escaped = JSON.stringify(serversDir).slice(1, -1);
-  const str = JSON.stringify(config).replaceAll('${SERVERS_DIR}', escaped);
+  let str = JSON.stringify(config);
+  if (path.sep !== '/') {
+    const escapedSep = JSON.stringify(path.sep).slice(1, -1);
+    str = str.replaceAll('${SERVERS_DIR}/', escaped + escapedSep);
+  }
+  str = str.replaceAll('${SERVERS_DIR}', escaped);
   return JSON.parse(str) as McpServerConfig;
 }
 
