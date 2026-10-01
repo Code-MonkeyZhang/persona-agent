@@ -210,7 +210,7 @@ function matchQuery<T extends { name: string; description: string }>(
 
 /**
  * 统一卡片网格（四个 tab 共用同一套响应式规则），处理空态与渲染。
- * 每张卡封顶 240px、网格内居中。logoUrl 仅 mcp/agent/app 条目上存在。
+ * 每张卡封顶 240px、网格内居中。四类条目都带可选 logoUrl，由卡片自己读取渲染。
  */
 function CardGrid<T extends CardItem>({
   entries,
@@ -238,14 +238,11 @@ function CardGrid<T extends CardItem>({
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 justify-items-center">
       {entries.map((e) => {
         const folder = folderNameOf(e);
-        const logoUrl =
-          'logoUrl' in e ? (e as { logoUrl?: string }).logoUrl : undefined;
         return (
           <div key={folder} className="w-full h-full max-w-[240px]">
             <MarketplaceCard
               type={type}
               item={e}
-              logoUrl={logoUrl}
               installed={isInstalled(e)}
               installing={installing.has(folder)}
               onInstall={() => onInstall(e)}

@@ -412,7 +412,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
 
   return (
     <div className="h-full w-full flex flex-col bg-muted">
-      <div className="shrink-0 flex items-center gap-2 px-5 h-14 border-b border-border bg-muted">
+      <div className="shrink-0 flex items-center gap-2 px-5 h-[65px] border-b border-border bg-muted">
         <BackButton onClick={closeAgentEditor} />
         <h1 className="text-title-page font-bold text-foreground">
           {editingAgentId

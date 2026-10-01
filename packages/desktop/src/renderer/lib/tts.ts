@@ -9,6 +9,14 @@ import i18n from '../i18n';
 const TTS_API_URL = 'https://api.minimaxi.com/v1/t2a_v2';
 const DEFAULT_MODEL = 'speech-2.8-hd';
 
+/** MiniMax 官方文档地址，设置页语音面板与引导向导共用 */
+export const MINIMAX_DOCS_URL =
+  'https://platform.minimaxi.com/docs/guides/quickstart';
+
+/** 验证 Key 用的合成参数：短文本加预设音色，合成结果丢弃 */
+const VERIFY_TEXT = '测试语音功能连接';
+const VERIFY_VOICE = 'male-qn-qingse';
+
 /**
  * 将 MiniMax 返回的 hex 编码音频解码为 ArrayBuffer
  * @param hex - hex 编码的音频字符串
@@ -137,4 +145,16 @@ export async function synthesize(
 
   // MiniMax 返回的音频为 hex 编码字符串，解码为 ArrayBuffer 返回
   return hexToArrayBuffer(data.data.audio);
+}
+
+/**
+ * 用给定 Key 试合成一段测试音频，验证 Key 可用性，不落盘任何配置。
+ * @param apiKey - 待验证的 MiniMax API Key
+ * @param model - 可选的 TTS 模型 ID，缺省用默认模型
+ */
+export async function verifyTtsApiKey(
+  apiKey: string,
+  model?: string
+): Promise<void> {
+  await synthesize(VERIFY_TEXT, VERIFY_VOICE, apiKey, model ?? DEFAULT_MODEL);
 }

@@ -17,9 +17,12 @@ import type {
   DeviceType,
   ModelConfig,
   McpServerInfo,
+  McpToolInfo,
+  McpConnectionType,
   McpOAuthStatus,
   ProviderStatus,
   SkillInfo,
+  SkillDetail,
   MarketplaceEntry,
   McpMarketplaceEntry,
   AgentMarketplaceEntry,
@@ -77,8 +80,11 @@ export async function getBaseUrl(): Promise<string> {
 // DTO 类型已迁移至 @persona/shared
 export type {
   McpServerInfo,
+  McpToolInfo,
+  McpConnectionType,
   ProviderStatus,
   SkillInfo,
+  SkillDetail,
   MarketplaceEntry,
   McpMarketplaceEntry,
   AgentMarketplaceEntry,
@@ -96,8 +102,17 @@ interface ListSkillsResponse {
   skills: SkillInfo[];
 }
 
+interface GetSkillResponse {
+  skill: SkillDetail;
+}
+
 interface ListMarketplaceSkillsResponse {
-  skills: MarketplaceEntry[];
+  skills: SkillMarketplaceItem[];
+}
+
+/** GET /skills 每条多了 logoUrl, 后端拼的 CDN 地址, 无 logo 时为 undefined */
+export interface SkillMarketplaceItem extends MarketplaceEntry {
+  logoUrl?: string;
 }
 
 /** GET /mcps 每条多了 logoUrl, 后端拼的 CDN 地址, 无 logo 时为 undefined */
@@ -784,6 +799,27 @@ export async function listMcpServers(): Promise<McpServerInfo[]> {
 }
 
 /**
+ * 重连一个连接失败的 MCP 服务器。
+ * 服务端对同名服务的并发重连做了互斥，重复调用复用同一次连接。
+ * @param name - MCP 服务器名称
+ */
+export async function reconnectMcp(name: string): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/mcp/${encodeURIComponent(name)}/reconnect`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+  );
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to reconnect: ${response.status}`
+    );
+  }
+}
+
+/**
  * 启动指定 MCP 服务器的 OAuth 授权流程。
  * 返回授权 URL，前端应使用 shell.openExternal 打开浏览器。
  * @param name - MCP 服务器名称
@@ -847,10 +883,33 @@ export async function listSkills(): Promise<SkillInfo[]> {
 }
 
 /**
- * 拉取商城 Skill 清单。
- * @returns 商城条目数组
+ * 获取单个技能的完整详情，正文按需单查。
+ * @param name - 技能的机器键
+ * @returns 含正文的技能详情
  */
-export async function listMarketplaceSkills(): Promise<MarketplaceEntry[]> {
+export async function getSkill(name: string): Promise<SkillDetail> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/skills/${encodeURIComponent(name)}`,
+    {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to get skill: ${response.status}`);
+  }
+
+  const data: GetSkillResponse = await response.json();
+  return data.skill;
+}
+
+/**
+ * 拉取商城 Skill 清单。
+ * @returns 商城条目数组，每条附带可选 logoUrl
+ */
+export async function listMarketplaceSkills(): Promise<SkillMarketplaceItem[]> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(`${baseUrl}/api/marketplace/skills`, {
     method: 'GET',

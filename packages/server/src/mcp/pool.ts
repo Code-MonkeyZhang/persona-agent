@@ -9,11 +9,12 @@
 import { Logger } from '../util/logger.js';
 import { errorMessage } from '../util/errors.js';
 import { loadMcpConfig } from './config.js';
-import { connectAllServers, connectOne } from './loader.js';
+import { connectAllServers, connectOne, type ConnectResult } from './loader.js';
 import { MCPServerConnection } from './connection.js';
 import { McpOAuthProvider } from './oauth/provider.js';
 import { startCallbackServer } from './oauth/callback.js';
 import { getOAuthTokensPath } from '../util/paths.js';
+import { readMcpMeta } from './meta.js';
 import type {
   McpServerEntry,
   McpToolMeta,
@@ -43,7 +44,8 @@ const pendingOAuth: Map<string, { status: string; error?: string }> = new Map();
 let initialized = false;
 
 /**
- * 从 config 创建 connecting 状态的 entry，投影 agentApp / supportedUI 字段。
+ * 从 config 创建 connecting 状态的 entry，投影 agentApp / supportedUI 字段，
+ * 并叠加安装时落盘的商城显示 meta。
  */
 function createConnectingEntry(
   name: string,
@@ -56,7 +58,77 @@ function createConnectingEntry(
     tools: [],
     agentApp: config.agentApp === true,
     supportedUI: config.supportedUI,
+    meta: readMcpMeta(name),
   };
+}
+
+/**
+ * 把一次连接的结果落进池与 entry。
+ * 初始化与运行时新增共用，握手 instructions 在这里写进 entry 供投影透出。
+ */
+function applyConnectResult(name: string, result: ConnectResult): void {
+  if (result.appPort) {
+    appPorts.set(name, result.appPort);
+  }
+
+  if (result.serverConn) {
+    serverConnections.set(name, result.serverConn);
+  }
+
+  if (result.connection) {
+    connections.set(name, result.connection);
+  }
+
+  const entry = serverEntries.get(name);
+  if (!entry) return;
+
+  entry.instructions = result.serverConn?.instructions?.trim() || undefined;
+
+  if (result.connection) {
+    entry.status = 'connected';
+    entry.tools = result.tools;
+    entry.error = undefined;
+  } else if (result.needsAuth) {
+    entry.status = 'needs_auth';
+    entry.oauthUrl = result.oauthUrl;
+    entry.error = undefined;
+  } else {
+    entry.status = 'disconnected';
+    entry.error = result.error ?? 'Unknown error';
+  }
+}
+
+/**
+ * 连接一个服务并把结果落进池与 entry，运行时新增与重连共用。
+ * 连接失败不抛异常，由调用方读 entry 状态决定怎么提示。
+ */
+async function connectAndApply(
+  name: string,
+  config: McpServerConfig
+): Promise<ConnectResult> {
+  const handler = appNotificationHandler;
+  const result = await connectOne(
+    name,
+    config,
+    handler ? (params) => handler(params, name) : undefined
+  );
+
+  applyConnectResult(name, result);
+
+  if (result.connection) {
+    Logger.log(
+      'MCP',
+      `Server '${name}' connected at runtime (${result.tools.length} tools)`
+    );
+  } else if (result.needsAuth) {
+    Logger.log('MCP', `Server '${name}' requires OAuth authentication`);
+  } else {
+    Logger.log(
+      'MCP',
+      `Server '${name}' failed to connect: ${result.error ?? 'Unknown error'}`
+    );
+  }
+  return result;
 }
 
 /**
@@ -83,33 +155,12 @@ export async function initMcpPool(): Promise<void> {
   );
 
   for (const result of results) {
-    const entry = serverEntries.get(result.name);
-    if (!entry) continue;
-
-    if (result.appPort) {
-      appPorts.set(result.name, result.appPort);
-    }
-
-    if (result.serverConn) {
-      serverConnections.set(result.name, result.serverConn);
-    }
-
-    if (result.connection) {
-      connections.set(result.name, result.connection);
-      entry.status = 'connected';
-      entry.tools = result.tools;
-      entry.error = undefined;
-    } else if (result.needsAuth) {
-      entry.status = 'needs_auth';
-      entry.oauthUrl = result.oauthUrl;
-      entry.error = undefined;
+    applyConnectResult(result.name, result);
+    if (result.needsAuth) {
       Logger.log(
         'MCP',
         `Server '${result.name}' requires OAuth authentication`
       );
-    } else {
-      entry.status = 'disconnected';
-      entry.error = result.error ?? 'Unknown error';
     }
   }
 
@@ -281,6 +332,7 @@ export async function startOAuthFlow(name: string): Promise<{
       connections.set(name, connection);
       entry.status = 'connected';
       entry.tools = tools;
+      entry.instructions = serverConn.instructions?.trim() || undefined;
       return { authorizationUrl: '' };
     }
 
@@ -350,6 +402,7 @@ async function handleOAuthCallback(
     entry.tools = tools;
     entry.error = undefined;
     entry.oauthUrl = undefined;
+    entry.instructions = serverConn.instructions?.trim() || undefined;
 
     pendingOAuth.set(name, { status: 'done' });
     Logger.log(
@@ -425,43 +478,7 @@ export async function addServer(
 
   serverEntries.set(name, createConnectingEntry(name, config));
 
-  const handler = appNotificationHandler;
-  const result = await connectOne(
-    name,
-    config,
-    handler ? (params) => handler(params, name) : undefined
-  );
-
-  if (result.serverConn) {
-    serverConnections.set(name, result.serverConn);
-  }
-
-  if (result.appPort) {
-    appPorts.set(name, result.appPort);
-  }
-
-  const entry = serverEntries.get(name);
-  if (!entry) return;
-
-  if (result.connection) {
-    connections.set(name, result.connection);
-    entry.status = 'connected';
-    entry.tools = result.tools;
-    entry.error = undefined;
-    Logger.log(
-      'MCP',
-      `Server '${name}' connected at runtime (${result.tools.length} tools)`
-    );
-  } else if (result.needsAuth) {
-    entry.status = 'needs_auth';
-    entry.oauthUrl = result.oauthUrl;
-    entry.error = undefined;
-    Logger.log('MCP', `Server '${name}' requires OAuth authentication`);
-  } else {
-    entry.status = 'disconnected';
-    entry.error = result.error ?? 'Unknown error';
-    Logger.log('MCP', `Server '${name}' failed to connect: ${entry.error}`);
-  }
+  await connectAndApply(name, config);
 }
 
 /**
@@ -490,4 +507,54 @@ export async function removeServer(name: string): Promise<void> {
   serverEntries.delete(name);
 
   Logger.log('MCP', `Server '${name}' removed from pool`);
+}
+
+/** 进行中的重连，键为服务名，同键重复调用复用同一个 Promise */
+const reconnecting = new Map<string, Promise<void>>();
+
+/**
+ * 重连一个已在池中的服务，详情页连接失败后的重试按钮调用。
+ *
+ * 断开现有连接并清残留句柄，再按原配置重连，结果经
+ * connectAndApply 落进池与 entry，不抛连接类异常。
+ * in-flight 互斥在 pool 层做，同键并发调用只触发一次实际连接。
+ *
+ * @param name server 名字
+ * @throws 服务不在池中时抛 not found，路由层映射 404
+ */
+export async function reconnectServer(name: string): Promise<void> {
+  const inFlight = reconnecting.get(name);
+  if (inFlight) return inFlight;
+
+  const entry = serverEntries.get(name);
+  if (!entry) {
+    throw new Error(`MCP server '${name}' not found in pool`);
+  }
+
+  Logger.log('MCP', `Reconnecting server '${name}'`);
+
+  const task = (async () => {
+    const conn = connections.get(name);
+    if (conn) {
+      await conn.disconnect().catch(() => {});
+      connections.delete(name);
+    }
+
+    const serverConn = serverConnections.get(name);
+    if (serverConn) {
+      await serverConn.disconnect().catch(() => {});
+      serverConnections.delete(name);
+    }
+
+    appPorts.delete(name);
+    entry.status = 'connecting';
+    entry.error = undefined;
+
+    await connectAndApply(name, entry.config);
+  })().finally(() => {
+    reconnecting.delete(name);
+  });
+
+  reconnecting.set(name, task);
+  return task;
 }

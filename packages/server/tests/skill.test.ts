@@ -33,6 +33,8 @@ import {
   loadSkillFile,
   loadAllSkills,
   toSkillInfo,
+  toSkillDetail,
+  writeSkillMeta,
 } from '../src/skill/loader.js';
 import {
   initSkillPool,
@@ -48,7 +50,8 @@ function createSkillFile(
   skillDir: string,
   name: string,
   description: string,
-  content: string
+  content: string,
+  meta?: Record<string, unknown>
 ): string {
   const skillPath = path.join(skillDir, 'SKILL.md');
   const fileContent = `---
@@ -59,6 +62,9 @@ description: ${description}
 ${content}`;
   fs.mkdirSync(skillDir, { recursive: true });
   fs.writeFileSync(skillPath, fileContent);
+  if (meta) {
+    fs.writeFileSync(path.join(skillDir, 'skill-meta.json'), JSON.stringify(meta));
+  }
   return skillPath;
 }
 
@@ -132,6 +138,41 @@ Content without description`
       expect(skill?.name).toBe('no-desc');
       expect(skill?.description).toBe('');
     });
+
+    it('should overlay metadata from skill-meta.json', () => {
+      const skillDir = path.join(skillsDir, 'with-meta');
+      createSkillFile(skillDir, 'with-meta', 'Has meta', 'Content', {
+        displayName: '测试技能',
+        author: 'persona-agent',
+      });
+
+      const skill = loadSkillFile(path.join(skillDir, 'SKILL.md'));
+
+      expect(skill?.displayName).toBe('测试技能');
+      expect(skill?.author).toBe('persona-agent');
+    });
+
+    it('should leave metadata empty when skill-meta.json is missing', () => {
+      const skillDir = path.join(skillsDir, 'no-meta');
+      createSkillFile(skillDir, 'no-meta', 'No meta', 'Content');
+
+      const skill = loadSkillFile(path.join(skillDir, 'SKILL.md'));
+
+      expect(skill?.displayName).toBeUndefined();
+      expect(skill?.author).toBeUndefined();
+    });
+
+    it('should stay usable when skill-meta.json is invalid JSON', () => {
+      const skillDir = path.join(skillsDir, 'bad-meta');
+      createSkillFile(skillDir, 'bad-meta', 'Bad meta', 'Content');
+      fs.writeFileSync(path.join(skillDir, 'skill-meta.json'), '{broken');
+
+      const skill = loadSkillFile(path.join(skillDir, 'SKILL.md'));
+
+      expect(skill).toBeDefined();
+      expect(skill?.name).toBe('bad-meta');
+      expect(skill?.displayName).toBeUndefined();
+    });
   });
 
   describe('loadAllSkills', () => {
@@ -187,6 +228,8 @@ Content without description`
       const skill: Skill = {
         name: 'test',
         description: 'Test description',
+        displayName: '测试技能',
+        author: 'persona-agent',
         content: 'Full content',
         filePath: '/path/to/SKILL.md',
         skillDir: '/path/to',
@@ -197,6 +240,47 @@ Content without description`
 
       expect(info.name).toBe('test');
       expect(info.description).toBe('Test description');
+      expect(info.displayName).toBe('测试技能');
+      expect(info.author).toBe('persona-agent');
+      expect(info.location).toBe('/path/to');
+    });
+  });
+
+  describe('toSkillDetail', () => {
+    it('should extend info with full content', () => {
+      const skill: Skill = {
+        name: 'test',
+        description: 'Test description',
+        content: 'Full content',
+        filePath: '/path/to/SKILL.md',
+        skillDir: '/path/to',
+        mtime: Date.now(),
+      };
+
+      const detail = toSkillDetail(skill);
+
+      expect(detail.content).toBe('Full content');
+      expect(detail.location).toBe('/path/to');
+    });
+  });
+
+  describe('writeSkillMeta', () => {
+    it('should persist install metadata that loadSkillFile reads back', () => {
+      const skillDir = path.join(skillsDir, 'meta-roundtrip');
+      createSkillFile(skillDir, 'meta-roundtrip', 'Roundtrip', 'Content');
+
+      writeSkillMeta(skillDir, {
+        displayName: '往返测试',
+        author: 'persona-agent',
+        logoUrl: 'https://cdn.example.com/skills/meta-roundtrip/logo.svg',
+      });
+      const skill = loadSkillFile(path.join(skillDir, 'SKILL.md'));
+
+      expect(skill?.displayName).toBe('往返测试');
+      expect(skill?.author).toBe('persona-agent');
+      expect(skill?.logoUrl).toBe(
+        'https://cdn.example.com/skills/meta-roundtrip/logo.svg'
+      );
     });
   });
 });
@@ -273,6 +357,21 @@ describe('Skill Pool', () => {
 
       const skill = getSkill('non-existent');
       expect(skill).toBeUndefined();
+    });
+
+    it('should resolve real directory when folder name differs from frontmatter name', () => {
+      createSkillFile(
+        path.join(skillsDir, 'folder-one'),
+        'skill-one',
+        'Differs',
+        'Content'
+      );
+      initSkillPool();
+
+      const skill = getSkill('skill-one');
+
+      expect(skill).toBeDefined();
+      expect(skill?.skillDir).toBe(path.join(skillsDir, 'folder-one'));
     });
   });
 

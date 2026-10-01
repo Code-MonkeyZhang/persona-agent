@@ -49,6 +49,7 @@ import {
   Panel,
   ResizeSeparator,
   usePanelRef,
+  type PanelSize,
 } from './components/common/resizable';
 import { ToastContainer } from './components/Toast';
 import { WebSocketProvider } from './components/WebSocketProvider';
@@ -57,7 +58,11 @@ import { useSessionStore } from './stores/sessionStore';
 import { useAgentStore } from './stores/agentStore';
 import { useProviderStore } from './stores/providerStore';
 import { useCompanionStore } from './stores/companionStore';
-import { useViewStore } from './stores/viewStore';
+import {
+  SESSION_SIDEBAR_MAX_PX,
+  SESSION_SIDEBAR_MIN_PX,
+  useViewStore,
+} from './stores/viewStore';
 import { useTunnelStore } from './stores/tunnelStore';
 import { useAppPanelStore } from './stores/appPanelStore';
 import { logger } from './lib/logger';
@@ -89,11 +94,23 @@ function AppContent() {
     (s) => s.setSessionSidebarCollapsed
   );
 
+  /** 面板最新尺寸的缓存，onResize 持续更新，供用户拖拽结束时读取像素值 */
+  const sessionPanelSizeRef = useRef<PanelSize | null>(null);
+
+  /**
+   * Panel 尺寸变化回调，挂载、拖拽、窗口缩放与收合动画期间都会触发。
+   * 只写 ref 不落盘，真正的持久化时机由 handleLayoutChanged 把关。
+   */
+  const handleSessionPanelResize = useCallback((size: PanelSize) => {
+    sessionPanelSizeRef.current = size;
+  }, []);
+
   /**
    * 拖拽侧边栏分隔条时同步宽度到 viewStore，由 zustand persist 持久化。
    * 仅在用户实际操作后写入，避免初次挂载时把 Group 的 defaultLayout 又写回 store。
    * `LayoutChangedMeta.isUserInteraction === true` 时表示分隔条拖拽与键盘调整；
    * 初挂载、约束重算、defaultSize 应用、程序化收合展开都视为 false，不回写。
+   * 宽度单位是像素，Group 回调只报百分比，像素值取 onResize 缓存的 inPixels。
    * 拖到极限触发库自动收起时宽度归零，此时只同步收起态，零宽度不落盘。
    */
   const handleLayoutChanged = useCallback(
@@ -108,8 +125,12 @@ function AppContent() {
         setSessionSidebarCollapsed(true);
         return;
       }
-      if (next !== sessionSidebarWidth) {
-        setSessionSidebarWidth(next);
+      const px = sessionPanelSizeRef.current?.inPixels;
+      if (typeof px !== 'number') return;
+      const rounded = Math.round(px);
+      if (rounded !== sessionSidebarWidth) {
+        setSessionSidebarWidth(rounded);
+        logger.info(`[App] session sidebar width saved: ${rounded}px`);
       }
     },
     [sessionSidebarWidth, setSessionSidebarWidth, setSessionSidebarCollapsed]
@@ -224,8 +245,8 @@ function AppContent() {
     useAgentStore();
   const { providers, loadProviders } = useProviderStore();
 
-  /** 首启向导：播种 Agent 的 id（null = 不弹） */
-  const [landingAgentId, setLandingAgentId] = useState<string | null>(null);
+  /** 向导打开状态已提升进 viewStore，首启门控与设置页重放入口共用 */
+  const landing = useViewStore((s) => s.landing);
 
   /**
    * 删除指定 Agent
@@ -271,7 +292,7 @@ function AppContent() {
           .agents.some((a) => a.id === status.agentId);
         if (status.seeded && status.agentId && exists) {
           logger.info(`[Landing] showing wizard for seeded agent`);
-          setLandingAgentId(status.agentId);
+          useViewStore.getState().openLanding(status.agentId, 'first-run');
         }
       })
       .catch(() => {
@@ -282,14 +303,15 @@ function AppContent() {
     };
   }, [connectionStatus, agentsLoaded]);
 
-  /** 向导唯一出口：切换到播种 Agent 并进入聊天视图 */
+  /** 向导完成出口，首启与重放共用：切换到目标 Agent 并进入聊天视图 */
   const handleLandingComplete = async () => {
-    const agentId = landingAgentId;
-    setLandingAgentId(null);
+    const { landing, closeLanding, setView, setActiveNav } =
+      useViewStore.getState();
+    const agentId = landing.agentId;
+    closeLanding();
     if (!agentId) return;
-    const view = useViewStore.getState();
-    view.setView('chat');
-    view.setActiveNav('chat');
+    setView('chat');
+    setActiveNav('chat');
     if (useAgentStore.getState().currentAgent?.id !== agentId) {
       await switchAgent(agentId);
     }
@@ -512,10 +534,12 @@ function AppContent() {
               >
                 <Panel
                   id="session-sidebar"
-                  defaultSize={`${sessionSidebarWidth}`}
-                  minSize="15"
-                  maxSize="30"
+                  defaultSize={`${sessionSidebarWidth}px`}
+                  minSize={`${SESSION_SIDEBAR_MIN_PX}px`}
+                  maxSize={`${SESSION_SIDEBAR_MAX_PX}px`}
+                  groupResizeBehavior="preserve-pixel-size"
                   collapsible
+                  onResize={handleSessionPanelResize}
                   panelRef={sessionPanelRef}
                 >
                   <SessionSidebar onNewChat={handleNewChat} />
@@ -615,10 +639,16 @@ function AppContent() {
         </div>
       </div>
       <ToastContainer />
-      {landingAgentId && (
+      {landing.agentId && (
         <LandingWizard
-          agentId={landingAgentId}
+          agentId={landing.agentId}
+          mode={landing.mode}
           onComplete={() => void handleLandingComplete()}
+          onClose={
+            landing.mode === 'replay'
+              ? () => useViewStore.getState().closeLanding()
+              : undefined
+          }
         />
       )}
     </div>

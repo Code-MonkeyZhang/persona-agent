@@ -7,7 +7,7 @@
  */
 
 import { Router } from 'express';
-import { listSkills, getSkill } from '../../skill/index.js';
+import { listSkills, getSkill, toSkillDetail } from '../../skill/index.js';
 import { asyncHandler, getParam, requireParam } from './utils.js';
 import { AppError } from '../../util/errors.js';
 
@@ -32,7 +32,7 @@ export function createSkillRouter(): Router {
       const skill = getSkill(name);
       if (!skill) throw new AppError(404, 'Skill not found');
 
-      res.json({ skill });
+      res.json({ skill: toSkillDetail(skill) });
     })
   );
 

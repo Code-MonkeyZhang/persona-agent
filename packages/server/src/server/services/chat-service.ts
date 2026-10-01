@@ -298,7 +298,8 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       sessionId,
       session,
       workspaceDir,
-      agentConfig.mcpNames
+      agentConfig.mcpNames,
+      agentConfig.skillNames
     );
     if (runtimeContext) {
       agent.addUserMessage(runtimeContext);

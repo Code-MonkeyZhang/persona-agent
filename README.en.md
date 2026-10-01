@@ -56,19 +56,20 @@ Install agents, MCP tools, and Skills from the Agent Marketplace in one click.
 - **Mobile Remote Access** — Built-in Cloudflare Tunnel for connecting to your agent from the mobile app anytime
 
 ## 📢 Changelog
+
 - 2026-09-23 — **v1.10.1**: app-wide visual refresh, collapsible session sidebar with animation and width memory, cloned voice renaming, permanently active input box.
 - 2026-09-19 — **v1.10.0**: global Inter font and unified type scale, per-turn assistant message bubbles, redesigned provider config panel, edge-fade scroll indicators.
 - 2026-09-09 — **v1.9.2**: desktop logs persisted to the user data directory for easier troubleshooting.
+
+<details>
+<summary>Earlier news</summary>
+
 - 2026-09-08 — **v1.9.1**: interjections while generating, draggable session sidebar width, project adopted the MIT License.
 - 2026-08-29 — **v1.9.0**: first-launch setup wizard with a preinstalled starter Agent, GLM-5.3-Flash and GLM-5.3-Highspeed model support.
 - 2026-08-24 — **v1.8.0**: official brand icons for providers and models, bilingual voice preview texts, unified marketplace card heights.
 - 2026-08-19 — **v1.7.1**: automatic retry on transient LLM connection errors, automatic fallback for invalid workspaces, message previews in the session list, GLM-5.3 support.
 - 2026-08-17 — **v1.7.0**: Agent Apps — a new App tab in the marketplace for one-click install of mini-apps, with an app panel and app notifications.
 - 2026-07-23 — **v1.6.5**: in-app update checker, macOS code signing and notarization, companion panel rebuilt as a sliding pane, abort generation support.
-
-<details>
-<summary>Earlier news</summary>
-
 - 2026-07-19 — **v1.6.4**: Intel Mac support, QR scan-to-pair remote connection, Kimi K3 support, cross-fade pose transitions, redesigned thought-process timeline.
 - 2026-07-04 — **v1.6.0**: merged multi-step thinking, persistent API error messages, Git Bash on Windows, one-click uv runtime download, optimistic chat loading.
 - 2026-06-28 — **v1.5.0**: new Agent Marketplace for browsing and installing skills & MCP tools; unified HTTP error handling; design system rollout.
