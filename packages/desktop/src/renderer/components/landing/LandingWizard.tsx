@@ -187,7 +187,9 @@ export function LandingWizard({
         if (agent.voiceId) setVoiceId(agent.voiceId);
         if (agent.voiceLanguage) setVoiceLanguage(agent.voiceLanguage);
         setAgentDefaultModel(agent.defaultModel);
-        setAvatarUrl(getAgentAvatarUrl(agentId));
+        setAvatarUrl(
+          agent.avatarHash ? getAgentAvatarUrl(agentId, agent.avatarHash) : ''
+        );
       } catch (err) {
         logger.error('[Landing] failed to load seeded agent:', err);
       }

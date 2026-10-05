@@ -1295,42 +1295,64 @@ export async function deleteCredential(
 }
 
 /**
- * 获取指定 agent 的头像 URL，附带时间戳参数避免缓存。
+ * 获取指定 agent 的头像 URL，内容哈希承担缓存身份。
  * @param agentId - Agent ID
+ * @param hash - 头像内容哈希，为空时不带参数
  * @returns 头像图片的完整 URL
  */
-export function getAgentAvatarUrl(agentId: string): string {
+export function getAgentAvatarUrl(agentId: string, hash?: string): string {
   const base = cachedBaseUrl || `http://localhost:${DEFAULT_PORT}`;
-  return `${base}/api/agents/${agentId}/avatar?t=${Date.now()}`;
+  const query = hash ? `?h=${hash}` : '';
+  return `${base}/api/agents/${agentId}/avatar${query}`;
 }
 
 /**
- * 获取指定 agent 的姿态图片 URL。
+ * 获取指定 agent 的姿态图片 URL，内容哈希承担缓存身份。
  * @param agentId - Agent ID
  * @param poseName - 姿态名称
+ * @param hash - 姿态图片内容哈希，为空时不带参数
  * @returns 姿态图片的完整 URL
  */
-export function getPoseImageUrl(agentId: string, poseName: string): string {
+export function getPoseImageUrl(
+  agentId: string,
+  poseName: string,
+  hash?: string
+): string {
   const base = cachedBaseUrl || `http://localhost:${DEFAULT_PORT}`;
-  return `${base}/api/agents/${agentId}/assets/pose/${encodeURIComponent(poseName)}?t=${Date.now()}`;
+  const query = hash ? `?h=${hash}` : '';
+  return `${base}/api/agents/${agentId}/assets/pose/${encodeURIComponent(poseName)}${query}`;
 }
 
 /**
- * 获取指定 agent 的背景图片 URL。
+ * 获取指定 agent 的背景图片 URL，内容哈希承担缓存身份。
  * @param agentId - Agent ID
+ * @param hash - 背景内容哈希，为空时不带参数
  * @returns 背景图片的完整 URL
  */
-export function getBackgroundImageUrl(agentId: string): string {
+export function getBackgroundImageUrl(agentId: string, hash?: string): string {
   const base = cachedBaseUrl || `http://localhost:${DEFAULT_PORT}`;
-  return `${base}/api/agents/${agentId}/assets/background?t=${Date.now()}`;
+  const query = hash ? `?h=${hash}` : '';
+  return `${base}/api/agents/${agentId}/assets/background${query}`;
+}
+
+/** 立绘素材条目，name 承担业务查找，hash 承担缓存身份 */
+export interface PoseAsset {
+  name: string;
+  hash: string;
+}
+
+/** 素材列表响应，poses 为立绘哈希清单，backgroundHash 为背景哈希 */
+export interface PoseAssets {
+  poses: PoseAsset[];
+  backgroundHash: string;
 }
 
 /**
- * 获取指定 agent 可用的姿态列表。
+ * 获取指定 agent 的立绘清单与背景哈希。
  * @param agentId - Agent ID
- * @returns 姿态名称数组
+ * @returns 立绘哈希清单与背景哈希，背景不存在时哈希为空串
  */
-export async function listPoses(agentId: string): Promise<string[]> {
+export async function listPoses(agentId: string): Promise<PoseAssets> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(`${baseUrl}/api/agents/${agentId}/assets/pose`, {
     method: 'GET',
@@ -1339,8 +1361,7 @@ export async function listPoses(agentId: string): Promise<string[]> {
   if (!response.ok) {
     throw new Error(`Failed to list poses: ${response.status}`);
   }
-  const data = await response.json();
-  return data.poses;
+  return (await response.json()) as PoseAssets;
 }
 
 /**
