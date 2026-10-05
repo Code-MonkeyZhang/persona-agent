@@ -9,6 +9,11 @@ export default defineConfig({
       alias: {
         '@shared': resolve('src/shared')
       }
+    },
+    build: {
+      rollupOptions: {
+        external: ['node:sqlite']
+      }
     }
   },
   preload: {
