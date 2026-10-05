@@ -5,6 +5,7 @@
  * - GET    /api/agents/:agentId/sessions     - List sessions
  * - POST   /api/agents/:agentId/sessions     - Create session
  * - GET    /api/agents/:agentId/sessions/:id - Get session
+ * - GET    /api/agents/:agentId/sessions/:id/export - Export session as JSONL
  * - PUT    /api/agents/:agentId/sessions/:id - Update session
  * - DELETE /api/agents/:agentId/sessions/:id - Delete session
  */
@@ -79,6 +80,36 @@ export function createSessionRouter(
       if (!session) throw new AppError(404, 'Session not found');
 
       res.json({ session });
+    })
+  );
+
+  /**
+   * GET /api/agents/:agentId/sessions/:id/export - Export a session as JSONL
+   *
+   * 从库现场生成，messages 逐条一行。
+   * 导出是只读操作，聊天会话不设保护，也不产生变更事件。
+   *
+   * @returns JSONL file download
+   */
+  router.get(
+    '/:id/export',
+    asyncHandler('SESSION', 'Error exporting session', (req, res) => {
+      const manager = getSessionManager(req);
+      const id = requireParam(getParam(req.params['id']), 'Session ID');
+      const session = manager.getSession(id);
+      if (!session) throw new AppError(404, 'Session not found');
+
+      const lines = session.messages.map((message) => JSON.stringify(message));
+      Logger.log(
+        'SESSION',
+        `Exported session ${id} with ${lines.length} lines`
+      );
+      res.setHeader('Content-Type', 'application/x-ndjson');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="session-${id}.jsonl"`
+      );
+      res.send(lines.length > 0 ? `${lines.join('\n')}\n` : '');
     })
   );
 

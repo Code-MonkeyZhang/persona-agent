@@ -1,292 +1,358 @@
 /**
- * @fileoverview Session file storage operations (JSONL).
+ * @fileoverview Session storage operations backed by SQLite.
  *
- * Storage structure:
- * {agentDir}/
- * ├── sessions/
- * │   └── {sessionId}.jsonl    # One JSONL file per session
- *
- * Each file's first line is a session_meta entry; subsequent lines are
- * message entries. All writes are append-only except meta-line rewrites.
+ * 会话与消息落在唯一正本库的 sessions 与 messages 两张表。
+ * 消息顺序由全局递增的 seq 主键承载，turn_end 边界存 sessions 的
+ * turn_ends JSON 列。每次写操作在同一事务里登记 changes 变更行，
+ * 提交成功后经 changes.ts 分发给订阅方。
  */
 
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { getAgentSessionsDir } from '../util/paths.js';
-import { buildPreviewText } from '@persona/shared';
+import { getDb } from '../db/index.js';
+import { buildPreviewText, messagePreviewText } from '@persona/shared';
+import type { ChangeKind, SessionChange } from '@persona/shared';
+import { Logger } from '../util/logger.js';
+import type { Database, SQLQueryBindings, Statement } from 'bun:sqlite';
+import { emitSessionChange } from './changes.js';
 import type { Session, SessionMeta } from './types.js';
-import type { Message, UserMessage } from '../schema/index.js';
+import type { ModelConfig } from '../agent/types.js';
+import type { Message } from '../schema/index.js';
 
-/** Internal shape of one JSONL line */
-interface SessionLine {
-  timestamp: string;
-  type: 'session_meta' | 'message' | 'turn_end';
-  /** session_meta 与 message 行携带的数据，turn_end 行无此字段 */
-  data?: unknown;
+/** sessions 表一行。 */
+export interface SessionRow {
+  id: string;
+  agent_id: string;
+  title: string;
+  workspace_path: string | null;
+  model: string | null;
+  summarized_up_to: number | null;
+  current_pose: string | null;
+  turn_ends: string | null;
+  last_message_preview: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+/** messages 表一行。 */
+interface MessageRow {
+  seq: number;
+  session_id: string;
+  role: string;
+  created_at: number;
+  data: string;
 }
 
 /**
- * 提取一条消息的纯文本，供预览使用。
- *
- * - 仅认 user / assistant 角色，其余角色（context、system、error、app_notification）返回 undefined
- * - user 的 content 兼容纯字符串与 ContentBlock 数组，数组取各 block 的 text 拼接
- * - assistant 纯工具步（无 content）返回 undefined，由调用方继续往前找
+ * sessions 行转 SessionMeta，loadSession 与 listSessionFiles 共用，
+ * 快照构建也经此处取同一形状。
  */
-function messagePreviewText(message: Message): string | undefined {
-  if (message.role === 'user') {
-    const content = message.content as UserMessage['content'];
-    if (typeof content === 'string') return content;
-    return content
-      .map((block) => block.text ?? '')
-      .join('')
-      .trim();
-  }
-  if (message.role === 'assistant' && message.content) {
-    return message.content;
-  }
-  return undefined;
+export function rowToMeta(row: SessionRow): SessionMeta {
+  return {
+    id: row.id,
+    agentId: row.agent_id,
+    title: row.title,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    workspacePath: row.workspace_path ?? undefined,
+    // model 列可空，updateModel 写入的 undefined 落库为 NULL，这里还原
+    model: (row.model === null
+      ? undefined
+      : JSON.parse(row.model)) as ModelConfig,
+    summarizedUpTo: row.summarized_up_to ?? undefined,
+    currentPose: row.current_pose ?? undefined,
+  };
 }
 
 /**
- * 从文件所有行中倒序找出最后一条有文本的真实消息，清洗为预览文本。
- *
- * @param lines - 已按行拆分的 JSONL 文本
- * @returns 预览文本；无有效消息时为 undefined
+ * 取按返回行类型缓存的语句，参数接受任意个绑定值。
  */
-function lastMessagePreview(lines: string[]): string | undefined {
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const raw = lines[i];
-    if (!raw.trim()) continue;
-    let parsed: SessionLine;
-    try {
-      parsed = JSON.parse(raw) as SessionLine;
-    } catch {
-      continue;
-    }
-    if (parsed.type !== 'message') continue;
-    const text = messagePreviewText(parsed.data as Message);
-    if (text && text.trim()) {
-      return buildPreviewText(text);
-    }
-  }
-  return undefined;
+function statement<T>(sql: string): Statement<T, SQLQueryBindings[]> {
+  return getDb().query<T, SQLQueryBindings[]>(sql);
+}
+
+/**
+ * 在当前事务里登记一条变更事件并返回事件对象。
+ * 事务回滚时事件行随业务写一起消失，不会发出有号无数据的事件。
+ */
+function insertChangeRow(
+  db: Database,
+  kind: ChangeKind,
+  sessionId: string | null,
+  data: unknown
+): SessionChange {
+  const createdAt = Date.now();
+  const result = db
+    .query(
+      'INSERT INTO changes (kind, session_id, data, created_at) VALUES (?, ?, ?, ?)'
+    )
+    .run(kind, sessionId, JSON.stringify(data), createdAt);
+  return {
+    seq: Number(result.lastInsertRowid),
+    kind,
+    sessionId,
+    data,
+    createdAt,
+  };
+}
+
+/**
+ * 构造 session_updated 事件的载荷。
+ * 形状与 loadSession 读出的 Session 去掉 messages 后一致，
+ * 两个派生时间戳经聚合查询现算。
+ */
+function buildSessionPayload(row: SessionRow, id: string) {
+  const stamps = statement<{
+    last_context_at: number | null;
+    last_message_at: number | null;
+  }>(
+    `SELECT MAX(CASE WHEN role = 'context' THEN created_at END) AS last_context_at,
+            MAX(CASE WHEN role != 'context' THEN created_at END) AS last_message_at
+     FROM messages WHERE session_id = ?`
+  ).get(id);
+  return {
+    ...rowToMeta(row),
+    lastContextAt: stamps?.last_context_at ?? undefined,
+    lastMessageAt: stamps?.last_message_at ?? undefined,
+    turnEnds: row.turn_ends
+      ? (JSON.parse(row.turn_ends) as number[])
+      : undefined,
+  };
 }
 
 export class SessionStore {
-  private readonly sessionsDir: string;
+  constructor(private readonly agentId: string) {}
 
-  constructor(agentId: string) {
-    this.sessionsDir = getAgentSessionsDir(agentId);
-    this.ensureDirs();
+  /**
+   * Create a new session row with the given metadata.
+   * turn_ends 与 last_message_preview 初始为 NULL，
+   * 同事务登记 session_created 事件。
+   */
+  createSessionFile(meta: SessionMeta): void {
+    const db = getDb();
+    const event = db.transaction(() => {
+      db.query(
+        `INSERT INTO sessions
+          (id, agent_id, title, workspace_path, model, summarized_up_to,
+           current_pose, turn_ends, last_message_preview, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`
+      ).run(
+        meta.id,
+        meta.agentId,
+        meta.title,
+        meta.workspacePath ?? null,
+        JSON.stringify(meta.model) ?? null,
+        meta.summarizedUpTo ?? null,
+        meta.currentPose ?? null,
+        meta.createdAt,
+        meta.updatedAt
+      );
+      return insertChangeRow(db, 'session_created', meta.id, meta);
+    })();
+    emitSessionChange(event);
   }
 
-  /** Ensure required directories exist */
-  private ensureDirs(): void {
-    if (!fs.existsSync(this.sessionsDir)) {
-      fs.mkdirSync(this.sessionsDir, { recursive: true });
+  /**
+   * Append a single message row and bump the session row.
+   * 追加带文本的 user 或 assistant 消息时顺手维护预览列，
+   * 同事务登记携带完整消息体的 message_appended 事件。
+   * @returns `true` on success, `false` if the session does not exist
+   */
+  appendMessageLine(id: string, message: Message): boolean {
+    const db = getDb();
+    try {
+      const event = db.transaction((): SessionChange | null => {
+        const exists = db
+          .query('SELECT 1 FROM sessions WHERE id = ? AND agent_id = ?')
+          .get(id, this.agentId);
+        if (!exists) return null;
+
+        const now = Date.now();
+        const insert = db
+          .query(
+            'INSERT INTO messages (session_id, role, created_at, data) VALUES (?, ?, ?, ?)'
+          )
+          .run(id, message.role, now, JSON.stringify(message));
+
+        const text = messagePreviewText(message);
+        if (text && text.trim()) {
+          db.query(
+            'UPDATE sessions SET updated_at = ?, last_message_preview = ? WHERE id = ?'
+          ).run(now, buildPreviewText(text), id);
+        } else {
+          db.query('UPDATE sessions SET updated_at = ? WHERE id = ?').run(
+            now,
+            id
+          );
+        }
+        return insertChangeRow(db, 'message_appended', id, {
+          seq: Number(insert.lastInsertRowid),
+          message,
+          createdAt: now,
+        });
+      })();
+      if (event) emitSessionChange(event);
+      return event !== null;
+    } catch (error) {
+      // 落库失败打日志留痕，返回 false 保持布尔契约
+      Logger.log('SESSION', `Failed to append message to session ${id}`, error);
+      return false;
     }
   }
 
-  /** Get the sessions directory path */
-  getSessionsPath(): string {
-    return this.sessionsDir;
-  }
-
-  /** Resolve the JSONL file path for a given session ID */
-  private sessionFilePath(id: string): string {
-    return path.join(this.sessionsDir, `${id}.jsonl`);
-  }
-
   /**
-   * Create a new session file with the given metadata as the first line.
-   * Overwrites any existing file at the same path.
-   */
-  createSessionFile(meta: SessionMeta): void {
-    const line: SessionLine = {
-      timestamp: new Date().toISOString(),
-      type: 'session_meta',
-      data: meta,
-    };
-    fs.writeFileSync(
-      this.sessionFilePath(meta.id),
-      JSON.stringify(line) + '\n'
-    );
-  }
-
-  /**
-   * Append a single message line to the end of a session file.
-   * @returns `true` on success, `false` if the file does not exist
-   */
-  appendMessageLine(id: string, message: Message): boolean {
-    const filePath = this.sessionFilePath(id);
-    if (!fs.existsSync(filePath)) return false;
-    const line: SessionLine = {
-      timestamp: new Date().toISOString(),
-      type: 'message',
-      data: message,
-    };
-    fs.appendFileSync(filePath, JSON.stringify(line) + '\n');
-    return true;
-  }
-
-  /**
-   * Append a turn end marker line to the end of a session file.
-   * Marker lines carry no data; `loadSession` records the message count
-   * before each marker.
-   * @returns `true` on success, `false` if the file does not exist
+   * Append a turn end boundary to the session row.
+   * turn_ends 列记录各边界之前的消息数，重复下标表达空缓冲轮次，
+   * 同事务登记携带完整快照的 turn_end 事件。
+   * @returns `true` on success, `false` if the session does not exist
    */
   appendTurnEndLine(id: string): boolean {
-    const filePath = this.sessionFilePath(id);
-    if (!fs.existsSync(filePath)) return false;
-    const line: SessionLine = {
-      timestamp: new Date().toISOString(),
-      type: 'turn_end',
-    };
-    fs.appendFileSync(filePath, JSON.stringify(line) + '\n');
-    return true;
+    const db = getDb();
+    try {
+      const event = db.transaction((): SessionChange | null => {
+        const row = statement<Pick<SessionRow, 'turn_ends'>>(
+          'SELECT turn_ends FROM sessions WHERE id = ? AND agent_id = ?'
+        ).get(id, this.agentId);
+        if (!row) return null;
+
+        const count = statement<{ n: number }>(
+          'SELECT COUNT(*) AS n FROM messages WHERE session_id = ?'
+        ).get(id);
+        const turnEnds: number[] = row.turn_ends
+          ? (JSON.parse(row.turn_ends) as number[])
+          : [];
+        turnEnds.push(count?.n ?? 0);
+        db.query(
+          'UPDATE sessions SET turn_ends = ?, updated_at = ? WHERE id = ?'
+        ).run(JSON.stringify(turnEnds), Date.now(), id);
+        return insertChangeRow(db, 'turn_end', id, { turnEnds });
+      })();
+      if (event) emitSessionChange(event);
+      return event !== null;
+    } catch (error) {
+      Logger.log(
+        'SESSION',
+        `Failed to append turn end to session ${id}`,
+        error
+      );
+      return false;
+    }
   }
 
   /**
-   * Rewrite the first line (session_meta) of a session file.
-   *
-   * Reads the entire file, replaces the content before the first newline
-   * with the new meta line, and preserves all subsequent message lines.
-   * Only call this for infrequent metadata updates (title, model, etc.).
+   * Update all metadata columns of the session row.
+   * 调用方先经 loadSession 确认会话存在，行不存在时静默无操作，
+   * 更新成功登记携带完整元信息的 session_updated 事件。
    */
   rewriteMetaLine(id: string, meta: SessionMeta): void {
-    const filePath = this.sessionFilePath(id);
-    const content = fs.readFileSync(filePath, 'utf8');
-    const firstNewline = content.indexOf('\n');
-    const rest = firstNewline === -1 ? '' : content.slice(firstNewline + 1);
-    const line: SessionLine = {
-      timestamp: new Date().toISOString(),
-      type: 'session_meta',
-      data: meta,
-    };
-    fs.writeFileSync(filePath, JSON.stringify(line) + '\n' + rest);
+    const db = getDb();
+    const event = db.transaction((): SessionChange | null => {
+      db.query(
+        `UPDATE sessions SET title = ?, workspace_path = ?, model = ?,
+          summarized_up_to = ?, current_pose = ?, updated_at = ?
+         WHERE id = ? AND agent_id = ?`
+      ).run(
+        meta.title,
+        meta.workspacePath ?? null,
+        JSON.stringify(meta.model) ?? null,
+        meta.summarizedUpTo ?? null,
+        meta.currentPose ?? null,
+        meta.updatedAt,
+        id,
+        this.agentId
+      );
+      const row = statement<SessionRow>(
+        'SELECT * FROM sessions WHERE id = ? AND agent_id = ?'
+      ).get(id, this.agentId);
+      if (!row) return null;
+      return insertChangeRow(
+        db,
+        'session_updated',
+        id,
+        buildSessionPayload(row, id)
+      );
+    })();
+    if (event) emitSessionChange(event);
   }
 
   /**
    * Load a full session by ID.
    *
-   * Reads the JSONL file line by line. The first line is parsed as
-   * session_meta; message lines are parsed as messages; turn_end marker
-   * lines record the current message count into `turnEnds`. Lines that
-   * fail JSON parsing are silently skipped (crash recovery).
-   * `updatedAt` is derived from the file's modification time.
-   * `lastContextAt` / `lastMessageAt` are derived from the envelope
-   * timestamps of the last context line and the last real message line.
+   * 查 sessions 一行加 messages 按 seq 排序的行集。lastContextAt 与
+   * lastMessageAt 在遍历消息行时从 created_at 列现算，updatedAt 取列值，
+   * turnEnds 解析 turn_ends JSON 列。
    */
   loadSession(id: string): Session | null {
-    const filePath = this.sessionFilePath(id);
-    if (!fs.existsSync(filePath)) return null;
+    const row = statement<SessionRow>(
+      'SELECT * FROM sessions WHERE id = ? AND agent_id = ?'
+    ).get(id, this.agentId);
+    if (!row) return null;
 
-    const content = fs.readFileSync(filePath, 'utf8');
-    const lines = content.split('\n').filter((l) => l.trim());
+    const messageRows = statement<MessageRow>(
+      'SELECT * FROM messages WHERE session_id = ? ORDER BY seq'
+    ).all(id);
 
-    let meta: SessionMeta | null = null;
     const messages: Message[] = [];
-    let turnEnds: number[] | undefined;
     let lastContextAt: number | undefined;
     let lastMessageAt: number | undefined;
-
-    for (const raw of lines) {
-      let parsed: SessionLine;
-      try {
-        parsed = JSON.parse(raw) as SessionLine;
-      } catch {
-        continue;
-      }
-      if (parsed.type === 'session_meta' && !meta) {
-        meta = parsed.data as SessionMeta;
-      } else if (parsed.type === 'message') {
-        const msg = parsed.data as Message;
-        messages.push(msg);
-        const ts = Date.parse(parsed.timestamp);
-        if (Number.isNaN(ts)) continue;
-        if (msg.role === 'context') {
-          lastContextAt = ts;
-        } else {
-          lastMessageAt = ts;
-        }
-      } else if (parsed.type === 'turn_end') {
-        turnEnds ??= [];
-        turnEnds.push(messages.length);
+    for (const messageRow of messageRows) {
+      const message = JSON.parse(messageRow.data) as Message;
+      // 行号挂到消息上，HTTP 详情与缓存路径共用稳定去重键
+      message.seq = messageRow.seq;
+      messages.push(message);
+      if (messageRow.role === 'context') {
+        lastContextAt = messageRow.created_at;
+      } else {
+        lastMessageAt = messageRow.created_at;
       }
     }
 
-    if (!meta) return null;
-
-    const stat = fs.statSync(filePath);
-    // 文件名是会话 id 的权威来源。历史迁移可能留下 meta.id 与文件名不一致的残留，
-    // 统一以传入的 id 为准，避免"列出时读到的 id"与"按 id 找文件"对不上。
     return {
-      ...meta,
-      id,
-      updatedAt: stat.mtimeMs,
+      ...rowToMeta(row),
       lastContextAt,
       lastMessageAt,
-      turnEnds,
+      turnEnds: row.turn_ends
+        ? (JSON.parse(row.turn_ends) as number[])
+        : undefined,
       messages,
     };
   }
 
   /**
-   * List all sessions' metadata by scanning the sessions directory.
+   * List all sessions' metadata for this agent.
    *
-   * For each `.jsonl` file, parses the first line (session_meta) and derives
-   * `updatedAt` from the file's modification time.
-   * 常驻聊天会话额外从已读入的行中现算 lastMessage 预览；普通任务会话不算，
-   * 预览目前只有聊天入口消费。JSON 解析失败的行静默跳过（崩溃恢复）。
+   * chat 前缀会话附上追加时维护的预览列作 lastMessage；普通任务会话
+   * 不暴露预览。排序由 SessionManager 做。
    */
   listSessionFiles(): SessionMeta[] {
-    if (!fs.existsSync(this.sessionsDir)) return [];
+    const rows = statement<SessionRow>(
+      'SELECT * FROM sessions WHERE agent_id = ?'
+    ).all(this.agentId);
 
-    const files = fs
-      .readdirSync(this.sessionsDir)
-      .filter((f) => f.endsWith('.jsonl'));
-
-    const results: SessionMeta[] = [];
-
-    for (const file of files) {
-      const filePath = path.join(this.sessionsDir, file);
-      const content = fs.readFileSync(filePath, 'utf8');
-      const lines = content.split('\n');
-      const firstLine = lines[0];
-      if (!firstLine?.trim()) continue;
-
-      let parsed: SessionLine;
-      try {
-        parsed = JSON.parse(firstLine) as SessionLine;
-      } catch {
-        continue;
+    return rows.map((row) => {
+      const meta = rowToMeta(row);
+      if (row.id.startsWith('chat')) {
+        meta.lastMessage = row.last_message_preview ?? undefined;
       }
-      if (parsed.type !== 'session_meta') continue;
-
-      const meta = parsed.data as SessionMeta;
-      const stat = fs.statSync(filePath);
-      const id = file.replace(/\.jsonl$/, '');
-      // 以文件名为 id 权威来源，meta.id 可能是历史残留。
-      results.push({
-        ...meta,
-        id,
-        updatedAt: stat.mtimeMs,
-        ...(id.startsWith('chat') && {
-          lastMessage: lastMessagePreview(lines),
-        }),
-      });
-    }
-
-    return results;
+      return meta;
+    });
   }
 
-  /** Delete a session file */
+  /**
+   * Delete a session row and its messages.
+   * 先删 messages 再删 sessions，外键级联双保险，
+   * 同事务登记 session_deleted 事件。
+   * @returns `true` if the session existed, `false` otherwise
+   */
   deleteSessionFile(id: string): boolean {
-    const filePath = this.sessionFilePath(id);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      return true;
-    }
-    return false;
+    const db = getDb();
+    const event = db.transaction((): SessionChange | null => {
+      db.query('DELETE FROM messages WHERE session_id = ?').run(id);
+      const result = db
+        .query('DELETE FROM sessions WHERE id = ? AND agent_id = ?')
+        .run(id, this.agentId);
+      if (result.changes === 0) return null;
+      return insertChangeRow(db, 'session_deleted', id, {});
+    })();
+    if (event) emitSessionChange(event);
+    return event !== null;
   }
 }

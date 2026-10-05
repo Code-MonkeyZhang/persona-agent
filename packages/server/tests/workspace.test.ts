@@ -30,7 +30,6 @@ mock.module('../src/util/paths.js', () => ({
   getAgentConfigPath: (id: string) => path.join(agentsDir, id, 'config.json'),
   getAgentSystemPromptPath: (id: string) =>
     path.join(agentsDir, id, 'systemPrompt.md'),
-  getAgentSessionsDir: (id: string) => path.join(agentsDir, id, 'sessions'),
   getWorkspaceDir: () => workspaceDir,
 }));
 

@@ -7,8 +7,8 @@ import multer from 'multer';
 import { Logger } from '../../util/logger.js';
 import { errorMessage, AppError } from '../../util/errors.js';
 
-/** 图片上传共用的 MIME 白名单 */
-const ALLOWED_IMAGE_MIME_TYPES = new Set([
+/** 图片上传共用的 MIME 白名单，附件路由与图片上传共用 */
+export const ALLOWED_IMAGE_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
   'image/gif',

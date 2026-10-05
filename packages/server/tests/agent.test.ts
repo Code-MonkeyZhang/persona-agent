@@ -38,9 +38,9 @@ mock.module('../src/util/paths.js', () => ({
     path.join(agentsDir, id, 'assets', 'pose'),
   getAgentAssetsBackgroundsDir: (id: string) =>
     path.join(agentsDir, id, 'assets', 'backgrounds'),
-  getAgentSessionsDir: (id: string) => path.join(agentsDir, id, 'sessions'),
   getAgentMemoryDir: (id: string) => path.join(agentsDir, id, 'memory'),
   getWorkspaceDir: () => path.join(tempDir, 'workspace'),
+  getDbPath: () => path.join(tempDir, 'persona.db'),
 }));
 
 import {

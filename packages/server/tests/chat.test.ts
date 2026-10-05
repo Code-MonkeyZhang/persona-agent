@@ -25,6 +25,7 @@ import { createSessionRouter } from '../src/server/routers/session.js';
 import { createChatRouter } from '../src/server/routers/chat.js';
 import { createProviderRouter, createAuthRouter } from '../src/server/routers/auth.js';
 import { initWebSocket, shutdownWebSocket } from '../src/server/websocket-server.js';
+import { closeDb } from '../src/db/index.js';
 import type { AgentConfig, AgentConfigInput } from '../src/agent/index.js';
 import type { Session } from '../src/session/types.js';
 
@@ -67,10 +68,10 @@ mock.module('../src/util/paths.js', () => ({
   getAgentAssetsDir: (id: string) => path.join(agentsDir, id, 'assets'),
   getAgentAssetsPoseDir: (id: string) => path.join(agentsDir, id, 'assets', 'pose'),
   getAgentAssetsBackgroundsDir: (id: string) => path.join(agentsDir, id, 'assets', 'backgrounds'),
-  getAgentSessionsDir: (id: string) => path.join(agentsDir, id, 'sessions'),
   getAgentMemoryDir: (id: string) => path.join(agentsDir, id, 'memory'),
   getWorkspaceDir: () => path.join(tempDir, 'workspace'),
   getAuthPath: () => authPath,
+  getDbPath: () => path.join(tempDir, 'persona.db'),
 }));
 
 /** 查找可用端口，避免端口冲突 */
@@ -186,6 +187,7 @@ chatDescribe('Chat Module Integration Tests', () => {
   afterAll(async () => {
     shutdownWebSocket();
     httpServer.close();
+    closeDb();
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
@@ -705,18 +707,8 @@ chatDescribe('Chat Module Integration Tests', () => {
             (m) => m.role === 'system' && (m as { turnEnd?: boolean }).turnEnd
           )
         ).toBe(false);
-
-        const filePath = path.join(
-          agentsDir,
-          agentId,
-          'sessions',
-          `${sessionId}.jsonl`
-        );
-        const hasMarker = fs
-          .readFileSync(filePath, 'utf8')
-          .split('\n')
-          .some((line) => line.includes('"type":"turn_end"'));
-        expect(hasMarker).toBe(false);
+        // 中止路径提前返回不写 turn_end，turnEnds 不产生条目
+        expect((session as { turnEnds?: number[] }).turnEnds).toBeUndefined();
       },
       TEST_CONFIG.timeout
     );

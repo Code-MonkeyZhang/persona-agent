@@ -45,13 +45,13 @@ mock.module('../src/util/paths.js', () => ({
   getAgentAssetsDir: (id: string) => path.join(agentsDir, id, 'assets'),
   getAgentAssetsPoseDir: (id: string) => path.join(agentsDir, id, 'assets', 'pose'),
   getAgentAssetsBackgroundsDir: (id: string) => path.join(agentsDir, id, 'assets', 'backgrounds'),
-  getAgentSessionsDir: (id: string) => path.join(agentsDir, id, 'sessions'),
   getAgentMemoryDir: (id: string) => path.join(agentsDir, id, 'memory'),
   getWorkspaceDir: () => path.join(tempDir, 'workspace'),
   getAuthPath: () => authPath,
   getConfigDir: () => configDir,
   getConfigPath: () => configPath,
   getTtsConfigPath: () => ttsConfigPath,
+  getDbPath: () => path.join(tempDir, 'persona.db'),
 }));
 
 mock.module('../src/tts/minimax-api.js', () => ({

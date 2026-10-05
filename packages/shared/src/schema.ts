@@ -94,10 +94,16 @@ export interface ContextMessage {
   content: string;
 }
 
-export type Message =
+/**
+ * 消息联合。
+ * 交叉上的可选 seq 是服务端消息行号，详情与快照路径携带，
+ * 客户端以它做缓存去重的基准。
+ */
+export type Message = (
   | SystemMessage
   | UserMessage
   | AssistantMessage
   | ErrorMessage
   | AppNotificationMessage
-  | ContextMessage;
+  | ContextMessage
+) & { seq?: number };

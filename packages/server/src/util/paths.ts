@@ -2,6 +2,7 @@
  * @fileoverview Application path utilities for persona-agent.
  *
  * Directory structure (macOS: ~/.local/share/persona-agent/, Windows: %APPDATA%/persona-agent/):
+ * ├── persona.db              # Single source-of-truth SQLite database
  * ├── config/
  * │   ├── config.yaml
  * │   ├── auth.json
@@ -15,8 +16,6 @@
  * │       │   ├── voice.aac
  * │       │   ├── pose/
  * │       │   └── backgrounds/
- * │       ├── sessions/
- * │       │   └── {sessionId}.jsonl
  * │       └── memory/
  * ├── skills/
  * │   └── {skillName}/
@@ -24,6 +23,7 @@
  * ├── mcp/
  * │   ├── mcp.json
  * │   └── servers/
+ * ├── attachments/
  * ├── runtimes/
  * ├── workspace/
  * └── logs/
@@ -48,6 +48,16 @@ export const getMcpServersDir = () => path.join(getMcpDir(), 'servers');
 export const getRuntimesDir = () => path.join(APP_DIR, 'runtimes');
 export const getWorkspaceDir = () => path.join(APP_DIR, 'workspace');
 export const getLogsDir = () => path.join(APP_DIR, 'logs');
+
+/**
+ * 聊天附件目录，文件名即内容哈希，相同内容只存一份。
+ */
+export const getAttachmentsDir = () => path.join(APP_DIR, 'attachments');
+
+/**
+ * 唯一正本 SQLite 库的文件路径，会话与消息等结构化数据都在库里。
+ */
+export const getDbPath = () => path.join(APP_DIR, 'persona.db');
 
 // --- Config files ---
 
@@ -97,10 +107,6 @@ export function getAgentConfigPath(agentId: string): string {
 
 export function getAgentSystemPromptPath(agentId: string): string {
   return path.join(getAgentDir(agentId), 'systemPrompt.md');
-}
-
-export function getAgentSessionsDir(agentId: string): string {
-  return path.join(getAgentDir(agentId), 'sessions');
 }
 
 export function getAgentAssetsDir(agentId: string): string {

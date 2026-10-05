@@ -8,9 +8,16 @@
 import { WebSocket, WebSocketServer } from 'ws';
 import type { IncomingMessage } from 'http';
 import { randomUUID } from 'node:crypto';
-import type { ServerMessage, ClientMessage, DeviceType } from '@persona/shared';
+import type {
+  ServerMessage,
+  ClientMessage,
+  DeviceType,
+  SessionChange,
+} from '@persona/shared';
 import { Logger } from '../util/logger.js';
 import * as sessionRegistry from './services/session-registry.js';
+import { upsertDevice, touchLastOnline } from './services/device-store.js';
+import { sessionChangeEmitter } from '../session/changes.js';
 
 interface WebSocketClient {
   id: string;
@@ -28,6 +35,8 @@ const DEVICE_TIMEOUT_MS = 30_000;
 const clients = new Map<string, WebSocketClient>();
 let wss: WebSocketServer | null = null;
 let deviceCleanupTimer: ReturnType<typeof setInterval> | null = null;
+/** 变更流订阅是否生效，防止重复初始化造成重复推送 */
+let changeSubscribed = false;
 
 export function initWebSocket(server: import('http').Server): WebSocketServer {
   const instance = new WebSocketServer({ noServer: true });
@@ -78,9 +87,22 @@ export function initWebSocket(server: import('http').Server): WebSocketServer {
   });
 
   startDeviceCleanup();
+  subscribeToSessionChanges();
 
   Logger.log('WS', 'WebSocket server initialized (noServer mode, /ws)');
   return instance;
+}
+
+/**
+ * 订阅变更流并广播给全部在线客户端。
+ * 收到即转发的语义要求只挂一个监听器，重复初始化时跳过。
+ */
+function subscribeToSessionChanges(): void {
+  if (changeSubscribed) return;
+  changeSubscribed = true;
+  sessionChangeEmitter.on('change', (change: SessionChange) => {
+    broadcastToAll({ type: 'change', change });
+  });
 }
 
 function handleClientMessage(
@@ -125,6 +147,12 @@ function handleClientMessage(
         'WS',
         `Device registered: ${message.deviceName} (${message.deviceType}) deviceId=${message.deviceId}`
       );
+      // 设备身份落库，配对记录从此不随重启丢失，失败不阻断注册流程
+      try {
+        upsertDevice(message.deviceId, message.deviceName, message.deviceType);
+      } catch (error) {
+        Logger.log('WS', 'Failed to persist device identity', error);
+      }
       broadcastToOthers(client, {
         type: 'device_online',
         device: {
@@ -162,6 +190,11 @@ function handleClientDisconnect(client: WebSocketClient): void {
         'WS',
         `Device offline: ${client.deviceName} (${client.deviceId})`
       );
+      try {
+        touchLastOnline(client.deviceId);
+      } catch (error) {
+        Logger.log('WS', 'Failed to update device last_online', error);
+      }
       broadcastToOthers(client, {
         type: 'device_offline',
         deviceId: client.deviceId,
@@ -259,6 +292,9 @@ export function shutdownWebSocket(): void {
     clients.clear();
     wss.close();
     wss = null;
+    // 退订变更流，下次 initWebSocket 重新挂监听
+    sessionChangeEmitter.removeAllListeners('change');
+    changeSubscribed = false;
     Logger.log('WS', 'WebSocket server shutdown');
   }
 }

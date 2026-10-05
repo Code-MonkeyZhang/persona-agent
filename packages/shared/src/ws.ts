@@ -8,6 +8,8 @@
 /** 设备类型，用于设备身份注册 */
 export type DeviceType = 'desktop' | 'mobile';
 
+import type { SessionChange } from './changes.js';
+
 // ── Server → Client 事件 ──
 
 interface ConnectedMessage {
@@ -175,6 +177,15 @@ interface PendingInputChangedMessage {
   pending: PendingInput[];
 }
 
+/**
+ * 变更流推送事件。
+ * 服务端每次写库提交后广播，客户端按 seq 回放镜像或更新本地缓存。
+ */
+interface ChangeMessage {
+  type: 'change';
+  change: SessionChange;
+}
+
 export type ServerMessage =
   | ConnectedMessage
   | SubscribedMessage
@@ -192,7 +203,8 @@ export type ServerMessage =
   | AbortedMessage
   | AppNotificationEvent
   | WorkspaceFallbackMessage
-  | PendingInputChangedMessage;
+  | PendingInputChangedMessage
+  | ChangeMessage;
 
 // ── Client → Server 消息 ──
 

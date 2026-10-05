@@ -30,7 +30,6 @@ import {
   getAgentAssetsDir,
   getAgentAssetsPoseDir,
   getAgentAssetsBackgroundsDir,
-  getAgentSessionsDir,
   getAgentMemoryDir,
   getWorkspaceDir,
 } from '../util/paths.js';
@@ -178,7 +177,6 @@ export function createAgentConfig(input: AgentConfigInput): AgentConfig {
   fs.mkdirSync(getAgentAssetsDir(id), { recursive: true });
   fs.mkdirSync(getAgentAssetsPoseDir(id), { recursive: true });
   fs.mkdirSync(getAgentAssetsBackgroundsDir(id), { recursive: true });
-  fs.mkdirSync(getAgentSessionsDir(id), { recursive: true });
   fs.mkdirSync(getAgentMemoryDir(id), { recursive: true });
 
   // systemPrompt 单独写入 systemPrompt.md，config.json 不再包含该字段

@@ -34,12 +34,12 @@ mock.module('../src/util/paths.js', () => ({
   getAgentDir: (id: string) => path.join(agentsDir, id),
   getAgentConfigPath: (id: string) => path.join(agentsDir, id, 'config.json'),
   getAgentSystemPromptPath: (id: string) => path.join(agentsDir, id, 'systemPrompt.md'),
-  getAgentSessionsDir: (id: string) => path.join(agentsDir, id, 'sessions'),
   getAgentAssetsDir: (id: string) => path.join(agentsDir, id, 'assets'),
   getAgentAssetsPoseDir: (id: string) => path.join(agentsDir, id, 'assets', 'pose'),
   getAgentAssetsBackgroundsDir: (id: string) => path.join(agentsDir, id, 'assets', 'backgrounds'),
   getAgentMemoryDir: (id: string) => path.join(agentsDir, id, 'memory'),
   getWorkspaceDir: () => path.join(tempDir, 'workspace'),
+  getDbPath: () => path.join(tempDir, 'persona.db'),
 }));
 
 mock.module('../src/agent/llm-single-call.js', () => ({
@@ -58,6 +58,7 @@ import { createAgentConfig } from '../src/agent/index.js';
 import type { AgentConfigInput } from '../src/agent/index.js';
 import { MemoryStore } from '../src/agent/memory/memory-store.js';
 import { runCompression } from '../src/server/services/compress-service.js';
+import { closeDb } from '../src/db/index.js';
 
 const defaultModel = { provider: 'openai', model: 'gpt-4' };
 
@@ -82,6 +83,7 @@ describe('Compression Integration', () => {
   });
 
   afterAll(() => {
+    closeDb();
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 

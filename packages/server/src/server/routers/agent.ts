@@ -130,6 +130,13 @@ export function createAgentRouter(
       deleteAgentConfig(id);
 
       if (sessionManagers) {
+        // 删 agent 目录不再连带清会话，这里显式删掉该 agent 的全部会话行
+        const manager = sessionManagers.get(id);
+        if (manager) {
+          for (const meta of manager.listSessions()) {
+            manager.deleteSession(meta.id);
+          }
+        }
         sessionManagers.delete(id);
         Logger.log(
           'SERVER',

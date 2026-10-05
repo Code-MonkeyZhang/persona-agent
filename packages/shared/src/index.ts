@@ -32,6 +32,12 @@ export type {
 } from './schema.js';
 export type { SessionMeta, Session } from './session.js';
 export { buildPreviewText } from './preview.js';
+export {
+  messagePreviewText,
+  deriveSessionPreview,
+  mixTurnEnds,
+} from './session-view.js';
+export type { SessionChange, ChangeKind } from './changes.js';
 export * from './ws.js';
 export type { ProviderStatus } from './provider.js';
 export type {

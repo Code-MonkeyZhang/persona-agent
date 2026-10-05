@@ -57,7 +57,6 @@ mock.module('../src/util/paths.js', () => ({
     path.join(agentsDir, id, 'assets', 'pose'),
   getAgentAssetsBackgroundsDir: (id: string) =>
     path.join(agentsDir, id, 'assets', 'backgrounds'),
-  getAgentSessionsDir: (id: string) => path.join(agentsDir, id, 'sessions'),
   getAgentMemoryDir: (id: string) => path.join(agentsDir, id, 'memory'),
   getWorkspaceDir: () => path.join(tempDir, 'workspace'),
   // 以下给同进程的 marketplace.test.ts / mcp-marketplace.test.ts 用
