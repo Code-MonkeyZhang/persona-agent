@@ -3,6 +3,14 @@
  * @description 跨进程共享的 IPC 数据类型定义,主进程、预加载脚本、渲染层三方引用同一份类型
  */
 
+import type {
+  AgentConfig,
+  Session,
+  SessionChange,
+  SessionMeta,
+  SyncSnapshot,
+} from '@persona/shared';
+
 /** 文件夹选择对话框配置 */
 export interface SelectFolderOptions {
   title?: string;
@@ -70,5 +78,19 @@ export interface WindowAPI {
     onDownloadProgress: (
       callback: (progress: UpdateProgress) => void
     ) => () => void;
+  };
+  /** 本地缓存读写与更新订阅，实现在主进程 cache-ipc */
+  cache: {
+    getSessions: (agentId: string) => Promise<SessionMeta[]>;
+    getSession: (sessionId: string) => Promise<Session | null>;
+    getAgents: () => Promise<AgentConfig[]>;
+    getCursor: () => Promise<number>;
+    applySnapshot: (snapshot: SyncSnapshot) => Promise<void>;
+    applyChanges: (changes: SessionChange[]) => Promise<void>;
+    putAgents: (agents: AgentConfig[]) => Promise<void>;
+    deleteAgent: (agentId: string) => Promise<void>;
+    reset: () => Promise<void>;
+    /** 缓存写操作后的更新通知，返回退订函数 */
+    onChanged: (callback: () => void) => () => void;
   };
 }

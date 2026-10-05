@@ -13,7 +13,6 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
 import { IPC } from '@shared/channels';
 import type { WindowAPI, UpdateStatus, UpdateProgress } from '@shared/api';
-
 /**
  * 暴露给渲染进程的 API 集合，前端通过 window.api.xxx() 调用
  * 每个方法底层通过 ipcRenderer.invoke 向主进程发送 IPC 消息
@@ -126,6 +125,35 @@ const api: WindowAPI = {
       ipcRenderer.on(IPC.UPDATER_DOWNLOAD_PROGRESS, listener);
       return () =>
         ipcRenderer.removeListener(IPC.UPDATER_DOWNLOAD_PROGRESS, listener);
+    },
+  },
+
+  /** 本地缓存读写与更新订阅，全部经主进程 cache 模块执行 */
+  cache: {
+    getSessions: (agentId) =>
+      ipcRenderer.invoke(IPC.CACHE_GET_SESSIONS, agentId),
+    getSession: (sessionId) =>
+      ipcRenderer.invoke(IPC.CACHE_GET_SESSION, sessionId),
+    getAgents: () => ipcRenderer.invoke(IPC.CACHE_GET_AGENTS),
+    getCursor: () => ipcRenderer.invoke(IPC.CACHE_GET_CURSOR),
+    applySnapshot: (snapshot) =>
+      ipcRenderer.invoke(IPC.CACHE_APPLY_SNAPSHOT, snapshot),
+    applyChanges: (changes) =>
+      ipcRenderer.invoke(IPC.CACHE_APPLY_CHANGES, changes),
+    putAgents: (agents) => ipcRenderer.invoke(IPC.CACHE_PUT_AGENTS, agents),
+    deleteAgent: (agentId) =>
+      ipcRenderer.invoke(IPC.CACHE_DELETE_AGENT, agentId),
+    reset: () => ipcRenderer.invoke(IPC.CACHE_RESET),
+
+    /**
+     * 监听缓存写后的更新通知
+     * @param callback - 缓存变化时的回调
+     * @returns 取消监听函数
+     */
+    onChanged: (callback) => {
+      const listener = (): void => callback();
+      ipcRenderer.on(IPC.CACHE_CHANGED, listener);
+      return () => ipcRenderer.removeListener(IPC.CACHE_CHANGED, listener);
     },
   },
 };

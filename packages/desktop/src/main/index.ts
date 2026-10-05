@@ -14,6 +14,8 @@ import { xdgData } from 'xdg-basedir';
 import net from 'net';
 import * as fs from 'fs';
 import { initStore } from './store';
+import { CacheDb } from './cache/cache-db';
+import { registerCacheIpc } from './cache/cache-ipc';
 import {
   waitForServer,
   setServerUrl,
@@ -30,6 +32,8 @@ const BINARY_NAME = isWin ? 'persona-agent-server.exe' : 'persona-agent-server';
 const CLOUDFLARED_NAME = isWin ? 'cloudflared.exe' : 'cloudflared';
 
 let serverProcess: ChildProcess | null = null;
+/** 本地缓存库实例，whenReady 里创建，退出前关闭 */
+let cacheDb: CacheDb | null = null;
 
 /**
  * 停止后端服务器进程
@@ -115,6 +119,12 @@ log.info('App starting...');
 /** 应用主入口 */
 app.whenReady().then(async () => {
   initStore();
+
+  // 本地缓存库与 persona.db 同放数据根，随主进程生命周期开合
+  cacheDb = new CacheDb(join(DATA_DIR, 'desktop-cache.db'), (message) =>
+    log.info(message)
+  );
+  registerCacheIpc(cacheDb);
 
   process.on('SIGINT', () => {
     serverProcess?.kill();
@@ -250,6 +260,8 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  cacheDb?.close();
+  cacheDb = null;
   if (serverProcess) {
     try {
       serverProcess.kill();
