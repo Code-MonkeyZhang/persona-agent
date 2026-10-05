@@ -31,6 +31,8 @@ import type {
   TtsModel,
   VoiceOption,
   AgentSeedStatus,
+  SessionChange,
+  SyncSnapshot,
 } from '@persona/shared';
 import { logger } from './logger';
 
@@ -158,8 +160,10 @@ export class WebSocketClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 1000;
+  /** 指数退避的基准与封顶，断线追平依赖不设次数上限的重连 */
+  private static readonly RECONNECT_BASE_DELAY_MS = 1000;
+  private static readonly RECONNECT_MAX_DELAY_MS = 30_000;
+  private stopped = false;
   private activeSessionIds: Set<string> = new Set();
 
   private static readonly HEARTBEAT_INTERVAL_MS = 30_000;
@@ -184,9 +188,10 @@ export class WebSocketClient {
   }
 
   /**
-   * 建立 WebSocket 连接，重置重连计数。
+   * 建立 WebSocket 连接，重置重连计数，解除停止标记。
    */
   connect(): void {
+    this.stopped = false;
     this.reconnectAttempts = 0;
     this.doConnect();
   }
@@ -253,14 +258,20 @@ export class WebSocketClient {
   /**
    * 以线性退避策略尝试重新连接，超过最大次数后停止。
    */
+  /**
+   * 以指数退避策略尝试重新连接，延迟封顶三十秒且不设次数上限。
+   * 断线追平依赖这条不断重连的通道，server 起停周期内连接必须自愈。
+   */
   private attemptReconnect(): void {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      logger.error('[WebSocket] Connection failed after max retries');
+    if (this.stopped) {
       return;
     }
 
+    const delay = Math.min(
+      WebSocketClient.RECONNECT_BASE_DELAY_MS * 2 ** this.reconnectAttempts,
+      WebSocketClient.RECONNECT_MAX_DELAY_MS
+    );
     this.reconnectAttempts++;
-    const delay = this.reconnectDelay * this.reconnectAttempts;
     logger.info(
       `[WebSocket] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`
     );
@@ -274,12 +285,12 @@ export class WebSocketClient {
    * 关闭连接并停止重连和心跳。
    */
   disconnect(): void {
+    this.stopped = true;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
     this.stopHeartbeat();
-    this.reconnectAttempts = this.maxReconnectAttempts;
     this.ws?.close();
     this.ws = null;
   }
@@ -392,6 +403,49 @@ export async function listSessions(agentId: string): Promise<SessionMeta[]> {
 
   const data: ListSessionsResponse = await response.json();
   return data.sessions;
+}
+
+/**
+ * 拉全量同步快照，冷启动镜像用。
+ * @returns 快照对象，含全部会话消息与服务端最新序号
+ */
+export async function getSyncSnapshot(): Promise<SyncSnapshot> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/sync/snapshot`, {
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to get sync snapshot: ${response.status}`);
+  }
+  const data = (await response.json()) as { snapshot: SyncSnapshot };
+  return data.snapshot;
+}
+
+/** 变更流分页响应 */
+interface SyncChangesResponse {
+  changes: SessionChange[];
+  head: number;
+}
+
+/**
+ * 按游标分页拉变更流，追平用。
+ * @param since - 客户端当前游标
+ * @param limit - 单页上限
+ * @returns 按序变更与服务端最新序号
+ */
+export async function getSyncChanges(
+  since: number,
+  limit: number
+): Promise<SyncChangesResponse> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/changes?since=${since}&limit=${limit}`,
+    { headers: { Accept: 'application/json' } }
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to get sync changes: ${response.status}`);
+  }
+  return (await response.json()) as SyncChangesResponse;
 }
 
 /**
