@@ -26,6 +26,8 @@ export interface Skill {
   author?: string;
   /** Card icon URL from skill-meta.json, absent when the file is missing. */
   logoUrl?: string;
+  /** Local logo file name from skill-meta.json, absent when the file is missing. */
+  logoFile?: string;
   content: string;
   filePath: string;
   /** Absolute path to the skill directory (parent of SKILL.md). */

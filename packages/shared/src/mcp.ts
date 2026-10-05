@@ -26,7 +26,7 @@ export interface McpServerInfo {
   description?: string;
   /** 安装时落盘的作者 */
   author?: string;
-  /** 安装时拼好的 logo CDN 地址，前端远程加载 */
+  /** 本地图标相对地址挂内容哈希，本地文件缺失回退安装时的远程网址 */
   logoUrl?: string;
   status: McpServerStatus;
   toolCount: number;

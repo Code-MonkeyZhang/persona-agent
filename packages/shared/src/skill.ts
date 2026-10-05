@@ -6,7 +6,7 @@ export interface SkillInfo {
   displayName?: string;
   /** Author persisted at install time, absent for hand-created skills */
   author?: string;
-  /** Card icon URL persisted at install time, absent when installed without one */
+  /** Hashed local logo url, or the remote url persisted at install when the local file is missing */
   logoUrl?: string;
   /** Absolute path of the skill directory */
   location: string;

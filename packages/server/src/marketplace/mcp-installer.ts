@@ -104,13 +104,15 @@ export async function installMcp(entry: McpMarketplaceEntry): Promise<void> {
   saveMcpServer(name, config);
   Logger.log('MARKETPLACE', `Saved config for '${name}' to user mcp.json`);
 
-  // 商城显示信息落盘，详情页的显示名作者与 logo 从这里来
+  // 商城显示信息落盘，详情页的显示名作者与 logo 从这里来，
+  // logoFile 记本地文件名供图标走本地，logoUrl 保留作回退链
   writeMcpMeta(mcpDir, {
     displayName: entry.name,
     author: entry.author,
     description: entry.description,
     homepage: entry.homepage,
     logoUrl: entry.logo ? cdnUrl(entry.path, entry.logo) : undefined,
+    logoFile: entry.logo,
   });
   Logger.log('MARKETPLACE', `Saved install meta for '${name}'`);
 

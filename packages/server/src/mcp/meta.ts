@@ -17,6 +17,7 @@ export interface McpServerMeta {
   description?: string;
   homepage?: string;
   logoUrl?: string;
+  logoFile?: string;
 }
 
 const META_STRING_KEYS = [
@@ -25,6 +26,7 @@ const META_STRING_KEYS = [
   'description',
   'homepage',
   'logoUrl',
+  'logoFile',
 ] as const;
 
 /**

@@ -36,6 +36,7 @@ import {
   toSkillDetail,
   writeSkillMeta,
 } from '../src/skill/loader.js';
+import { getFileHash } from '../src/util/asset-hash.js';
 import {
   initSkillPool,
   listSkills,
@@ -63,7 +64,10 @@ ${content}`;
   fs.mkdirSync(skillDir, { recursive: true });
   fs.writeFileSync(skillPath, fileContent);
   if (meta) {
-    fs.writeFileSync(path.join(skillDir, 'skill-meta.json'), JSON.stringify(meta));
+    fs.writeFileSync(
+      path.join(skillDir, 'skill-meta.json'),
+      JSON.stringify(meta)
+    );
   }
   return skillPath;
 }
@@ -243,6 +247,49 @@ Content without description`
       expect(info.displayName).toBe('测试技能');
       expect(info.author).toBe('persona-agent');
       expect(info.location).toBe('/path/to');
+    });
+
+    it('should produce a hashed local url when the logo file exists', () => {
+      const skillDir = path.join(skillsDir, 'logo-hit');
+      createSkillFile(skillDir, 'logo-hit', 'Logo', 'Content', {
+        logoFile: 'icon.png',
+        logoUrl: 'https://cdn.example.com/skills/logo-hit/icon.png',
+      });
+      fs.writeFileSync(path.join(skillDir, 'icon.png'), 'logo-bytes');
+
+      const info = toSkillInfo(loadSkillFile(path.join(skillDir, 'SKILL.md'))!);
+
+      expect(info.logoUrl).toBe(
+        `/api/skills/logo-hit/logo?h=${getFileHash(path.join(skillDir, 'icon.png'))}`
+      );
+    });
+
+    it('should resolve the local logo from the legacy remote url tail', () => {
+      const skillDir = path.join(skillsDir, 'logo-legacy');
+      createSkillFile(skillDir, 'logo-legacy', 'Logo', 'Content', {
+        logoUrl: 'https://cdn.example.com/skills/logo-legacy/logo.svg',
+      });
+      fs.writeFileSync(path.join(skillDir, 'logo.svg'), '<svg/>');
+
+      const info = toSkillInfo(loadSkillFile(path.join(skillDir, 'SKILL.md'))!);
+
+      expect(info.logoUrl).toBe(
+        `/api/skills/logo-legacy/logo?h=${getFileHash(path.join(skillDir, 'logo.svg'))}`
+      );
+    });
+
+    it('should fall back to the remote url when the local file is missing', () => {
+      const skillDir = path.join(skillsDir, 'logo-missing');
+      createSkillFile(skillDir, 'logo-missing', 'Logo', 'Content', {
+        logoFile: 'gone.png',
+        logoUrl: 'https://cdn.example.com/skills/logo-missing/gone.png',
+      });
+
+      const info = toSkillInfo(loadSkillFile(path.join(skillDir, 'SKILL.md'))!);
+
+      expect(info.logoUrl).toBe(
+        'https://cdn.example.com/skills/logo-missing/gone.png'
+      );
     });
   });
 
