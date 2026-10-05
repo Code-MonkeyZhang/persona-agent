@@ -834,7 +834,23 @@ export async function deleteAgent(id: string): Promise<boolean> {
 }
 
 /**
+ * 把后端下发的相对图标地址补全为绝对地址。
+ * 已安装商品的图标由服务端下发本地路由的相对路径，本机、局域网与隧道
+ * 的 baseUrl 各不相同，远程回退网址原样保留。
+ */
+function withAbsoluteLogoUrl<T extends { logoUrl?: string }>(
+  item: T,
+  baseUrl: string
+): T {
+  if (item.logoUrl && item.logoUrl.startsWith('/')) {
+    return { ...item, logoUrl: baseUrl + item.logoUrl };
+  }
+  return item;
+}
+
+/**
  * 获取已连接的 MCP 服务器列表。
+ * 图标地址经相对路径补全，已装商品走本机服务，断网也能显示。
  * @returns MCP 服务器数组
  */
 export async function listMcpServers(): Promise<McpServerInfo[]> {
@@ -849,7 +865,7 @@ export async function listMcpServers(): Promise<McpServerInfo[]> {
   }
 
   const data: ListMcpsResponse = await response.json();
-  return data.servers;
+  return data.servers.map((server) => withAbsoluteLogoUrl(server, baseUrl));
 }
 
 /**
@@ -919,6 +935,7 @@ export async function getMcpOAuthStatus(name: string): Promise<McpOAuthStatus> {
 
 /**
  * 获取可用的技能列表。
+ * 图标地址经相对路径补全，已装商品走本机服务，断网也能显示。
  * @returns 技能数组
  */
 export async function listSkills(): Promise<SkillInfo[]> {
@@ -933,11 +950,12 @@ export async function listSkills(): Promise<SkillInfo[]> {
   }
 
   const data: ListSkillsResponse = await response.json();
-  return data.skills;
+  return data.skills.map((skill) => withAbsoluteLogoUrl(skill, baseUrl));
 }
 
 /**
  * 获取单个技能的完整详情，正文按需单查。
+ * 图标地址与列表同口径补全。
  * @param name - 技能的机器键
  * @returns 含正文的技能详情
  */
@@ -956,7 +974,7 @@ export async function getSkill(name: string): Promise<SkillDetail> {
   }
 
   const data: GetSkillResponse = await response.json();
-  return data.skill;
+  return withAbsoluteLogoUrl(data.skill, baseUrl);
 }
 
 /**

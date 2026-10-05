@@ -91,11 +91,11 @@ Install agents, MCP tools, and Skills from the Agent Marketplace in one click.
 
 This project supports macOS and Windows. Download the installer from [GitHub Releases](https://github.com/Code-MonkeyZhang/persona-agent/releases):
 
-| Platform            | Download                                                                                                         |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| macOS Apple Silicon | [Download installer](https://github.com/Code-MonkeyZhang/persona-agent/releases)                                 |
-| macOS Intel         | [Download installer](https://github.com/Code-MonkeyZhang/persona-agent/releases)                                 |
-| Windows x64         | [Download installer](https://github.com/Code-MonkeyZhang/persona-agent/releases)                                 |
+| Platform            | Download                                                                         |
+| ------------------- | -------------------------------------------------------------------------------- |
+| macOS Apple Silicon | [Download installer](https://github.com/Code-MonkeyZhang/persona-agent/releases) |
+| macOS Intel         | [Download installer](https://github.com/Code-MonkeyZhang/persona-agent/releases) |
+| Windows x64         | [Download installer](https://github.com/Code-MonkeyZhang/persona-agent/releases) |
 
 Open the DMG file and drag the app to Applications; on Windows, run the exe installer and follow the prompts.
 
@@ -133,7 +133,7 @@ Give your agent a voice of its own. Voice synthesis is powered by MiniMax TTS, w
 
 ## 🛒 Agent Marketplace
 
-Persona ships with a built-in marketplace to browse, install, and manage Agent templates, Skills, and MCP tools in one place. The catalog is driven by the open-source [persona-agent-marketplace](https://github.com/Code-MonkeyZhang/persona-agent-marketplace) repo, and supports one-click install with MCP and Skill assignment to a specific agent.
+Persona ships with a built-in marketplace to browse, install, and manage Agent templates, Skills, and MCP tools in one place. The catalog is driven by the open-source [persona-agent-marketplace](https://github.com/Code-MonkeyZhang/persona-agent-marketplace) repo, and supports one-click install with MCP and Skill assignment to a specific agent. Icons of installed items load from local storage, so they keep displaying even offline.
 
 - **Agents**: curated character templates, ready to use after install
 - **Skills**: inject domain knowledge and capabilities into your agents

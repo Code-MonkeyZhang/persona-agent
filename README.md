@@ -89,8 +89,8 @@ Persona-agent 是一个开源的个人 AI Agent 聊天平台，让你能够完�
 
 本项目支持 macOS 和 Windows 平台。前往 [GitHub Releases](https://github.com/Code-MonkeyZhang/persona-agent/releases) 下载对应平台的安装包：
 
-| 平台                | 下载                                                                    |
-| ------------------- | ----------------------------------------------------------------------- |
+| 平台                | 下载                                                                     |
+| ------------------- | ------------------------------------------------------------------------ |
 | macOS Apple Silicon | [下载安装包](https://github.com/Code-MonkeyZhang/persona-agent/releases) |
 | macOS Intel         | [下载安装包](https://github.com/Code-MonkeyZhang/persona-agent/releases) |
 | Windows x64         | [下载安装包](https://github.com/Code-MonkeyZhang/persona-agent/releases) |
@@ -131,7 +131,7 @@ Persona 让每个 Agent 都独一无二：立绘、背景、声音，全部由�
 
 ## 🛒 Agent 商城
 
-Persona 内置商城，一站式浏览、安装和管理 Agent 模板、技能（Skill）与 MCP 工具。商城目录由开源仓库 [persona-agent-marketplace](https://github.com/Code-MonkeyZhang/persona-agent-marketplace) 驱动，支持一键安装并分配 MCP 和 Skill 给指定的 Agent。
+Persona 内置商城，一站式浏览、安装和管理 Agent 模板、技能（Skill）与 MCP 工具。商城目录由开源仓库 [persona-agent-marketplace](https://github.com/Code-MonkeyZhang/persona-agent-marketplace) 驱动，支持一键安装并分配 MCP 和 Skill 给指定的 Agent。已安装商品的图标从本地加载，断网环境下也能完整显示。
 
 - **Agent**：精选角色模板，安装即用
 - **技能（Skill）**：为 Agent 注入专业知识与能力
