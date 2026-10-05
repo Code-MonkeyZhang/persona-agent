@@ -31,6 +31,11 @@ export type {
   Message,
 } from './schema.js';
 export type { SessionMeta, Session } from './session.js';
+export type {
+  SnapshotMessage,
+  SnapshotSession,
+  SyncSnapshot,
+} from './session.js';
 export { buildPreviewText } from './preview.js';
 export {
   messagePreviewText,

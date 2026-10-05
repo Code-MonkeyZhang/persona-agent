@@ -50,3 +50,22 @@ export interface Session extends SessionMeta {
    */
   lastMessageAt?: number;
 }
+
+/** 快照里的单条消息，seq 为服务端消息行号 */
+export interface SnapshotMessage {
+  seq: number;
+  message: Message;
+  createdAt: number;
+}
+
+/** 快照里的单个会话，消息带行号与行时间戳 */
+export interface SnapshotSession extends SessionMeta {
+  turnEnds?: number[];
+  messages: SnapshotMessage[];
+}
+
+/** 全量同步快照，latestSeq 为快照时刻变更流的最新序号 */
+export interface SyncSnapshot {
+  latestSeq: number;
+  sessions: SnapshotSession[];
+}
