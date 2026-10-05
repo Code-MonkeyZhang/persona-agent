@@ -256,14 +256,17 @@ function AppContent() {
     await deleteAgentById(id);
   };
 
-  /*  定义连接成功后的useEffect操作
-  - 加载Agent列表
-  - 加载 Provider 列表
-  - 连接成功且选中 Agent 后，加载该 Agent 的会话列表
+  /*  启动与连接恢复后的加载操作
+  - Agent 列表挂载即加载，HTTP 失败时回退本地缓存，连接建立后再取新
+  - Provider 列表连接成功后加载
+  - 选中 Agent 后加载其会话列表，读本地缓存不依赖连接
   - 同步隧道状态（可能从上次 session 遗留 running）
   */
+  const agentsInitialLoadedRef = useRef(false);
   useEffect(() => {
-    if (connectionStatus === 'connected') {
+    // 挂载先试一次保离线可用，之后只在连接建立时重取
+    if (!agentsInitialLoadedRef.current || connectionStatus === 'connected') {
+      agentsInitialLoadedRef.current = true;
       loadAgents();
     }
   }, [connectionStatus, loadAgents]);
@@ -318,10 +321,11 @@ function AppContent() {
   };
 
   useEffect(() => {
-    if (connectionStatus === 'connected' && currentAgent) {
+    if (currentAgent) {
+      // 读本地缓存即时渲染，同步引擎联网后经缓存更新事件刷新
       loadSessions(currentAgent.id);
     }
-  }, [connectionStatus, currentAgent, loadSessions]);
+  }, [currentAgent, loadSessions]);
 
   useEffect(() => {
     if (connectionStatus === 'connected') {

@@ -10,12 +10,7 @@ import { create } from 'zustand';
 import type { UIMessage, ConnectionStatus, Thought } from '../types/chat';
 import type { ServerMessage, StepCompleteMessage } from '@persona/shared';
 import { buildPreviewText } from '@persona/shared';
-import {
-  createMessage,
-  sendChatMessage,
-  getSession,
-  WebSocketClient,
-} from '../lib/api';
+import { createMessage, sendChatMessage, WebSocketClient } from '../lib/api';
 import { toast } from './toastStore';
 import { logger } from '../lib/logger';
 import i18n from '../i18n';
@@ -107,9 +102,9 @@ function assemblePendingBubble(
 /** 轮次缓冲的空状态，供切换生成态与回合结束时复位 */
 function emptyPending(): Pick<
   SessionChatState,
-  'pendingThoughts' | 'pendingContent' | 'armedDiskRefresh'
+  'pendingThoughts' | 'pendingContent' | 'armedCacheRefresh'
 > {
-  return { pendingThoughts: [], pendingContent: '', armedDiskRefresh: false };
+  return { pendingThoughts: [], pendingContent: '', armedCacheRefresh: false };
 }
 
 /**
@@ -133,7 +128,7 @@ interface SessionChatState {
   pendingThoughts: Thought[];
   pendingContent: string;
   /** 错过步骤事件的轮次由空缓冲 turn_complete 武装，round_complete 后从磁盘整包刷新 */
-  armedDiskRefresh: boolean;
+  armedCacheRefresh: boolean;
 }
 
 interface ChatStore {
@@ -148,6 +143,8 @@ interface ChatStore {
   sendMessage: (content: string, sessionId?: string) => Promise<void>;
   abortGeneration: (sessionId?: string) => void;
   subscribeSession: (sessionId: string) => void;
+  /** 读缓存重载指定会话的消息，生成中的会话不应调用 */
+  refreshSessionMessages: (sessionId: string) => Promise<void>;
   handleWsMessage: (msg: ServerMessage) => void;
   setConnectionStatus: (status: ConnectionStatus) => void;
   setAgentId: (id: string | null) => void;
@@ -156,9 +153,9 @@ interface ChatStore {
 
 export const useChatStore = create<ChatStore>((set, get) => {
   /**
-   * 从磁盘重新拉取指定 session 的消息列表。
+   * 从本地缓存重新拉取指定 session 的消息列表。
    * 用于 isGenerating 恢复场景：complete 事件到达时本地没有流式内容，
-   * 需要从后端获取最终落盘的完整消息。
+   * 需要读缓存里最终落盘的完整消息，缓存由同步引擎随变更流维护。
    */
   async function refreshSessionMessages(sessionId: string): Promise<void> {
     const agentId = get().agentId;
@@ -167,7 +164,11 @@ export const useChatStore = create<ChatStore>((set, get) => {
       return;
     }
     try {
-      const session = await getSession(agentId, sessionId);
+      const session = (await window.api?.cache.getSession(sessionId)) ?? null;
+      if (!session) {
+        logger.warn('Cannot refresh: session not in cache', { sessionId });
+        return;
+      }
       const converted = useSessionStore
         .getState()
         .convertSessionMessages(session.messages);
@@ -179,7 +180,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
         }
         return { sessionStates: newStates };
       });
-      logger.info('Session messages refreshed from disk', { sessionId });
+      logger.info('Session messages refreshed from cache', { sessionId });
     } catch (err) {
       logger.error('Failed to refresh session messages', {
         sessionId,
@@ -202,6 +203,8 @@ export const useChatStore = create<ChatStore>((set, get) => {
     setCurrentSessionId: (id: string | null) => {
       set({ currentSessionId: id });
     },
+
+    refreshSessionMessages,
 
     initSessionState: (sessionId: string, messages: UIMessage[]) => {
       set((state) => {
@@ -516,7 +519,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
               const newStates = new Map(state.sessionStates);
               const ss = newStates.get(sessionId);
               if (ss) {
-                newStates.set(sessionId, { ...ss, armedDiskRefresh: true });
+                newStates.set(sessionId, { ...ss, armedCacheRefresh: true });
               }
               return { sessionStates: newStates };
             });
@@ -553,7 +556,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
           const snap = get();
           const sessionState = snap.sessionStates.get(sessionId);
           if (!sessionState) break;
-          const needsRefresh = sessionState.armedDiskRefresh;
+          const needsRefresh = sessionState.armedCacheRefresh;
 
           set((state) => {
             const newStates = new Map(state.sessionStates);

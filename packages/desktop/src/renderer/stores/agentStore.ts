@@ -66,6 +66,8 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
         )
       );
       set({ agents });
+      // 角色列表进缓存，离线回退用
+      void window.api?.cache.putAgents(agents);
 
       if (agents.length > 0) {
         const lastAgentId = localStorage.getItem(LAST_AGENT_KEY);
@@ -87,6 +89,20 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
         '[AgentStore] loadAgents failed:',
         error instanceof Error ? error.stack : error
       );
+      // 离线回退：HTTP 失败时读缓存里的角色列表
+      try {
+        const cached = (await window.api?.cache.getAgents()) ?? [];
+        if (cached.length > 0) {
+          logger.info(
+            `[AgentStore] Falling back to ${cached.length} cached agents`
+          );
+          const lastAgentId = localStorage.getItem(LAST_AGENT_KEY);
+          const target = cached.find((a) => a.id === lastAgentId) ?? cached[0];
+          set({ agents: cached, currentAgent: target });
+        }
+      } catch {
+        // 缓存也不可用时保持现状
+      }
     }
   },
 
