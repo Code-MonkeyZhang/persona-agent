@@ -21,13 +21,26 @@ import {
   AgentConfigInputSchema,
   AgentConfigUpdateSchema,
 } from '../../agent/index.js';
+import type { AgentConfig } from '@persona/shared';
 import { SessionStore } from '../../session/store.js';
 import { SessionManager } from '../../session/session-manager.js';
 import { Logger } from '../../util/logger.js';
 import { asyncHandler, getParam, requireParam } from './utils.js';
 import { AppError } from '../../util/errors.js';
+import { getAgentAvatarPath } from '../../util/paths.js';
+import { getFileHash } from '../../util/asset-hash.js';
 
 export type SessionManagersMap = Map<string, SessionManager>;
+
+/**
+ * 给 Agent 配置附加头像文件的内容哈希。
+ * 头像文件不存在时哈希为空串，客户端据此走占位分支不发请求。
+ */
+function withAvatarHash(
+  agent: AgentConfig
+): AgentConfig & { avatarHash: string } {
+  return { ...agent, avatarHash: getFileHash(getAgentAvatarPath(agent.id)) };
+}
 
 /**
  * 为新 Agent 注册 SessionManager 并创建初始聊天 Session。
@@ -53,7 +66,7 @@ export function createAgentRouter(
   router.get(
     '/',
     asyncHandler('AGENT', 'Error listing agents', (_req, res) => {
-      const agents = listAgentConfigs();
+      const agents = listAgentConfigs().map(withAvatarHash);
       res.json({ agents });
     })
   );
@@ -75,7 +88,7 @@ export function createAgentRouter(
       const agent = getAgentConfig(id);
       if (!agent) throw new AppError(404, 'Agent not found');
 
-      res.json({ agent });
+      res.json({ agent: withAvatarHash(agent) });
     })
   );
 
@@ -95,7 +108,7 @@ export function createAgentRouter(
       }
 
       Logger.log('AGENT', `Created agent: ${agent.id}`);
-      res.status(201).json({ agent });
+      res.status(201).json({ agent: withAvatarHash(agent) });
     })
   );
 
@@ -114,7 +127,7 @@ export function createAgentRouter(
 
       const agent = updateAgentConfig(id, result.data);
       Logger.log('AGENT', `Updated agent: ${id}`);
-      res.json({ agent });
+      res.json({ agent: withAvatarHash(agent) });
     })
   );
 

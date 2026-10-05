@@ -113,6 +113,10 @@ export function getAgentAssetsDir(agentId: string): string {
   return path.join(getAgentDir(agentId), 'assets');
 }
 
+export function getAgentAvatarPath(agentId: string): string {
+  return path.join(getAgentAssetsDir(agentId), 'avatar.png');
+}
+
 export function getAgentAssetsPoseDir(agentId: string): string {
   return path.join(getAgentAssetsDir(agentId), 'pose');
 }

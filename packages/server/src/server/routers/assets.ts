@@ -2,7 +2,7 @@
  * @fileoverview HTTP routes for agent assets (poses & backgrounds).
  *
  * Routes:
- * - GET    /api/agents/:agentId/assets/pose              - List all pose names
+ * - GET    /api/agents/:agentId/assets/pose              - List poses with hashes plus background hash
  * - GET    /api/agents/:agentId/assets/pose/:name         - Get a specific pose image
  * - POST   /api/agents/:agentId/assets/pose/:name         - Upload a pose image
  * - DELETE /api/agents/:agentId/assets/pose/:name         - Delete a pose image
@@ -22,6 +22,7 @@ import {
 import { Logger } from '../../util/logger.js';
 import { asyncHandler, getParam, requireParam, imageUpload } from './utils.js';
 import { AppError } from '../../util/errors.js';
+import { getFileHash } from '../../util/asset-hash.js';
 
 const IMAGE_EXTENSIONS = /\.(png|jpg|jpeg|gif|webp)$/i;
 
@@ -45,6 +46,16 @@ function findPoseFile(poseDir: string, name: string): string | undefined {
 }
 
 /**
+ * 在背景目录中查找第一个图片文件。
+ * @returns 匹配到的文件完整路径，未找到返回 undefined
+ */
+function findBackgroundPath(bgDir: string): string | undefined {
+  if (!fs.existsSync(bgDir)) return undefined;
+  const matched = fs.readdirSync(bgDir).find((f) => IMAGE_EXTENSIONS.test(f));
+  return matched ? path.join(bgDir, matched) : undefined;
+}
+
+/**
  * 创建 Agent 资源路由。
  *
  * 挂载到 `/api/agents/:agentId/assets` 路径下，提供立绘和背景图的读写接口。
@@ -55,11 +66,12 @@ export function createAssetsRouter(): Router {
   const router = Router({ mergeParams: true });
 
   /**
-   * GET /pose — 列出指定 Agent 的所有立绘表情名称。
+   * GET /pose — 列出指定 Agent 的全部立绘哈希与背景哈希。
    *
-   * 从 Agent 的 pose 目录读取图片文件，去掉扩展名后作为表情名称返回。
+   * 每个立绘返回名字加内容哈希，另附背景哈希，
+   * 客户端用哈希拼 URL 获得长期有效的缓存身份。
    *
-   * @returns JSON: `{ poses: string[] }`
+   * @returns JSON: `{ poses: [{name, hash}], backgroundHash }`
    */
   router.get(
     '/pose',
@@ -67,17 +79,20 @@ export function createAssetsRouter(): Router {
       const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
 
       const poseDir = getAgentAssetsPoseDir(agentId);
-      if (!fs.existsSync(poseDir)) {
-        res.json({ poses: [] });
-        return;
-      }
+      const poseFiles = fs.existsSync(poseDir)
+        ? fs.readdirSync(poseDir).filter((f) => IMAGE_EXTENSIONS.test(f))
+        : [];
+      const poses = poseFiles.map((f) => ({
+        name: path.parse(f).name,
+        hash: getFileHash(path.join(poseDir, f)),
+      }));
 
-      const poses = fs
-        .readdirSync(poseDir)
-        .filter((f) => IMAGE_EXTENSIONS.test(f))
-        .map((f) => path.parse(f).name);
+      const backgroundPath = findBackgroundPath(
+        getAgentAssetsBackgroundsDir(agentId)
+      );
+      const backgroundHash = backgroundPath ? getFileHash(backgroundPath) : '';
 
-      res.json({ poses });
+      res.json({ poses, backgroundHash });
     })
   );
 
@@ -105,7 +120,7 @@ export function createAssetsRouter(): Router {
       const contentType = MIME_MAP[ext] || 'application/octet-stream';
 
       res.setHeader('Content-Type', contentType);
-      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       fs.createReadStream(filePath).pipe(res);
     })
   );
@@ -136,7 +151,10 @@ export function createAssetsRouter(): Router {
       const filePath = path.join(poseDir, `${poseName}${ext}`);
       fs.writeFileSync(filePath, req.file.buffer);
 
-      Logger.log('ASSETS', `Uploaded pose "${poseName}" for agent: ${agentId}`);
+      Logger.log(
+        'ASSETS',
+        `Uploaded pose "${poseName}" for agent: ${agentId}, hash: ${getFileHash(filePath)}`
+      );
       res.json({ success: true });
     })
   );
@@ -159,9 +177,12 @@ export function createAssetsRouter(): Router {
 
       if (!matched) throw new AppError(404, `Pose not found: ${poseName}`);
 
-      fs.unlinkSync(path.join(poseDir, matched));
-
-      Logger.log('ASSETS', `Deleted pose "${poseName}" for agent: ${agentId}`);
+      const filePath = path.join(poseDir, matched);
+      Logger.log(
+        'ASSETS',
+        `Deleted pose "${poseName}" for agent: ${agentId}, hash: ${getFileHash(filePath)}`
+      );
+      fs.unlinkSync(filePath);
       res.json({ success: true });
     })
   );
@@ -194,7 +215,7 @@ export function createAssetsRouter(): Router {
 
       Logger.log(
         'ASSETS',
-        `Renamed pose "${oldName}" to "${newNameChecked}" for agent: ${agentId}`
+        `Renamed pose "${oldName}" to "${newNameChecked}" for agent: ${agentId}, hash: ${getFileHash(newPath)}`
       );
       res.json({ success: true });
     })
@@ -204,6 +225,7 @@ export function createAssetsRouter(): Router {
    * GET /background — 获取指定 Agent 的背景图片。
    *
    * 从 Agent 的 backgrounds 目录中找到第一个图片文件并以流式响应返回。
+   * 响应头永久有效，客户端以 URL 里的内容哈希作为缓存身份。
    *
    * @returns 图片文件流，或 404/400/500 错误 JSON
    */
@@ -212,22 +234,16 @@ export function createAssetsRouter(): Router {
     asyncHandler('ASSETS', 'Error getting background', (req, res) => {
       const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
 
-      const bgDir = getAgentAssetsBackgroundsDir(agentId);
-      if (!fs.existsSync(bgDir)) {
-        throw new AppError(404, 'No background found');
-      }
+      const filePath = findBackgroundPath(
+        getAgentAssetsBackgroundsDir(agentId)
+      );
+      if (!filePath) throw new AppError(404, 'No background found');
 
-      const files = fs.readdirSync(bgDir);
-      const matched = files.find((f) => IMAGE_EXTENSIONS.test(f));
-
-      if (!matched) throw new AppError(404, 'No background found');
-
-      const filePath = path.join(bgDir, matched);
-      const ext = path.extname(matched).toLowerCase();
+      const ext = path.extname(filePath).toLowerCase();
       const contentType = MIME_MAP[ext] || 'application/octet-stream';
 
       res.setHeader('Content-Type', contentType);
-      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       fs.createReadStream(filePath).pipe(res);
     })
   );
@@ -263,7 +279,10 @@ export function createAssetsRouter(): Router {
       const filePath = path.join(bgDir, `background${ext}`);
       fs.writeFileSync(filePath, req.file.buffer);
 
-      Logger.log('ASSETS', `Uploaded background for agent: ${agentId}`);
+      Logger.log(
+        'ASSETS',
+        `Uploaded background for agent: ${agentId}, hash: ${getFileHash(filePath)}`
+      );
       res.json({ success: true });
     })
   );
@@ -278,19 +297,16 @@ export function createAssetsRouter(): Router {
     asyncHandler('ASSETS', 'Error deleting background', (req, res) => {
       const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
 
-      const bgDir = getAgentAssetsBackgroundsDir(agentId);
-      if (!fs.existsSync(bgDir)) {
-        throw new AppError(404, 'No background found');
-      }
+      const filePath = findBackgroundPath(
+        getAgentAssetsBackgroundsDir(agentId)
+      );
+      if (!filePath) throw new AppError(404, 'No background found');
 
-      const matched = fs
-        .readdirSync(bgDir)
-        .find((f) => IMAGE_EXTENSIONS.test(f));
-      if (!matched) throw new AppError(404, 'No background found');
-
-      fs.unlinkSync(path.join(bgDir, matched));
-
-      Logger.log('ASSETS', `Deleted background for agent: ${agentId}`);
+      Logger.log(
+        'ASSETS',
+        `Deleted background for agent: ${agentId}, hash: ${getFileHash(filePath)}`
+      );
+      fs.unlinkSync(filePath);
       res.json({ success: true });
     })
   );

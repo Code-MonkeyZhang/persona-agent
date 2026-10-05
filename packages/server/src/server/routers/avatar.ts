@@ -8,18 +8,12 @@
 
 import { Router } from 'express';
 import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { getAgentAssetsDir } from '../../util/paths.js';
+import { getAgentAssetsDir, getAgentAvatarPath } from '../../util/paths.js';
 import { Logger } from '../../util/logger.js';
 import { asyncHandler, getParam, requireParam, imageUpload } from './utils.js';
 import { AppError } from '../../util/errors.js';
 import { processAvatar } from '../services/avatar-processor.js';
-
-const AVATAR_FILENAME = 'avatar.png';
-
-function getAvatarPath(agentId: string): string {
-  return path.join(getAgentAssetsDir(agentId), AVATAR_FILENAME);
-}
+import { getFileHash } from '../../util/asset-hash.js';
 
 /**
  * 创建 Agent 头像路由。
@@ -36,6 +30,7 @@ export function createAvatarRouter(): Router {
    * GET / — 获取 Agent 头像图片。
    *
    * 从 Agent 的 assets 目录读取 avatar.png 并以流式响应返回。
+   * 响应头永久有效，客户端以 URL 里的内容哈希作为缓存身份。
    *
    * @returns PNG 图片流，或 404/400 错误 JSON
    */
@@ -44,13 +39,13 @@ export function createAvatarRouter(): Router {
     asyncHandler('AVATAR', 'Error getting avatar', (req, res) => {
       const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
 
-      const avatarPath = getAvatarPath(agentId);
+      const avatarPath = getAgentAvatarPath(agentId);
       if (!fs.existsSync(avatarPath)) {
         throw new AppError(404, 'Avatar not found');
       }
 
       res.setHeader('Content-Type', 'image/png');
-      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       fs.createReadStream(avatarPath).pipe(res);
     })
   );
@@ -77,9 +72,14 @@ export function createAvatarRouter(): Router {
       }
 
       const processed = await processAvatar(req.file.buffer);
-      fs.writeFileSync(getAvatarPath(agentId), processed);
+      fs.writeFileSync(getAgentAvatarPath(agentId), processed);
 
-      Logger.log('AVATAR', `Uploaded avatar for agent: ${agentId}`);
+      Logger.log(
+        'AVATAR',
+        `Uploaded avatar for agent: ${agentId}, hash: ${getFileHash(
+          getAgentAvatarPath(agentId)
+        )}`
+      );
       res.json({ success: true });
     })
   );
