@@ -398,6 +398,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     id: editingAgentId || 'preview',
     name: name || 'A',
     description,
+    avatarHash: editingAgent?.avatarHash,
     systemPrompt,
     defaultModel: { provider, model: modelId },
     maxSteps: parseInt(maxSteps) || 50,

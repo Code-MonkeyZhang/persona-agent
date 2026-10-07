@@ -16,6 +16,11 @@ import * as fs from 'fs';
 import { initStore } from './store';
 import { CacheDb } from './cache/cache-db';
 import { registerCacheIpc } from './cache/cache-ipc';
+import { ImageCache } from './image/image-cache';
+import {
+  registerImageSchemePrivileges,
+  registerImageProtocol,
+} from './image/image-protocol';
 import {
   waitForServer,
   setServerUrl,
@@ -116,6 +121,9 @@ if (is.dev) {
 log.info(`[log] desktop.log at ${LOG_FILE}`);
 log.info('App starting...');
 
+// 图片协议的特权声明必须发生在 app ready 之前，放 whenReady 里会静默失效
+registerImageSchemePrivileges();
+
 /** 应用主入口 */
 app.whenReady().then(async () => {
   initStore();
@@ -125,6 +133,14 @@ app.whenReady().then(async () => {
     log.info(message)
   );
   registerCacheIpc(cacheDb);
+
+  // 图片缓存命中读数据根 image-cache，未命中经当前服务端地址下载校验落盘
+  registerImageProtocol(
+    new ImageCache(join(DATA_DIR, 'image-cache'), (message) =>
+      log.info(message)
+    ),
+    getServerUrl
+  );
 
   process.on('SIGINT', () => {
     serverProcess?.kill();

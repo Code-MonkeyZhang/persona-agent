@@ -61,6 +61,15 @@ const DEFAULT_PORT = 3847;
 let cachedBaseUrl: string | null = null;
 
 /**
+ * 把带内容哈希的图片绝对地址转成协议地址。
+ * 主机名是内容哈希，承担缓存键，src 只是未命中路径的一次性传输工具，
+ * 命中与网络地址无关，换隧道地址不失效。
+ */
+function toProtocolUrl(hash: string, httpUrl: string): string {
+  return `persona-image://${hash}?src=${encodeURIComponent(httpUrl)}`;
+}
+
+/**
  * 获取 API 请求的基础 URL。通过 Electron IPC 查询主进程并缓存结果。
  */
 export async function getBaseUrl(): Promise<string> {
@@ -834,16 +843,21 @@ export async function deleteAgent(id: string): Promise<boolean> {
 }
 
 /**
- * 把后端下发的相对图标地址补全为绝对地址。
- * 已安装商品的图标由服务端下发本地路由的相对路径，本机、局域网与隧道
- * 的 baseUrl 各不相同，远程回退网址原样保留。
+ * 把后端下发的相对图标地址补全并转成协议地址。
+ * 已安装商品的图标由服务端下发挂内容哈希的本地路由相对路径，补全 baseUrl
+ * 后经 toProtocolUrl 转协议地址，命中走本地缓存。远程回退网址原样保留。
  */
 function withAbsoluteLogoUrl<T extends { logoUrl?: string }>(
   item: T,
   baseUrl: string
 ): T {
   if (item.logoUrl && item.logoUrl.startsWith('/')) {
-    return { ...item, logoUrl: baseUrl + item.logoUrl };
+    const absolute = baseUrl + item.logoUrl;
+    const hash = new URL(absolute).searchParams.get('h');
+    return {
+      ...item,
+      logoUrl: hash ? toProtocolUrl(hash, absolute) : absolute,
+    };
   }
   return item;
 }
@@ -1313,23 +1327,27 @@ export async function deleteCredential(
 }
 
 /**
- * 获取指定 agent 的头像 URL，内容哈希承担缓存身份。
+ * 获取指定 agent 的头像地址，内容哈希承担缓存身份。
+ * 哈希存在时产出协议地址，未命中由主进程下载校验落盘后本地命中，
+ * 缺失时退回 http 地址，由服务端 no-cache 防御兜底。
  * @param agentId - Agent ID
- * @param hash - 头像内容哈希，为空时不带参数
- * @returns 头像图片的完整 URL
+ * @param hash - 头像内容哈希
+ * @returns 头像图片地址
  */
 export function getAgentAvatarUrl(agentId: string, hash?: string): string {
   const base = cachedBaseUrl || `http://localhost:${DEFAULT_PORT}`;
-  const query = hash ? `?h=${hash}` : '';
-  return `${base}/api/agents/${agentId}/avatar${query}`;
+  const httpUrl = `${base}/api/agents/${agentId}/avatar`;
+  return hash ? toProtocolUrl(hash, `${httpUrl}?h=${hash}`) : httpUrl;
 }
 
 /**
- * 获取指定 agent 的姿态图片 URL，内容哈希承担缓存身份。
+ * 获取指定 agent 的姿态图片地址，内容哈希承担缓存身份。
+ * 哈希存在时产出协议地址，未命中由主进程下载校验落盘后本地命中，
+ * 缺失时退回 http 地址，由服务端 no-cache 防御兜底。
  * @param agentId - Agent ID
  * @param poseName - 姿态名称
- * @param hash - 姿态图片内容哈希，为空时不带参数
- * @returns 姿态图片的完整 URL
+ * @param hash - 姿态图片内容哈希
+ * @returns 姿态图片地址
  */
 export function getPoseImageUrl(
   agentId: string,
@@ -1337,20 +1355,22 @@ export function getPoseImageUrl(
   hash?: string
 ): string {
   const base = cachedBaseUrl || `http://localhost:${DEFAULT_PORT}`;
-  const query = hash ? `?h=${hash}` : '';
-  return `${base}/api/agents/${agentId}/assets/pose/${encodeURIComponent(poseName)}${query}`;
+  const httpUrl = `${base}/api/agents/${agentId}/assets/pose/${encodeURIComponent(poseName)}`;
+  return hash ? toProtocolUrl(hash, `${httpUrl}?h=${hash}`) : httpUrl;
 }
 
 /**
- * 获取指定 agent 的背景图片 URL，内容哈希承担缓存身份。
+ * 获取指定 agent 的背景图片地址，内容哈希承担缓存身份。
+ * 哈希存在时产出协议地址，未命中由主进程下载校验落盘后本地命中，
+ * 缺失时退回 http 地址，由服务端 no-cache 防御兜底。
  * @param agentId - Agent ID
- * @param hash - 背景内容哈希，为空时不带参数
- * @returns 背景图片的完整 URL
+ * @param hash - 背景内容哈希
+ * @returns 背景图片地址
  */
 export function getBackgroundImageUrl(agentId: string, hash?: string): string {
   const base = cachedBaseUrl || `http://localhost:${DEFAULT_PORT}`;
-  const query = hash ? `?h=${hash}` : '';
-  return `${base}/api/agents/${agentId}/assets/background${query}`;
+  const httpUrl = `${base}/api/agents/${agentId}/assets/background`;
+  return hash ? toProtocolUrl(hash, `${httpUrl}?h=${hash}`) : httpUrl;
 }
 
 /** 立绘素材条目，name 承担业务查找，hash 承担缓存身份 */
