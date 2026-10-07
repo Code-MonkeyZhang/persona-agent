@@ -47,14 +47,12 @@ export type McpMarketplaceEntry = z.infer<typeof McpMarketplaceEntrySchema>;
 
 /**
  * Agent 商城清单条目。
- * 公共基座 + 可选的 voiceSample, 语音样本文件名。
+ * 目前就是公共基座，语音身份由用户装完后在客户端的语音表里配，商品不携带。
  * 卡片展示图优先取基座继承的 logo 字段，缺失回退 assets/avatar.png 与聊天头像共用。
  *
  * Agent 商品文件夹里还包含 config.json 人设配置和 assets/ 目录,
  * 但这些不在清单字段里——由下载器扫描文件夹得到。
  */
-export const AgentMarketplaceEntrySchema = MarketplaceEntrySchema.extend({
-  voiceSample: z.string().optional(),
-});
+export const AgentMarketplaceEntrySchema = MarketplaceEntrySchema;
 
 export type AgentMarketplaceEntry = z.infer<typeof AgentMarketplaceEntrySchema>;
