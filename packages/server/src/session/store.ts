@@ -9,10 +9,10 @@
 
 import { getDb } from '../db/index.js';
 import { buildPreviewText, messagePreviewText } from '@persona/shared';
-import type { ChangeKind, SessionChange } from '@persona/shared';
+import type { SessionChange } from '@persona/shared';
 import { Logger } from '../util/logger.js';
-import type { Database, SQLQueryBindings, Statement } from 'bun:sqlite';
-import { emitSessionChange } from './changes.js';
+import type { SQLQueryBindings, Statement } from 'bun:sqlite';
+import { emitSessionChange, insertChangeRow } from './changes.js';
 import type { Session, SessionMeta } from './types.js';
 import type { ModelConfig } from '../agent/types.js';
 import type { Message } from '../schema/index.js';
@@ -67,31 +67,6 @@ export function rowToMeta(row: SessionRow): SessionMeta {
  */
 function statement<T>(sql: string): Statement<T, SQLQueryBindings[]> {
   return getDb().query<T, SQLQueryBindings[]>(sql);
-}
-
-/**
- * 在当前事务里登记一条变更事件并返回事件对象。
- * 事务回滚时事件行随业务写一起消失，不会发出有号无数据的事件。
- */
-function insertChangeRow(
-  db: Database,
-  kind: ChangeKind,
-  sessionId: string | null,
-  data: unknown
-): SessionChange {
-  const createdAt = Date.now();
-  const result = db
-    .query(
-      'INSERT INTO changes (kind, session_id, data, created_at) VALUES (?, ?, ?, ?)'
-    )
-    .run(kind, sessionId, JSON.stringify(data), createdAt);
-  return {
-    seq: Number(result.lastInsertRowid),
-    kind,
-    sessionId,
-    data,
-    createdAt,
-  };
 }
 
 /**
