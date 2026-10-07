@@ -22,6 +22,8 @@ import * as fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { readJsonFile } from '../util/fs-helpers.js';
 import { Logger } from '../util/logger.js';
+import { getDb } from '../db/index.js';
+import { emitSessionChange, insertChangeRow } from '../session/changes.js';
 import {
   getAgentsDir,
   getAgentDir,
@@ -74,6 +76,16 @@ function writeSystemPrompt(agentId: string, content: string): void {
  */
 function normalizeWorkspacePath(value?: string): string {
   return value?.trim() || getWorkspaceDir();
+}
+
+/**
+ * 登记并广播一条 agents_invalidated 事件。
+ * Agent 正本是纯文件写没有事务包裹，事件在文件写成功后登记，
+ * 客户端收到后整份重拉角色列表，事件体不带增量数据。
+ */
+function emitAgentsInvalidated(): void {
+  const event = insertChangeRow(getDb(), 'agents_invalidated', null, {});
+  emitSessionChange(event);
 }
 
 /** Check if an agent exists */
@@ -184,6 +196,7 @@ export function createAgentConfig(input: AgentConfigInput): AgentConfig {
   writeJsonAtomic(getAgentConfigPath(id), onDisk);
   writeSystemPrompt(id, systemPrompt);
 
+  emitAgentsInvalidated();
   Logger.log('AGENT', `Created agent config: ${id}`);
   return config;
 }
@@ -227,16 +240,18 @@ export function updateAgentConfig(
     writeSystemPrompt(id, systemPrompt);
   }
 
+  emitAgentsInvalidated();
   Logger.log('AGENT', `Updated agent config: ${id}`);
   return updated;
 }
 
-/** Delete an agent and all its data */
+/** Delete an agent and all its data, then invalidate the agents change stream. */
 export function deleteAgentConfig(id: string): void {
   const agentDir = getAgentDir(id);
   if (fs.existsSync(agentDir)) {
     fs.rmSync(agentDir, { recursive: true });
   }
+  emitAgentsInvalidated();
 }
 
 /**

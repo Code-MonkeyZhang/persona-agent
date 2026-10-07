@@ -94,7 +94,7 @@ describe('CacheDb', () => {
     const task = snapSession(meta('t1', 'a1', { updatedAt: 20 }), [
       { seq: 3, message: { role: 'user', content: '任务' } },
     ]);
-    db.applySnapshot({ latestSeq: 30, sessions: [chat, task] });
+    db.applySnapshot({ latestSeq: 30, sessions: [chat, task], agents: [] });
 
     expect(db.getCursor()).toBe(30);
     const sessions = db.listSessions('a1');

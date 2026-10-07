@@ -1,5 +1,6 @@
 import type { ModelConfig } from './model-config.js';
 import type { Message } from './schema.js';
+import type { AgentConfig } from './agent.js';
 
 /** Session metadata (first line of the JSONL file) */
 export interface SessionMeta {
@@ -64,8 +65,12 @@ export interface SnapshotSession extends SessionMeta {
   messages: SnapshotMessage[];
 }
 
+/** 快照里的单个 Agent，正本来自配置文件，头像哈希按文件现算附加 */
+export type SnapshotAgent = AgentConfig & { avatarHash: string };
+
 /** 全量同步快照，latestSeq 为快照时刻变更流的最新序号 */
 export interface SyncSnapshot {
   latestSeq: number;
   sessions: SnapshotSession[];
+  agents: SnapshotAgent[];
 }

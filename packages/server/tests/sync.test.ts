@@ -96,6 +96,7 @@ async function createTestAgent(name: string): Promise<string> {
 interface SnapshotResponse {
   snapshot: {
     latestSeq: number;
+    agents: Array<{ id: string; avatarHash: string }>;
     sessions: Array<{
       id: string;
       agentId: string;
@@ -179,6 +180,15 @@ describe('Sync Snapshot Tests', () => {
       }
     }
 
+    // 快照携带全部 Agent，头像哈希必为字符串
+    expect(snapshot.agents).toHaveLength(2);
+    const agentIds = snapshot.agents.map((a) => a.id);
+    expect(agentIds).toContain(agentA);
+    expect(agentIds).toContain(agentB);
+    for (const agent of snapshot.agents) {
+      expect(typeof agent.avatarHash).toBe('string');
+    }
+
     // latestSeq 与 changes 表一致
     const headRow = getDb()
       .query<{ max: number | null }>('SELECT MAX(seq) AS max FROM changes')
@@ -192,6 +202,7 @@ describe('Sync Snapshot Tests', () => {
     const { snapshot } = (await res.json()) as SnapshotResponse;
     expect(snapshot.latestSeq).toBe(0);
     expect(snapshot.sessions).toEqual([]);
+    expect(snapshot.agents).toEqual([]);
   });
 
   /** 测试快照之后的新变化序号必然大于 latestSeq，客户端可无缝追平 */

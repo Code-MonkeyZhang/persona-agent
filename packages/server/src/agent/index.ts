@@ -11,6 +11,7 @@ export {
   deleteAgentConfig,
   backfillDefaultWorkspacePaths,
 } from './agent-config-store.js';
+export { withAvatarHash, listAgentsWithHashes } from './agent-list.js';
 export {
   seedInitialAgent,
   readAgentSeedStatus,

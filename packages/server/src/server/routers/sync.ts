@@ -31,7 +31,7 @@ export function createSyncRouter(): Router {
       );
       Logger.log(
         'SYNC',
-        `Built snapshot: ${snapshot.sessions.length} sessions ${messageCount} messages latestSeq=${snapshot.latestSeq} in ${Date.now() - started}ms`
+        `Built snapshot: ${snapshot.agents.length} agents ${snapshot.sessions.length} sessions ${messageCount} messages latestSeq=${snapshot.latestSeq} in ${Date.now() - started}ms`
       );
       res.json({ snapshot });
     })

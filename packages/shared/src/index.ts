@@ -34,6 +34,7 @@ export type { SessionMeta, Session } from './session.js';
 export type {
   SnapshotMessage,
   SnapshotSession,
+  SnapshotAgent,
   SyncSnapshot,
 } from './session.js';
 export { buildPreviewText } from './preview.js';

@@ -242,6 +242,7 @@ describe('Change Stream Integration Tests', () => {
       };
 
       expect(data.changes.map((c) => c.kind)).toEqual([
+        'agents_invalidated',
         'session_created',
         'session_created',
         'session_updated',
@@ -315,6 +316,12 @@ describe('Change Stream Integration Tests', () => {
     it('should push change events over WebSocket', async () => {
       const client = await connectWs(WS_URL);
       const agentId = await createTestAgent();
+
+      // 建 Agent 先推配置失效，随后初始聊天会话的创建事件
+      const invalidation = (await client.waitFor('change')) as {
+        change: SessionChange;
+      };
+      expect(invalidation.change.kind).toBe('agents_invalidated');
 
       const msg = (await client.waitFor('change')) as {
         change: SessionChange;

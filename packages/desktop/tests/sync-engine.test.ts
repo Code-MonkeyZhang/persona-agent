@@ -19,7 +19,7 @@ function change(seq: number): SessionChange {
 
 /** 造快照 */
 function snapshot(latestSeq: number): SyncSnapshot {
-  return { latestSeq, sessions: [] };
+  return { latestSeq, sessions: [], agents: [] };
 }
 
 /**
