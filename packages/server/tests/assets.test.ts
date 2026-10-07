@@ -1,6 +1,6 @@
 /**
  * @fileoverview 素材哈希链集成测试。
- * 覆盖 getFileHash 工具、立绘列表哈希下发、三类图片 GET 的永久缓存头
+ * 覆盖 getFileHash 工具、立绘列表哈希下发、三类图片 GET 的条件缓存头
  * 与 agent 响应的 avatarHash 附加。
  */
 
@@ -187,49 +187,67 @@ describe('Assets Hash Integration Tests', () => {
     });
   });
 
-  /** 永久缓存响应头测试 */
-  describe('immutable cache headers', () => {
-    it('should serve avatar with immutable header', async () => {
+  /** 条件缓存响应头测试，带 h 与不带 h 的双口径 */
+  describe('hashed cache headers', () => {
+    it('should serve avatar with conditional cache header', async () => {
       const agentId = await createTestAgent();
       const assetsDir = path.join(agentsDir, agentId, 'assets');
       fs.mkdirSync(assetsDir, { recursive: true });
       fs.writeFileSync(path.join(assetsDir, 'avatar.png'), 'avatar-bytes');
 
-      const res = await fetch(`${BASE_URL}/api/agents/${agentId}/avatar`);
-      expect(res.status).toBe(200);
-      expect(res.headers.get('cache-control')).toBe(
+      const hashed = await fetch(
+        `${BASE_URL}/api/agents/${agentId}/avatar?h=abc`
+      );
+      expect(hashed.status).toBe(200);
+      expect(hashed.headers.get('cache-control')).toBe(
         'public, max-age=31536000, immutable'
       );
+
+      const unhashed = await fetch(`${BASE_URL}/api/agents/${agentId}/avatar`);
+      expect(unhashed.status).toBe(200);
+      expect(unhashed.headers.get('cache-control')).toBe('no-cache');
     });
 
-    it('should serve pose image with immutable header', async () => {
+    it('should serve pose image with conditional cache header', async () => {
       const agentId = await createTestAgent();
       const poseDir = path.join(agentsDir, agentId, 'assets', 'pose');
       fs.mkdirSync(poseDir, { recursive: true });
       fs.writeFileSync(path.join(poseDir, 'default.png'), 'pose-bytes');
 
-      const res = await fetch(
-        `${BASE_URL}/api/agents/${agentId}/assets/pose/default`
+      const hashed = await fetch(
+        `${BASE_URL}/api/agents/${agentId}/assets/pose/default?h=abc`
       );
-      expect(res.status).toBe(200);
-      expect(res.headers.get('cache-control')).toBe(
+      expect(hashed.status).toBe(200);
+      expect(hashed.headers.get('cache-control')).toBe(
         'public, max-age=31536000, immutable'
       );
+
+      const unhashed = await fetch(
+        `${BASE_URL}/api/agents/${agentId}/assets/pose/default`
+      );
+      expect(unhashed.status).toBe(200);
+      expect(unhashed.headers.get('cache-control')).toBe('no-cache');
     });
 
-    it('should serve background with immutable header', async () => {
+    it('should serve background with conditional cache header', async () => {
       const agentId = await createTestAgent();
       const bgDir = path.join(agentsDir, agentId, 'assets', 'backgrounds');
       fs.mkdirSync(bgDir, { recursive: true });
       fs.writeFileSync(path.join(bgDir, 'background.png'), 'bg-bytes');
 
-      const res = await fetch(
-        `${BASE_URL}/api/agents/${agentId}/assets/background`
+      const hashed = await fetch(
+        `${BASE_URL}/api/agents/${agentId}/assets/background?h=abc`
       );
-      expect(res.status).toBe(200);
-      expect(res.headers.get('cache-control')).toBe(
+      expect(hashed.status).toBe(200);
+      expect(hashed.headers.get('cache-control')).toBe(
         'public, max-age=31536000, immutable'
       );
+
+      const unhashed = await fetch(
+        `${BASE_URL}/api/agents/${agentId}/assets/background`
+      );
+      expect(unhashed.status).toBe(200);
+      expect(unhashed.headers.get('cache-control')).toBe('no-cache');
     });
   });
 

@@ -20,7 +20,13 @@ import {
   getAgentAssetsBackgroundsDir,
 } from '../../util/paths.js';
 import { Logger } from '../../util/logger.js';
-import { asyncHandler, getParam, requireParam, imageUpload } from './utils.js';
+import {
+  asyncHandler,
+  getParam,
+  requireParam,
+  imageUpload,
+  setHashCacheControl,
+} from './utils.js';
 import { AppError } from '../../util/errors.js';
 import { getFileHash } from '../../util/asset-hash.js';
 
@@ -101,6 +107,7 @@ export function createAssetsRouter(): Router {
    *
    * 根据 URL 中的 name 参数在 pose 目录中匹配文件名，
    * 找到后以流式响应返回图片，自动设置对应的 Content-Type。
+   * 带 h 参数回永久缓存头，不带退 no-cache。
    *
    * @returns 图片文件流，或 404/400/500 错误 JSON
    */
@@ -120,7 +127,7 @@ export function createAssetsRouter(): Router {
       const contentType = MIME_MAP[ext] || 'application/octet-stream';
 
       res.setHeader('Content-Type', contentType);
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      setHashCacheControl(res, typeof req.query['h'] === 'string');
       fs.createReadStream(filePath).pipe(res);
     })
   );
@@ -225,7 +232,7 @@ export function createAssetsRouter(): Router {
    * GET /background — 获取指定 Agent 的背景图片。
    *
    * 从 Agent 的 backgrounds 目录中找到第一个图片文件并以流式响应返回。
-   * 响应头永久有效，客户端以 URL 里的内容哈希作为缓存身份。
+   * 带 h 参数回永久缓存头，不带退 no-cache，客户端以 URL 里的内容哈希作为缓存身份。
    *
    * @returns 图片文件流，或 404/400/500 错误 JSON
    */
@@ -243,7 +250,7 @@ export function createAssetsRouter(): Router {
       const contentType = MIME_MAP[ext] || 'application/octet-stream';
 
       res.setHeader('Content-Type', contentType);
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      setHashCacheControl(res, typeof req.query['h'] === 'string');
       fs.createReadStream(filePath).pipe(res);
     })
   );

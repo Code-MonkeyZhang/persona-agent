@@ -10,7 +10,13 @@ import { Router } from 'express';
 import * as fs from 'node:fs';
 import { getAgentAssetsDir, getAgentAvatarPath } from '../../util/paths.js';
 import { Logger } from '../../util/logger.js';
-import { asyncHandler, getParam, requireParam, imageUpload } from './utils.js';
+import {
+  asyncHandler,
+  getParam,
+  requireParam,
+  imageUpload,
+  setHashCacheControl,
+} from './utils.js';
 import { AppError } from '../../util/errors.js';
 import { processAvatar } from '../services/avatar-processor.js';
 import { getFileHash } from '../../util/asset-hash.js';
@@ -30,7 +36,7 @@ export function createAvatarRouter(): Router {
    * GET / — 获取 Agent 头像图片。
    *
    * 从 Agent 的 assets 目录读取 avatar.png 并以流式响应返回。
-   * 响应头永久有效，客户端以 URL 里的内容哈希作为缓存身份。
+   * 带 h 参数回永久缓存头，不带退 no-cache，客户端以 URL 里的内容哈希作为缓存身份。
    *
    * @returns PNG 图片流，或 404/400 错误 JSON
    */
@@ -45,7 +51,7 @@ export function createAvatarRouter(): Router {
       }
 
       res.setHeader('Content-Type', 'image/png');
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      setHashCacheControl(res, typeof req.query['h'] === 'string');
       fs.createReadStream(avatarPath).pipe(res);
     })
   );

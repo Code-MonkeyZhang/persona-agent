@@ -86,3 +86,19 @@ export function requireParam(value: string | undefined, name: string): string {
   if (!value) throw new AppError(400, `${name} is required`);
   return value;
 }
+
+/**
+ * 按请求地址是否携带内容哈希设置图片响应的缓存头。
+ *
+ * - 带哈希的地址内容不变，回一年期 immutable，客户端可长期缓存
+ * - 不带哈希的地址没有长期缓存身份，退 no-cache 强制每次校验
+ *
+ * @param res - Express 响应对象
+ * @param hashed - 请求地址是否携带 h 参数
+ */
+export function setHashCacheControl(res: Response, hashed: boolean): void {
+  res.setHeader(
+    'Cache-Control',
+    hashed ? 'public, max-age=31536000, immutable' : 'no-cache'
+  );
+}
