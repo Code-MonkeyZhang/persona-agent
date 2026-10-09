@@ -4,6 +4,7 @@
  * Routes:
  * - GET    /api/agents              - List all agents
  * - GET    /api/agents/seed-status  - Initial agent seed status
+ * - POST   /api/agents/seed-status/onboarded - Mark first-run onboarding done
  * - GET    /api/agents/:id          - Get single agent
  * - POST   /api/agents              - Create agent
  * - PUT    /api/agents/:id          - Update agent
@@ -19,6 +20,7 @@ import {
   updateAgentConfig,
   deleteAgentConfig,
   readAgentSeedStatus,
+  markSeedOnboarded,
   AgentConfigInputSchema,
   AgentConfigUpdateSchema,
 } from '../../agent/index.js';
@@ -64,6 +66,14 @@ export function createAgentRouter(
     '/seed-status',
     asyncHandler('AGENT', 'Error getting seed status', (_req, res) => {
       res.json(readAgentSeedStatus());
+    })
+  );
+
+  /** POST /api/agents/seed-status/onboarded - 标记首启引导完成，幂等，返回最新状态 */
+  router.post(
+    '/seed-status/onboarded',
+    asyncHandler('AGENT', 'Error marking onboarded', (_req, res) => {
+      res.json(markSeedOnboarded());
     })
   );
 

@@ -16,6 +16,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, mock } from 'bun:test';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 
@@ -59,9 +60,8 @@ mock.module('../src/util/logger.js', () => ({
   },
 }));
 
-const { seedInitialAgent, readAgentSeedStatus } = await import(
-  '../src/agent/agent-seeder.js'
-);
+const { seedInitialAgent, readAgentSeedStatus, markSeedOnboarded } =
+  await import('../src/agent/agent-seeder.js');
 
 /** 备份并清理 env，保证测试间互不污染 */
 const savedTemplateDir = process.env['PERSONA_AGENT_TEMPLATE_DIR'];
@@ -76,7 +76,7 @@ beforeAll(() => {
 afterAll(() => {
   process.env['PERSONA_AGENT_TEMPLATE_DIR'] = savedTemplateDir;
   process.env['PERSONA_AGENT_LANG'] = savedLang;
-  fs.rmSync(tempDir, { recursive: true, force: true });
+  rmTempDir(tempDir);
 });
 
 beforeEach(() => {
@@ -94,6 +94,7 @@ describe('agent-seeder', () => {
 
     const status = readAgentSeedStatus();
     expect(status.seeded).toBe(true);
+    expect(status.onboarded).toBe(false);
     expect(status.template).toBe('arona-adult');
     expect(status.lang).toBe('zh-CN');
     expect(status.agentId).toBeTruthy();
@@ -236,5 +237,26 @@ describe('agent-seeder', () => {
 
     expect(readAgentSeedStatus().seeded).toBe(true);
     expect(fs.readdirSync(agentsDir).length).toBe(1);
+  });
+
+  it('marks onboarded after seeding and stays idempotent', () => {
+    seedInitialAgent();
+    expect(readAgentSeedStatus().onboarded).toBe(false);
+
+    const marked = markSeedOnboarded();
+    expect(marked.onboarded).toBe(true);
+    expect(readAgentSeedStatus().onboarded).toBe(true);
+
+    // 幂等：二次调用状态不变
+    const again = markSeedOnboarded();
+    expect(again.onboarded).toBe(true);
+    expect(readAgentSeedStatus()).toEqual(marked);
+  });
+
+  it('markSeedOnboarded is a no-op when not seeded', () => {
+    const status = markSeedOnboarded();
+    expect(status.seeded).toBe(false);
+    expect(status.onboarded).toBeUndefined();
+    expect(fs.existsSync(seedStatusPath)).toBe(false);
   });
 });

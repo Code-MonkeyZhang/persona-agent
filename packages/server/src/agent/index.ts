@@ -15,6 +15,7 @@ export { withAvatarHash, listAgentsWithHashes } from './agent-list.js';
 export {
   seedInitialAgent,
   readAgentSeedStatus,
+  markSeedOnboarded,
   resolveSeedLang,
 } from './agent-seeder.js';
 export {

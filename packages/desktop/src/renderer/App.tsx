@@ -65,9 +65,12 @@ import {
 } from './stores/viewStore';
 import { useTunnelStore } from './stores/tunnelStore';
 import { useAppPanelStore } from './stores/appPanelStore';
+import { useConnectionStore, currentDeviceKey } from './stores/connectionStore';
+import { LOCAL_DEVICE_ID } from '@shared/api';
 import { logger } from './lib/logger';
 import { cn } from './lib/utils';
-import { getSeedStatus } from './lib/api';
+import { getSeedStatus, markSeedOnboarded } from './lib/api';
+import { shouldAutoShowWizard } from './lib/landing';
 
 /**
  * 侧栏收合展开过渡的收尾延时，毫秒。
@@ -278,22 +281,49 @@ function AppContent() {
   }, [connectionStatus, loadProviders]);
 
   /**
-   * 首启向导触发：无 landing-completed 标记 且 seed-status 显示已播种
-   * 且播种 Agent 仍在列表（老用户 seeded=false → 永不弹）。
+   * 首启向导触发，编排角色，判断逻辑收敛在 shouldAutoShowWizard。
+   * 仅本机连接、seed-status 未引导、播种 Agent 仍在列表时弹出。
    * 在 loadAgents 完成后检查，保证播种 Agent 已进列表。
    */
   const agentsLoaded = useAgentStore((s) => s.agents.length > 0);
+  const connectionSnapshot = useConnectionStore((s) => s.snapshot);
   useEffect(() => {
-    if (connectionStatus !== 'connected' || !agentsLoaded) return;
-    if (localStorage.getItem('landing-completed')) return;
+    if (
+      connectionStatus !== 'connected' ||
+      !connectionSnapshot ||
+      !agentsLoaded
+    )
+      return;
+    const isLocal = currentDeviceKey(connectionSnapshot) === LOCAL_DEVICE_ID;
+    // 迁移桥接只对本机 server 做：补写 onboarded 成功即删旧标记，失败保留下次再试
+    if (localStorage.getItem('landing-completed')) {
+      if (isLocal) {
+        void markSeedOnboarded()
+          .then(() => {
+            localStorage.removeItem('landing-completed');
+            logger.info('[Landing] legacy mark bridged to server onboarded');
+          })
+          .catch((err) =>
+            logger.warn('[Landing] bridge legacy mark failed:', err)
+          );
+      }
+      return;
+    }
     let cancelled = false;
     void getSeedStatus()
       .then((status) => {
         if (cancelled) return;
-        const exists = useAgentStore
+        const seededAgentExists = useAgentStore
           .getState()
           .agents.some((a) => a.id === status.agentId);
-        if (status.seeded && status.agentId && exists) {
+        if (
+          shouldAutoShowWizard({
+            isLocalConnection: isLocal,
+            seed: status,
+            seededAgentExists,
+          }) &&
+          status.agentId
+        ) {
           logger.info(`[Landing] showing wizard for seeded agent`);
           useViewStore.getState().openLanding(status.agentId, 'first-run');
         }
@@ -304,7 +334,7 @@ function AppContent() {
     return () => {
       cancelled = true;
     };
-  }, [connectionStatus, agentsLoaded]);
+  }, [connectionStatus, connectionSnapshot, agentsLoaded]);
 
   /** 向导完成出口，首启与重放共用：切换到目标 Agent 并进入聊天视图 */
   const handleLandingComplete = async () => {
@@ -520,7 +550,7 @@ function AppContent() {
     <div className="h-full flex flex-col overflow-hidden bg-background">
       <TitleBar />
       <div className="flex-1 flex overflow-hidden min-h-0">
-        <AgentSidebar connectionStatus={connectionStatus} />
+        <AgentSidebar />
         <div className="flex-1 flex min-h-0 min-w-0">
           {currentView === 'settings' ? (
             <SettingsPage />
