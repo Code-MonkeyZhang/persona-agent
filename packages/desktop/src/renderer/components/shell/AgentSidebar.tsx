@@ -1,22 +1,31 @@
 /**
  * @file src/renderer/components/shell/AgentSidebar.tsx
- * @description 左侧 Agent 列表侧边栏，展示所有 Agent 头像、添加按钮、服务管理和设置入口。
+ * @description 左侧 Agent 列表侧边栏，展示所有 Agent 头像、添加按钮、设备入口、远程访问入口和设置入口。
  * 选中态使用 framer-motion 共享布局动画，切换 Agent 时白色卡片和蓝色竖条弹性滑动。
+ * 两颗连接入口用图标本身的颜色做指示：设备图标跟当前连接，云朵图标跟本机隧道。
  */
 import React, { useState } from 'react';
-import { Settings, Plus, Compass, MonitorSmartphone } from 'lucide-react';
+import {
+  Settings,
+  Plus,
+  Compass,
+  MonitorSmartphone,
+  Cloud,
+  Loader2,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { useAgentStore } from '../../stores/agentStore';
 import { useViewStore } from '../../stores/viewStore';
 import { useTunnelStore } from '../../stores/tunnelStore';
+import { useConnectionStore } from '../../stores/connectionStore';
 import { AgentAvatar } from '../common/AgentAvatar';
 import { ServerManagerModal } from './ServerManagerModal';
+import { DeviceListPopover } from './DeviceListPopover';
+import { DeviceManageModal } from './DeviceManageModal';
 
-interface AgentSidebarProps {
-  connectionStatus: 'connected' | 'connecting' | 'disconnected';
-}
+interface AgentSidebarProps {}
 
 /** 选中态白色卡片和蓝色竖条的弹簧动画参数 */
 const springTransition = {
@@ -25,69 +34,22 @@ const springTransition = {
   damping: 35,
 };
 
-/** 左下角图标五色态 */
-type IconStatus =
-  | 'server_down'
-  | 'tunnel_off'
-  | 'tunnel_unhealthy'
-  | 'waiting_for_mobile'
-  | 'all_good';
-
-const iconConfig: Record<IconStatus, { color: string; titleKey: string }> = {
-  server_down: { color: 'text-red-400', titleKey: 'server.disconnected' },
-  tunnel_off: { color: 'text-gray-400', titleKey: 'server.tunnelNotStarted' },
-  tunnel_unhealthy: {
-    color: 'text-orange-500',
-    titleKey: 'server.tunnelUnreachable',
-  },
-  waiting_for_mobile: {
-    color: 'text-yellow-500',
-    titleKey: 'server.waitingForPhone',
-  },
-  all_good: { color: 'text-green-500', titleKey: 'server.allConnected' },
-};
-
-/**
- * 根据本地连接、隧道状态、健康度和手机在线状态推导图标状态。
- * 判断优先级：本地服务器 > 隧道开启 > 隧道健康 > 手机在线
- */
-function deriveIconStatus(
-  connectionStatus: 'connected' | 'connecting' | 'disconnected',
-  tunnelStatus: string,
-  tunnelHealth: string,
-  mobileOnline: boolean
-): IconStatus {
-  if (connectionStatus !== 'connected') return 'server_down';
-  if (tunnelStatus !== 'running') return 'tunnel_off';
-  if (tunnelHealth === 'unhealthy') return 'tunnel_unhealthy';
-  if (!mobileOnline) return 'waiting_for_mobile';
-  return 'all_good';
-}
-
 /**
  * Agent 列表侧边栏组件，渲染 Agent 头像列表并提供切换和添加操作。
  * 选中 Agent 时通过 framer-motion layoutId 实现弹性滑动切换动画。
- * @param props.connectionStatus - 当前后端服务连接状态
  */
-export const AgentSidebar: React.FC<AgentSidebarProps> = ({
-  connectionStatus,
-}) => {
+export const AgentSidebar: React.FC<AgentSidebarProps> = () => {
   const { t } = useTranslation();
   const { agents, currentAgent, switchAgent } = useAgentStore();
   const { currentView, setView, openAgentEditor } = useViewStore();
+  const [devicePopoverOpen, setDevicePopoverOpen] = useState(false);
+  const [deviceManageOpen, setDeviceManageOpen] = useState(false);
   const [serverModalOpen, setServerModalOpen] = useState(false);
 
   const tunnelStatus = useTunnelStore((s) => s.status);
-  const tunnelHealth = useTunnelStore((s) => s.health);
-  const mobileOnline = useTunnelStore((s) => s.mobileDeviceIds.size > 0);
-
-  const iconStatus = deriveIconStatus(
-    connectionStatus,
-    tunnelStatus,
-    tunnelHealth,
-    mobileOnline
+  const currentStatus = useConnectionStore(
+    (s) => s.snapshot?.current.status ?? 'connecting'
   );
-  const config = iconConfig[iconStatus];
 
   /** 点击 Agent 头像切换到对应 Agent，如果在非聊天视图则同时切回聊天 */
   const handleAgentClick = async (id: string) => {
@@ -166,20 +128,56 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = ({
         >
           <Compass className="w-5 h-5" />
         </button>
+
+        {/* 设备入口：图标颜色跟出站连接，点开设备清单浮层 */}
+        <div className="relative">
+          <button
+            onClick={() => setDevicePopoverOpen((v) => !v)}
+            title={t('device.title')}
+            className={cn(
+              'w-full flex flex-col items-center py-2 rounded transition-colors hover:bg-muted',
+              currentStatus === 'connected'
+                ? 'text-green-500'
+                : currentStatus === 'connecting'
+                  ? 'text-yellow-500'
+                  : 'text-red-500'
+            )}
+          >
+            {currentStatus === 'connecting' ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <MonitorSmartphone className="w-5 h-5" />
+            )}
+          </button>
+          {devicePopoverOpen && (
+            <DeviceListPopover
+              onClose={() => setDevicePopoverOpen(false)}
+              onOpenDeviceManage={() => setDeviceManageOpen(true)}
+            />
+          )}
+        </div>
+
+        {/* 远程访问入口：图标颜色跟入站隧道，本机服务端常驻随时可操作 */}
         <button
           onClick={() => setServerModalOpen(true)}
-          title={t(config.titleKey)}
+          title={t('server.remoteAccessTitle')}
           className={cn(
-            'w-full flex flex-col items-center py-2 rounded transition-colors',
-            'text-muted-foreground hover:bg-muted'
+            'w-full flex flex-col items-center py-2 rounded transition-colors hover:bg-muted',
+            tunnelStatus === 'running'
+              ? 'text-green-500'
+              : 'text-muted-foreground'
           )}
         >
-          <MonitorSmartphone className={cn('w-5 h-5', config.color)} />
+          <Cloud className="w-5 h-5" />
         </button>
+
+        <DeviceManageModal
+          isOpen={deviceManageOpen}
+          onClose={() => setDeviceManageOpen(false)}
+        />
         <ServerManagerModal
           isOpen={serverModalOpen}
           onClose={() => setServerModalOpen(false)}
-          connectionStatus={connectionStatus}
         />
         <button
           onClick={handleOpenSettings}
