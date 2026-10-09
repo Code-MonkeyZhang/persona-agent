@@ -9,6 +9,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { createServer, type Server } from 'http';
 import * as net from 'node:net';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { WebSocket, type RawData } from 'ws';
@@ -147,7 +148,7 @@ describe('WebSocket Device Identity', () => {
     httpServer.closeAllConnections?.();
     await new Promise<void>((resolve) => httpServer.close(() => resolve()));
     closeDb();
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   it('device_online broadcast when second device registers', async () => {

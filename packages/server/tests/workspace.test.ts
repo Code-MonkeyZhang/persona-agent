@@ -14,6 +14,7 @@ import {
   mock,
 } from 'bun:test';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 
@@ -93,7 +94,7 @@ describe('resolveWorkspaceDir', () => {
   });
 
   afterAll(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   /** 每个用例独立的候选目录 */
@@ -179,7 +180,7 @@ describe('persistResolvedWorkspace', () => {
   });
 
   afterAll(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   beforeEach(() => {

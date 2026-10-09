@@ -27,6 +27,7 @@ import {
   mock,
 } from 'bun:test';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { McpMarketplaceEntrySchema } from '@persona/shared';
@@ -161,7 +162,7 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-  fs.rmSync(tempDir, { recursive: true, force: true });
+  rmTempDir(tempDir);
 });
 
 beforeEach(async () => {

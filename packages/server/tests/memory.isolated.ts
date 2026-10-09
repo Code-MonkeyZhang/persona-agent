@@ -20,6 +20,7 @@ import {
   mock,
 } from 'bun:test';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 
@@ -79,7 +80,7 @@ describe('MemoryStore', () => {
   });
 
   afterAll(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   beforeEach(() => {
@@ -142,7 +143,7 @@ describe('consolidateMemory', () => {
   });
 
   afterAll(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   beforeEach(() => {

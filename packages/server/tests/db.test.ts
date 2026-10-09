@@ -4,6 +4,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, mock } from 'bun:test';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 
@@ -40,7 +41,7 @@ describe('db bootstrap', () => {
 
   afterAll(() => {
     closeDb();
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   /** 测试九张表全部建齐 */

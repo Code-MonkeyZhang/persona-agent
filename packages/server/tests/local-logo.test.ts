@@ -9,6 +9,7 @@ import express, { type Express } from 'express';
 import { createServer, type Server } from 'http';
 import * as net from 'node:net';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 
@@ -98,7 +99,7 @@ describe('resolveLocalLogoFile', () => {
   });
 
   afterAll(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   it('resolves by the logoFile field when the file exists', () => {
@@ -171,7 +172,7 @@ describe('install meta logoFile roundtrip', () => {
   });
 
   afterAll(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   it('keeps logoFile through writeSkillMeta and loadSkillFile', () => {
@@ -244,7 +245,7 @@ describe('logo routes', () => {
 
   afterAll(() => {
     server.close();
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   it('serves the skill logo with immutable cache when h is present', async () => {

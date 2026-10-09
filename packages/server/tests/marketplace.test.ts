@@ -13,6 +13,7 @@ import {
   mock,
 } from 'bun:test';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import type { MarketplaceEntry } from '@persona/shared';
@@ -106,7 +107,7 @@ describe('downloadSkill', () => {
 
   afterAll(() => {
     globalThis.fetch = realFetch;
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   beforeEach(() => {

@@ -14,6 +14,7 @@ import {
 import express, { type Express } from 'express';
 import { createServer, type Server } from 'http';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as net from 'node:net';
@@ -151,7 +152,7 @@ describe('Session Module Integration Tests', () => {
   afterAll(async () => {
     httpServer.close();
     closeDb();
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   /** SessionStore 测试 */

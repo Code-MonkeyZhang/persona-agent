@@ -15,6 +15,7 @@ import {
 import express, { type Express } from 'express';
 import { createServer, type Server } from 'http';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as net from 'node:net';
@@ -123,7 +124,7 @@ describe('Agent Module Integration Tests', () => {
   /** 清理测试环境：关闭服务器、删除临时目录 */
   afterAll(async () => {
     httpServer.close();
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   /** 测试套件：Agent Store 函数 */
