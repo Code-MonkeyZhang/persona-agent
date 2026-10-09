@@ -32,6 +32,9 @@ const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite') as {
 /** 缓存 kv 里的变更流游标键 */
 const CURSOR_KEY = 'sync_cursor';
 
+/** 缓存 kv 里的镜像来源主机键 */
+const SOURCE_HOST_KEY = 'source_host_id';
+
 /** 缓存里会话行的 meta 载荷，SessionMeta 全量外加 turnEnds 边界快照 */
 type SessionBlob = SessionMeta & { turnEnds?: number[] };
 
@@ -74,13 +77,17 @@ type SessionUpdatedData = SessionMeta & {
  */
 export class CacheDb {
   private readonly db: DatabaseSyncType;
+  /** 镜像来源主机的标识，reset 清空 kv 后补写回 */
+  private readonly sourceHostId: string;
   /** 写操作完成后的通知回调，由 IPC 层挂载 */
   onChanged: (() => void) | null = null;
 
   constructor(
     dbPath: string,
+    sourceHostId: string,
     private readonly log: (message: string) => void = () => {}
   ) {
+    this.sourceHostId = sourceHostId;
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
     this.db = new DatabaseSync(dbPath);
     this.db.exec('PRAGMA journal_mode = WAL');
@@ -111,6 +118,10 @@ export class CacheDb {
       CREATE INDEX IF NOT EXISTS idx_messages_session
         ON messages (session_id, seq);
     `);
+    // 来源主机只在空库落章，已有来源不覆盖，来源错配检测的依据
+    this.db
+      .prepare('INSERT OR IGNORE INTO kv (key, value) VALUES (?, ?)')
+      .run(SOURCE_HOST_KEY, sourceHostId);
   }
 
   /** 在事务里执行，异常回滚后原样抛出 */
@@ -126,24 +137,39 @@ export class CacheDb {
     }
   }
 
-  private getCursorValue(): number {
+  /** 读 kv 键值，缺失返回 null */
+  private getKv(key: string): string | null {
     const row = this.db
       .prepare('SELECT value FROM kv WHERE key = ?')
-      .get(CURSOR_KEY) as { value: string } | undefined;
-    return row ? Number(row.value) : 0;
+      .get(key) as { value: string } | undefined;
+    return row ? row.value : null;
   }
 
-  private setCursorValue(value: number): void {
+  /** 写 kv 键值，存在则覆盖 */
+  private setKv(key: string, value: string): void {
     this.db
       .prepare(
         'INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
       )
-      .run(CURSOR_KEY, String(value));
+      .run(key, value);
+  }
+
+  private getCursorValue(): number {
+    return Number(this.getKv(CURSOR_KEY) ?? 0);
+  }
+
+  private setCursorValue(value: number): void {
+    this.setKv(CURSOR_KEY, String(value));
   }
 
   /** 当前变更流游标，零表示尚未镜像 */
   getCursor(): number {
     return this.getCursorValue();
+  }
+
+  /** 镜像来源主机的标识，连接时与服务端握手比对，错配整库作废 */
+  getSourceHostId(): string | null {
+    return this.getKv(SOURCE_HOST_KEY);
   }
 
   /** 某角色的会话元信息列表，updatedAt 排序与服务端一致 */
@@ -228,6 +254,7 @@ export class CacheDb {
     this.transaction(() => {
       this.db.exec('DELETE FROM messages');
       this.db.exec('DELETE FROM sessions');
+      this.db.exec('DELETE FROM agents');
       const insertSession = this.db.prepare(
         'INSERT INTO sessions (id, agent_id, updated_at, meta) VALUES (?, ?, ?, ?)'
       );
@@ -252,10 +279,17 @@ export class CacheDb {
           );
         }
       }
+      // 角色清单随快照整体装载，离线可见与跨主机切换都依赖它
+      const insertAgent = this.db.prepare(
+        'INSERT INTO agents (id, data) VALUES (?, ?)'
+      );
+      for (const agent of snapshot.agents) {
+        insertAgent.run(agent.id, JSON.stringify(agent));
+      }
       this.setCursorValue(snapshot.latestSeq);
     });
     this.log(
-      `[Cache] Applied snapshot: ${snapshot.sessions.length} sessions latestSeq=${snapshot.latestSeq}`
+      `[Cache] Applied snapshot: ${snapshot.sessions.length} sessions ${snapshot.agents.length} agents latestSeq=${snapshot.latestSeq}`
     );
     this.onChanged?.();
   }
@@ -350,6 +384,9 @@ export class CacheDb {
         this.db.prepare('DELETE FROM sessions WHERE id = ?').run(sessionId);
         return;
       }
+      case 'agents_invalidated':
+        // 事件体不带增量数据，游标照常前进，渲染层收 WS 事件后整份重拉角色清单
+        return;
       default:
         this.log(
           `[Cache] Unknown change kind ${change.kind} seq=${change.seq}`
@@ -387,13 +424,14 @@ export class CacheDb {
     this.onChanged?.();
   }
 
-  /** 清空全部缓存数据，游标归零 */
+  /** 清空全部缓存数据，游标归零，来源主机标识保留 */
   reset(): void {
     this.transaction(() => {
       this.db.exec('DELETE FROM messages');
       this.db.exec('DELETE FROM sessions');
       this.db.exec('DELETE FROM agents');
       this.db.exec('DELETE FROM kv');
+      this.setKv(SOURCE_HOST_KEY, this.sourceHostId);
     });
     this.log('[Cache] Reset all cache data');
     this.onChanged?.();

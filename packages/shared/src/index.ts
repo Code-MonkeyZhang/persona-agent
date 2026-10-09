@@ -44,6 +44,7 @@ export {
   mixTurnEnds,
 } from './session-view.js';
 export type { SessionChange, ChangeKind } from './changes.js';
+export type { HandshakeInfo } from './handshake.js';
 export * from './ws.js';
 export type { ProviderStatus } from './provider.js';
 export type {

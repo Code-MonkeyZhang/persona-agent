@@ -65,7 +65,7 @@ function change(
 
 beforeAll(() => {
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cache-db-test-'));
-  db = new CacheDb(path.join(tempDir, 'desktop-cache.db'));
+  db = new CacheDb(path.join(tempDir, 'cache-local.db'), 'host-1');
 });
 
 afterAll(() => {
@@ -74,9 +74,10 @@ afterAll(() => {
 });
 
 describe('CacheDb', () => {
-  /** 测试空库游标为零读列表为空 */
-  it('should start with zero cursor and empty reads', () => {
+  /** 测试空库游标为零读列表为空，来源主机随开库登记 */
+  it('should start with zero cursor, empty reads and source host', () => {
     expect(db.getCursor()).toBe(0);
+    expect(db.getSourceHostId()).toBe('host-1');
     expect(db.listSessions('a1')).toEqual([]);
     expect(db.getSession('s1')).toBeNull();
   });
@@ -94,9 +95,29 @@ describe('CacheDb', () => {
     const task = snapSession(meta('t1', 'a1', { updatedAt: 20 }), [
       { seq: 3, message: { role: 'user', content: '任务' } },
     ]);
-    db.applySnapshot({ latestSeq: 30, sessions: [chat, task], agents: [] });
+    db.applySnapshot({
+      latestSeq: 30,
+      sessions: [chat, task],
+      agents: [
+        {
+          id: 'a1',
+          name: 'A1',
+          systemPrompt: '',
+          defaultModel: { provider: 'p', model: 'm' },
+          maxSteps: 5,
+          compressionThreshold: 50,
+          dreamIntervalMinutes: 120,
+          mcpNames: [],
+          skillNames: [],
+          createdAt: 1,
+          updatedAt: 1,
+          avatarHash: 'h1',
+        },
+      ],
+    });
 
     expect(db.getCursor()).toBe(30);
+    expect(db.listAgents()).toHaveLength(1);
     const sessions = db.listSessions('a1');
     expect(sessions.map((s) => s.id)).toEqual(['t1', 'chat-a1']);
     expect(sessions[1].lastMessage).toBe('在的');
@@ -205,10 +226,30 @@ describe('CacheDb', () => {
     expect(db.listAgents()).toEqual([]);
   });
 
-  /** 测试 reset 清空数据游标归零 */
-  it('should reset all data and cursor', () => {
+  /** 测试快照装载 agents_invalidated 推进游标不带数据 */
+  it('should advance cursor on agents_invalidated without data', () => {
+    db.applyChanges([change(34, 'agents_invalidated', null, {})]);
+    expect(db.getCursor()).toBe(34);
+  });
+
+  /** 测试再次开库不覆盖已有来源标识，错配检测的依据 */
+  it('should keep stamped source host on reopen', () => {
+    db.close();
+    const reopened = new CacheDb(
+      path.join(tempDir, 'cache-local.db'),
+      'host-2'
+    );
+    expect(reopened.getSourceHostId()).toBe('host-1');
+    reopened.close();
+    // 重新打开供后续用例复用同一实例句柄
+    db = new CacheDb(path.join(tempDir, 'cache-local.db'), 'host-1');
+  });
+
+  /** 测试 reset 清空数据游标归零，来源主机标识保留 */
+  it('should reset all data and cursor but keep source host', () => {
     db.reset();
     expect(db.getCursor()).toBe(0);
     expect(db.listAgents()).toEqual([]);
+    expect(db.getSourceHostId()).toBe('host-1');
   });
 });
