@@ -1,19 +1,21 @@
 /**
  * @file renderer/components/WebSocketProvider.tsx
- * @description WebSocket 连接生命周期管理组件 - 负责建立、维护和断开与服务端的 WebSocket 连接
+ * @description WebSocket 连接生命周期管理 - 客户端角随当前连接收数据，主机角独立连本机收配对与手机事件
  */
-
 import { useEffect, useRef } from 'react';
 import {
   WebSocketClient,
   getBaseUrl,
   getSyncSnapshot,
   getSyncChanges,
+  invalidateBaseUrl,
 } from '../lib/api';
 import { SyncEngine } from '../lib/sync-engine';
 import { useChatStore } from '../stores/chatStore';
 import { useSessionStore } from '../stores/sessionStore';
+import { useAgentStore } from '../stores/agentStore';
 import { useTunnelStore } from '../stores/tunnelStore';
+import { useConnectionStore } from '../stores/connectionStore';
 import { toast } from '../stores/toastStore';
 import i18n from '../i18n';
 import { logger } from '../lib/logger';
@@ -27,10 +29,11 @@ interface WebSocketProviderProps {
 }
 
 /**
- * 管理 WebSocket 连接生命周期，挂载时建立连接，卸载时断开连接。
- * 连接建立后自动注册设备身份，监听手机上下线事件。
- * 同步引擎挂同一条连接：建立时追平缓存，change 推送交给引擎回放。
- * 缓存更新事件驱动会话与消息刷新。
+ * 管理两条 WebSocket 连接生命周期。
+ * 客户端角连当前连接，注册设备身份，同步引擎挂同一条连接，
+ * 收到连接变更后断开重连，重连成功即走既有的追平路径。
+ * 主机角独立连本机常驻服务端，不注册不随切换断开，
+ * 只收配对提示与手机上下线事件，被人连的方向与当前连谁无关。
  */
 export function WebSocketProvider({ children }: WebSocketProviderProps) {
   const clientRef = useRef<WebSocketClient | null>(null);
@@ -40,14 +43,16 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   );
   const setWsClient = useChatStore((state) => state.setWsClient);
 
+  // 客户端角：连当前连接，数据与同步的主通道
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
     let connectionUnsubscribe: (() => void) | undefined;
-    let pairUnsubscribe: (() => void) | undefined;
-    let deviceUnsubscribe: (() => void) | undefined;
     let syncUnsubscribe: (() => void) | undefined;
+    let hostChangeUnsubscribe: (() => void) | undefined;
     let cacheUnsubscribe: (() => void) | undefined;
     let cacheRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+    useConnectionStore.getState().init();
 
     const client = new WebSocketClient(getBaseUrl, {
       deviceId: getOrCreateDeviceId(),
@@ -70,28 +75,11 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     unsubscribe = client.onMessage(handleWsMessage);
 
     syncUnsubscribe = client.onMessage((msg) => {
-      if (msg.type === 'change') {
-        engine.onChange(msg.change);
-      }
-    });
-
-    pairUnsubscribe = client.onMessage((msg) => {
-      if (msg.type === 'pair_request') {
-        logger.info(`[WebSocket] PairRequest from ${msg.deviceName}`);
-        toast.success(
-          i18n.t('server.deviceConnected', { deviceName: msg.deviceName })
-        );
-      }
-    });
-
-    deviceUnsubscribe = client.onMessage((msg) => {
-      if (msg.type === 'device_online' && msg.device.deviceType === 'mobile') {
-        logger.info(
-          `[WebSocket] Mobile device online: ${msg.device.deviceName}`
-        );
-        useTunnelStore.getState().addMobileDevice(msg.device.deviceId);
-      } else if (msg.type === 'device_offline') {
-        useTunnelStore.getState().removeMobileDevice(msg.deviceId);
+      if (msg.type !== 'change') return;
+      engine.onChange(msg.change);
+      // 事件体不带增量数据，整份重拉角色清单
+      if (msg.change.kind === 'agents_invalidated') {
+        void useAgentStore.getState().loadAgents();
       }
     });
 
@@ -103,6 +91,18 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       if (connected) {
         engine.sync();
       }
+    });
+
+    // 连接变更先断开旧连接，地址缓存回填后再重连，新地址由 urlProvider 重取
+    hostChangeUnsubscribe = window.api?.onConnectionChanged((snapshot) => {
+      logger.info(
+        `[WebSocket] Following connection to ${snapshot.current.hostId}`
+      );
+      client.disconnect();
+      void invalidateBaseUrl().then(() => {
+        client.connect();
+        void useAgentStore.getState().loadAgents();
+      });
     });
 
     // 缓存更新驱动界面刷新，去抖合并写风暴，生成中的会话跳过消息重载
@@ -127,10 +127,9 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 
     return () => {
       unsubscribe?.();
-      pairUnsubscribe?.();
-      deviceUnsubscribe?.();
       syncUnsubscribe?.();
       connectionUnsubscribe?.();
+      hostChangeUnsubscribe?.();
       cacheUnsubscribe?.();
       if (cacheRefreshTimer) clearTimeout(cacheRefreshTimer);
       clientRef.current?.disconnect();
@@ -138,6 +137,46 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       setWsClient(null);
     };
   }, [handleWsMessage, setConnectionStatus, setWsClient]);
+
+  // 主机角：独立连本机常驻服务端，只听不注册
+  useEffect(() => {
+    let pairUnsubscribe: (() => void) | undefined;
+    let deviceUnsubscribe: (() => void) | undefined;
+
+    const hostClient = new WebSocketClient(async () => {
+      const snapshot = await window.api?.getConnection();
+      // 本机未就绪时指向不可达地址，重连退避等它起来
+      return snapshot?.local.address ?? 'http://localhost:0';
+    });
+
+    pairUnsubscribe = hostClient.onMessage((msg) => {
+      if (msg.type === 'pair_request') {
+        logger.info(`[WebSocket] PairRequest from ${msg.deviceName}`);
+        toast.success(
+          i18n.t('server.deviceConnected', { deviceName: msg.deviceName })
+        );
+      }
+    });
+
+    deviceUnsubscribe = hostClient.onMessage((msg) => {
+      if (msg.type === 'device_online' && msg.device.deviceType === 'mobile') {
+        logger.info(
+          `[WebSocket] Mobile device online: ${msg.device.deviceName}`
+        );
+        useTunnelStore.getState().addMobileDevice(msg.device.deviceId);
+      } else if (msg.type === 'device_offline') {
+        useTunnelStore.getState().removeMobileDevice(msg.deviceId);
+      }
+    });
+
+    hostClient.connect();
+
+    return () => {
+      pairUnsubscribe?.();
+      deviceUnsubscribe?.();
+      hostClient.disconnect();
+    };
+  }, []);
 
   return <>{children}</>;
 }

@@ -4,7 +4,13 @@
  */
 
 export const IPC = {
-  GET_SERVER_URL: 'get-server-url',
+  GET_CONNECTION: 'get-connection',
+  GET_DEVICES: 'get-devices',
+  DEVICE_UPSERT: 'device:upsert',
+  DEVICE_RENAME: 'device:rename',
+  DEVICE_REMOVE: 'device:remove',
+  SWITCH_HOST: 'switch-host',
+  CONNECTION_CHANGED: 'connection:changed',
   SELECT_FOLDER: 'select-folder',
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_MAXIMIZE: 'window:maximize',

@@ -33,6 +33,7 @@ import type {
   AgentSeedStatus,
   SessionChange,
   SyncSnapshot,
+  HandshakeInfo,
 } from '@persona/shared';
 import { logger } from './logger';
 
@@ -70,22 +71,48 @@ function toProtocolUrl(hash: string, httpUrl: string): string {
 }
 
 /**
- * 获取 API 请求的基础 URL。通过 Electron IPC 查询主进程并缓存结果。
+ * 获取 API 请求的基础 URL。通过 Electron IPC 查询主进程当前连接并缓存结果。
  */
 export async function getBaseUrl(): Promise<string> {
   if (cachedBaseUrl) {
     return cachedBaseUrl;
   }
 
-  if (window.api?.getServerUrl) {
-    const url = await window.api.getServerUrl();
-    if (url) {
-      cachedBaseUrl = url;
-      return url;
+  if (window.api?.getConnection) {
+    const address = (await window.api.getConnection()).current.address;
+    if (address) {
+      cachedBaseUrl = address;
+      return address;
     }
   }
 
   return `http://localhost:${DEFAULT_PORT}`;
+}
+
+/**
+ * 失效地址缓存并以当前连接立即回填。
+ * 切换连接后调用，头像与素材地址这类同步读者不留 localhost 空窗。
+ */
+export async function invalidateBaseUrl(): Promise<string> {
+  cachedBaseUrl = null;
+  return getBaseUrl();
+}
+
+/**
+ * 取目标地址的握手信息。
+ * 地址不可达或响应异常时抛错，调用方据此给出明确提示。
+ */
+export async function fetchHandshake(address: string): Promise<HandshakeInfo> {
+  const base = address.replace(/\/+$/, '');
+  const response = await fetch(`${base}/api/handshake`);
+  if (!response.ok) {
+    throw new Error(`handshake failed with status ${response.status}`);
+  }
+  const info = (await response.json()) as HandshakeInfo;
+  if (!info.hostId || !info.hostName || !info.version) {
+    throw new Error('handshake response missing fields');
+  }
+  return info;
 }
 
 // DTO 类型已迁移至 @persona/shared
@@ -750,6 +777,25 @@ export async function getSeedStatus(): Promise<AgentSeedStatus> {
 }
 
 /**
+ * 标记首启引导完成，onboarded 翻 true。
+ * 仅在本机连接时调用，baseUrl 天然指向本机 server。
+ * @returns 更新后的播种状态
+ */
+export async function markSeedOnboarded(): Promise<AgentSeedStatus> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/agents/seed-status/onboarded`, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to mark onboarded: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
  * 根据 ID 获取单个 agent 的详细信息。
  * @param id - Agent ID
  * @returns agent 对象
@@ -1249,11 +1295,29 @@ interface TunnelStatusResponse {
 }
 
 /**
+ * 取本机常驻服务端地址。
+ * 隧道控制这类被人连的方向专用，不随连接切换漂移。
+ */
+export async function getLocalBaseUrl(): Promise<string> {
+  if (cachedLocalBaseUrl) {
+    return cachedLocalBaseUrl;
+  }
+  const snapshot = await window.api?.getConnection();
+  if (snapshot?.local.address) {
+    cachedLocalBaseUrl = snapshot.local.address;
+    return snapshot.local.address;
+  }
+  return `http://localhost:${DEFAULT_PORT}`;
+}
+
+let cachedLocalBaseUrl: string | null = null;
+
+/**
  * 启动远程隧道。
  * @returns 包含状态信息的对象
  */
 export async function startTunnel(): Promise<{ status: string }> {
-  const baseUrl = await getBaseUrl();
+  const baseUrl = await getLocalBaseUrl();
   const response = await fetch(`${baseUrl}/api/tunnel/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1271,7 +1335,7 @@ export async function startTunnel(): Promise<{ status: string }> {
  * @returns 是否成功停止
  */
 export async function stopTunnel(): Promise<{ success: boolean }> {
-  const baseUrl = await getBaseUrl();
+  const baseUrl = await getLocalBaseUrl();
   const response = await fetch(`${baseUrl}/api/tunnel/stop`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1289,7 +1353,7 @@ export async function stopTunnel(): Promise<{ success: boolean }> {
  * @returns 隧道状态信息
  */
 export async function getTunnelStatus(): Promise<TunnelStatusResponse> {
-  const baseUrl = await getBaseUrl();
+  const baseUrl = await getLocalBaseUrl();
   const response = await fetch(`${baseUrl}/api/tunnel/status`, {
     method: 'GET',
     headers: { Accept: 'application/json' },

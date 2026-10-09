@@ -45,13 +45,68 @@ export interface UpdateProgress {
   percent: number;
 }
 
+/** 单条主机连接事实，address 为 null 表示尚未就绪 */
+export interface HostConnection {
+  hostId: string;
+  address: string | null;
+  status: 'connecting' | 'connected' | 'disconnected';
+}
+
+/** 连接事实快照，current 是当前连接，local 是本机常驻连接 */
+export interface ConnectionSnapshot {
+  current: HostConnection;
+  local: HostConnection;
+}
+
+/** switchHost 失败的机器可读错误码 */
+export type SwitchErrorCode =
+  | 'unreachable'
+  | 'handshake_failed'
+  | 'identity_mismatch';
+
+/** switchHost 的结果 */
+export type SwitchResult = { ok: true } | { ok: false; error: SwitchErrorCode };
+
+/** 设备清单里的本机固定标识 */
+export const LOCAL_DEVICE_ID = 'local';
+
+/** 设备清单条目，主进程 devices.json 的单条形状 */
+export interface DeviceEntry {
+  /** 本机固定为 local，远程主机为握手返回的 hostId */
+  hostId: string;
+  /** 用户改过的显示名，null 表示未改过 */
+  name: string | null;
+  /** 握手自称名，服务端 OS hostname，显示名顺序在自称名之前 */
+  hostName: string | null;
+  /** 最近一次成功连接的地址，本机为 null */
+  address: string | null;
+  /** 最近一次成功连接的时间戳，毫秒 */
+  lastConnectedAt: number | null;
+}
+
 /**
  * 暴露给渲染进程的 window.api 接口
  * preload/index.ts 的实现和 renderer/types/window.d.ts 的声明共同引用此接口
  */
 export interface WindowAPI {
   selectFolder: (options?: SelectFolderOptions) => Promise<string | null>;
-  getServerUrl: () => Promise<string | null>;
+  getConnection: () => Promise<ConnectionSnapshot>;
+  getDevices: () => Promise<DeviceEntry[]>;
+  upsertDevice: (entry: {
+    hostId: string;
+    hostName: string;
+    address: string;
+  }) => Promise<void>;
+  renameDevice: (hostId: string, name: string) => Promise<void>;
+  removeDevice: (hostId: string) => Promise<boolean>;
+  switchHost: (target: {
+    hostId: string;
+    address: string | null;
+  }) => Promise<SwitchResult>;
+  /** 连接变更推送，返回退订函数 */
+  onConnectionChanged: (
+    callback: (snapshot: ConnectionSnapshot) => void
+  ) => () => void;
   log: (level: string, ...args: unknown[]) => Promise<void>;
   /** 运行时切换主进程文件日志开关，与 enableLogging 配置联动 */
   setLoggingEnabled: (enabled: boolean) => Promise<void>;
