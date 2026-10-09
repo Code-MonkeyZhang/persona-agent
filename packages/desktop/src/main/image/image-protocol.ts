@@ -30,21 +30,21 @@ export function registerImageSchemePrivileges(): void {
 /**
  * 挂载协议处理器。
  * 哈希格式与 src 来源不过关直接拒掉，协议不做开放代理，
- * src 只认当前服务端地址，getServerUrl 为空时同样拒绝。
+ * src 只认当前连接的主机地址，连接未就绪时同样拒绝。
  * @param cache - 图片缓存实例
- * @param getServerUrl - 取当前服务端地址的函数，src 前缀校验依据
+ * @param getConnectionAddress - 取当前连接地址的函数，src 前缀校验依据
  */
 export function registerImageProtocol(
   cache: ImageCache,
-  getServerUrl: () => string | null
+  getConnectionAddress: () => string | null
 ): void {
   protocol.handle(SCHEME, async (request) => {
     const url = new URL(request.url);
     const hash = url.hostname;
     const src = url.searchParams.get('src') ?? '';
-    const serverUrl = getServerUrl();
+    const connectionAddress = getConnectionAddress();
 
-    if (!HASH_PATTERN.test(hash) || !src.startsWith(`${serverUrl}/`)) {
+    if (!HASH_PATTERN.test(hash) || !src.startsWith(`${connectionAddress}/`)) {
       log.warn(`Rejected persona-image request: ${request.url}`);
       return new Response('Rejected persona-image request', { status: 400 });
     }

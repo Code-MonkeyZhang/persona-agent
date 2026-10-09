@@ -6,11 +6,17 @@ import { startTunnel, stopTunnel, getTunnelStatus } from '@/lib/api';
  */
 const TEST_BASE_URL = 'http://localhost:9999';
 
+/** 构造连接事实快照，current 与 local 指向同一条就绪的本机连接 */
+const TEST_SNAPSHOT = {
+  current: { hostId: 'local', address: TEST_BASE_URL, status: 'connected' },
+  local: { hostId: 'local', address: TEST_BASE_URL, status: 'connected' },
+};
+
 function setupWindowApi() {
   Object.defineProperty(globalThis, 'window', {
     value: {
       api: {
-        getServerUrl: vi.fn().mockResolvedValue(TEST_BASE_URL),
+        getConnection: vi.fn().mockResolvedValue(TEST_SNAPSHOT),
       },
     },
     writable: true,
