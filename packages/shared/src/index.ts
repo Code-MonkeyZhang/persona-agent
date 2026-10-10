@@ -31,16 +31,31 @@ export type {
   Message,
 } from './schema.js';
 export type { SessionMeta, Session } from './session.js';
+export type {
+  SnapshotMessage,
+  SnapshotSession,
+  SnapshotAgent,
+  SyncSnapshot,
+} from './session.js';
 export { buildPreviewText } from './preview.js';
+export {
+  messagePreviewText,
+  deriveSessionPreview,
+  mixTurnEnds,
+} from './session-view.js';
+export type { SessionChange, ChangeKind } from './changes.js';
+export type { HandshakeInfo } from './handshake.js';
 export * from './ws.js';
 export type { ProviderStatus } from './provider.js';
 export type {
   McpServerStatus,
   SupportedUI,
   McpServerInfo,
+  McpToolInfo,
+  McpConnectionType,
   McpOAuthStatus,
 } from './mcp.js';
-export type { SkillInfo } from './skill.js';
+export type { SkillInfo, SkillDetail } from './skill.js';
 export type { TtsModel, ClonedVoice, VoiceOption, TtsConfig } from './tts.js';
 export {
   MarketplaceEntrySchema,

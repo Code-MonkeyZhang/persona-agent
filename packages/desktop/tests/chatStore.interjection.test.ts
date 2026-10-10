@@ -36,7 +36,7 @@ vi.mock('@/lib/api', () => ({
 }));
 
 import { useChatStore } from '@/stores/chatStore';
-import { sendChatMessage, getSession } from '@/lib/api';
+import { sendChatMessage } from '@/lib/api';
 
 /** 广播一条待注入缓冲变化 */
 function broadcastPending(sessionId: string, pending: PendingInput[]): void {
@@ -235,9 +235,7 @@ describe('轮次缓冲组装', () => {
       .handleWsMessage({ type: 'round_complete', sessionId });
 
     const state = useChatStore.getState().sessionStates.get(sessionId)!;
-    expect(
-      state.messages.map((m) => `${m.type}:${m.content}`)
-    ).toEqual([
+    expect(state.messages.map((m) => `${m.type}:${m.content}`)).toEqual([
       'user:插话内容',
       'assistant:第一轮回复',
       'assistant:第二轮回复',
@@ -288,13 +286,14 @@ describe('轮次缓冲组装', () => {
     });
 
     const state = useChatStore.getState().sessionStates.get(sessionId)!;
-    expect(
-      state.messages.map((m) => `${m.type}:${m.content}`)
-    ).toEqual(['assistant:', 'error:API 调用失败']);
+    expect(state.messages.map((m) => `${m.type}:${m.content}`)).toEqual([
+      'assistant:',
+      'error:API 调用失败',
+    ]);
     expect(state.isLoading).toBe(false);
   });
 
-  it('空缓冲的 turn_complete 武装刷新标志，round_complete 后从磁盘整包刷新', async () => {
+  it('空缓冲的 turn_complete 武装刷新标志，round_complete 后从缓存整包刷新', async () => {
     const sessionId = 'armed-refresh';
     useChatStore.getState().initSessionState(sessionId, []);
     useChatStore.getState().setAgentId('agent-1');
@@ -305,10 +304,10 @@ describe('轮次缓冲组装', () => {
       .getState()
       .handleWsMessage({ type: 'turn_complete', sessionId });
     let state = useChatStore.getState().sessionStates.get(sessionId)!;
-    expect(state.armedDiskRefresh).toBe(true);
+    expect(state.armedCacheRefresh).toBe(true);
     expect(state.messages).toHaveLength(0);
 
-    vi.mocked(getSession).mockResolvedValue({
+    const cacheGetSession = vi.fn().mockResolvedValue({
       id: sessionId,
       agentId: 'agent-1',
       title: '测试会话',
@@ -317,13 +316,17 @@ describe('轮次缓冲组装', () => {
       model: { provider: 'openai', model: 'gpt-4' },
       messages: [],
     });
+    vi.stubGlobal('window', {
+      api: { cache: { getSession: cacheGetSession } },
+    });
     useChatStore
       .getState()
       .handleWsMessage({ type: 'round_complete', sessionId });
 
     state = useChatStore.getState().sessionStates.get(sessionId)!;
     expect(state.isLoading).toBe(false);
-    expect(state.armedDiskRefresh).toBe(false);
-    expect(getSession).toHaveBeenCalledWith('agent-1', sessionId);
+    expect(state.armedCacheRefresh).toBe(false);
+    expect(cacheGetSession).toHaveBeenCalledWith(sessionId);
+    vi.unstubAllGlobals();
   });
 });

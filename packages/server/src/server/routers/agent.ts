@@ -4,6 +4,7 @@
  * Routes:
  * - GET    /api/agents              - List all agents
  * - GET    /api/agents/seed-status  - Initial agent seed status
+ * - POST   /api/agents/seed-status/onboarded - Mark first-run onboarding done
  * - GET    /api/agents/:id          - Get single agent
  * - POST   /api/agents              - Create agent
  * - PUT    /api/agents/:id          - Update agent
@@ -12,12 +13,14 @@
 
 import { Router } from 'express';
 import {
-  listAgentConfigs,
+  listAgentsWithHashes,
+  withAvatarHash,
   getAgentConfig,
   createAgentConfig,
   updateAgentConfig,
   deleteAgentConfig,
   readAgentSeedStatus,
+  markSeedOnboarded,
   AgentConfigInputSchema,
   AgentConfigUpdateSchema,
 } from '../../agent/index.js';
@@ -53,7 +56,7 @@ export function createAgentRouter(
   router.get(
     '/',
     asyncHandler('AGENT', 'Error listing agents', (_req, res) => {
-      const agents = listAgentConfigs();
+      const agents = listAgentsWithHashes();
       res.json({ agents });
     })
   );
@@ -66,6 +69,14 @@ export function createAgentRouter(
     })
   );
 
+  /** POST /api/agents/seed-status/onboarded - 标记首启引导完成，幂等，返回最新状态 */
+  router.post(
+    '/seed-status/onboarded',
+    asyncHandler('AGENT', 'Error marking onboarded', (_req, res) => {
+      res.json(markSeedOnboarded());
+    })
+  );
+
   /** GET /api/agents/:id - Get a single agent config by ID */
   router.get(
     '/:id',
@@ -75,7 +86,7 @@ export function createAgentRouter(
       const agent = getAgentConfig(id);
       if (!agent) throw new AppError(404, 'Agent not found');
 
-      res.json({ agent });
+      res.json({ agent: withAvatarHash(agent) });
     })
   );
 
@@ -95,7 +106,7 @@ export function createAgentRouter(
       }
 
       Logger.log('AGENT', `Created agent: ${agent.id}`);
-      res.status(201).json({ agent });
+      res.status(201).json({ agent: withAvatarHash(agent) });
     })
   );
 
@@ -114,7 +125,7 @@ export function createAgentRouter(
 
       const agent = updateAgentConfig(id, result.data);
       Logger.log('AGENT', `Updated agent: ${id}`);
-      res.json({ agent });
+      res.json({ agent: withAvatarHash(agent) });
     })
   );
 
@@ -130,6 +141,13 @@ export function createAgentRouter(
       deleteAgentConfig(id);
 
       if (sessionManagers) {
+        // 删 agent 目录不再连带清会话，这里显式删掉该 agent 的全部会话行
+        const manager = sessionManagers.get(id);
+        if (manager) {
+          for (const meta of manager.listSessions()) {
+            manager.deleteSession(meta.id);
+          }
+        }
         sessionManagers.delete(id);
         Logger.log(
           'SERVER',

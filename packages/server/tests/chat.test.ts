@@ -16,6 +16,7 @@ import {
 import express, { type Express } from 'express';
 import { createServer, type Server } from 'http';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as net from 'node:net';
@@ -25,6 +26,7 @@ import { createSessionRouter } from '../src/server/routers/session.js';
 import { createChatRouter } from '../src/server/routers/chat.js';
 import { createProviderRouter, createAuthRouter } from '../src/server/routers/auth.js';
 import { initWebSocket, shutdownWebSocket } from '../src/server/websocket-server.js';
+import { closeDb } from '../src/db/index.js';
 import type { AgentConfig, AgentConfigInput } from '../src/agent/index.js';
 import type { Session } from '../src/session/types.js';
 
@@ -35,8 +37,13 @@ if (!TEST_API_KEY) {
     'Skipping chat integration tests: TEST_LLM_API_KEY not set. ' +
       'See packages/server/.env.test.example for setup instructions.'
   );
-  process.exit(0);
 }
+
+/**
+ * 未配置真实 LLM Key 时整套跳过。
+ * 用 skip 而不是 process.exit，退出进程会截断并行执行的其他测试文件，造成假绿。
+ */
+const chatDescribe = TEST_API_KEY ? describe : describe.skip;
 
 /** 测试配置 */
 const TEST_CONFIG = {
@@ -62,10 +69,10 @@ mock.module('../src/util/paths.js', () => ({
   getAgentAssetsDir: (id: string) => path.join(agentsDir, id, 'assets'),
   getAgentAssetsPoseDir: (id: string) => path.join(agentsDir, id, 'assets', 'pose'),
   getAgentAssetsBackgroundsDir: (id: string) => path.join(agentsDir, id, 'assets', 'backgrounds'),
-  getAgentSessionsDir: (id: string) => path.join(agentsDir, id, 'sessions'),
   getAgentMemoryDir: (id: string) => path.join(agentsDir, id, 'memory'),
   getWorkspaceDir: () => path.join(tempDir, 'workspace'),
   getAuthPath: () => authPath,
+  getDbPath: () => path.join(tempDir, 'persona.db'),
 }));
 
 /** 查找可用端口，避免端口冲突 */
@@ -148,7 +155,7 @@ async function createTestSession(agentId: string): Promise<string> {
   return session.id;
 }
 
-describe('Chat Module Integration Tests', () => {
+chatDescribe('Chat Module Integration Tests', () => {
   /** 初始化测试环境：创建临时目录、启动服务器 */
   beforeAll(async () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chat-test-'));
@@ -181,7 +188,8 @@ describe('Chat Module Integration Tests', () => {
   afterAll(async () => {
     shutdownWebSocket();
     httpServer.close();
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    closeDb();
+    rmTempDir(tempDir);
   });
 
   describe('HTTP API - Chat Routes', () => {
@@ -700,18 +708,8 @@ describe('Chat Module Integration Tests', () => {
             (m) => m.role === 'system' && (m as { turnEnd?: boolean }).turnEnd
           )
         ).toBe(false);
-
-        const filePath = path.join(
-          agentsDir,
-          agentId,
-          'sessions',
-          `${sessionId}.jsonl`
-        );
-        const hasMarker = fs
-          .readFileSync(filePath, 'utf8')
-          .split('\n')
-          .some((line) => line.includes('"type":"turn_end"'));
-        expect(hasMarker).toBe(false);
+        // 中止路径提前返回不写 turn_end，turnEnds 不产生条目
+        expect((session as { turnEnds?: number[] }).turnEnds).toBeUndefined();
       },
       TEST_CONFIG.timeout
     );

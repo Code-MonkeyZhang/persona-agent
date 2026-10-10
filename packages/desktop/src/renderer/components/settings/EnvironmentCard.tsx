@@ -15,7 +15,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { SettingRow } from '../common/SettingRow';
+import { SettingRow, HostChip } from '../common/SettingRow';
 import { ActionButton } from '../ui/ActionButton';
 import { Card } from '../ui/Card';
 import {
@@ -25,6 +25,10 @@ import {
   type BashStatus,
 } from '../../lib/api';
 import { isWin } from '../../lib/platform';
+import {
+  useCurrentDevice,
+  deviceDisplayName,
+} from '../../stores/connectionStore';
 
 const GIT_BASH_DOWNLOAD_URL = 'https://git-scm.com/download/win';
 
@@ -34,11 +38,20 @@ const GIT_BASH_DOWNLOAD_URL = 'https://git-scm.com/download/win';
 
 export const EnvironmentCard: React.FC = () => {
   const { t } = useTranslation();
+  const { entry, remote } = useCurrentDevice();
 
   return (
     <Card
       title={t('config.environment')}
       titleClassName="text-title-section font-semibold"
+      action={
+        <HostChip
+          label={
+            remote && entry ? deviceDisplayName(entry) : t('config.hostLocal')
+          }
+          remote={remote}
+        />
+      }
     >
       <div className="flex flex-col gap-4">
         {isWin && <GitBashRow />}

@@ -16,10 +16,17 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Logger } from '../util/logger.js';
 import { getSkillsDir } from '../util/paths.js';
-import { SkillMetaSchema, type Skill, type SkillInfo } from './types.js';
+import { produceLocalLogoUrl } from '../util/local-logo.js';
+import {
+  SkillMetaSchema,
+  type Skill,
+  type SkillInfo,
+  type SkillDetail,
+} from './types.js';
 
 const SKILL_FILE_NAME = 'SKILL.md';
 const FRONTMATTER_DELIMITER = '---';
+export const SKILL_META_FILE_NAME = 'skill-meta.json';
 
 /**
  * Parse YAML frontmatter from markdown content.
@@ -90,6 +97,7 @@ export function loadSkillFile(filePath: string): Skill | null {
     return {
       name: result.data.name,
       description: result.data.description ?? '',
+      ...readSkillMeta(path.dirname(filePath)),
       content: body,
       filePath,
       skillDir: path.dirname(filePath),
@@ -139,10 +147,92 @@ export function loadAllSkills(): Map<string, Skill> {
 
 /**
  * Convert a Skill to SkillInfo (for list API without full content).
+ * logoUrl walks the local-first chain, producing a hashed relative url when
+ * the logo file exists and falling back to the remote url recorded at install.
  */
 export function toSkillInfo(skill: Skill): SkillInfo {
   return {
     name: skill.name,
     description: skill.description,
+    displayName: skill.displayName,
+    author: skill.author,
+    logoUrl: produceLocalLogoUrl(
+      skill.skillDir,
+      skill,
+      `/api/skills/${skill.name}/logo`,
+      'SKILL',
+      skill.name
+    ),
+    location: skill.skillDir,
   };
+}
+
+/**
+ * Convert a Skill to SkillDetail, adding the full content for the single-skill API.
+ */
+export function toSkillDetail(skill: Skill): SkillDetail {
+  return {
+    ...toSkillInfo(skill),
+    content: skill.content,
+  };
+}
+
+/** Install-time metadata kept in skill-meta.json, written by the marketplace installer. */
+export interface SkillInstallMeta {
+  displayName?: string;
+  author?: string;
+  logoUrl?: string;
+  logoFile?: string;
+}
+
+/** Keys read back from skill-meta.json; anything else in the file is ignored. */
+const META_STRING_KEYS = [
+  'displayName',
+  'author',
+  'logoUrl',
+  'logoFile',
+] as const;
+
+/**
+ * Persist install-time metadata beside SKILL.md so the display name, author,
+ * and card icon URL survive after the manifest entry is discarded.
+ * The marketplace router builds the meta so this module stays independent
+ * of marketplace concerns.
+ */
+export function writeSkillMeta(destDir: string, meta: SkillInstallMeta): void {
+  fs.writeFileSync(
+    path.join(destDir, SKILL_META_FILE_NAME),
+    JSON.stringify(meta, null, 2)
+  );
+}
+
+/**
+ * Read optional install-time metadata placed beside SKILL.md.
+ * Returns undefined when the file is missing or invalid, so the skill stays usable.
+ */
+function readSkillMeta(skillDir: string): SkillInstallMeta | undefined {
+  try {
+    const metaPath = path.join(skillDir, SKILL_META_FILE_NAME);
+    if (!fs.existsSync(metaPath)) return undefined;
+
+    const raw = JSON.parse(fs.readFileSync(metaPath, 'utf-8')) as Record<
+      string,
+      unknown
+    >;
+    const meta: SkillInstallMeta = {};
+    for (const key of META_STRING_KEYS) {
+      const value = raw[key];
+      if (typeof value === 'string' && value.length > 0) {
+        meta[key] = value;
+      }
+    }
+    return meta;
+  } catch (error) {
+    Logger.log(
+      'SKILL',
+      `Failed to read skill metadata in ${skillDir}, skipping`,
+      error
+    );
+    return undefined;
+  }
 }

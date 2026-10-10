@@ -1,7 +1,7 @@
 /**
  * @fileoverview MCP 商城安装/卸载编排。
  *
- * installMcp：下载 → 读 mcp.json → 替换占位符 → 写用户配置 → 连接池注册。
+ * installMcp：下载 → 读 mcp.json → 替换占位符 → 写用户配置 → 写安装 meta → 连接池注册。
  * uninstallMcp：断连 + 出池 → 从配置删 → 删代码目录。
  */
 
@@ -11,8 +11,10 @@ import { readJsonFile } from '../util/fs-helpers.js';
 import { getMcpServersDir } from '../util/paths.js';
 import { downloadMcp } from './downloader.js';
 import { folderNameOf } from './util.js';
+import { cdnUrl } from './config.js';
 import { saveMcpServer, deleteMcpServer } from '../mcp/config.js';
 import { addServer, removeServer } from '../mcp/pool.js';
+import { writeMcpMeta } from '../mcp/meta.js';
 import { Logger } from '../util/logger.js';
 import { AppError } from '../util/errors.js';
 import { detectUv, syncDeps } from '../util/uv-runtime.js';
@@ -31,13 +33,21 @@ import type { McpServerConfig } from '../mcp/types.js';
  * serversDir 经 JSON.stringify 转义并去掉首尾引号后，得到可安全嵌入
  * JSON 字符串字面量的形式，使 Windows 路径的反斜杠被正确处理，避免
  * \U 等非法转义导致 JSON.parse 失败。
+ *
+ * 清单里的占位符统一用正斜杠拼接（${SERVERS_DIR}/xxx），Windows 上
+ * 替换后会把正斜杠一并替换为平台分隔符，保证产物是原生分隔符路径。
  */
 function substitutePlaceholders(
   config: McpServerConfig,
   serversDir: string
 ): McpServerConfig {
   const escaped = JSON.stringify(serversDir).slice(1, -1);
-  const str = JSON.stringify(config).replaceAll('${SERVERS_DIR}', escaped);
+  let str = JSON.stringify(config);
+  if (path.sep !== '/') {
+    const escapedSep = JSON.stringify(path.sep).slice(1, -1);
+    str = str.replaceAll('${SERVERS_DIR}/', escaped + escapedSep);
+  }
+  str = str.replaceAll('${SERVERS_DIR}', escaped);
   return JSON.parse(str) as McpServerConfig;
 }
 
@@ -93,6 +103,18 @@ export async function installMcp(entry: McpMarketplaceEntry): Promise<void> {
   // 写进用户的 mcp.json，持久化保证重启后能重连
   saveMcpServer(name, config);
   Logger.log('MARKETPLACE', `Saved config for '${name}' to user mcp.json`);
+
+  // 商城显示信息落盘，详情页的显示名作者与 logo 从这里来，
+  // logoFile 记本地文件名供图标走本地，logoUrl 保留作回退链
+  writeMcpMeta(mcpDir, {
+    displayName: entry.name,
+    author: entry.author,
+    description: entry.description,
+    homepage: entry.homepage,
+    logoUrl: entry.logo ? cdnUrl(entry.path, entry.logo) : undefined,
+    logoFile: entry.logo,
+  });
+  Logger.log('MARKETPLACE', `Saved install meta for '${name}'`);
 
   // uv sync 预装依赖，仅 command 为 uv 的 MCP 需要
   // 预装后 addServer 时 uv run 直接启动，不会超 60s 连接超时

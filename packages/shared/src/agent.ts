@@ -29,6 +29,11 @@ export const AgentConfigSchema = z.object({
   voiceId: z.string().optional(),
   voiceLanguage: z.string().optional(),
   /**
+   * 头像文件的内容哈希，服务端路由层按文件现算附加，不写进 config.json。
+   * 空串或缺失表示头像文件不存在，客户端走占位分支不发请求。
+   */
+  avatarHash: z.string().optional(),
+  /**
    * 商城来源标识, 格式 `owner/repo/template-folder`, 如 `Code-MonkeyZhang/persona-agent-marketplace/arona`。
    * 仅从商城安装时写入，手动创建的 Agent 没有此字段。
    * 用于商城卡片"已安装"判定和重复安装拦截。
@@ -49,6 +54,8 @@ export const AgentConfigInputSchema = AgentConfigSchema.omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  // avatarHash 由路由层按文件现算，进输入面会被写进 config.json
+  avatarHash: true,
 });
 
 /** Input type for creating/updating an Agent */
@@ -80,11 +87,14 @@ export type AgentConfigUpdate = z.infer<typeof AgentConfigUpdateSchema>;
 /**
  * 初始 Agent 播种状态（server config/agent-seed.json）。
  *
- * seeded 为核心布尔，其余字段自解释并为将来「模板升级重播」留门；
- * agentId 供渲染端判断播种 Agent 是否仍在列表（老用户不弹向导）。
+ * 双布尔各管一件事：seeded 记播种发生过没有，防止删除后复活；
+ * onboarded 记首启引导完成没有，由渲染端经回写端点翻转。
+ * 其余字段自解释并为将来「模板升级重播」留门；
+ * agentId 供渲染端判断播种 Agent 是否仍在列表。
  */
 export interface AgentSeedStatus {
   seeded: boolean;
+  onboarded?: boolean;
   template?: string;
   lang?: 'zh-CN' | 'en';
   agentId?: string;

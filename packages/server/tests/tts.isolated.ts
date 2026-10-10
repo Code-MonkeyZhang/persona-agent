@@ -25,6 +25,7 @@ import {
 import express, { type Express } from 'express';
 import { createServer, type Server } from 'http';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as net from 'node:net';
@@ -45,13 +46,13 @@ mock.module('../src/util/paths.js', () => ({
   getAgentAssetsDir: (id: string) => path.join(agentsDir, id, 'assets'),
   getAgentAssetsPoseDir: (id: string) => path.join(agentsDir, id, 'assets', 'pose'),
   getAgentAssetsBackgroundsDir: (id: string) => path.join(agentsDir, id, 'assets', 'backgrounds'),
-  getAgentSessionsDir: (id: string) => path.join(agentsDir, id, 'sessions'),
   getAgentMemoryDir: (id: string) => path.join(agentsDir, id, 'memory'),
   getWorkspaceDir: () => path.join(tempDir, 'workspace'),
   getAuthPath: () => authPath,
   getConfigDir: () => configDir,
   getConfigPath: () => configPath,
   getTtsConfigPath: () => ttsConfigPath,
+  getDbPath: () => path.join(tempDir, 'persona.db'),
 }));
 
 mock.module('../src/tts/minimax-api.js', () => ({
@@ -238,7 +239,7 @@ describe('TTS Integration Tests', () => {
   afterAll(async () => {
     shutdownWebSocket();
     httpServer.close();
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   describe('cleanText', () => {

@@ -49,6 +49,7 @@ import {
   Panel,
   ResizeSeparator,
   usePanelRef,
+  type PanelSize,
 } from './components/common/resizable';
 import { ToastContainer } from './components/Toast';
 import { WebSocketProvider } from './components/WebSocketProvider';
@@ -57,13 +58,19 @@ import { useSessionStore } from './stores/sessionStore';
 import { useAgentStore } from './stores/agentStore';
 import { useProviderStore } from './stores/providerStore';
 import { useCompanionStore } from './stores/companionStore';
-import { useViewStore } from './stores/viewStore';
+import {
+  SESSION_SIDEBAR_MAX_PX,
+  SESSION_SIDEBAR_MIN_PX,
+  useViewStore,
+} from './stores/viewStore';
 import { useTunnelStore } from './stores/tunnelStore';
 import { useAppPanelStore } from './stores/appPanelStore';
+import { useConnectionStore, currentDeviceKey } from './stores/connectionStore';
+import { LOCAL_DEVICE_ID } from '@shared/api';
 import { logger } from './lib/logger';
-import { appStorage } from './lib/appStorage';
 import { cn } from './lib/utils';
-import { getSeedStatus } from './lib/api';
+import { getSeedStatus, markSeedOnboarded } from './lib/api';
+import { shouldAutoShowWizard } from './lib/landing';
 
 /**
  * 侧栏收合展开过渡的收尾延时，毫秒。
@@ -90,11 +97,23 @@ function AppContent() {
     (s) => s.setSessionSidebarCollapsed
   );
 
+  /** 面板最新尺寸的缓存，onResize 持续更新，供用户拖拽结束时读取像素值 */
+  const sessionPanelSizeRef = useRef<PanelSize | null>(null);
+
+  /**
+   * Panel 尺寸变化回调，挂载、拖拽、窗口缩放与收合动画期间都会触发。
+   * 只写 ref 不落盘，真正的持久化时机由 handleLayoutChanged 把关。
+   */
+  const handleSessionPanelResize = useCallback((size: PanelSize) => {
+    sessionPanelSizeRef.current = size;
+  }, []);
+
   /**
    * 拖拽侧边栏分隔条时同步宽度到 viewStore，由 zustand persist 持久化。
    * 仅在用户实际操作后写入，避免初次挂载时把 Group 的 defaultLayout 又写回 store。
    * `LayoutChangedMeta.isUserInteraction === true` 时表示分隔条拖拽与键盘调整；
    * 初挂载、约束重算、defaultSize 应用、程序化收合展开都视为 false，不回写。
+   * 宽度单位是像素，Group 回调只报百分比，像素值取 onResize 缓存的 inPixels。
    * 拖到极限触发库自动收起时宽度归零，此时只同步收起态，零宽度不落盘。
    */
   const handleLayoutChanged = useCallback(
@@ -109,8 +128,12 @@ function AppContent() {
         setSessionSidebarCollapsed(true);
         return;
       }
-      if (next !== sessionSidebarWidth) {
-        setSessionSidebarWidth(next);
+      const px = sessionPanelSizeRef.current?.inPixels;
+      if (typeof px !== 'number') return;
+      const rounded = Math.round(px);
+      if (rounded !== sessionSidebarWidth) {
+        setSessionSidebarWidth(rounded);
+        logger.info(`[App] session sidebar width saved: ${rounded}px`);
       }
     },
     [sessionSidebarWidth, setSessionSidebarWidth, setSessionSidebarCollapsed]
@@ -225,8 +248,8 @@ function AppContent() {
     useAgentStore();
   const { providers, loadProviders } = useProviderStore();
 
-  /** 首启向导：播种 Agent 的 id（null = 不弹） */
-  const [landingAgentId, setLandingAgentId] = useState<string | null>(null);
+  /** 向导打开状态已提升进 viewStore，首启门控与设置页重放入口共用 */
+  const landing = useViewStore((s) => s.landing);
 
   /**
    * 删除指定 Agent
@@ -236,14 +259,17 @@ function AppContent() {
     await deleteAgentById(id);
   };
 
-  /*  定义连接成功后的useEffect操作
-  - 加载Agent列表
-  - 加载 Provider 列表
-  - 连接成功且选中 Agent 后，加载该 Agent 的会话列表
+  /*  启动与连接恢复后的加载操作
+  - Agent 列表挂载即加载，HTTP 失败时回退本地缓存，连接建立后再取新
+  - Provider 列表连接成功后加载
+  - 选中 Agent 后加载其会话列表，读本地缓存不依赖连接
   - 同步隧道状态（可能从上次 session 遗留 running）
   */
+  const agentsInitialLoadedRef = useRef(false);
   useEffect(() => {
-    if (connectionStatus === 'connected') {
+    // 挂载先试一次保离线可用，之后只在连接建立时重取
+    if (!agentsInitialLoadedRef.current || connectionStatus === 'connected') {
+      agentsInitialLoadedRef.current = true;
       loadAgents();
     }
   }, [connectionStatus, loadAgents]);
@@ -255,24 +281,51 @@ function AppContent() {
   }, [connectionStatus, loadProviders]);
 
   /**
-   * 首启向导触发：无 landing-completed 标记 且 seed-status 显示已播种
-   * 且播种 Agent 仍在列表（老用户 seeded=false → 永不弹）。
+   * 首启向导触发，编排角色，判断逻辑收敛在 shouldAutoShowWizard。
+   * 仅本机连接、seed-status 未引导、播种 Agent 仍在列表时弹出。
    * 在 loadAgents 完成后检查，保证播种 Agent 已进列表。
    */
   const agentsLoaded = useAgentStore((s) => s.agents.length > 0);
+  const connectionSnapshot = useConnectionStore((s) => s.snapshot);
   useEffect(() => {
-    if (connectionStatus !== 'connected' || !agentsLoaded) return;
-    if (appStorage.getItem('landing-completed')) return;
+    if (
+      connectionStatus !== 'connected' ||
+      !connectionSnapshot ||
+      !agentsLoaded
+    )
+      return;
+    const isLocal = currentDeviceKey(connectionSnapshot) === LOCAL_DEVICE_ID;
+    // 迁移桥接只对本机 server 做：补写 onboarded 成功即删旧标记，失败保留下次再试
+    if (localStorage.getItem('landing-completed')) {
+      if (isLocal) {
+        void markSeedOnboarded()
+          .then(() => {
+            localStorage.removeItem('landing-completed');
+            logger.info('[Landing] legacy mark bridged to server onboarded');
+          })
+          .catch((err) =>
+            logger.warn('[Landing] bridge legacy mark failed:', err)
+          );
+      }
+      return;
+    }
     let cancelled = false;
     void getSeedStatus()
       .then((status) => {
         if (cancelled) return;
-        const exists = useAgentStore
+        const seededAgentExists = useAgentStore
           .getState()
           .agents.some((a) => a.id === status.agentId);
-        if (status.seeded && status.agentId && exists) {
+        if (
+          shouldAutoShowWizard({
+            isLocalConnection: isLocal,
+            seed: status,
+            seededAgentExists,
+          }) &&
+          status.agentId
+        ) {
           logger.info(`[Landing] showing wizard for seeded agent`);
-          setLandingAgentId(status.agentId);
+          useViewStore.getState().openLanding(status.agentId, 'first-run');
         }
       })
       .catch(() => {
@@ -281,26 +334,28 @@ function AppContent() {
     return () => {
       cancelled = true;
     };
-  }, [connectionStatus, agentsLoaded]);
+  }, [connectionStatus, connectionSnapshot, agentsLoaded]);
 
-  /** 向导唯一出口：切换到播种 Agent 并进入聊天视图 */
+  /** 向导完成出口，首启与重放共用：切换到目标 Agent 并进入聊天视图 */
   const handleLandingComplete = async () => {
-    const agentId = landingAgentId;
-    setLandingAgentId(null);
+    const { landing, closeLanding, setView, setActiveNav } =
+      useViewStore.getState();
+    const agentId = landing.agentId;
+    closeLanding();
     if (!agentId) return;
-    const view = useViewStore.getState();
-    view.setView('chat');
-    view.setActiveNav('chat');
+    setView('chat');
+    setActiveNav('chat');
     if (useAgentStore.getState().currentAgent?.id !== agentId) {
       await switchAgent(agentId);
     }
   };
 
   useEffect(() => {
-    if (connectionStatus === 'connected' && currentAgent) {
+    if (currentAgent) {
+      // 读本地缓存即时渲染，同步引擎联网后经缓存更新事件刷新
       loadSessions(currentAgent.id);
     }
-  }, [connectionStatus, currentAgent, loadSessions]);
+  }, [currentAgent, loadSessions]);
 
   useEffect(() => {
     if (connectionStatus === 'connected') {
@@ -495,7 +550,7 @@ function AppContent() {
     <div className="h-full flex flex-col overflow-hidden bg-background">
       <TitleBar />
       <div className="flex-1 flex overflow-hidden min-h-0">
-        <AgentSidebar connectionStatus={connectionStatus} />
+        <AgentSidebar />
         <div className="flex-1 flex min-h-0 min-w-0">
           {currentView === 'settings' ? (
             <SettingsPage />
@@ -513,10 +568,12 @@ function AppContent() {
               >
                 <Panel
                   id="session-sidebar"
-                  defaultSize={`${sessionSidebarWidth}`}
-                  minSize="15"
-                  maxSize="30"
+                  defaultSize={`${sessionSidebarWidth}px`}
+                  minSize={`${SESSION_SIDEBAR_MIN_PX}px`}
+                  maxSize={`${SESSION_SIDEBAR_MAX_PX}px`}
+                  groupResizeBehavior="preserve-pixel-size"
                   collapsible
+                  onResize={handleSessionPanelResize}
                   panelRef={sessionPanelRef}
                 >
                   <SessionSidebar onNewChat={handleNewChat} />
@@ -616,10 +673,16 @@ function AppContent() {
         </div>
       </div>
       <ToastContainer />
-      {landingAgentId && (
+      {landing.agentId && (
         <LandingWizard
-          agentId={landingAgentId}
+          agentId={landing.agentId}
+          mode={landing.mode}
           onComplete={() => void handleLandingComplete()}
+          onClose={
+            landing.mode === 'replay'
+              ? () => useViewStore.getState().closeLanding()
+              : undefined
+          }
         />
       )}
     </div>

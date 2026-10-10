@@ -18,6 +18,8 @@ import {
 } from '../lib/api';
 import { logger } from '../lib/logger';
 import { appStorage } from '../lib/appStorage';
+import { toast } from './toastStore';
+import i18n from '../i18n';
 
 const LAST_AGENT_KEY = 'last-agent-id';
 interface AgentStore {
@@ -32,10 +34,17 @@ interface AgentStore {
     id: string,
     input: AgentConfigUpdate
   ) => Promise<AgentConfig>;
+  /** 重取单个 agent 补正 store 身份，头像上传后调用 */
+  refreshAgentById: (id: string) => Promise<void>;
   deleteAgentById: (id: string) => Promise<boolean>;
   setAvatarPreview: (id: string, base64: string) => void;
   removeAvatarPreview: (id: string) => void;
-  updateAgentMcpNames: (agentId: string, mcpNames: string[]) => Promise<void>;
+  assignSkill: (agentId: string, skillName: string) => Promise<void>;
+  unassignSkill: (agentId: string, skillName: string) => Promise<void>;
+  /** 给 Agent 追加一个 MCP 服务，已分配过则跳过，失败时 toast 提示 */
+  assignMcp: (agentId: string, mcpName: string) => Promise<void>;
+  /** 从 Agent 移除一个 MCP 服务，未分配则跳过，失败时 toast 提示 */
+  unassignMcp: (agentId: string, mcpName: string) => Promise<void>;
   updateAgentSkillNames: (
     agentId: string,
     skillNames: string[]
@@ -60,6 +69,8 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
         )
       );
       set({ agents });
+      // 角色列表进缓存，离线回退用
+      void window.api?.cache.putAgents(agents);
 
       if (agents.length > 0) {
         const lastAgentId = appStorage.getItem(LAST_AGENT_KEY);
@@ -81,6 +92,20 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
         '[AgentStore] loadAgents failed:',
         error instanceof Error ? error.stack : error
       );
+      // 离线回退：HTTP 失败时读缓存里的角色列表
+      try {
+        const cached = (await window.api?.cache.getAgents()) ?? [];
+        if (cached.length > 0) {
+          logger.info(
+            `[AgentStore] Falling back to ${cached.length} cached agents`
+          );
+          const lastAgentId = localStorage.getItem(LAST_AGENT_KEY);
+          const target = cached.find((a) => a.id === lastAgentId) ?? cached[0];
+          set({ agents: cached, currentAgent: target });
+        }
+      } catch {
+        // 缓存也不可用时保持现状
+      }
     }
   },
 
@@ -119,10 +144,29 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     return agent;
   },
 
+  /**
+   * 重取单个 agent 并同步进列表与 currentAgent。
+   * 新建角色上传头像后 POST 响应里的 avatarHash 已过期，靠这里补正身份。
+   */
+  refreshAgentById: async (id: string) => {
+    try {
+      const agent = await getAgent(id);
+      const { agents, currentAgent } = get();
+      set({
+        agents: agents.map((a) => (a.id === id ? agent : a)),
+        currentAgent: currentAgent?.id === id ? agent : currentAgent,
+      });
+    } catch (error) {
+      logger.error(`[AgentStore] refreshAgentById failed for ${id}:`, error);
+    }
+  },
+
   deleteAgentById: async (id: string) => {
     try {
       const success = await deleteAgent(id);
       if (success) {
+        // 角色删除不在变更流范围，缓存行显式清理
+        void window.api?.cache.deleteAgent(id);
         const { agents, currentAgent } = get();
         const newAgents = agents.filter((a) => a.id !== id);
         const isCurrentDeleted = currentAgent?.id === id;
@@ -157,13 +201,76 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     set({ agentAvatarPreviews: rest });
   },
 
-  /** 仅更新 Agent 的 MCP 工具分配 */
-  updateAgentMcpNames: async (agentId: string, mcpNames: string[]) => {
-    await get().updateAgentById(agentId, { mcpNames });
+  /** 给 Agent 追加一个 MCP 服务，已分配过则跳过，失败时 toast 提示 */
+  assignMcp: async (agentId, mcpName) => {
+    const agent = get().agents.find((a) => a.id === agentId);
+    if (!agent || agent.mcpNames.includes(mcpName)) return;
+    try {
+      await get().updateAgentById(agentId, {
+        mcpNames: [...agent.mcpNames, mcpName],
+      });
+      logger.info(`[AgentStore] Assigned MCP ${mcpName} to agent ${agentId}`);
+    } catch (err) {
+      logger.error(`[AgentStore] Failed to assign MCP ${mcpName}:`, err);
+      toast.error(i18n.t('tools.assignFailed'));
+    }
+  },
+
+  /** 从 Agent 移除一个 MCP 服务，未分配则跳过，失败时 toast 提示 */
+  unassignMcp: async (agentId, mcpName) => {
+    const agent = get().agents.find((a) => a.id === agentId);
+    if (!agent || !agent.mcpNames.includes(mcpName)) return;
+    try {
+      await get().updateAgentById(agentId, {
+        mcpNames: agent.mcpNames.filter((n) => n !== mcpName),
+      });
+      logger.info(
+        `[AgentStore] Unassigned MCP ${mcpName} from agent ${agentId}`
+      );
+    } catch (err) {
+      logger.error(`[AgentStore] Failed to unassign MCP ${mcpName}:`, err);
+      toast.error(i18n.t('tools.assignFailed'));
+    }
   },
 
   /** 仅更新 Agent 的 Skill 分配 */
   updateAgentSkillNames: async (agentId: string, skillNames: string[]) => {
     await get().updateAgentById(agentId, { skillNames });
+  },
+
+  /** 给 Agent 追加一个技能，已分配过则跳过，失败时 toast 提示 */
+  assignSkill: async (agentId: string, skillName: string) => {
+    const agent = get().agents.find((a) => a.id === agentId);
+    if (!agent || agent.skillNames.includes(skillName)) return;
+    try {
+      await get().updateAgentSkillNames(agentId, [
+        ...agent.skillNames,
+        skillName,
+      ]);
+      logger.info(
+        `[AgentStore] Assigned skill ${skillName} to agent ${agentId}`
+      );
+    } catch (err) {
+      logger.error(`[AgentStore] Failed to assign skill ${skillName}:`, err);
+      toast.error(i18n.t('skills.assignFailed'));
+    }
+  },
+
+  /** 从 Agent 移除一个技能，未分配则跳过，失败时 toast 提示 */
+  unassignSkill: async (agentId: string, skillName: string) => {
+    const agent = get().agents.find((a) => a.id === agentId);
+    if (!agent || !agent.skillNames.includes(skillName)) return;
+    try {
+      await get().updateAgentSkillNames(
+        agentId,
+        agent.skillNames.filter((n) => n !== skillName)
+      );
+      logger.info(
+        `[AgentStore] Unassigned skill ${skillName} from agent ${agentId}`
+      );
+    } catch (err) {
+      logger.error(`[AgentStore] Failed to unassign skill ${skillName}:`, err);
+      toast.error(i18n.t('skills.assignFailed'));
+    }
   },
 }));

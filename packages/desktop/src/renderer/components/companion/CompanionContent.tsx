@@ -13,11 +13,17 @@ import {
   getPoseImageUrl,
   getBackgroundImageUrl,
   listPoses,
+  type PoseAsset,
 } from '../../lib/api';
 import { logger } from '../../lib/logger';
 
 interface CompanionContentProps {
   agentId: string | null;
+}
+
+/** 立绘清单转名字到内容哈希的映射 */
+function buildPoseMap(poses: PoseAsset[]): Record<string, string> {
+  return Object.fromEntries(poses.map((p) => [p.name, p.hash]));
 }
 
 /**
@@ -32,12 +38,16 @@ export function CompanionContent({ agentId }: CompanionContentProps) {
   const [poseError, setPoseError] = useState(false);
   const [hasAssets, setHasAssets] = useState<boolean | null>(null);
 
-  /** 立绘 URL，存入 state 避免每次 re-render 因 cache-buster 重新请求 */
+  /** 立绘与背景 URL 基于内容哈希拼装，存入 state 保持地址稳定 */
   const [poseUrl, setPoseUrl] = useState('');
+  const [bgUrl, setBgUrl] = useState('');
+  /** 名字到内容哈希的映射，来自素材列表响应 */
+  const [poseHashMap, setPoseHashMap] = useState<Record<string, string>>({});
 
   /**
-   * 挂载时检测该 Agent 是否有立绘资源。
+   * 挂载时拉取素材清单。
    * - hasAssets 决定 pane 显示资源态还是空态
+   * - 背景地址由响应里的 backgroundHash 拼装，无背景时留空走纯色底
    * - pose 的初始值由 App.tsx 在切 session 时统一回填
    */
   useEffect(() => {
@@ -46,10 +56,17 @@ export function CompanionContent({ agentId }: CompanionContentProps) {
     setBgError(false);
     setPoseError(false);
     setHasAssets(null);
+    setPoseUrl('');
+    setBgUrl('');
+    setPoseHashMap({});
     listPoses(agentId)
-      .then((poses) => {
+      .then(({ poses, backgroundHash }) => {
         if (cancelled) return;
         setHasAssets(poses.length > 0);
+        setPoseHashMap(buildPoseMap(poses));
+        setBgUrl(
+          backgroundHash ? getBackgroundImageUrl(agentId, backgroundHash) : ''
+        );
       })
       .catch(() => {
         if (!cancelled) setHasAssets(false);
@@ -64,14 +81,43 @@ export function CompanionContent({ agentId }: CompanionContentProps) {
     setPoseError(false);
   }, [currentPose]);
 
-  /** currentPose 或 agentId 变化时更新立绘 URL */
+  /**
+   * 按哈希映射拼立绘地址。
+   * 映射缺失说明该姿势在清单拉取之后新增，重拉一次清单补哈希，
+   * 不拼无哈希地址避免污染永久缓存，重拉后仍缺则按加载失败处理。
+   */
   useEffect(() => {
-    if (!agentId) return;
-    setPoseUrl(getPoseImageUrl(agentId, currentPose));
-    if (animatePose) {
-      logger.info(`[CompanionContent] cross-fade pose: ${currentPose}`);
+    if (!agentId || hasAssets !== true) return;
+    const hash = poseHashMap[currentPose];
+    if (hash) {
+      setPoseUrl(getPoseImageUrl(agentId, currentPose, hash));
+      if (animatePose) {
+        logger.info(`[CompanionContent] cross-fade pose: ${currentPose}`);
+      }
+      return;
     }
-  }, [currentPose, agentId, animatePose]);
+    logger.info(
+      `[CompanionContent] pose hash missing, refetch list for: ${currentPose}`
+    );
+    let cancelled = false;
+    listPoses(agentId)
+      .then(({ poses }) => {
+        if (cancelled) return;
+        const found = poses.find((p) => p.name === currentPose);
+        if (found) {
+          setPoseHashMap(buildPoseMap(poses));
+          setPoseUrl(getPoseImageUrl(agentId, currentPose, found.hash));
+        } else {
+          setPoseError(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setPoseError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPose, agentId, poseHashMap, hasAssets, animatePose]);
 
   if (!agentId) return null;
 
@@ -100,11 +146,11 @@ export function CompanionContent({ agentId }: CompanionContentProps) {
       className="relative h-full w-full overflow-hidden"
       style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
     >
-      {hasAssets === null || bgError ? (
+      {hasAssets === null || bgError || !bgUrl ? (
         <div className="absolute inset-0 bg-muted" />
       ) : (
         <img
-          src={getBackgroundImageUrl(agentId)}
+          src={bgUrl}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
           onError={() => setBgError(true)}

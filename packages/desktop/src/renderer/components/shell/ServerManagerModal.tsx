@@ -1,65 +1,32 @@
 /**
  * @file src/renderer/components/shell/ServerManagerModal.tsx
- * @description 服务器管理弹窗，展示本地服务器状态和 Cloudflare 隧道控制
+ * @description 远程访问页，只管本机隧道的起停与展示，被人连的方向与设备管理互不重叠。
+ * 本机服务端常驻，隧道随时可操作，与当前连着哪台主机无关。
  */
 
 import React from 'react';
-import {
-  X,
-  Bot,
-  Loader2,
-  Globe,
-  Cloud,
-  AlertTriangle,
-  RotateCcw,
-} from 'lucide-react';
+import { X, Loader2, Router, AlertTriangle, RotateCcw } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
 import { useTunnelStore } from '../../stores/tunnelStore';
-import { getBaseUrl } from '../../lib/api';
-import type { ConnectionStatus } from '../../types/chat';
 import { CopyButton } from '../ui/CopyButton';
 import { StatusDot } from '../ui/StatusDot';
 
 interface ServerManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  connectionStatus: ConnectionStatus;
 }
 
-const serverStatusConfig: Record<
-  ConnectionStatus,
-  { labelKey: string; color: string; dotColor: string }
-> = {
-  connected: {
-    labelKey: 'server.connected',
-    color: 'text-green-600',
-    dotColor: 'bg-green-500',
-  },
-  disconnected: {
-    labelKey: 'server.disconnected',
-    color: 'text-red-500',
-    dotColor: 'bg-red-500',
-  },
-  connecting: {
-    labelKey: 'server.connecting',
-    color: 'text-yellow-500',
-    dotColor: 'bg-yellow-500 animate-pulse',
-  },
-};
-
 /**
- * 服务器管理弹窗组件，展示本地服务器连接状态和 Cloudflare 隧道控制
+ * 远程访问页组件，展示 Cloudflare 隧道控制、公网地址与配对二维码。
+ * 隧道请求全部锚定本机常驻服务端，切换远程主机不影响这里的状态。
  */
 export const ServerManagerModal: React.FC<ServerManagerModalProps> = ({
   isOpen,
   onClose,
-  connectionStatus,
 }) => {
   const { t } = useTranslation();
   if (!isOpen) return null;
-
-  const config = serverStatusConfig[connectionStatus];
 
   return (
     <>
@@ -71,7 +38,9 @@ export const ServerManagerModal: React.FC<ServerManagerModalProps> = ({
         >
           <div className="px-6 pt-6 pb-0">
             <div className="flex items-center justify-between">
-              <h3 className="text-foreground">{t('server.title')}</h3>
+              <h3 className="text-foreground">
+                {t('server.remoteAccessTitle')}
+              </h3>
               <button
                 onClick={onClose}
                 className="p-1 hover:bg-secondary rounded text-muted-foreground"
@@ -82,12 +51,7 @@ export const ServerManagerModal: React.FC<ServerManagerModalProps> = ({
           </div>
 
           <div className="mt-4 overflow-y-auto px-6 pb-6 space-y-5">
-            <ServerSection
-              connectionStatus={connectionStatus}
-              config={config}
-            />
-
-            <TunnelSection connectionStatus={connectionStatus} />
+            <TunnelSection />
           </div>
         </div>
       </div>
@@ -96,71 +60,9 @@ export const ServerManagerModal: React.FC<ServerManagerModalProps> = ({
 };
 
 /**
- * 服务器信息展示区，显示本地服务器连接状态和地址信息
- */
-function ServerSection({
-  connectionStatus,
-  config,
-}: {
-  connectionStatus: ConnectionStatus;
-  config: (typeof serverStatusConfig)[ConnectionStatus];
-}) {
-  const { t } = useTranslation();
-  const [serverUrl, setServerUrl] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (connectionStatus === 'connected') {
-      getBaseUrl().then((url) => setServerUrl(url));
-    } else {
-      setServerUrl(null);
-    }
-  }, [connectionStatus]);
-
-  return (
-    <div className="flex items-center gap-3 rounded-[16px] border border-border p-4 bg-white">
-      <div className="relative">
-        {connectionStatus === 'connecting' ? (
-          <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
-        ) : (
-          <Bot
-            className={`w-8 h-8 ${
-              connectionStatus === 'connected'
-                ? 'text-green-500'
-                : 'text-red-500'
-            }`}
-          />
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="font-medium text-content text-foreground">
-          {t('server.agentServer')}
-        </div>
-        <div className="flex items-center gap-1.5 text-content text-muted-foreground">
-          <StatusDot color={config.dotColor} />
-          <span className={config.color}>{t(config.labelKey)}</span>
-        </div>
-      </div>
-      {connectionStatus === 'connected' && serverUrl && (
-        <div className="flex items-center gap-2 shrink-0">
-          <Globe className="w-4 h-4 text-blue-500" />
-          <code className="text-body bg-secondary px-2 py-1 rounded-[12px] text-foreground">
-            {serverUrl}
-          </code>
-          <CopyButton text={serverUrl} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
  * Cloudflare 隧道控制区，提供隧道的启动、停止、健康状态展示和重试
  */
-function TunnelSection({
-  connectionStatus,
-}: {
-  connectionStatus: ConnectionStatus;
-}) {
+function TunnelSection() {
   const { t } = useTranslation();
   const { status, url, error, health, start, stop, refreshStatus } =
     useTunnelStore();
@@ -170,7 +72,6 @@ function TunnelSection({
   }, [refreshStatus]);
 
   const isEnabled = status === 'running' || status === 'starting';
-  const isDisabled = connectionStatus !== 'connected';
   const isUnhealthy = status === 'running' && health === 'unhealthy';
 
   /**
@@ -190,29 +91,6 @@ function TunnelSection({
   const handleRetry = () => {
     stop().then(() => start());
   };
-
-  if (isDisabled) {
-    return (
-      <div>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-medium text-content text-foreground">
-              {t('server.remoteAccess')}
-            </p>
-            <p className="text-body text-muted-foreground">
-              {t('server.connectFirst')}
-            </p>
-          </div>
-          <button
-            disabled
-            className="px-3 py-1.5 rounded-xl text-body bg-foreground/10 text-foreground opacity-50 cursor-not-allowed"
-          >
-            {t('server.startTunnel')}
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
@@ -278,7 +156,7 @@ function TunnelSection({
         <div className="bg-green-500/10 border border-green-500/30 rounded-[16px] p-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Cloud className="w-4 h-4 text-green-500" />
+              <Router className="w-4 h-4 text-green-500" />
               <span className="text-content text-green-500">
                 {t('server.publicUrl')}
               </span>

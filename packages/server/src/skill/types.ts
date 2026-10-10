@@ -20,6 +20,14 @@ export type SkillMeta = z.infer<typeof SkillMetaSchema>;
 export interface Skill {
   name: string;
   description: string;
+  /** Display name from skill-meta.json, absent when the file is missing. */
+  displayName?: string;
+  /** Author from skill-meta.json, absent when the file is missing. */
+  author?: string;
+  /** Card icon URL from skill-meta.json, absent when the file is missing. */
+  logoUrl?: string;
+  /** Local logo file name from skill-meta.json, absent when the file is missing. */
+  logoFile?: string;
   content: string;
   filePath: string;
   /** Absolute path to the skill directory (parent of SKILL.md). */
@@ -36,7 +44,7 @@ export type SkillStatus = 'available' | 'unavailable';
  * Skill info returned by list API (without full content).
  * 类型已迁移至 @persona/shared，此处再导出。
  */
-export type { SkillInfo } from '@persona/shared';
+export type { SkillInfo, SkillDetail } from '@persona/shared';
 
 /**
  * Skill status info for agent detail response.

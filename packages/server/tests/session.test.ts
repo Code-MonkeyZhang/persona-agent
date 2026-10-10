@@ -14,6 +14,7 @@ import {
 import express, { type Express } from 'express';
 import { createServer, type Server } from 'http';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as net from 'node:net';
@@ -35,21 +36,23 @@ mock.module('../src/util/paths.js', () => ({
   getAgentsDir: () => path.join(agentsDir),
   getAgentDir: (id: string) => path.join(agentsDir, id),
   getAgentConfigPath: (id: string) => path.join(agentsDir, id, 'config.json'),
-  getAgentSystemPromptPath: (id: string) => path.join(agentsDir, id, 'systemPrompt.md'),
-  getAgentSessionsDir: (id: string) => path.join(agentsDir, id, 'sessions'),
+  getAgentSystemPromptPath: (id: string) =>
+    path.join(agentsDir, id, 'systemPrompt.md'),
   getAgentAssetsDir: (id: string) => path.join(agentsDir, id, 'assets'),
-  getAgentAssetsPoseDir: (id: string) => path.join(agentsDir, id, 'assets', 'pose'),
-  getAgentAssetsBackgroundsDir: (id: string) => path.join(agentsDir, id, 'assets', 'backgrounds'),
+  getAgentAssetsPoseDir: (id: string) =>
+    path.join(agentsDir, id, 'assets', 'pose'),
+  getAgentAssetsBackgroundsDir: (id: string) =>
+    path.join(agentsDir, id, 'assets', 'backgrounds'),
   getAgentMemoryDir: (id: string) => path.join(agentsDir, id, 'memory'),
   getWorkspaceDir: () => path.join(tempDir, 'workspace'),
+  getDbPath: () => path.join(tempDir, 'persona.db'),
 }));
 
 import { createSessionRouter } from '../src/server/routers/session.js';
 import { createAgentRouter } from '../src/server/routers/agent.js';
-import {
-  createAgentConfig,
-} from '../src/agent/index.js';
+import { createAgentConfig } from '../src/agent/index.js';
 import { getAgentDir } from '../src/util/paths.js';
+import { getDb, closeDb } from '../src/db/index.js';
 
 /**
  * 查找可用端口用于测试服务器
@@ -148,22 +151,22 @@ describe('Session Module Integration Tests', () => {
   /** 清理测试服务器和临时目录 */
   afterAll(async () => {
     httpServer.close();
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    closeDb();
+    rmTempDir(tempDir);
   });
 
   /** SessionStore 测试 */
   describe('SessionStore', () => {
     let store: SessionStore;
 
-    /** 每个测试前初始化 Store */
+    /** 每个测试前初始化 Store，清掉该 agent 的历史会话行 */
     beforeEach(() => {
       currentAgentId = 'store-test-agent-1';
       const agentDir = path.join(agentsDir, currentAgentId);
       fs.mkdirSync(agentDir, { recursive: true });
-      const sessionsDir = path.join(agentDir, 'sessions');
-      if (fs.existsSync(sessionsDir)) {
-        fs.rmSync(sessionsDir, { recursive: true, force: true });
-      }
+      // 消息行经外键级联一并清除，变更行无外键需单独清
+      getDb().run('DELETE FROM sessions WHERE agent_id = ?', currentAgentId);
+      getDb().run('DELETE FROM changes');
       store = new SessionStore(currentAgentId);
     });
 
@@ -187,55 +190,55 @@ describe('Session Module Integration Tests', () => {
         expect(loaded?.messages).toEqual([]);
       });
 
-      /** 测试 session 持久化到 .jsonl 文件 */
-      it('should persist session to .jsonl file', () => {
-        const meta = createMeta('persist-test');
-        store.createSessionFile(meta);
+      /** 测试会话落库后新 Store 实例可读回 */
+      it('should persist session across store instances', () => {
+        store.createSessionFile(createMeta('persist-test'));
 
-        const sessionPath = path.join(
-          store.getSessionsPath(),
-          'persist-test.jsonl'
-        );
-        expect(fs.existsSync(sessionPath)).toBe(true);
+        const reopened = new SessionStore(currentAgentId);
+        expect(reopened.loadSession('persist-test')).not.toBeNull();
       });
     });
 
     /** loadSession 派生信封时间戳测试 */
     describe('loadSession envelope timestamps', () => {
-      /** 按信封时间戳手工追加消息行，绕开 appendMessageLine 的实时时间 */
+      /**
+       * 直接往 messages 表插入自定义 created_at 的消息行，
+       * 绕开 appendMessageLine 的实时时间。
+       */
       const appendTimedLine = (
         id: string,
-        timestamp: string,
+        createdAt: number,
         msg: Message
       ): void => {
-        const filePath = path.join(
-          agentsDir,
-          currentAgentId,
-          'sessions',
-          `${id}.jsonl`
-        );
-        fs.appendFileSync(
-          filePath,
-          JSON.stringify({ timestamp, type: 'message', data: msg }) + '\n'
+        getDb().run(
+          'INSERT INTO messages (session_id, role, created_at, data) VALUES (?, ?, ?, ?)',
+          id,
+          msg.role,
+          createdAt,
+          JSON.stringify(msg)
         );
       };
 
-      /** 测试从消息行信封派生 lastContextAt / lastMessageAt */
+      /** 测试从消息行时间戳列派生 lastContextAt / lastMessageAt */
       it('should derive lastContextAt / lastMessageAt from envelope timestamps', () => {
         store.createSessionFile(createMeta('env-ts-session'));
         appendTimedLine(
           'env-ts-session',
-          '2026-08-16T00:00:00.000Z',
+          Date.parse('2026-08-16T00:00:00.000Z'),
           createUserMessage('old')
         );
-        appendTimedLine('env-ts-session', '2026-08-17T00:00:00.000Z', {
-          role: 'context',
-          source: 'runtime-context',
-          content: '[system] 当前时间：2026-08-17 星期一 09:00 (UTC+8)',
-        });
         appendTimedLine(
           'env-ts-session',
-          '2026-08-18T00:00:00.000Z',
+          Date.parse('2026-08-17T00:00:00.000Z'),
+          {
+            role: 'context',
+            source: 'runtime-context',
+            content: '[system] 当前时间：2026-08-17 星期一 09:00 (UTC+8)',
+          }
+        );
+        appendTimedLine(
+          'env-ts-session',
+          Date.parse('2026-08-18T00:00:00.000Z'),
           createUserMessage('new')
         );
 
@@ -248,12 +251,12 @@ describe('Session Module Integration Tests', () => {
         );
       });
 
-      /** 测试旧格式文件无 context 行时 lastContextAt 为 undefined */
+      /** 测试无 context 消息时 lastContextAt 为 undefined */
       it('should leave lastContextAt undefined for legacy files', () => {
         store.createSessionFile(createMeta('legacy-ts-session'));
         appendTimedLine(
           'legacy-ts-session',
-          '2026-08-16T00:00:00.000Z',
+          Date.parse('2026-08-16T00:00:00.000Z'),
           createUserMessage('old')
         );
 
@@ -305,7 +308,10 @@ describe('Session Module Integration Tests', () => {
           content: 'a1',
         });
         expect(store.appendTurnEndLine('turn-end-test')).toBe(true);
-        store.appendMessageLine('turn-end-test', createUserMessage('interject'));
+        store.appendMessageLine(
+          'turn-end-test',
+          createUserMessage('interject')
+        );
         store.appendMessageLine('turn-end-test', {
           role: 'assistant',
           content: 'a2',
@@ -318,26 +324,17 @@ describe('Session Module Integration Tests', () => {
         expect(loaded?.turnEnds).toEqual([2, 4]);
       });
 
-      /** 测试标记行信封只有 timestamp 与 type 两字段 */
-      it('should write marker line without data field', () => {
+      /** 测试空会话连续 turn_end 记录重复下标，空缓冲轮次语义由列值承载 */
+      it('should record duplicate counts for consecutive empty turn ends', () => {
         store.createSessionFile(createMeta('marker-shape'));
         store.appendTurnEndLine('marker-shape');
+        store.appendTurnEndLine('marker-shape');
 
-        const filePath = path.join(
-          store.getSessionsPath(),
-          'marker-shape.jsonl'
-        );
-        const lines = fs
-          .readFileSync(filePath, 'utf8')
-          .split('\n')
-          .filter((l) => l.trim());
-        const marker = JSON.parse(lines[lines.length - 1] as string);
-        expect(marker.type).toBe('turn_end');
-        expect(marker.data).toBeUndefined();
-        expect(marker.timestamp).toBeDefined();
+        const loaded = store.loadSession('marker-shape');
+        expect(loaded?.turnEnds).toEqual([0, 0]);
       });
 
-      /** 测试旧格式文件无标记行时 turnEnds 为 undefined */
+      /** 测试无标记时 turnEnds 为 undefined */
       it('should leave turnEnds undefined for legacy files', () => {
         store.createSessionFile(createMeta('legacy-turn-end'));
         store.appendMessageLine('legacy-turn-end', createUserMessage('old'));
@@ -358,14 +355,8 @@ describe('Session Module Integration Tests', () => {
       it('should rewrite meta without losing messages', () => {
         const meta = createMeta('rewrite-test');
         store.createSessionFile(meta);
-        store.appendMessageLine(
-          'rewrite-test',
-          createUserMessage('msg1')
-        );
-        store.appendMessageLine(
-          'rewrite-test',
-          createUserMessage('msg2')
-        );
+        store.appendMessageLine('rewrite-test', createUserMessage('msg1'));
+        store.appendMessageLine('rewrite-test', createUserMessage('msg2'));
 
         store.rewriteMetaLine('rewrite-test', {
           ...meta,
@@ -398,27 +389,11 @@ describe('Session Module Integration Tests', () => {
 
       /** lastMessage 预览派生测试 */
       describe('lastMessage preview', () => {
-        /** 按消息行手工写入会话文件，首行为 meta */
-        const writeSessionLines = (
-          id: string,
-          msgs: Message[]
-        ): void => {
+        /** 建会话后逐条经 appendMessageLine 追加消息 */
+        const writeSessionLines = (id: string, msgs: Message[]): void => {
           store.createSessionFile(createMeta(id));
-          const filePath = path.join(
-            agentsDir,
-            currentAgentId,
-            'sessions',
-            `${id}.jsonl`
-          );
           for (const msg of msgs) {
-            fs.appendFileSync(
-              filePath,
-              JSON.stringify({
-                timestamp: new Date().toISOString(),
-                type: 'message',
-                data: msg,
-              }) + '\n'
-            );
+            store.appendMessageLine(id, msg);
           }
         };
 
@@ -513,6 +488,129 @@ describe('Session Module Integration Tests', () => {
         expect(deleted).toBe(false);
       });
     });
+
+    /** 库级存储行为测试 */
+    describe('SQLite-backed behavior', () => {
+      /** 测试跨会话的 seq 全局单调递增 */
+      it('should allocate strictly increasing seq across sessions', () => {
+        store.createSessionFile(createMeta('seq-a'));
+        store.createSessionFile(createMeta('seq-b'));
+        store.appendMessageLine('seq-a', createUserMessage('1'));
+        store.appendMessageLine('seq-b', createUserMessage('2'));
+        store.appendMessageLine('seq-a', createUserMessage('3'));
+
+        const seqs = getDb()
+          .query<{ seq: number }>('SELECT seq FROM messages ORDER BY seq')
+          .all()
+          .map((row) => row.seq);
+        expect(seqs.length).toBe(3);
+        expect(seqs[0] < seqs[1] && seqs[1] < seqs[2]).toBe(true);
+      });
+
+      /** 测试两个 Store 实例共享同一序号空间 */
+      it('should share one seq space across store instances', () => {
+        const otherAgentId = `${currentAgentId}-b`;
+        const otherStore = new SessionStore(otherAgentId);
+        store.createSessionFile(createMeta('shared-a'));
+        otherStore.createSessionFile({
+          ...createMeta('shared-b'),
+          agentId: otherAgentId,
+        });
+        store.appendMessageLine('shared-a', createUserMessage('x'));
+        otherStore.appendMessageLine('shared-b', createUserMessage('y'));
+
+        const rows = getDb()
+          .query<{
+            seq: number;
+          }>('SELECT seq FROM messages WHERE session_id IN (?, ?) ORDER BY seq')
+          .all('shared-a', 'shared-b');
+        expect(rows.length).toBe(2);
+        expect(rows[1]?.seq).toBeGreaterThan(rows[0]?.seq ?? 0);
+      });
+
+      /** 测试删除会话级联清除消息行 */
+      it('should cascade message deletion when deleting a session', () => {
+        store.createSessionFile(createMeta('cascade'));
+        store.appendMessageLine('cascade', createUserMessage('m1'));
+        store.appendMessageLine('cascade', createUserMessage('m2'));
+
+        store.deleteSessionFile('cascade');
+
+        const row = getDb()
+          .query<{
+            n: number;
+          }>('SELECT COUNT(*) AS n FROM messages WHERE session_id = ?')
+          .get('cascade');
+        expect(row?.n).toBe(0);
+      });
+
+      /** 测试每种写操作登记一条变更行且序号单调递增 */
+      it('should record one change row per mutation with increasing seq', () => {
+        store.createSessionFile(createMeta('change-stream'));
+        store.appendMessageLine('change-stream', createUserMessage('hi'));
+        store.appendTurnEndLine('change-stream');
+        store.rewriteMetaLine('change-stream', {
+          ...createMeta('change-stream'),
+          title: '改标题',
+        });
+        store.deleteSessionFile('change-stream');
+
+        const rows = getDb()
+          .query<{
+            seq: number;
+            kind: string;
+            session_id: string;
+          }>('SELECT seq, kind, session_id FROM changes ORDER BY seq')
+          .all();
+        expect(rows.map((r) => r.kind)).toEqual([
+          'session_created',
+          'message_appended',
+          'turn_end',
+          'session_updated',
+          'session_deleted',
+        ]);
+        for (let i = 1; i < rows.length; i++) {
+          expect(rows[i].seq).toBeGreaterThan(rows[i - 1].seq);
+        }
+        expect(rows.every((r) => r.session_id === 'change-stream')).toBe(true);
+      });
+
+      /** 测试会话不存在时写入回滚，不产生变更行 */
+      it('should not record change when appending to missing session', () => {
+        const appended = store.appendMessageLine(
+          'missing-session',
+          createUserMessage('x')
+        );
+        expect(appended).toBe(false);
+
+        const row = getDb()
+          .query<{ n: number }>('SELECT COUNT(*) AS n FROM changes')
+          .get();
+        expect(row?.n).toBe(0);
+      });
+
+      /** 测试 message_appended 事件携带完整消息体 */
+      it('should carry the message body in message_appended payload', () => {
+        store.createSessionFile(createMeta('payload-session'));
+        store.appendMessageLine(
+          'payload-session',
+          createUserMessage('带体消息')
+        );
+
+        const row = getDb()
+          .query<{
+            kind: string;
+            data: string;
+          }>("SELECT kind, data FROM changes WHERE kind = 'message_appended'")
+          .get();
+        const payload = JSON.parse(row?.data ?? '{}') as {
+          seq: number;
+          message: Message;
+        };
+        expect(payload.message.content).toBe('带体消息');
+        expect(typeof payload.seq).toBe('number');
+      });
+    });
   });
 
   /** SessionManager 测试 */
@@ -525,16 +623,17 @@ describe('Session Module Integration Tests', () => {
       if (fs.existsSync(agentsDir)) {
         fs.rmSync(agentsDir, { recursive: true, force: true });
       }
+      getDb().run('DELETE FROM sessions');
+      getDb().run('DELETE FROM changes');
 
-      const agent = createAgentConfig(createTestAgentInput({ id: 'session-agent' }));
+      const agent = createAgentConfig(
+        createTestAgentInput({ id: 'session-agent' })
+      );
       agentId = agent.id;
 
       const agentBasePath = getAgentDir(agentId);
       const store = new SessionStore(agentId);
-      manager = new SessionManager(
-        store,
-        agentId
-      );
+      manager = new SessionManager(store, agentId);
     });
 
     /** createSession 测试 */
@@ -606,7 +705,10 @@ describe('Session Module Integration Tests', () => {
           content: 'a1',
         });
         manager.appendTurnEnd(created.id);
-        manager.appendMessage(created.id, { role: 'user', content: 'interject' });
+        manager.appendMessage(created.id, {
+          role: 'user',
+          content: 'interject',
+        });
         manager.appendMessage(created.id, {
           role: 'assistant',
           content: 'a2',
@@ -631,9 +733,7 @@ describe('Session Module Integration Tests', () => {
         // 内部视角不含边界，下标语义不变
         const internal = manager.getSession(created.id);
         expect(internal?.messages.length).toBe(4);
-        expect(
-          internal?.messages.some((m) => m.role === 'system')
-        ).toBe(false);
+        expect(internal?.messages.some((m) => m.role === 'system')).toBe(false);
       });
 
       /** 测试重复下标连插边界条目，对空缓冲结组是空操作 */
@@ -780,6 +880,8 @@ describe('Session Module Integration Tests', () => {
       if (fs.existsSync(agentsDir)) {
         fs.rmSync(agentsDir, { recursive: true, force: true });
       }
+      getDb().run('DELETE FROM sessions');
+      getDb().run('DELETE FROM changes');
       sessionManagers.clear();
     });
 
@@ -810,7 +912,9 @@ describe('Session Module Integration Tests', () => {
 
         const data = (await response.json()) as { sessions: SessionMeta[] };
         expect(data.sessions).toHaveLength(1);
-        expect(data.sessions[0].id).toBe(SessionManager.chatSessionIdFor(agentId));
+        expect(data.sessions[0].id).toBe(
+          SessionManager.chatSessionIdFor(agentId)
+        );
         expect(data.sessions[0].title).toBe('聊天');
       });
 
@@ -852,11 +956,14 @@ describe('Session Module Integration Tests', () => {
       it('should create a new session', async () => {
         const agentId = await createTestAgent();
 
-        const response = await fetch(`${BASE_URL}/api/agents/${agentId}/sessions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: 'New Session' }),
-        });
+        const response = await fetch(
+          `${BASE_URL}/api/agents/${agentId}/sessions`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: 'New Session' }),
+          }
+        );
 
         expect(response.status).toBe(201);
         const data = (await response.json()) as { session: Session };
@@ -898,6 +1005,56 @@ describe('Session Module Integration Tests', () => {
 
         const response = await fetch(
           `${BASE_URL}/api/agents/${agentId}/sessions/non-existent`
+        );
+        expect(response.status).toBe(404);
+      });
+    });
+
+    /** GET /api/agents/:agentId/sessions/:id/export 测试 */
+    describe('GET /api/agents/:agentId/sessions/:id/export', () => {
+      /** 测试导出行数与消息数一致且每行可解析，聊天会话可导出 */
+      it('should export messages as JSONL lines', async () => {
+        const agentId = await createTestAgent();
+        const manager = sessionManagers.get(agentId);
+        if (!manager) throw new Error('Session manager missing');
+
+        const chatId = SessionManager.chatSessionIdFor(agentId);
+        manager.appendMessage(chatId, { role: 'user', content: '第一条' });
+        manager.appendMessage(chatId, {
+          role: 'assistant',
+          content: '第二条',
+        });
+
+        const response = await fetch(
+          `${BASE_URL}/api/agents/${agentId}/sessions/${chatId}/export`
+        );
+        expect(response.status).toBe(200);
+        expect(response.headers.get('content-type')).toContain(
+          'application/x-ndjson'
+        );
+        expect(response.headers.get('content-disposition')).toBe(
+          `attachment; filename="session-${chatId}.jsonl"`
+        );
+
+        const lines = (await response.text()).trim().split('\n');
+        expect(lines).toHaveLength(2);
+        const first = JSON.parse(lines[0]) as {
+          role: string;
+          content: string;
+        };
+        expect(first.role).toBe('user');
+        expect(first.content).toBe('第一条');
+        expect((JSON.parse(lines[1]) as { role: string }).role).toBe(
+          'assistant'
+        );
+      });
+
+      /** 测试不存在的会话导出 404 */
+      it('should return 404 for non-existent session', async () => {
+        const agentId = await createTestAgent();
+
+        const response = await fetch(
+          `${BASE_URL}/api/agents/${agentId}/sessions/non-existent/export`
         );
         expect(response.status).toBe(404);
       });

@@ -8,6 +8,10 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { createServer, type Server } from 'http';
 import * as net from 'node:net';
+import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
+import * as path from 'node:path';
+import * as os from 'node:os';
 import { WebSocket, type RawData } from 'ws';
 
 vi.mock('../src/util/logger.js', () => ({
@@ -19,11 +23,19 @@ vi.mock('../src/util/logger.js', () => ({
   },
 }));
 
+/** 临时测试目录 */
+let tempDir: string;
+
+vi.mock('../src/util/paths.js', () => ({
+  getDbPath: () => path.join(tempDir, 'persona.db'),
+}));
+
 import {
   initWebSocket,
   shutdownWebSocket,
   getOnlineDevices,
 } from '../src/server/websocket-server.js';
+import { getDb, closeDb } from '../src/db/index.js';
 
 function findAvailablePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -107,7 +119,10 @@ function connectClient(url: string): Promise<TestClient> {
   return new Promise((resolve, reject) => {
     const client = new TestClient(url);
     client.ws.on('error', reject);
-    client.waitFor('connected').then(() => resolve(client)).catch(reject);
+    client
+      .waitFor('connected')
+      .then(() => resolve(client))
+      .catch(reject);
   });
 }
 
@@ -116,6 +131,7 @@ describe('WebSocket Device Identity', () => {
   let wsUrl: string;
 
   beforeAll(async () => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ws-device-test-'));
     const port = await findAvailablePort();
     httpServer = createServer();
     initWebSocket(httpServer);
@@ -131,6 +147,8 @@ describe('WebSocket Device Identity', () => {
     // 仅靠 close(cb) 回调永不触发；先强制断开残余连接再关监听
     httpServer.closeAllConnections?.();
     await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+    closeDb();
+    rmTempDir(tempDir);
   });
 
   it('device_online broadcast when second device registers', async () => {
@@ -219,5 +237,26 @@ describe('WebSocket Device Identity', () => {
     const client = await connectClient(wsUrl);
     expect(getOnlineDevices()).toEqual([]);
     await client.close();
+  });
+
+  it('register persists device row to the database', async () => {
+    const observer = await connectClient(wsUrl);
+    const client = await connectClient(wsUrl);
+    client.send({
+      type: 'register',
+      deviceId: 'device-db',
+      deviceType: 'desktop',
+      deviceName: 'DB Test Mac',
+    });
+
+    await observer.waitFor('device_online');
+
+    const row = getDb()
+      .query('SELECT device_id, name FROM devices WHERE device_id = ?')
+      .get('device-db');
+    expect(row).toEqual({ device_id: 'device-db', name: 'DB Test Mac' });
+
+    await client.close();
+    await observer.close();
   });
 });

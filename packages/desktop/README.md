@@ -79,8 +79,8 @@ npm run test           # 单元测试 (Vitest)
 desktop/
 ├── src/
 │   ├── main/              # Electron 主进程
-│   │   ├── index.ts       # 应用入口，窗口创建、进程管理
-│   │   ├── server-manager.ts  # 后端进程生命周期管理
+│   │   ├── index.ts       # 应用入口，窗口创建、连接编排
+│   │   ├── host/          # 连接事实管理，本机服务端进程生命周期
 │   │   └── store/         # electron-store 持久化配置
 │   ├── preload/           # 预加载脚本
 │   └── renderer/          # React 前端

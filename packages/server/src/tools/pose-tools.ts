@@ -5,7 +5,7 @@
  * - ShowPoseTool: 将立绘切换到指定表情（仅校验，不写状态）
  * - GetCurrentPoseTool: 从 session 查询当前正在显示的表情
  *
- * pose 的持久化由 chat-service 在 show_pose 成功后写入 session.jsonl，
+ * pose 的持久化由 chat-service 在 show_pose 成功后写入会话库的 sessions 行，
  * 工具本身不维护任何运行时状态。
  */
 

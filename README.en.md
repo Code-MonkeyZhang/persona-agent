@@ -54,6 +54,7 @@ Install agents, MCP tools, and Skills from the Agent Marketplace in one click.
 - **MCP & Agent Skills** — Assign MCP tools and Agent Skills to each agent individually, including OAuth-based MCP services (Notion, GitHub)
 - **Agent Apps** — Install dedicated mini-apps for your Agent, interact via the app panel and receive app notifications
 - **Mobile Remote Access** — Built-in Cloudflare Tunnel for connecting to your agent from the mobile app anytime
+- **Offline & Multi-Device Sync** — Conversations are mirrored to a local database on both desktop and mobile, so full history stays readable offline; images are cached by content hash and downloaded only once, and new content catches up automatically when back online
 
 ## 📢 Changelog
 
@@ -91,11 +92,11 @@ Install agents, MCP tools, and Skills from the Agent Marketplace in one click.
 
 This project supports macOS and Windows. Download the installer from [GitHub Releases](https://github.com/Code-MonkeyZhang/persona-agent/releases):
 
-| Platform            | Download                                                                                                         |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| macOS Apple Silicon | [Download installer](https://github.com/Code-MonkeyZhang/persona-agent/releases)                                 |
-| macOS Intel         | [Download installer](https://github.com/Code-MonkeyZhang/persona-agent/releases)                                 |
-| Windows x64         | [Download installer](https://github.com/Code-MonkeyZhang/persona-agent/releases)                                 |
+| Platform            | Download                                                                         |
+| ------------------- | -------------------------------------------------------------------------------- |
+| macOS Apple Silicon | [Download installer](https://github.com/Code-MonkeyZhang/persona-agent/releases) |
+| macOS Intel         | [Download installer](https://github.com/Code-MonkeyZhang/persona-agent/releases) |
+| Windows x64         | [Download installer](https://github.com/Code-MonkeyZhang/persona-agent/releases) |
 
 Open the DMG file and drag the app to Applications; on Windows, run the exe installer and follow the prompts.
 
@@ -133,7 +134,7 @@ Give your agent a voice of its own. Voice synthesis is powered by MiniMax TTS, w
 
 ## 🛒 Agent Marketplace
 
-Persona ships with a built-in marketplace to browse, install, and manage Agent templates, Skills, and MCP tools in one place. The catalog is driven by the open-source [persona-agent-marketplace](https://github.com/Code-MonkeyZhang/persona-agent-marketplace) repo, and supports one-click install with MCP and Skill assignment to a specific agent.
+Persona ships with a built-in marketplace to browse, install, and manage Agent templates, Skills, and MCP tools in one place. The catalog is driven by the open-source [persona-agent-marketplace](https://github.com/Code-MonkeyZhang/persona-agent-marketplace) repo, and supports one-click install with MCP and Skill assignment to a specific agent. Icons of installed items load from local storage, so they keep displaying even offline.
 
 - **Agents**: curated character templates, ready to use after install
 - **Skills**: inject domain knowledge and capabilities into your agents

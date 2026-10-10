@@ -109,7 +109,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
       setCompressionThreshold(String(editingAgent.compressionThreshold ?? 50));
       setDreamIntervalMinutes(String(editingAgent.dreamIntervalMinutes ?? 120));
       loadPoseImages(editingAgent.id);
-      setBgPreviewUrl(getBackgroundImageUrl(editingAgent.id));
       setBgDeleted(false);
       setPendingBgFile(null);
     } else {
@@ -141,16 +140,26 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     }
   };
 
-  /** 加载已有 Agent 的立绘列表 */
+  /** 加载已有 Agent 的立绘清单与背景哈希，背景预览地址一并拼装 */
   const loadPoseImages = async (agentId: string) => {
     try {
-      const poses = await listPoses(agentId);
+      const { poses, backgroundHash } = await listPoses(agentId);
       setPoseImages(
-        poses.map((name) => ({ name, status: 'existing' as const }))
+        poses.map(({ name, hash }) => ({
+          name,
+          hash,
+          status: 'existing' as const,
+        }))
+      );
+      setBgPreviewUrl(
+        backgroundHash
+          ? getBackgroundImageUrl(agentId, backgroundHash)
+          : undefined
       );
     } catch (error) {
       logger.error('Failed to load pose images:', error);
       setPoseImages([]);
+      setBgPreviewUrl(undefined);
     }
   };
 
@@ -361,6 +370,11 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
         if (assetOps.length > 0) {
           await Promise.all(assetOps);
         }
+
+        // 新建角色的 POST 响应早于形象上传，重取补正头像哈希
+        if (!editingAgentId) {
+          await useAgentStore.getState().refreshAgentById(savedId);
+        }
       }
 
       closeAgentEditor();
@@ -384,6 +398,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     id: editingAgentId || 'preview',
     name: name || 'A',
     description,
+    avatarHash: editingAgent?.avatarHash,
     systemPrompt,
     defaultModel: { provider, model: modelId },
     maxSteps: parseInt(maxSteps) || 50,

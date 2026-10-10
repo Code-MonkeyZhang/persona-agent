@@ -13,6 +13,7 @@ import {
   mock,
 } from 'bun:test';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import type { MarketplaceEntry } from '@persona/shared';
@@ -78,6 +79,18 @@ describe('folderNameOf', () => {
     expect(folderNameOf({ path: 'skills/group/sub' })).toBe('sub');
     expect(folderNameOf({ path: 'skills/a' })).toBe('a');
   });
+
+  it('prefers a valid id over path derivation', () => {
+    expect(folderNameOf({ id: 'dida365', path: 'mcp/some-folder' })).toBe(
+      'dida365'
+    );
+  });
+
+  it('falls back to path derivation when id is missing or unsafe', () => {
+    expect(folderNameOf({ path: 'mcp/notion' })).toBe('notion');
+    expect(folderNameOf({ id: '../etc', path: 'mcp/notion' })).toBe('notion');
+    expect(folderNameOf({ id: 'Bad_Name', path: 'skills/a' })).toBe('a');
+  });
 });
 
 describe('downloadSkill', () => {
@@ -94,7 +107,7 @@ describe('downloadSkill', () => {
 
   afterAll(() => {
     globalThis.fetch = realFetch;
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   beforeEach(() => {

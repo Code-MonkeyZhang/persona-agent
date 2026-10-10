@@ -8,7 +8,7 @@
  * Mock 策略：
  * - paths.ts → 指向临时目录（createAgentConfig 用到的全部 path helper）
  * - logger.ts → 静音
- * - downloader.ts → downloadPackage 在临时目录造文件（可控的 config.json / assets / voiceSample）
+ * - downloader.ts → downloadPackage 在临时目录造文件（可控的 config.json / assets）
  * createAgentConfig 使用真实实现（只依赖 paths + fs，不涉及网络）。
  */
 
@@ -22,6 +22,7 @@ import {
   mock,
 } from 'bun:test';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { AgentMarketplaceEntrySchema } from '@persona/shared';
@@ -43,9 +44,6 @@ let mockSystemPrompt: string | null;
 /** 控制 downloadPackage 是否创建 assets 目录（avatar + pose/default） */
 let mockCreateAssets: boolean;
 
-/** 控制 downloadPackage 是否写语音样本文件（值为文件名），null 表示不写 */
-let mockVoiceSampleFile: string | null;
-
 mock.module('../src/util/paths.js', () => ({
   getAgentsDir: () => agentsDir,
   getAgentDir: (id: string) => path.join(agentsDir, id),
@@ -57,7 +55,6 @@ mock.module('../src/util/paths.js', () => ({
     path.join(agentsDir, id, 'assets', 'pose'),
   getAgentAssetsBackgroundsDir: (id: string) =>
     path.join(agentsDir, id, 'assets', 'backgrounds'),
-  getAgentSessionsDir: (id: string) => path.join(agentsDir, id, 'sessions'),
   getAgentMemoryDir: (id: string) => path.join(agentsDir, id, 'memory'),
   getWorkspaceDir: () => path.join(tempDir, 'workspace'),
   // 以下给同进程的 marketplace.test.ts / mcp-marketplace.test.ts 用
@@ -93,9 +90,6 @@ mock.module('../src/marketplace/downloader.js', () => ({
       fs.mkdirSync(path.join(assetsDir, 'pose'), { recursive: true });
       fs.writeFileSync(path.join(assetsDir, 'avatar.png'), 'fake-avatar');
       fs.writeFileSync(path.join(assetsDir, 'pose/default.png'), 'fake-pose');
-    }
-    if (mockVoiceSampleFile) {
-      fs.writeFileSync(path.join(destDir, mockVoiceSampleFile), 'fake-voice');
     }
     return destDir;
   },
@@ -136,12 +130,6 @@ describe('AgentMarketplaceEntrySchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('accepts entry with voiceSample', () => {
-    const entry = { ...makeEntry(), voiceSample: 'voice-sample.mp3' };
-    const result = AgentMarketplaceEntrySchema.safeParse(entry);
-    expect(result.success).toBe(true);
-  });
-
   it('accepts entry without logo', () => {
     const result = AgentMarketplaceEntrySchema.safeParse(makeEntry());
     expect(result.success).toBe(true);
@@ -155,7 +143,7 @@ describe('installAgentFromMarketplace', () => {
   });
 
   afterAll(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   beforeEach(() => {
@@ -166,7 +154,6 @@ describe('installAgentFromMarketplace', () => {
     mockConfigContent = validConfig();
     mockSystemPrompt = '你是一个测试角色';
     mockCreateAssets = true;
-    mockVoiceSampleFile = null;
   });
 
   it('downloads, parses config, creates agent, and copies assets', async () => {
@@ -254,29 +241,6 @@ describe('installAgentFromMarketplace', () => {
 
     expect(agent.skillNames).toEqual([]);
     expect(agent.mcpNames).toEqual([]);
-  });
-
-  it('copies voice sample when declared in entry', async () => {
-    mockVoiceSampleFile = 'voice-sample.mp3';
-    const entry = {
-      ...makeEntry('with-voice'),
-      voiceSample: 'voice-sample.mp3',
-    };
-
-    const agent = await installAgentFromMarketplace(entry);
-
-    const voicePath = path.join(agentsDir, agent.id, 'voice-sample.mp3');
-    expect(fs.existsSync(voicePath)).toBe(true);
-    expect(fs.readFileSync(voicePath, 'utf-8')).toBe('fake-voice');
-  });
-
-  it('does not copy voice sample when not declared', async () => {
-    mockVoiceSampleFile = 'voice-sample.mp3';
-    // entry 没有 voiceSample 字段，即使文件存在于包中也不复制
-    const agent = await installAgentFromMarketplace(makeEntry('no-voice'));
-
-    const voicePath = path.join(agentsDir, agent.id, 'voice-sample.mp3');
-    expect(fs.existsSync(voicePath)).toBe(false);
   });
 
   it('cleans up temp directory after success', async () => {

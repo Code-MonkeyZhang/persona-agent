@@ -22,7 +22,8 @@ import { AppError } from '../../util/errors.js';
 
 const VOICE_ID_REGEX = /^[a-zA-Z][a-zA-Z0-9_-]{7,255}$/;
 
-const ALLOWED_AUDIO_MIME = new Set([
+/** 语音上传的 MIME 白名单，附件路由与语音上传共用 */
+export const ALLOWED_AUDIO_MIME = new Set([
   'audio/mpeg',
   'audio/mp4',
   'audio/x-m4a',

@@ -146,16 +146,14 @@ export const SessionItem: React.FC<SessionItemProps> = ({
                 </button>
               </div>
             ) : (
-              <>
-                <p
-                  className={cn(
-                    'text-content truncate',
-                    isActive && 'font-medium'
-                  )}
-                >
-                  {session.title}
-                </p>
-              </>
+              <p
+                className={cn(
+                  'text-content truncate',
+                  isActive && 'font-medium'
+                )}
+              >
+                {session.title}
+              </p>
             )}
           </div>
         </div>

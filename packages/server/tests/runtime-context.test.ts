@@ -40,6 +40,7 @@ describe('buildRuntimeContext', () => {
       createSession(),
       '/w/a',
       undefined,
+      undefined,
       new Date('2026-08-18T10:30:00')
     );
     expect(out).toContain('[system] 当前时间：2026-08-18 星期二 10:30');
@@ -59,6 +60,7 @@ describe('buildRuntimeContext', () => {
       withHistory,
       '/w/a',
       undefined,
+      undefined,
       now
     );
     expect(out1).toContain('距上一条消息已过去：1天22小时14分');
@@ -67,6 +69,7 @@ describe('buildRuntimeContext', () => {
       's-dur-none',
       createSession(),
       '/w/a',
+      undefined,
       undefined,
       now
     );
@@ -81,6 +84,7 @@ describe('buildRuntimeContext', () => {
       createSession({ lastContextAt: now.getTime() - 60_000 }),
       '/w/a',
       undefined,
+      undefined,
       now
     );
     expect(out).toBe('');
@@ -89,11 +93,19 @@ describe('buildRuntimeContext', () => {
   /** 阈值内有基线无变化，次轮仍返回空串 */
   it('returns empty string when nothing changed within threshold', () => {
     const t0 = new Date('2026-08-18T10:00:00');
-    buildRuntimeContext('s-base', createSession(), '/w/a', undefined, t0);
+    buildRuntimeContext(
+      's-base',
+      createSession(),
+      '/w/a',
+      undefined,
+      undefined,
+      t0
+    );
     const out = buildRuntimeContext(
       's-base',
       createSession({ lastContextAt: t0.getTime() }),
       '/w/a',
+      undefined,
       undefined,
       new Date(t0.getTime() + 60_000)
     );
@@ -111,6 +123,7 @@ describe('buildRuntimeContext', () => {
       }),
       '/w/a',
       undefined,
+      undefined,
       t0
     );
     const out = buildRuntimeContext(
@@ -120,6 +133,7 @@ describe('buildRuntimeContext', () => {
         model: { provider: 'openai', model: 'b' },
       }),
       '/w/a',
+      undefined,
       undefined,
       new Date(t0.getTime() + 60_000)
     );
@@ -136,6 +150,7 @@ describe('buildRuntimeContext', () => {
       createSession({ model: { provider: 'openai', model: 'a' } }),
       '/w/a',
       undefined,
+      undefined,
       t0
     );
     const out = buildRuntimeContext(
@@ -146,6 +161,7 @@ describe('buildRuntimeContext', () => {
         model: { provider: 'anthropic', model: 'b' },
       }),
       '/w/b',
+      undefined,
       undefined,
       new Date(t0.getTime() + 20 * 60 * 1000)
     );
@@ -165,6 +181,7 @@ describe('buildRuntimeContext', () => {
       createSession({ lastContextAt: t0.getTime() - 60_000 }),
       '/w/a',
       ['ticktick'],
+      undefined,
       t0
     );
     fakeMcpStatuses['ticktick'] = 'disconnected';
@@ -173,11 +190,58 @@ describe('buildRuntimeContext', () => {
       createSession({ lastContextAt: t0.getTime() - 30_000 }),
       '/w/a',
       ['ticktick'],
+      undefined,
       new Date(t0.getTime() + 60_000)
     );
     expect(out).toContain(
       'MCP 服务「ticktick」状态变化：connected → disconnected'
     );
+  });
+
+  /** 阈值内技能新增与移除各出一条变化行，无时间行 */
+  it('emits change lines for skill assignment updates', () => {
+    const t0 = new Date('2026-08-18T10:00:00');
+    buildRuntimeContext(
+      's-skill',
+      createSession({ lastContextAt: t0.getTime() - 60_000 }),
+      '/w/a',
+      undefined,
+      ['a-skill', 'b-skill'],
+      t0
+    );
+    const out = buildRuntimeContext(
+      's-skill',
+      createSession({ lastContextAt: t0.getTime() - 30_000 }),
+      '/w/a',
+      undefined,
+      ['b-skill', 'c-skill'],
+      new Date(t0.getTime() + 60_000)
+    );
+    expect(out).toContain('技能清单已更新：新增 c-skill');
+    expect(out).toContain('技能清单已更新：移除 a-skill');
+    expect(out).not.toContain('当前时间');
+  });
+
+  /** 技能集合不变仅顺序不同，不产出变化行 */
+  it('skips change lines when skill order differs but set is same', () => {
+    const t0 = new Date('2026-08-18T10:00:00');
+    buildRuntimeContext(
+      's-skill-order',
+      createSession({ lastContextAt: t0.getTime() - 60_000 }),
+      '/w/a',
+      undefined,
+      ['a-skill', 'b-skill'],
+      t0
+    );
+    const out = buildRuntimeContext(
+      's-skill-order',
+      createSession({ lastContextAt: t0.getTime() - 30_000 }),
+      '/w/a',
+      undefined,
+      ['b-skill', 'a-skill'],
+      new Date(t0.getTime() + 60_000)
+    );
+    expect(out).toBe('');
   });
 
   /** 时长格式覆盖各量级 */
@@ -194,6 +258,7 @@ describe('buildRuntimeContext', () => {
         `s-scale-${i}`,
         createSession({ lastMessageAt: at }),
         '/w/a',
+        undefined,
         undefined,
         new Date(now)
       );

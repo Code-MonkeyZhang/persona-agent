@@ -32,7 +32,7 @@ import {
   type TtsModel,
   type VoiceOption,
 } from '../../lib/api';
-import { synthesize } from '../../lib/tts';
+import { verifyTtsApiKey, MINIMAX_DOCS_URL } from '../../lib/tts';
 import { SettingRow } from '../common/SettingRow';
 import { Card } from '../ui/Card';
 import { ApiKeyCard } from './ApiKeyCard';
@@ -48,10 +48,6 @@ import { useVoicePreview } from '../../hooks/useVoicePreview';
 import { getRandomPreviewText } from '../../lib/utils';
 import { toast } from '../../stores/toastStore';
 import { logger } from '../../lib/logger';
-
-const VERIFY_TEXT = '测试语音功能连接';
-
-const MINIMAX_DOCS_URL = 'https://platform.minimaxi.com/docs/guides/quickstart';
 
 const ALLOWED_AUDIO_TYPES = new Set([
   'audio/mpeg',
@@ -150,7 +146,7 @@ export const VoiceConfigPanel: React.FC = () => {
 
   /**
    * 验证并保存 API Key：
-   * - 用输入的 Key 调一次 synthesize 合成测试文本
+   * - 用输入的 Key 先试合成一段测试音频
    * - 验证通过：保存 Key 到服务端 + 清空输入框 + 显示成功提示
    * - 验证失败：显示错误提示，不保存
    */
@@ -164,12 +160,7 @@ export const VoiceConfigPanel: React.FC = () => {
     setFeedback(null);
     setVerifying(true);
     try {
-      await synthesize(
-        VERIFY_TEXT,
-        'male-qn-qingse',
-        key,
-        selectedModel || 'speech-2.8-hd'
-      );
+      await verifyTtsApiKey(key, selectedModel || undefined);
       await updateTtsConfig({ apiKey: key });
       setInputKey('');
       setKeyConfigured(true);

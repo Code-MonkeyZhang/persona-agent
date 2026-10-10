@@ -4,7 +4,13 @@
  */
 
 export const IPC = {
-  GET_SERVER_URL: 'get-server-url',
+  GET_CONNECTION: 'get-connection',
+  GET_DEVICES: 'get-devices',
+  DEVICE_UPSERT: 'device:upsert',
+  DEVICE_RENAME: 'device:rename',
+  DEVICE_REMOVE: 'device:remove',
+  SWITCH_HOST: 'switch-host',
+  CONNECTION_CHANGED: 'connection:changed',
   SELECT_FOLDER: 'select-folder',
   STATE_GET_ALL: 'state:get-all',
   STATE_SET: 'state:set',
@@ -26,4 +32,14 @@ export const IPC = {
   UPDATER_INSTALL_UPDATE: 'updater:install-update',
   UPDATER_STATUS_CHANGED: 'updater:status-changed',
   UPDATER_DOWNLOAD_PROGRESS: 'updater:download-progress',
+  CACHE_CHANGED: 'cache:changed',
+  CACHE_GET_SESSIONS: 'cache:get-sessions',
+  CACHE_GET_SESSION: 'cache:get-session',
+  CACHE_GET_AGENTS: 'cache:get-agents',
+  CACHE_GET_CURSOR: 'cache:get-cursor',
+  CACHE_APPLY_SNAPSHOT: 'cache:apply-snapshot',
+  CACHE_APPLY_CHANGES: 'cache:apply-changes',
+  CACHE_PUT_AGENTS: 'cache:put-agents',
+  CACHE_DELETE_AGENT: 'cache:delete-agent',
+  CACHE_RESET: 'cache:reset',
 } as const;

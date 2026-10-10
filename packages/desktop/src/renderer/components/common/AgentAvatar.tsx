@@ -37,7 +37,7 @@ interface AgentAvatarProps {
  * 渲染优先级：
  * - editingPreviewUrl — 编辑器中选了新图片时的即时预览
  * - store 中的 agentAvatarPreviews[agentId] — 新建 Agent 上传期间的本地预览
- * - 服务器头像 URL，加载失败时显示 UserRound 图标
+ * - 服务器头像 URL，avatarHash 为空表示无头像文件，直接走占位图标不发请求
  */
 export const AgentAvatar: React.FC<AgentAvatarProps> = ({
   agent,
@@ -55,12 +55,14 @@ export const AgentAvatar: React.FC<AgentAvatarProps> = ({
       setAvatarUrl(editingPreviewUrl);
     } else if (localPreview) {
       setAvatarUrl(localPreview);
+    } else if (agent.avatarHash) {
+      setAvatarUrl(getAgentAvatarUrl(agent.id, agent.avatarHash));
     } else {
-      setAvatarUrl(getAgentAvatarUrl(agent.id));
+      setAvatarUrl(null);
     }
-  }, [agent.id, agent.updatedAt, editingPreviewUrl, localPreview]);
+  }, [agent.id, agent.avatarHash, editingPreviewUrl, localPreview]);
 
-  if (hasError) {
+  if (hasError || !avatarUrl) {
     return (
       <div
         className={cn(

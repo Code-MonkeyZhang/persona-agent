@@ -11,5 +11,6 @@ export {
   getMcpPromptInfo,
   startOAuthFlow,
   getOAuthStatus,
+  reconnectServer,
 } from './pool.js';
 export type { McpServerEntry } from './types.js';

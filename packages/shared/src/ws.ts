@@ -8,6 +8,8 @@
 /** 设备类型，用于设备身份注册 */
 export type DeviceType = 'desktop' | 'mobile';
 
+import type { SessionChange } from './changes.js';
+
 // ── Server → Client 事件 ──
 
 interface ConnectedMessage {
@@ -142,6 +144,17 @@ interface AppNotificationEvent {
 }
 
 /**
+ * 用户消息落盘事件。
+ * 空闲路径的普通用户消息持久化后广播，订阅了会话的客户端据此追加用户气泡，
+ * 发起端已乐观追加，回声由客户端的运行态守卫拦截。
+ */
+interface UserMessageEvent {
+  type: 'user_message';
+  sessionId: string;
+  content: string;
+}
+
+/**
  * 工作目录解析回退通知。
  * 用户显式配置的路径失效时由服务端广播：生效路径已写回配置，
  * 客户端据此提示用户并刷新 Agent 与会话显示。
@@ -175,6 +188,15 @@ interface PendingInputChangedMessage {
   pending: PendingInput[];
 }
 
+/**
+ * 变更流推送事件。
+ * 服务端每次写库提交后广播，客户端按 seq 回放镜像或更新本地缓存。
+ */
+interface ChangeMessage {
+  type: 'change';
+  change: SessionChange;
+}
+
 export type ServerMessage =
   | ConnectedMessage
   | SubscribedMessage
@@ -191,8 +213,10 @@ export type ServerMessage =
   | DeviceOfflineMessage
   | AbortedMessage
   | AppNotificationEvent
+  | UserMessageEvent
   | WorkspaceFallbackMessage
-  | PendingInputChangedMessage;
+  | PendingInputChangedMessage
+  | ChangeMessage;
 
 // ── Client → Server 消息 ──
 

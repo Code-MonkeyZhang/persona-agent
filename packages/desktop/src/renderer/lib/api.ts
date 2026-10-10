@@ -3,7 +3,7 @@
  * @description 核心 API 通信层 - 封装所有 HTTP 接口调用与 WebSocket 客户端，提供后端服务地址管理
  */
 
-import type { UIMessage } from '../types/chat';
+import type { UIMessage, ConnectionStatus } from '../types/chat';
 import type { SessionMeta, Session } from '../types/session';
 import type {
   AgentConfig,
@@ -17,9 +17,12 @@ import type {
   DeviceType,
   ModelConfig,
   McpServerInfo,
+  McpToolInfo,
+  McpConnectionType,
   McpOAuthStatus,
   ProviderStatus,
   SkillInfo,
+  SkillDetail,
   MarketplaceEntry,
   McpMarketplaceEntry,
   AgentMarketplaceEntry,
@@ -28,6 +31,9 @@ import type {
   TtsModel,
   VoiceOption,
   AgentSeedStatus,
+  SessionChange,
+  SyncSnapshot,
+  HandshakeInfo,
 } from '@persona/shared';
 import { logger } from './logger';
 
@@ -56,29 +62,67 @@ const DEFAULT_PORT = 3847;
 let cachedBaseUrl: string | null = null;
 
 /**
- * 获取 API 请求的基础 URL。通过 Electron IPC 查询主进程并缓存结果。
+ * 把带内容哈希的图片绝对地址转成协议地址。
+ * 主机名是内容哈希，承担缓存键，src 只是未命中路径的一次性传输工具，
+ * 命中与网络地址无关，换隧道地址不失效。
+ */
+function toProtocolUrl(hash: string, httpUrl: string): string {
+  return `persona-image://${hash}?src=${encodeURIComponent(httpUrl)}`;
+}
+
+/**
+ * 获取 API 请求的基础 URL。通过 Electron IPC 查询主进程当前连接并缓存结果。
  */
 export async function getBaseUrl(): Promise<string> {
   if (cachedBaseUrl) {
     return cachedBaseUrl;
   }
 
-  if (window.api?.getServerUrl) {
-    const url = await window.api.getServerUrl();
-    if (url) {
-      cachedBaseUrl = url;
-      return url;
+  if (window.api?.getConnection) {
+    const address = (await window.api.getConnection()).current.address;
+    if (address) {
+      cachedBaseUrl = address;
+      return address;
     }
   }
 
   return `http://localhost:${DEFAULT_PORT}`;
 }
 
+/**
+ * 失效地址缓存并以当前连接立即回填。
+ * 切换连接后调用，头像与素材地址这类同步读者不留 localhost 空窗。
+ */
+export async function invalidateBaseUrl(): Promise<string> {
+  cachedBaseUrl = null;
+  return getBaseUrl();
+}
+
+/**
+ * 取目标地址的握手信息。
+ * 地址不可达或响应异常时抛错，调用方据此给出明确提示。
+ */
+export async function fetchHandshake(address: string): Promise<HandshakeInfo> {
+  const base = address.replace(/\/+$/, '');
+  const response = await fetch(`${base}/api/handshake`);
+  if (!response.ok) {
+    throw new Error(`handshake failed with status ${response.status}`);
+  }
+  const info = (await response.json()) as HandshakeInfo;
+  if (!info.hostId || !info.hostName || !info.version) {
+    throw new Error('handshake response missing fields');
+  }
+  return info;
+}
+
 // DTO 类型已迁移至 @persona/shared
 export type {
   McpServerInfo,
+  McpToolInfo,
+  McpConnectionType,
   ProviderStatus,
   SkillInfo,
+  SkillDetail,
   MarketplaceEntry,
   McpMarketplaceEntry,
   AgentMarketplaceEntry,
@@ -96,8 +140,17 @@ interface ListSkillsResponse {
   skills: SkillInfo[];
 }
 
+interface GetSkillResponse {
+  skill: SkillDetail;
+}
+
 interface ListMarketplaceSkillsResponse {
-  skills: MarketplaceEntry[];
+  skills: SkillMarketplaceItem[];
+}
+
+/** GET /skills 每条多了 logoUrl, 后端拼的 CDN 地址, 无 logo 时为 undefined */
+export interface SkillMarketplaceItem extends MarketplaceEntry {
+  logoUrl?: string;
 }
 
 /** GET /mcps 每条多了 logoUrl, 后端拼的 CDN 地址, 无 logo 时为 undefined */
@@ -139,12 +192,15 @@ interface ListProvidersResponse {
 export class WebSocketClient {
   private ws: WebSocket | null = null;
   private listeners: Set<(msg: ServerMessage) => void> = new Set();
-  private connectionListeners: Set<(connected: boolean) => void> = new Set();
+  private connectionListeners: Set<(status: ConnectionStatus) => void> =
+    new Set();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 1000;
+  /** 指数退避的基准与封顶，断线追平依赖不设次数上限的重连 */
+  private static readonly RECONNECT_BASE_DELAY_MS = 1000;
+  private static readonly RECONNECT_MAX_DELAY_MS = 30_000;
+  private stopped = false;
   private activeSessionIds: Set<string> = new Set();
 
   private static readonly HEARTBEAT_INTERVAL_MS = 30_000;
@@ -160,19 +216,29 @@ export class WebSocketClient {
 
   /**
    * 注册连接状态变化的监听器。
+   * 发射值为 ConnectionStatus 四值中的三种，主动断开不发射，
+   * 切换连接期间界面保持上一个状态不闪断开。
    * @param listener - 连接状态变化时的回调函数
    * @returns 取消监听的函数
    */
-  onConnectionChange(listener: (connected: boolean) => void): () => void {
+  onConnectionChange(listener: (status: ConnectionStatus) => void): () => void {
     this.connectionListeners.add(listener);
     return () => this.connectionListeners.delete(listener);
   }
 
+  /** 向全部连接监听器发射状态 */
+  private emitStatus(status: ConnectionStatus): void {
+    this.connectionListeners.forEach((l) => l(status));
+  }
+
   /**
-   * 建立 WebSocket 连接，重置重连计数。
+   * 建立 WebSocket 连接，重置重连计数，解除停止标记。
+   * 全新拨号意图对外发 connecting，覆盖开机首连与切换后的重拨。
    */
   connect(): void {
+    this.stopped = false;
     this.reconnectAttempts = 0;
+    this.emitStatus('connecting');
     this.doConnect();
   }
 
@@ -184,7 +250,7 @@ export class WebSocketClient {
       this.ws.onopen = () => {
         logger.info('[WebSocket] Connected');
         this.reconnectAttempts = 0;
-        this.connectionListeners.forEach((l) => l(true));
+        this.emitStatus('connected');
 
         // 注册设备身份
         if (this.deviceInfo) {
@@ -225,7 +291,10 @@ export class WebSocketClient {
 
       this.ws.onclose = () => {
         this.stopHeartbeat();
-        this.connectionListeners.forEach((l) => l(false));
+        // 主动断开静默，切换连接期间不向界面发断开信号
+        if (!this.stopped) {
+          this.emitStatus('disconnected');
+        }
         this.attemptReconnect();
       };
 
@@ -236,21 +305,25 @@ export class WebSocketClient {
   }
 
   /**
-   * 以线性退避策略尝试重新连接，超过最大次数后停止。
+   * 以指数退避策略尝试重新连接，延迟封顶三十秒且不设次数上限。
+   * 断线追平依赖这条不断重连的通道，server 起停周期内连接必须自愈。
    */
   private attemptReconnect(): void {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      logger.error('[WebSocket] Connection failed after max retries');
+    if (this.stopped) {
       return;
     }
 
+    const delay = Math.min(
+      WebSocketClient.RECONNECT_BASE_DELAY_MS * 2 ** this.reconnectAttempts,
+      WebSocketClient.RECONNECT_MAX_DELAY_MS
+    );
     this.reconnectAttempts++;
-    const delay = this.reconnectDelay * this.reconnectAttempts;
     logger.info(
       `[WebSocket] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`
     );
 
     this.reconnectTimer = setTimeout(() => {
+      this.emitStatus('reconnecting');
       this.doConnect();
     }, delay);
   }
@@ -259,14 +332,37 @@ export class WebSocketClient {
    * 关闭连接并停止重连和心跳。
    */
   disconnect(): void {
+    this.stopped = true;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
     this.stopHeartbeat();
-    this.reconnectAttempts = this.maxReconnectAttempts;
     this.ws?.close();
     this.ws = null;
+  }
+
+  /**
+   * 跳过退避等待立即重连，红条点按的入口。
+   * 已停止、已连接或正在拨号时静默返回，退避计数保持不动，
+   * 下一次失败仍按原退避曲线等待。
+   */
+  reconnectNow(): void {
+    if (this.stopped) return;
+    if (
+      this.ws &&
+      (this.ws.readyState === WebSocket.OPEN ||
+        this.ws.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    logger.info('[WebSocket] Manual reconnect requested');
+    this.emitStatus('reconnecting');
+    this.doConnect();
   }
 
   /**
@@ -377,6 +473,49 @@ export async function listSessions(agentId: string): Promise<SessionMeta[]> {
 
   const data: ListSessionsResponse = await response.json();
   return data.sessions;
+}
+
+/**
+ * 拉全量同步快照，冷启动镜像用。
+ * @returns 快照对象，含全部会话消息与服务端最新序号
+ */
+export async function getSyncSnapshot(): Promise<SyncSnapshot> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/sync/snapshot`, {
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to get sync snapshot: ${response.status}`);
+  }
+  const data = (await response.json()) as { snapshot: SyncSnapshot };
+  return data.snapshot;
+}
+
+/** 变更流分页响应 */
+interface SyncChangesResponse {
+  changes: SessionChange[];
+  head: number;
+}
+
+/**
+ * 按游标分页拉变更流，追平用。
+ * @param since - 客户端当前游标
+ * @param limit - 单页上限
+ * @returns 按序变更与服务端最新序号
+ */
+export async function getSyncChanges(
+  since: number,
+  limit: number
+): Promise<SyncChangesResponse> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/changes?since=${since}&limit=${limit}`,
+    { headers: { Accept: 'application/json' } }
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to get sync changes: ${response.status}`);
+  }
+  return (await response.json()) as SyncChangesResponse;
 }
 
 /**
@@ -672,6 +811,25 @@ export async function getSeedStatus(): Promise<AgentSeedStatus> {
 }
 
 /**
+ * 标记首启引导完成，onboarded 翻 true。
+ * 仅在本机连接时调用，baseUrl 天然指向本机 server。
+ * @returns 更新后的播种状态
+ */
+export async function markSeedOnboarded(): Promise<AgentSeedStatus> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/agents/seed-status/onboarded`, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to mark onboarded: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
  * 根据 ID 获取单个 agent 的详细信息。
  * @param id - Agent ID
  * @returns agent 对象
@@ -765,7 +923,28 @@ export async function deleteAgent(id: string): Promise<boolean> {
 }
 
 /**
+ * 把后端下发的相对图标地址补全并转成协议地址。
+ * 已安装商品的图标由服务端下发挂内容哈希的本地路由相对路径，补全 baseUrl
+ * 后经 toProtocolUrl 转协议地址，命中走本地缓存。远程回退网址原样保留。
+ */
+function withAbsoluteLogoUrl<T extends { logoUrl?: string }>(
+  item: T,
+  baseUrl: string
+): T {
+  if (item.logoUrl && item.logoUrl.startsWith('/')) {
+    const absolute = baseUrl + item.logoUrl;
+    const hash = new URL(absolute).searchParams.get('h');
+    return {
+      ...item,
+      logoUrl: hash ? toProtocolUrl(hash, absolute) : absolute,
+    };
+  }
+  return item;
+}
+
+/**
  * 获取已连接的 MCP 服务器列表。
+ * 图标地址经相对路径补全，已装商品走本机服务，断网也能显示。
  * @returns MCP 服务器数组
  */
 export async function listMcpServers(): Promise<McpServerInfo[]> {
@@ -780,7 +959,28 @@ export async function listMcpServers(): Promise<McpServerInfo[]> {
   }
 
   const data: ListMcpsResponse = await response.json();
-  return data.servers;
+  return data.servers.map((server) => withAbsoluteLogoUrl(server, baseUrl));
+}
+
+/**
+ * 重连一个连接失败的 MCP 服务器。
+ * 服务端对同名服务的并发重连做了互斥，重复调用复用同一次连接。
+ * @param name - MCP 服务器名称
+ */
+export async function reconnectMcp(name: string): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/mcp/${encodeURIComponent(name)}/reconnect`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+  );
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to reconnect: ${response.status}`
+    );
+  }
 }
 
 /**
@@ -829,6 +1029,7 @@ export async function getMcpOAuthStatus(name: string): Promise<McpOAuthStatus> {
 
 /**
  * 获取可用的技能列表。
+ * 图标地址经相对路径补全，已装商品走本机服务，断网也能显示。
  * @returns 技能数组
  */
 export async function listSkills(): Promise<SkillInfo[]> {
@@ -843,14 +1044,38 @@ export async function listSkills(): Promise<SkillInfo[]> {
   }
 
   const data: ListSkillsResponse = await response.json();
-  return data.skills;
+  return data.skills.map((skill) => withAbsoluteLogoUrl(skill, baseUrl));
+}
+
+/**
+ * 获取单个技能的完整详情，正文按需单查。
+ * 图标地址与列表同口径补全。
+ * @param name - 技能的机器键
+ * @returns 含正文的技能详情
+ */
+export async function getSkill(name: string): Promise<SkillDetail> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/skills/${encodeURIComponent(name)}`,
+    {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to get skill: ${response.status}`);
+  }
+
+  const data: GetSkillResponse = await response.json();
+  return withAbsoluteLogoUrl(data.skill, baseUrl);
 }
 
 /**
  * 拉取商城 Skill 清单。
- * @returns 商城条目数组
+ * @returns 商城条目数组，每条附带可选 logoUrl
  */
-export async function listMarketplaceSkills(): Promise<MarketplaceEntry[]> {
+export async function listMarketplaceSkills(): Promise<SkillMarketplaceItem[]> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(`${baseUrl}/api/marketplace/skills`, {
     method: 'GET',
@@ -1104,11 +1329,29 @@ interface TunnelStatusResponse {
 }
 
 /**
+ * 取本机常驻服务端地址。
+ * 隧道控制这类被人连的方向专用，不随连接切换漂移。
+ */
+export async function getLocalBaseUrl(): Promise<string> {
+  if (cachedLocalBaseUrl) {
+    return cachedLocalBaseUrl;
+  }
+  const snapshot = await window.api?.getConnection();
+  if (snapshot?.local.address) {
+    cachedLocalBaseUrl = snapshot.local.address;
+    return snapshot.local.address;
+  }
+  return `http://localhost:${DEFAULT_PORT}`;
+}
+
+let cachedLocalBaseUrl: string | null = null;
+
+/**
  * 启动远程隧道。
  * @returns 包含状态信息的对象
  */
 export async function startTunnel(): Promise<{ status: string }> {
-  const baseUrl = await getBaseUrl();
+  const baseUrl = await getLocalBaseUrl();
   const response = await fetch(`${baseUrl}/api/tunnel/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1126,7 +1369,7 @@ export async function startTunnel(): Promise<{ status: string }> {
  * @returns 是否成功停止
  */
 export async function stopTunnel(): Promise<{ success: boolean }> {
-  const baseUrl = await getBaseUrl();
+  const baseUrl = await getLocalBaseUrl();
   const response = await fetch(`${baseUrl}/api/tunnel/stop`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1144,7 +1387,7 @@ export async function stopTunnel(): Promise<{ success: boolean }> {
  * @returns 隧道状态信息
  */
 export async function getTunnelStatus(): Promise<TunnelStatusResponse> {
-  const baseUrl = await getBaseUrl();
+  const baseUrl = await getLocalBaseUrl();
   const response = await fetch(`${baseUrl}/api/tunnel/status`, {
     method: 'GET',
     headers: { Accept: 'application/json' },
@@ -1182,42 +1425,70 @@ export async function deleteCredential(
 }
 
 /**
- * 获取指定 agent 的头像 URL，附带时间戳参数避免缓存。
+ * 获取指定 agent 的头像地址，内容哈希承担缓存身份。
+ * 哈希存在时产出协议地址，未命中由主进程下载校验落盘后本地命中，
+ * 缺失时退回 http 地址，由服务端 no-cache 防御兜底。
  * @param agentId - Agent ID
- * @returns 头像图片的完整 URL
+ * @param hash - 头像内容哈希
+ * @returns 头像图片地址
  */
-export function getAgentAvatarUrl(agentId: string): string {
+export function getAgentAvatarUrl(agentId: string, hash?: string): string {
   const base = cachedBaseUrl || `http://localhost:${DEFAULT_PORT}`;
-  return `${base}/api/agents/${agentId}/avatar?t=${Date.now()}`;
+  const httpUrl = `${base}/api/agents/${agentId}/avatar`;
+  return hash ? toProtocolUrl(hash, `${httpUrl}?h=${hash}`) : httpUrl;
 }
 
 /**
- * 获取指定 agent 的姿态图片 URL。
+ * 获取指定 agent 的姿态图片地址，内容哈希承担缓存身份。
+ * 哈希存在时产出协议地址，未命中由主进程下载校验落盘后本地命中，
+ * 缺失时退回 http 地址，由服务端 no-cache 防御兜底。
  * @param agentId - Agent ID
  * @param poseName - 姿态名称
- * @returns 姿态图片的完整 URL
+ * @param hash - 姿态图片内容哈希
+ * @returns 姿态图片地址
  */
-export function getPoseImageUrl(agentId: string, poseName: string): string {
+export function getPoseImageUrl(
+  agentId: string,
+  poseName: string,
+  hash?: string
+): string {
   const base = cachedBaseUrl || `http://localhost:${DEFAULT_PORT}`;
-  return `${base}/api/agents/${agentId}/assets/pose/${encodeURIComponent(poseName)}?t=${Date.now()}`;
+  const httpUrl = `${base}/api/agents/${agentId}/assets/pose/${encodeURIComponent(poseName)}`;
+  return hash ? toProtocolUrl(hash, `${httpUrl}?h=${hash}`) : httpUrl;
 }
 
 /**
- * 获取指定 agent 的背景图片 URL。
+ * 获取指定 agent 的背景图片地址，内容哈希承担缓存身份。
+ * 哈希存在时产出协议地址，未命中由主进程下载校验落盘后本地命中，
+ * 缺失时退回 http 地址，由服务端 no-cache 防御兜底。
  * @param agentId - Agent ID
- * @returns 背景图片的完整 URL
+ * @param hash - 背景内容哈希
+ * @returns 背景图片地址
  */
-export function getBackgroundImageUrl(agentId: string): string {
+export function getBackgroundImageUrl(agentId: string, hash?: string): string {
   const base = cachedBaseUrl || `http://localhost:${DEFAULT_PORT}`;
-  return `${base}/api/agents/${agentId}/assets/background?t=${Date.now()}`;
+  const httpUrl = `${base}/api/agents/${agentId}/assets/background`;
+  return hash ? toProtocolUrl(hash, `${httpUrl}?h=${hash}`) : httpUrl;
+}
+
+/** 立绘素材条目，name 承担业务查找，hash 承担缓存身份 */
+export interface PoseAsset {
+  name: string;
+  hash: string;
+}
+
+/** 素材列表响应，poses 为立绘哈希清单，backgroundHash 为背景哈希 */
+export interface PoseAssets {
+  poses: PoseAsset[];
+  backgroundHash: string;
 }
 
 /**
- * 获取指定 agent 可用的姿态列表。
+ * 获取指定 agent 的立绘清单与背景哈希。
  * @param agentId - Agent ID
- * @returns 姿态名称数组
+ * @returns 立绘哈希清单与背景哈希，背景不存在时哈希为空串
  */
-export async function listPoses(agentId: string): Promise<string[]> {
+export async function listPoses(agentId: string): Promise<PoseAssets> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(`${baseUrl}/api/agents/${agentId}/assets/pose`, {
     method: 'GET',
@@ -1226,8 +1497,7 @@ export async function listPoses(agentId: string): Promise<string[]> {
   if (!response.ok) {
     throw new Error(`Failed to list poses: ${response.status}`);
   }
-  const data = await response.json();
-  return data.poses;
+  return (await response.json()) as PoseAssets;
 }
 
 /**

@@ -1,159 +1,78 @@
 /**
  * @file src/renderer/components/skills/SkillsView.tsx
- * @description Agent 技能视图，独立于 AgentEditor，采用草稿+保存模式。
- * 从 currentAgent.skillNames 初始化草稿，保存后调 updateAgentSkillNames 写入后端。
- * 两段式布局：上半「已分配」+ 下半「技能库」，行渲染统一用 AssignRow。
+ * @description Agent 技能视图，左右双栏
+ * 左栏上下两组为已分配技能与技能库，加减号即时分配，右栏为选中技能的详情
  *
- * 商城入口已收口到左下角罗盘，本页不再提供"技能商城"按钮；要装新的技能去罗盘。
+ * 商城入口已收口到左下角罗盘，本页不提供技能商城按钮
  */
-import React, { useState, useEffect } from 'react';
-import { Sparkles } from 'lucide-react';
+
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { listSkills, type SkillInfo } from '../../lib/api';
 import { useAgentStore } from '../../stores/agentStore';
-import { useViewStore } from '../../stores/viewStore';
 import { logger } from '../../lib/logger';
-import { ScrollArea } from '../ui/ScrollArea';
-import { BackButton } from '../ui/BackButton';
-import { CollapsibleSection } from '../ui/CollapsibleSection';
-import { AssignRow } from '../common/AssignRow';
+import { ListState } from '../common/ListState';
+import { EmptyPane } from '../common/SidePanel';
+import { useValidatedSelection } from '../../hooks/useValidatedSelection';
+import { SkillListPanel } from './SkillListPanel';
+import { SkillDetailPanel } from './SkillDetailPanel';
 
 export const SkillsView: React.FC = () => {
   const { t } = useTranslation();
   const currentAgent = useAgentStore((s) => s.currentAgent);
-  const updateAgentSkillNames = useAgentStore((s) => s.updateAgentSkillNames);
-  const setActiveNav = useViewStore((s) => s.setActiveNav);
 
-  const [skills, setSkills] = useState<SkillInfo[]>([]);
-  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>(
-    currentAgent?.skillNames ?? []
-  );
-  const [isSaving, setIsSaving] = useState(false);
-  const [assignedOpen, setAssignedOpen] = useState(true);
-  const [libraryOpen, setLibraryOpen] = useState(true);
+  const [skills, setSkills] = useState<SkillInfo[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setSkills(null);
+    setError(null);
     listSkills()
       .then(setSkills)
-      .catch((err) => logger.error('Failed to load skills:', err));
+      .catch((err) => {
+        logger.error('Failed to load skills:', err);
+        setError(err instanceof Error ? err.message : String(err));
+      });
   }, []);
 
-  /** Agent 切换时重新初始化草稿 */
   useEffect(() => {
-    setSelectedSkillIds(currentAgent?.skillNames ?? []);
-  }, [currentAgent?.id]);
+    load();
+  }, [load]);
 
-  /** 技能库 = 全部技能中未被当前 Agent 选中的 */
-  const librarySkills = skills.filter(
-    (s) => !selectedSkillIds.includes(s.name)
+  /**
+   * 选中技能失效时自动修正，回退到列表第一个技能。
+   * 卸载技能、切换 Agent、首次进入由这一处逻辑覆盖。
+   */
+  const entries = skills ?? [];
+  const [selection, setSelection] = useValidatedSelection<string>(
+    (v) => entries.some((e) => e.name === v),
+    () => entries[0]?.name ?? null
   );
 
-  /** 保存当前 Skill 分配到后端，成功后返回聊天视图 */
-  const handleSave = async () => {
-    if (!currentAgent) return;
-    setIsSaving(true);
-    try {
-      await updateAgentSkillNames(currentAgent.id, selectedSkillIds);
-      logger.info(
-        `[Skills] Saved skill assignment for ${currentAgent.id}: ${selectedSkillIds.join(', ')}`
-      );
-      setActiveNav('chat');
-    } catch (err) {
-      logger.error('Failed to save skill names:', err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  if (!currentAgent) return null;
 
-  /** 根据 ID 查找技能信息 */
-  const resolveSkill = (name: string): SkillInfo | undefined =>
-    skills.find((s) => s.name === name);
+  const selected = entries.find((e) => e.name === selection);
 
   return (
-    <div className="h-full w-full flex flex-col bg-general-bg">
-      <div className="shrink-0 flex items-center gap-2 px-5 h-[65px] border-b border-border bg-muted">
-        <BackButton onClick={() => setActiveNav('chat')} />
-        <Sparkles className="w-[18px] h-[18px] text-muted-foreground" />
-        <h1 className="text-title-section font-bold text-foreground">
-          {t('skills.viewTitle')}
-        </h1>
-        <div className="flex-1" />
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="bg-foreground text-background hover:bg-foreground/90 rounded-lg h-8 px-5 text-body disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSaving ? t('common.saving') : t('common.save')}
-        </button>
-      </div>
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full">
-          <div className="max-w-2xl mx-auto px-6 py-6">
-            {/* 已分配技能 */}
-            <CollapsibleSection
-              title={t('skills.assignedTo', { name: currentAgent?.name ?? '' })}
-              count={selectedSkillIds.length}
-              open={assignedOpen}
-              onToggle={() => setAssignedOpen(!assignedOpen)}
-            >
-              {selectedSkillIds.length === 0 ? (
-                <div className="px-1 py-3 text-caption text-muted-foreground/60">
-                  {t('skills.emptyAssigned')}
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2.5 pt-1 pb-2">
-                  {selectedSkillIds.map((skillId) => {
-                    const skill = resolveSkill(skillId);
-                    return (
-                      <AssignRow
-                        key={skillId}
-                        type="skill"
-                        variant="assigned"
-                        name={skill?.name || skillId}
-                        description={skill?.description}
-                        onAction={() =>
-                          setSelectedSkillIds(
-                            selectedSkillIds.filter((id) => id !== skillId)
-                          )
-                        }
-                      />
-                    );
-                  })}
-                </div>
-              )}
-            </CollapsibleSection>
-
-            {/* 技能库 */}
-            <CollapsibleSection
-              title={t('skills.library')}
-              count={librarySkills.length}
-              open={libraryOpen}
-              onToggle={() => setLibraryOpen(!libraryOpen)}
-            >
-              {librarySkills.length === 0 ? (
-                <div className="px-1 py-3 text-caption text-muted-foreground/60">
-                  {t('skills.emptyLibrary')}
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2.5 pt-1 pb-2">
-                  {librarySkills.map((skill) => (
-                    <AssignRow
-                      key={skill.name}
-                      type="skill"
-                      variant="available"
-                      name={skill.name}
-                      description={skill.description}
-                      onAction={() =>
-                        setSelectedSkillIds([...selectedSkillIds, skill.name])
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-            </CollapsibleSection>
+    <ListState isLoading={skills === null} error={error} onRetry={load}>
+      <div className="flex h-full w-full overflow-hidden">
+        <SkillListPanel
+          agentId={currentAgent.id}
+          entries={entries}
+          selection={selection}
+          onSelect={(name) => {
+            logger.info('[Skills] 选中技能', { name });
+            setSelection(name);
+          }}
+        />
+        {selected ? (
+          <div className="min-h-0 min-w-0 flex-1">
+            <SkillDetailPanel skill={selected} />
           </div>
-        </ScrollArea>
+        ) : (
+          <EmptyPane text={t('skills.noneSelected')} />
+        )}
       </div>
-    </div>
+    </ListState>
   );
 };

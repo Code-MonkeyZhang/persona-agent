@@ -27,6 +27,7 @@ import {
   mock,
 } from 'bun:test';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { McpMarketplaceEntrySchema } from '@persona/shared';
@@ -42,6 +43,12 @@ let serversDir: string;
 
 /** 控制 connectOne 的返回值，pool 测试用 */
 let mockConnectResult: Record<string, unknown>;
+
+/** 控制 connectOne 的延迟释放，重连互斥测试用 */
+let mockConnectDelay: Promise<void> | null;
+
+/** connectOne 的实际调用次数，互斥测试用 */
+let mockConnectCalls = 0;
 
 /** 控制 downloadMcp 造的 mcp.json 内容，installer 测试用，null 表示不写 */
 let mockMcpJsonContent: Record<string, unknown> | null;
@@ -69,10 +76,11 @@ mock.module('../src/util/logger.js', () => ({
 
 mock.module('../src/mcp/loader.js', () => ({
   connectAllServers: async () => [],
-  connectOne: async (name: string) => ({
-    name,
-    ...mockConnectResult,
-  }),
+  connectOne: async (name: string) => {
+    mockConnectCalls += 1;
+    if (mockConnectDelay) await mockConnectDelay;
+    return { name, ...mockConnectResult };
+  },
 }));
 
 mock.module('../src/marketplace/downloader.js', () => ({
@@ -102,7 +110,12 @@ mock.module('../src/marketplace/downloader.js', () => ({
 }));
 
 mock.module('../src/util/uv-runtime.js', () => ({
-  detectUv: () => ({ ok: true, source: 'app', path: '/fake/uv', version: 'uv 0.7' }),
+  detectUv: () => ({
+    ok: true,
+    source: 'app',
+    path: '/fake/uv',
+    version: 'uv 0.7',
+  }),
   syncDeps: async () => {},
   invalidateUvCache: () => {},
   getUvAssetName: () => 'uv-aarch64-apple-darwin.tar.gz',
@@ -116,6 +129,7 @@ import {
   removeServer,
   listMcpServers,
   getMcpServer,
+  reconnectServer,
 } from '../src/mcp/pool.js';
 import { installMcp, uninstallMcp } from '../src/marketplace/mcp-installer.js';
 
@@ -148,7 +162,7 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-  fs.rmSync(tempDir, { recursive: true, force: true });
+  rmTempDir(tempDir);
 });
 
 beforeEach(async () => {
@@ -162,6 +176,8 @@ beforeEach(async () => {
     tools: [],
     serverConn: { disconnect: async () => {} },
   };
+  mockConnectDelay = null;
+  mockConnectCalls = 0;
   // 默认：downloadMcp 造一个可用的 mcp.json
   mockMcpJsonContent = { type: 'stdio', command: 'echo', args: ['hi'] };
   mockDownloadEmpty = false;
@@ -203,27 +219,27 @@ describe('McpMarketplaceEntrySchema', () => {
 describe('saveMcpServer', () => {
   it('writes a new server config to mcp.json', () => {
     saveMcpServer('srv-a', { type: 'stdio', command: 'npx', args: [] });
-    const content = JSON.parse(
-      fs.readFileSync(configPath, 'utf8')
-    ) as { mcpServers: Record<string, { command: string }> };
+    const content = JSON.parse(fs.readFileSync(configPath, 'utf8')) as {
+      mcpServers: Record<string, { command: string }>;
+    };
     expect(content.mcpServers['srv-a'].command).toBe('npx');
   });
 
   it('overwrites an existing server config', () => {
     saveMcpServer('srv-a', { type: 'stdio', command: 'old', args: [] });
     saveMcpServer('srv-a', { type: 'stdio', command: 'new', args: [] });
-    const content = JSON.parse(
-      fs.readFileSync(configPath, 'utf8')
-    ) as { mcpServers: Record<string, { command: string }> };
+    const content = JSON.parse(fs.readFileSync(configPath, 'utf8')) as {
+      mcpServers: Record<string, { command: string }>;
+    };
     expect(content.mcpServers['srv-a'].command).toBe('new');
   });
 
   it('preserves other servers when writing one', () => {
     saveMcpServer('srv-a', { type: 'stdio', command: 'a', args: [] });
     saveMcpServer('srv-b', { type: 'stdio', command: 'b', args: [] });
-    const content = JSON.parse(
-      fs.readFileSync(configPath, 'utf8')
-    ) as { mcpServers: Record<string, unknown> };
+    const content = JSON.parse(fs.readFileSync(configPath, 'utf8')) as {
+      mcpServers: Record<string, unknown>;
+    };
     expect(content.mcpServers['srv-a']).toBeDefined();
     expect(content.mcpServers['srv-b']).toBeDefined();
   });
@@ -233,9 +249,9 @@ describe('deleteMcpServer', () => {
   it('removes an existing server config', () => {
     saveMcpServer('srv', { type: 'stdio', command: 'x', args: [] });
     deleteMcpServer('srv');
-    const content = JSON.parse(
-      fs.readFileSync(configPath, 'utf8')
-    ) as { mcpServers: Record<string, unknown> };
+    const content = JSON.parse(fs.readFileSync(configPath, 'utf8')) as {
+      mcpServers: Record<string, unknown>;
+    };
     expect(content.mcpServers['srv']).toBeUndefined();
   });
 
@@ -248,9 +264,9 @@ describe('deleteMcpServer', () => {
     saveMcpServer('keep', { type: 'stdio', command: 'k', args: [] });
     saveMcpServer('del', { type: 'stdio', command: 'd', args: [] });
     deleteMcpServer('del');
-    const content = JSON.parse(
-      fs.readFileSync(configPath, 'utf8')
-    ) as { mcpServers: Record<string, unknown> };
+    const content = JSON.parse(fs.readFileSync(configPath, 'utf8')) as {
+      mcpServers: Record<string, unknown>;
+    };
     expect(content.mcpServers['keep']).toBeDefined();
     expect(content.mcpServers['del']).toBeUndefined();
   });
@@ -340,6 +356,46 @@ describe('removeServer', () => {
   });
 });
 
+describe('reconnectServer', () => {
+  it('restores a failed server to connected', async () => {
+    mockConnectResult = { tools: [], error: 'Connection refused' };
+    await addServer('flaky', { type: 'stdio', command: 'echo', args: [] });
+    expect(getMcpServer('flaky')?.status).toBe('disconnected');
+
+    mockConnectResult = {
+      connection: { name: '', tools: [], disconnect: async () => {} },
+      tools: [],
+      serverConn: { disconnect: async () => {} },
+    };
+    await reconnectServer('flaky');
+
+    const entry = getMcpServer('flaky');
+    expect(entry?.status).toBe('connected');
+    expect(entry?.error).toBeUndefined();
+  });
+
+  it('throws not found for unknown server', async () => {
+    await expect(reconnectServer('ghost')).rejects.toThrow(/not found/);
+  });
+
+  it('collapses concurrent calls into one actual connection', async () => {
+    await addServer('mutex', { type: 'stdio', command: 'echo', args: [] });
+
+    let release!: () => void;
+    mockConnectDelay = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    const first = reconnectServer('mutex');
+    const second = reconnectServer('mutex');
+    release();
+    await Promise.all([first, second]);
+
+    expect(mockConnectCalls).toBe(2);
+    expect(getMcpServer('mutex')?.status).toBe('connected');
+  });
+});
+
 // ═══════════════════════════════════════════════════════════
 // 安装/卸载编排：installMcp / uninstallMcp
 // ═══════════════════════════════════════════════════════════
@@ -349,9 +405,9 @@ describe('installMcp', () => {
     await installMcp(makeEntry());
 
     // 配置已写入
-    const content = JSON.parse(
-      fs.readFileSync(configPath, 'utf8')
-    ) as { mcpServers: Record<string, { command: string }> };
+    const content = JSON.parse(fs.readFileSync(configPath, 'utf8')) as {
+      mcpServers: Record<string, { command: string }>;
+    };
     expect(content.mcpServers['test-mcp']).toBeDefined();
 
     // 池里有
@@ -368,9 +424,9 @@ describe('installMcp', () => {
 
     await installMcp(makeEntry());
 
-    const content = JSON.parse(
-      fs.readFileSync(configPath, 'utf8')
-    ) as { mcpServers: Record<string, { args: string[] }> };
+    const content = JSON.parse(fs.readFileSync(configPath, 'utf8')) as {
+      mcpServers: Record<string, { args: string[] }>;
+    };
     const savedArgs = content.mcpServers['test-mcp'].args;
     expect(savedArgs[2]).toBe(path.join(serversDir, 'test-mcp'));
     expect(savedArgs[2]).not.toContain('${SERVERS_DIR}');
@@ -417,9 +473,9 @@ describe('uninstallMcp', () => {
 
     // 配置里没了
     if (fs.existsSync(configPath)) {
-      const content = JSON.parse(
-        fs.readFileSync(configPath, 'utf8')
-      ) as { mcpServers: Record<string, unknown> };
+      const content = JSON.parse(fs.readFileSync(configPath, 'utf8')) as {
+        mcpServers: Record<string, unknown>;
+      };
       expect(content.mcpServers['test-mcp']).toBeUndefined();
     }
 

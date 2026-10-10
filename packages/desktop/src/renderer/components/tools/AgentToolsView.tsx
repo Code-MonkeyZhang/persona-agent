@@ -1,154 +1,78 @@
 /**
  * @file src/renderer/components/tools/AgentToolsView.tsx
- * @description Agent 工具视图，独立于 AgentEditor，采用草稿+保存模式。
- * 从 currentAgent.mcpNames 初始化草稿，保存后调 updateAgentMcpNames 写入后端。
- * 两段式布局：上半「已分配」+ 下半「可用 MCP」，行渲染统一用 AssignRow。
- *
- * 商城入口已收口到左下角罗盘，本页不再提供"浏览商城"按钮；要装新的 MCP 去罗盘。
+ * @description Agent 工具视图，左右双栏
+ * 左栏上下两组为已分配工具与未分配工具，加减号即时分配，右栏为选中工具的详情
+ * Agent 上下文来自入口的当前 Agent，页面内不出现第二处 Agent 选择
  */
-import React, { useState, useEffect } from 'react';
-import { Wrench } from 'lucide-react';
+
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { listMcpServers, type McpServerInfo } from '../../lib/api';
+import { useMcpStore } from '../../stores/mcpStore';
 import { useAgentStore } from '../../stores/agentStore';
-import { useViewStore } from '../../stores/viewStore';
 import { logger } from '../../lib/logger';
-import { ScrollArea } from '../ui/ScrollArea';
-import { BackButton } from '../ui/BackButton';
-import { CollapsibleSection } from '../ui/CollapsibleSection';
-import { AssignRow } from '../common/AssignRow';
+import { ListState } from '../common/ListState';
+import { EmptyPane } from '../common/SidePanel';
+import { useValidatedSelection } from '../../hooks/useValidatedSelection';
+import { ToolListPanel } from './ToolListPanel';
+import { ToolDetailPanel } from './ToolDetailPanel';
+import {
+  BUILT_IN_TOOLS,
+  isToolSelectionValid,
+  type ToolSelection,
+} from './builtInTools';
 
 export const AgentToolsView: React.FC = () => {
   const { t } = useTranslation();
   const currentAgent = useAgentStore((s) => s.currentAgent);
-  const updateAgentMcpNames = useAgentStore((s) => s.updateAgentMcpNames);
-  const setActiveNav = useViewStore((s) => s.setActiveNav);
+  const servers = useMcpStore((s) => s.servers);
+  const loading = useMcpStore((s) => s.loading);
+  const error = useMcpStore((s) => s.error);
+  const load = useMcpStore((s) => s.load);
+  const disposeOAuth = useMcpStore((s) => s.disposeOAuth);
 
-  const [mcps, setMcps] = useState<McpServerInfo[]>([]);
-  const [selectedMcpIds, setSelectedMcpIds] = useState<string[]>(
-    currentAgent?.mcpNames ?? []
+  useEffect(() => {
+    void load();
+    return () => disposeOAuth();
+  }, [load, disposeOAuth]);
+
+  /**
+   * 选中节点失效时自动修正，回退到第一个内置工具。
+   * 一处逻辑同时覆盖卸载选中服务、切换 Agent、首次进入三种场景。
+   */
+  const entries = servers ?? [];
+  const [selection, setSelection] = useValidatedSelection<ToolSelection>(
+    (v) => isToolSelectionValid(v, entries),
+    () => ({ kind: 'builtin', id: BUILT_IN_TOOLS[0].id })
   );
-  const [isSaving, setIsSaving] = useState(false);
-  const [assignedOpen, setAssignedOpen] = useState(true);
-  const [availableOpen, setAvailableOpen] = useState(true);
 
-  useEffect(() => {
-    listMcpServers()
-      .then(setMcps)
-      .catch((err) => logger.error('Failed to load MCP servers:', err));
-  }, []);
+  if (!currentAgent) return null;
 
-  /** Agent 切换时重新初始化草稿 */
-  useEffect(() => {
-    setSelectedMcpIds(currentAgent?.mcpNames ?? []);
-  }, [currentAgent?.id]);
-
-  /** 可用 MCP = 全部 MCP（含 Agent App）中未被当前 Agent 选中的 */
-  const availableMcps = mcps.filter((m) => !selectedMcpIds.includes(m.name));
-
-  /** 保存当前 MCP 分配到后端，成功后返回聊天视图 */
-  const handleSave = async () => {
-    if (!currentAgent) return;
-    setIsSaving(true);
-    try {
-      await updateAgentMcpNames(currentAgent.id, selectedMcpIds);
-      logger.info(
-        `[Tools] Saved MCP assignment for ${currentAgent.id}: ${selectedMcpIds.join(', ')}`
-      );
-      setActiveNav('chat');
-    } catch (err) {
-      logger.error('Failed to save MCP names:', err);
-    } finally {
-      setIsSaving(false);
-    }
+  const handleSelect = (sel: ToolSelection) => {
+    logger.info('[Tools] 选中节点', sel);
+    setSelection(sel);
   };
 
-  /** 根据 name 查找 MCP 信息（已分配项可能按名引用，未必加载到详情） */
-  const resolveMcp = (name: string): McpServerInfo | undefined =>
-    mcps.find((m) => m.name === name);
-
   return (
-    <div className="h-full w-full flex flex-col bg-general-bg">
-      <div className="shrink-0 flex items-center gap-2 px-5 h-[65px] border-b border-border bg-muted">
-        <BackButton onClick={() => setActiveNav('chat')} />
-        <Wrench className="w-[18px] h-[18px] text-muted-foreground" />
-        <h1 className="text-title-section font-bold text-foreground">
-          {t('tools.title')}
-        </h1>
-        <div className="flex-1" />
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="bg-foreground text-background hover:bg-foreground/90 rounded-lg h-8 px-5 text-body disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSaving ? t('common.saving') : t('common.save')}
-        </button>
-      </div>
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full">
-          <div className="max-w-2xl mx-auto px-6 py-6">
-            {/* 已分配 MCP */}
-            <CollapsibleSection
-              title={t('tools.assignedTo', { name: currentAgent?.name ?? '' })}
-              count={selectedMcpIds.length}
-              open={assignedOpen}
-              onToggle={() => setAssignedOpen(!assignedOpen)}
-            >
-              {selectedMcpIds.length === 0 ? (
-                <div className="px-1 py-3 text-caption text-muted-foreground/60">
-                  {t('tools.emptyAssigned')}
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2.5 pt-1 pb-2">
-                  {selectedMcpIds.map((name) => (
-                    <AssignRow
-                      key={name}
-                      type="mcp"
-                      variant="assigned"
-                      name={name}
-                      mcp={resolveMcp(name)}
-                      onAction={() =>
-                        setSelectedMcpIds(
-                          selectedMcpIds.filter((id) => id !== name)
-                        )
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-            </CollapsibleSection>
-
-            {/* 可用 MCP */}
-            <CollapsibleSection
-              title={t('tools.available')}
-              count={availableMcps.length}
-              open={availableOpen}
-              onToggle={() => setAvailableOpen(!availableOpen)}
-            >
-              {availableMcps.length === 0 ? (
-                <div className="px-1 py-3 text-caption text-muted-foreground/60">
-                  {t('tools.emptyAvailable')}
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2.5 pt-1 pb-2">
-                  {availableMcps.map((mcp) => (
-                    <AssignRow
-                      key={mcp.name}
-                      type="mcp"
-                      variant="available"
-                      name={mcp.name}
-                      mcp={mcp}
-                      onAction={() =>
-                        setSelectedMcpIds([...selectedMcpIds, mcp.name])
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-            </CollapsibleSection>
+    <ListState
+      isLoading={loading && servers === null}
+      error={error}
+      onRetry={load}
+    >
+      <div className="flex h-full w-full overflow-hidden">
+        <ToolListPanel
+          agentId={currentAgent.id}
+          servers={entries}
+          selection={selection}
+          onSelect={handleSelect}
+        />
+        {selection ? (
+          <div className="min-h-0 min-w-0 flex-1">
+            <ToolDetailPanel selection={selection} />
           </div>
-        </ScrollArea>
+        ) : (
+          <EmptyPane text={t('tools.noneSelected')} />
+        )}
       </div>
-    </div>
+    </ListState>
   );
 };

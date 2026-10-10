@@ -12,6 +12,9 @@
  *
  * 流程：读模板档案 → safeParse → createAgentConfig → cpSync assets →
  * 原子写 agent-seed.json。任一步失败 log 后放弃，绝不阻塞启动。
+ *
+ * 状态文件是双开关：seeded 记播种事实防删除复活，
+ * onboarded 记首启引导完成没有，由 markSeedOnboarded 幂等翻转。
  */
 
 import * as fs from 'node:fs';
@@ -63,6 +66,19 @@ function writeSeedStatus(status: AgentSeedStatus): void {
   const tmpPath = `${filePath}.tmp`;
   fs.writeFileSync(tmpPath, JSON.stringify(status, null, 2));
   fs.renameSync(tmpPath, filePath);
+}
+
+/**
+ * 标记首启引导完成，onboarded 翻 true。
+ * 幂等：未播种或已引导时不写盘，直接返回当前状态。
+ */
+export function markSeedOnboarded(): AgentSeedStatus {
+  const status = readAgentSeedStatus();
+  if (!status.seeded || status.onboarded === true) return status;
+  const next = { ...status, onboarded: true };
+  writeSeedStatus(next);
+  Logger.log('AGENT', 'Seed marked onboarded');
+  return next;
 }
 
 /**
@@ -133,6 +149,7 @@ export function seedInitialAgent(): void {
 
     writeSeedStatus({
       seeded: true,
+      onboarded: false,
       template: TEMPLATE_NAME,
       lang,
       agentId: agent.id,

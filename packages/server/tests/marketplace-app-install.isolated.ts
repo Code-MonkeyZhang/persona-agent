@@ -1,11 +1,13 @@
 /**
  * @fileoverview Agent App 商城安装透传测试
  * 覆盖：清单 schema 的 agentApp 字段解析；installMcp 安装链路中
- * 商品 mcp.json 里的 agentApp / supportedUI 标记原样透传到用户配置与连接池。
+ * 商品 mcp.json 里的 agentApp / supportedUI 标记原样透传到用户配置与连接池；
+ * 安装 meta 的落盘与回读。
  */
 
 import { describe, it, expect, beforeAll, afterAll, mock } from 'bun:test';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import {
@@ -73,6 +75,7 @@ mock.module('../src/util/uv-runtime.js', () => ({
 }));
 
 import { installMcp } from '../src/marketplace/mcp-installer.js';
+import { readMcpMeta } from '../src/mcp/meta.js';
 
 /** 造一个 agentApp 商品的清单条目 */
 function makeAppEntry(): McpMarketplaceEntry {
@@ -113,7 +116,7 @@ describe('installMcp agentApp passthrough', () => {
   });
 
   afterAll(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   it('carries agentApp / supportedUI into saved config and pool', async () => {
@@ -125,5 +128,27 @@ describe('installMcp agentApp passthrough', () => {
       expect(config!.supportedUI).toEqual(['desktop', 'mobile']);
       expect((config!.args as string[])[2]).toContain(serversDir);
     }
+  });
+
+  it('persists install meta beside mcp.json', async () => {
+    await installMcp(makeAppEntry());
+
+    const metaPath = path.join(serversDir, 'my-app', 'mcp-meta.json');
+    expect(fs.existsSync(metaPath)).toBe(true);
+    const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+    expect(meta.displayName).toBe('我的应用');
+    expect(meta.author).toBe('a');
+    expect(meta.description).toBe('desc');
+    expect(meta.homepage).toBe('https://example.com');
+    expect(meta.logoUrl).toBe(
+      'https://raw.githubusercontent.com/Code-MonkeyZhang/persona-agent-marketplace/main/mcp/my-app/icon.png'
+    );
+  });
+
+  it('reads install meta back and tolerates missing meta', async () => {
+    await installMcp(makeAppEntry());
+
+    expect(readMcpMeta('my-app')?.displayName).toBe('我的应用');
+    expect(readMcpMeta('not-installed')).toBeUndefined();
   });
 });
