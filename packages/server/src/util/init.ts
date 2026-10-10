@@ -12,6 +12,7 @@
  * ├── skills/
  * ├── mcp/
  * │   └── servers/
+ * ├── attachments/
  * ├── workspace/
  * └── logs/
  */
@@ -22,6 +23,7 @@ import * as path from 'node:path';
 import { xdgData } from 'xdg-basedir';
 import {
   getAgentsDir,
+  getAttachmentsDir,
   getConfigDir,
   getConfigPath,
   getAuthPath,
@@ -66,6 +68,7 @@ function migrateDataDir(): void {
 const REQUIRED_DIRS = [
   getConfigDir,
   getAgentsDir,
+  getAttachmentsDir,
   getWorkspaceDir,
   getLogsDir,
   getSkillsDir,

@@ -5,6 +5,7 @@
 import { Command } from 'commander';
 import type { Server } from 'node:http';
 import { initAllDirsAndFiles, Logger } from './util/index.js';
+import { getDb } from './db/index.js';
 import { getLogsDir, getConfigPath } from './util/paths.js';
 import { loadConfig } from './config.js';
 import {
@@ -27,6 +28,8 @@ program
     initAllDirsAndFiles();
     const config = loadConfig(getConfigPath());
     Logger.initialize(getLogsDir(), config.enableLogging);
+    // 启动预热建库，正确性由惰性初始化兜底，早于它的写入会自动建库
+    getDb();
     backfillDefaultWorkspacePaths();
     seedInitialAgent();
 

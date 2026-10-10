@@ -23,6 +23,7 @@ import { useAgentStore } from '../../stores/agentStore';
 import { useViewStore } from '../../stores/viewStore';
 import { useScrollFade } from '../../hooks/useScrollFade';
 import { SessionItem } from './SessionItem';
+import { ConnectionStrip } from './ConnectionStrip';
 import { AgentAvatar } from '../common/AgentAvatar';
 import { cn } from '../../lib/utils';
 
@@ -151,6 +152,9 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
           <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
         </button>
       </div>
+
+      {/* 连接横条全幅直角贴两沿，过程播完即压高收起 */}
+      <ConnectionStrip />
 
       {/* - 上半固定区：聊天入口 + 分隔线 + 工具 + 技能 */}
       <div className="px-2 shrink-0">

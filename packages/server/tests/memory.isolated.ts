@@ -20,6 +20,7 @@ import {
   mock,
 } from 'bun:test';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 
@@ -35,7 +36,6 @@ mock.module('../src/util/paths.js', () => ({
   getAgentDir: (id: string) => path.join(agentsDir, id),
   getAgentConfigPath: (id: string) => path.join(agentsDir, id, 'config.json'),
   getAgentSystemPromptPath: (id: string) => path.join(agentsDir, id, 'systemPrompt.md'),
-  getAgentSessionsDir: (id: string) => path.join(agentsDir, id, 'sessions'),
   getAgentAssetsDir: (id: string) => path.join(agentsDir, id, 'assets'),
   getAgentAssetsPoseDir: (id: string) => path.join(agentsDir, id, 'assets', 'pose'),
   getAgentAssetsBackgroundsDir: (id: string) => path.join(agentsDir, id, 'assets', 'backgrounds'),
@@ -80,7 +80,7 @@ describe('MemoryStore', () => {
   });
 
   afterAll(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   beforeEach(() => {
@@ -143,7 +143,7 @@ describe('consolidateMemory', () => {
   });
 
   afterAll(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   beforeEach(() => {

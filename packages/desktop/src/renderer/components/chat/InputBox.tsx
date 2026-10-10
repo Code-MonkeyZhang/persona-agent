@@ -7,6 +7,7 @@
  * - 按 Enter 发送消息，Shift+Enter 换行
  * - 底部工具栏：添加附件按钮、工作目录选择器、模型选择器、发送按钮
  * - 聚焦/失焦时切换输入框边框样式
+ * - 断开与重连期间禁用输入与发送，占位文案随状态切换
  */
 
 import React from 'react';
@@ -17,6 +18,7 @@ import { useChatInput } from '../../hooks/useChatInput';
 import { ModelSelector } from '../common/ModelSelector';
 import { WorkspaceSelector } from '../common/WorkspaceSelector';
 import type { ProviderStatus } from '../../lib/api';
+import { useChatStore } from '../../stores/chatStore';
 
 /**
  * InputBox 组件的属性接口
@@ -58,11 +60,16 @@ export const InputBox: React.FC<InputBoxProps> = ({
   onWorkspaceChange,
 }) => {
   const { t } = useTranslation();
+  const connectionStatus = useChatStore((s) => s.connectionStatus);
+
+  /** 断开与重连期间发送不可能成功，禁用输入与发送并切换占位文案 */
+  const connBlocked =
+    connectionStatus === 'disconnected' || connectionStatus === 'reconnecting';
 
   /** 发送当前输入：空闲与生成中均可用，生成中由上层作为插话排队 */
   const submit = () => {
     const text = input.trim();
-    if (text && !disabled) {
+    if (text && !disabled && !connBlocked) {
       onSend(text);
       reset();
     }
@@ -85,9 +92,14 @@ export const InputBox: React.FC<InputBoxProps> = ({
             value={input}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            placeholder={t('inputBox.placeholder')}
+            disabled={disabled || connBlocked}
+            placeholder={
+              connBlocked
+                ? t('inputBox.placeholderDisconnected')
+                : t('inputBox.placeholder')
+            }
             rows={1}
-            className="w-full bg-transparent resize-none focus:outline-none text-content text-foreground placeholder:text-placeholder min-h-[30px]"
+            className="w-full bg-transparent resize-none focus:outline-none text-content text-foreground placeholder:text-placeholder min-h-[30px] disabled:cursor-not-allowed"
             style={{ maxHeight: '200px' }}
           />
         </div>
@@ -135,10 +147,10 @@ export const InputBox: React.FC<InputBoxProps> = ({
             )}
             <button
               onClick={submit}
-              disabled={disabled || !input.trim()}
+              disabled={disabled || connBlocked || !input.trim()}
               className={cn(
                 'w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-200',
-                input.trim()
+                input.trim() && !connBlocked
                   ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95'
                   : 'bg-muted/50 text-muted-foreground/40 cursor-not-allowed'
               )}

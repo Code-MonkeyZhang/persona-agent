@@ -12,6 +12,7 @@ import type {
   TextContent,
   ThinkingContent,
   ToolCall as PiAiToolCall,
+  JsonObject,
 } from '@earendil-works/pi-ai';
 import { Type, type TSchema } from '@earendil-works/pi-ai';
 import type { Message, ToolCall } from '../schema/index.js';
@@ -58,7 +59,9 @@ function convertMessages(messages: Message[]): PiAiMessage[] {
             type: 'toolCall',
             id: tc.id,
             name: tc.function.name,
-            arguments: tc.function.arguments,
+            // 内部 schema 存 Record<string, unknown>，入 pi-ai 边界收窄为 JsonObject，
+            // 值实际来自模型 JSON 参数，此处断言由转换层担保。
+            arguments: tc.function.arguments as JsonObject,
           });
         }
       }

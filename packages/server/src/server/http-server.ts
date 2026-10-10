@@ -24,6 +24,11 @@ import { createPairRouter } from './routers/pair.js';
 import { createRuntimesRouter } from './routers/runtimes.js';
 import { createAssetsRouter } from './routers/assets.js';
 import { createAvatarRouter } from './routers/avatar.js';
+import { createChangesRouter } from './routers/changes.js';
+import { createHandshakeRouter } from './routers/handshake.js';
+import { createDeviceRouter } from './routers/device.js';
+import { createAttachmentRouter } from './routers/attachment.js';
+import { createSyncRouter } from './routers/sync.js';
 import { processAppNotification } from './services/app-notification-service.js';
 import { initWebSocket, isWebSocketInitialized } from './websocket-server.js';
 import { startDreamScheduler } from './services/dream-scheduler.js';
@@ -136,6 +141,11 @@ app.use(
 );
 app.use('/api/tts', createTtsRouter());
 app.use('/api/voices', createVoiceRouter());
+app.use('/api/changes', createChangesRouter());
+app.use('/api/handshake', createHandshakeRouter());
+app.use('/api/devices', createDeviceRouter());
+app.use('/api/attachments', createAttachmentRouter());
+app.use('/api/sync', createSyncRouter());
 
 const httpServer = createHttpServer(app);
 

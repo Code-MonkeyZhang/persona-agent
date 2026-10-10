@@ -65,9 +65,12 @@ import {
 } from './stores/viewStore';
 import { useTunnelStore } from './stores/tunnelStore';
 import { useAppPanelStore } from './stores/appPanelStore';
+import { useConnectionStore, currentDeviceKey } from './stores/connectionStore';
+import { LOCAL_DEVICE_ID } from '@shared/api';
 import { logger } from './lib/logger';
 import { cn } from './lib/utils';
-import { getSeedStatus } from './lib/api';
+import { getSeedStatus, markSeedOnboarded } from './lib/api';
+import { shouldAutoShowWizard } from './lib/landing';
 
 /**
  * 侧栏收合展开过渡的收尾延时，毫秒。
@@ -256,14 +259,17 @@ function AppContent() {
     await deleteAgentById(id);
   };
 
-  /*  定义连接成功后的useEffect操作
-  - 加载Agent列表
-  - 加载 Provider 列表
-  - 连接成功且选中 Agent 后，加载该 Agent 的会话列表
+  /*  启动与连接恢复后的加载操作
+  - Agent 列表挂载即加载，HTTP 失败时回退本地缓存，连接建立后再取新
+  - Provider 列表连接成功后加载
+  - 选中 Agent 后加载其会话列表，读本地缓存不依赖连接
   - 同步隧道状态（可能从上次 session 遗留 running）
   */
+  const agentsInitialLoadedRef = useRef(false);
   useEffect(() => {
-    if (connectionStatus === 'connected') {
+    // 挂载先试一次保离线可用，之后只在连接建立时重取
+    if (!agentsInitialLoadedRef.current || connectionStatus === 'connected') {
+      agentsInitialLoadedRef.current = true;
       loadAgents();
     }
   }, [connectionStatus, loadAgents]);
@@ -275,22 +281,49 @@ function AppContent() {
   }, [connectionStatus, loadProviders]);
 
   /**
-   * 首启向导触发：无 landing-completed 标记 且 seed-status 显示已播种
-   * 且播种 Agent 仍在列表（老用户 seeded=false → 永不弹）。
+   * 首启向导触发，编排角色，判断逻辑收敛在 shouldAutoShowWizard。
+   * 仅本机连接、seed-status 未引导、播种 Agent 仍在列表时弹出。
    * 在 loadAgents 完成后检查，保证播种 Agent 已进列表。
    */
   const agentsLoaded = useAgentStore((s) => s.agents.length > 0);
+  const connectionSnapshot = useConnectionStore((s) => s.snapshot);
   useEffect(() => {
-    if (connectionStatus !== 'connected' || !agentsLoaded) return;
-    if (localStorage.getItem('landing-completed')) return;
+    if (
+      connectionStatus !== 'connected' ||
+      !connectionSnapshot ||
+      !agentsLoaded
+    )
+      return;
+    const isLocal = currentDeviceKey(connectionSnapshot) === LOCAL_DEVICE_ID;
+    // 迁移桥接只对本机 server 做：补写 onboarded 成功即删旧标记，失败保留下次再试
+    if (localStorage.getItem('landing-completed')) {
+      if (isLocal) {
+        void markSeedOnboarded()
+          .then(() => {
+            localStorage.removeItem('landing-completed');
+            logger.info('[Landing] legacy mark bridged to server onboarded');
+          })
+          .catch((err) =>
+            logger.warn('[Landing] bridge legacy mark failed:', err)
+          );
+      }
+      return;
+    }
     let cancelled = false;
     void getSeedStatus()
       .then((status) => {
         if (cancelled) return;
-        const exists = useAgentStore
+        const seededAgentExists = useAgentStore
           .getState()
           .agents.some((a) => a.id === status.agentId);
-        if (status.seeded && status.agentId && exists) {
+        if (
+          shouldAutoShowWizard({
+            isLocalConnection: isLocal,
+            seed: status,
+            seededAgentExists,
+          }) &&
+          status.agentId
+        ) {
           logger.info(`[Landing] showing wizard for seeded agent`);
           useViewStore.getState().openLanding(status.agentId, 'first-run');
         }
@@ -301,7 +334,7 @@ function AppContent() {
     return () => {
       cancelled = true;
     };
-  }, [connectionStatus, agentsLoaded]);
+  }, [connectionStatus, connectionSnapshot, agentsLoaded]);
 
   /** 向导完成出口，首启与重放共用：切换到目标 Agent 并进入聊天视图 */
   const handleLandingComplete = async () => {
@@ -318,10 +351,11 @@ function AppContent() {
   };
 
   useEffect(() => {
-    if (connectionStatus === 'connected' && currentAgent) {
+    if (currentAgent) {
+      // 读本地缓存即时渲染，同步引擎联网后经缓存更新事件刷新
       loadSessions(currentAgent.id);
     }
-  }, [connectionStatus, currentAgent, loadSessions]);
+  }, [currentAgent, loadSessions]);
 
   useEffect(() => {
     if (connectionStatus === 'connected') {
@@ -516,7 +550,7 @@ function AppContent() {
     <div className="h-full flex flex-col overflow-hidden bg-background">
       <TitleBar />
       <div className="flex-1 flex overflow-hidden min-h-0">
-        <AgentSidebar connectionStatus={connectionStatus} />
+        <AgentSidebar />
         <div className="flex-1 flex min-h-0 min-w-0">
           {currentView === 'settings' ? (
             <SettingsPage />

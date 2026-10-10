@@ -16,6 +16,8 @@ import { useInlineRename } from '../../hooks/useInlineRename';
 export interface PoseImage {
   name: string;
   originalName?: string;
+  /** 已存在立绘的内容哈希，新增项没有哈希走本地预览 */
+  hash?: string;
   file?: File;
   previewUrl?: string;
   status: 'existing' | 'added' | 'deleted';
@@ -69,14 +71,14 @@ export const PoseImageCardList: React.FC<PoseImageCardListProps> = ({
           <img
             src={
               img.previewUrl ||
-              (agentId ? getPoseImageUrl(agentId, img.name) : '')
+              (agentId ? getPoseImageUrl(agentId, img.name, img.hash) : '')
             }
             alt=""
             className="w-full h-full object-contain cursor-pointer"
             onClick={() =>
               setPreviewSrc(
                 img.previewUrl ||
-                  (agentId ? getPoseImageUrl(agentId, img.name) : '')
+                  (agentId ? getPoseImageUrl(agentId, img.name, img.hash) : '')
               )
             }
           />

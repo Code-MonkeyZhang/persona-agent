@@ -283,6 +283,16 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     } else {
       agent.addUserMessage(content);
       saveStepMessages(sessionManager, sessionId, agent, historyLength);
+      // 普通用户消息落盘后广播，空闲的订阅端据此追加气泡切入生成态
+      broadcastToSession(sessionId, {
+        type: 'user_message',
+        sessionId,
+        content,
+      });
+      Logger.log('CHAT', 'User message broadcast', {
+        sessionId,
+        contentLength: content.length,
+      });
     }
     historyLength = agent.messages.length;
     Logger.log('CHAT', 'Message added', {

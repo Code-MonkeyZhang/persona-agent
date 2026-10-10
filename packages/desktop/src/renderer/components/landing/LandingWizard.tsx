@@ -5,7 +5,7 @@
  * P1 密钥与模型（供应商画廊 ⇄ key 表单）→ P2 语音服务（MiniMax Key 平铺配置）→
  * P3 身份/提示词 → P4 能力概念介绍。
  * 完成出口 P4「开始对话」：一次 PUT 落盘身份/语音（defaultModel 仅凭据可信时携带）
- * + 写 landing-completed 标记，由 App 关闭向导并切入聊天。
+ * + 回写 server 的 onboarded 标记，由 App 关闭向导并切入聊天。
  * 重放模式由设置页入口打开，右上角关闭按钮与 Esc 为额外出口，不落任何标记。
  * 供应商与设置页共用同一数据源（GET /api/providers），品牌图标走 ProviderMark/ModelMark。
  */
@@ -42,6 +42,7 @@ import {
 } from '../../lib/landing';
 import {
   getAgent,
+  markSeedOnboarded,
   updateAgent,
   getVoices,
   getTtsConfig,
@@ -187,7 +188,9 @@ export function LandingWizard({
         if (agent.voiceId) setVoiceId(agent.voiceId);
         if (agent.voiceLanguage) setVoiceLanguage(agent.voiceLanguage);
         setAgentDefaultModel(agent.defaultModel);
-        setAvatarUrl(getAgentAvatarUrl(agentId));
+        setAvatarUrl(
+          agent.avatarHash ? getAgentAvatarUrl(agentId, agent.avatarHash) : ''
+        );
       } catch (err) {
         logger.error('[Landing] failed to load seeded agent:', err);
       }
@@ -277,7 +280,11 @@ export function LandingWizard({
     }
   };
 
-  /** 完成出口：一次 PUT 落盘身份/语音（defaultModel 仅凭据可信时携带）+ 写完成标记 */
+  /**
+   * 完成出口：一次 PUT 落盘身份/语音（defaultModel 仅凭据可信时携带），
+   * 随后回写 server 的 onboarded 标记。
+   * 回写失败只记日志照常放行，下次启动向导重弹一次自愈。
+   */
   const finish = async () => {
     try {
       const update: AgentConfigUpdate = {
@@ -296,10 +303,13 @@ export function LandingWizard({
       // PUT 失败保留播种默认值继续放行，避免向导死循环；用户可稍后在 Agent 编辑器修改
       logger.error('[Landing] failed to update agent:', err);
       toast.error(t('common.saveFailed'));
-    } finally {
-      localStorage.setItem('landing-completed', 'true');
-      onComplete();
     }
+    try {
+      await markSeedOnboarded();
+    } catch (err) {
+      logger.error('[Landing] failed to mark onboarded:', err);
+    }
+    onComplete();
   };
 
   const dots = (

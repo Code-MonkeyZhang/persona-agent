@@ -4,7 +4,11 @@
  * WS 协议类型已迁移至 @persona/shared。
  */
 
-export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
+export type ConnectionStatus =
+  | 'connected'
+  | 'connecting'
+  | 'reconnecting'
+  | 'disconnected';
 
 type MessageType = 'user' | 'assistant' | 'error';
 

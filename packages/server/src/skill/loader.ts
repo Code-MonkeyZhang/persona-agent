@@ -16,6 +16,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Logger } from '../util/logger.js';
 import { getSkillsDir } from '../util/paths.js';
+import { produceLocalLogoUrl } from '../util/local-logo.js';
 import {
   SkillMetaSchema,
   type Skill,
@@ -146,6 +147,8 @@ export function loadAllSkills(): Map<string, Skill> {
 
 /**
  * Convert a Skill to SkillInfo (for list API without full content).
+ * logoUrl walks the local-first chain, producing a hashed relative url when
+ * the logo file exists and falling back to the remote url recorded at install.
  */
 export function toSkillInfo(skill: Skill): SkillInfo {
   return {
@@ -153,7 +156,13 @@ export function toSkillInfo(skill: Skill): SkillInfo {
     description: skill.description,
     displayName: skill.displayName,
     author: skill.author,
-    logoUrl: skill.logoUrl,
+    logoUrl: produceLocalLogoUrl(
+      skill.skillDir,
+      skill,
+      `/api/skills/${skill.name}/logo`,
+      'SKILL',
+      skill.name
+    ),
     location: skill.skillDir,
   };
 }
@@ -173,10 +182,16 @@ export interface SkillInstallMeta {
   displayName?: string;
   author?: string;
   logoUrl?: string;
+  logoFile?: string;
 }
 
 /** Keys read back from skill-meta.json; anything else in the file is ignored. */
-const META_STRING_KEYS = ['displayName', 'author', 'logoUrl'] as const;
+const META_STRING_KEYS = [
+  'displayName',
+  'author',
+  'logoUrl',
+  'logoFile',
+] as const;
 
 /**
  * Persist install-time metadata beside SKILL.md so the display name, author,

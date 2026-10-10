@@ -41,6 +41,15 @@ Persona Agent 的跨平台桌面客户端。内嵌后端二进制，下载安装
 
 支持 OpenAI、Anthropic、Google、DeepSeek、MiniMax、Groq、OpenRouter、月之暗面（Moonshot）等 17 家供应商。每个 Agent 独立配置默认模型，每个会话可以临时切换。
 
+### 多设备与离线同步
+
+- 远程设备连接：通过地址连接其他机器上的 Server，设备清单统一管理，支持改名与删除，主机切换原子执行不闪断
+- 离线镜像：会话与 Agent 数据在本地 SQLite 落镜像，断网也能浏览全部历史
+- 联网补齐：重连后通过分页 catch-up 自动补齐离线期间的新内容
+- 图片内容哈希缓存：图片按内容哈希落盘缓存，同一张图只下载一次，长期有效
+- 连接状态横条：实时显示正在连接、正在同步、正在重连等状态，断开期间输入自动禁用
+- 数据归属标记：设置页标注各区域信息属于本机还是远程主机，远程环境下 OAuth 授权自动禁用
+
 ### 其他
 
 - Cloudflare Tunnel 一键内网穿透，远程访问 Agent
@@ -79,8 +88,8 @@ npm run test           # 单元测试 (Vitest)
 desktop/
 ├── src/
 │   ├── main/              # Electron 主进程
-│   │   ├── index.ts       # 应用入口，窗口创建、进程管理
-│   │   ├── server-manager.ts  # 后端进程生命周期管理
+│   │   ├── index.ts       # 应用入口，窗口创建、连接编排
+│   │   ├── host/          # 连接事实管理，本机服务端进程生命周期
 │   │   └── store/         # electron-store 持久化配置
 │   ├── preload/           # 预加载脚本
 │   └── renderer/          # React 前端

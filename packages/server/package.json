@@ -1,6 +1,6 @@
 {
   "name": "persona-agent-server",
-  "version": "1.10.5",
+  "version": "1.12.0",
   "type": "module",
   "bin": {
     "persona-agent-server": "dist/src/index.js"
@@ -32,7 +32,7 @@
     "vitest": "^4.0.15"
   },
   "dependencies": {
-    "@earendil-works/pi-ai": "^0.84.4",
+    "@earendil-works/pi-ai": "^1.0.0",
     "@modelcontextprotocol/sdk": "^1.28.0",
     "commander": "^14.0.2",
     "cors": "^2.8.6",

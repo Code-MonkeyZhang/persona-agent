@@ -12,8 +12,12 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
 import { IPC } from '@shared/channels';
-import type { WindowAPI, UpdateStatus, UpdateProgress } from '@shared/api';
-
+import type {
+  WindowAPI,
+  UpdateStatus,
+  UpdateProgress,
+  ConnectionSnapshot,
+} from '@shared/api';
 /**
  * 暴露给渲染进程的 API 集合，前端通过 window.api.xxx() 调用
  * 每个方法底层通过 ipcRenderer.invoke 向主进程发送 IPC 消息
@@ -27,11 +31,62 @@ const api: WindowAPI = {
   selectFolder: (options) => ipcRenderer.invoke(IPC.SELECT_FOLDER, options),
 
   /**
-   * Get the backend Agent Server URL.
-   * The backend starts dynamically, so the renderer queries the main process for the address.
-   * @returns 服务地址，未启动则返回 null
+   * 查询主进程持有的连接事实。
+   * current 是当前连接，local 是本机常驻连接，渲染层只认这里不感知进程。
+   * @returns 连接事实快照
    */
-  getServerUrl: () => ipcRenderer.invoke(IPC.GET_SERVER_URL),
+  getConnection: () => ipcRenderer.invoke(IPC.GET_CONNECTION),
+
+  /**
+   * 查询设备清单，主进程 devices.json 的只读镜像。
+   * @returns 设备条目数组，本机置顶
+   */
+  getDevices: () => ipcRenderer.invoke(IPC.GET_DEVICES),
+
+  /**
+   * 条目落位，识别为旧主机时更新地址与自称名，新主机建条目。
+   * @param entry - 握手识别出的主机身份与地址
+   */
+  upsertDevice: (entry: {
+    hostId: string;
+    hostName: string;
+    address: string;
+  }) => ipcRenderer.invoke(IPC.DEVICE_UPSERT, entry),
+
+  /**
+   * 设备改名，只影响本机显示，不下发。
+   */
+  renameDevice: (hostId: string, name: string) =>
+    ipcRenderer.invoke(IPC.DEVICE_RENAME, hostId, name),
+
+  /**
+   * 删除设备条目并释放该主机的本地镜像，本机不可删。
+   * @returns 删除是否成功
+   */
+  removeDevice: (hostId: string) =>
+    ipcRenderer.invoke(IPC.DEVICE_REMOVE, hostId),
+
+  /**
+   * 发起主机切换，主进程内串行原子执行。
+   * @param target - 目标主机标识与地址，本机传 local
+   */
+  switchHost: (target: { hostId: string; address: string | null }) =>
+    ipcRenderer.invoke(IPC.SWITCH_HOST, target),
+
+  /**
+   * 订阅连接变更推送，切换完成时触发。
+   * @returns 退订函数
+   */
+  onConnectionChanged: (callback: (snapshot: ConnectionSnapshot) => void) => {
+    const listener = (
+      _e: Electron.IpcRendererEvent,
+      snapshot: ConnectionSnapshot
+    ): void => callback(snapshot);
+    ipcRenderer.on(IPC.CONNECTION_CHANGED, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC.CONNECTION_CHANGED, listener);
+    };
+  },
 
   /**
    * 让前端通过主进程写入日志 的传递
@@ -126,6 +181,35 @@ const api: WindowAPI = {
       ipcRenderer.on(IPC.UPDATER_DOWNLOAD_PROGRESS, listener);
       return () =>
         ipcRenderer.removeListener(IPC.UPDATER_DOWNLOAD_PROGRESS, listener);
+    },
+  },
+
+  /** 本地缓存读写与更新订阅，全部经主进程 cache 模块执行 */
+  cache: {
+    getSessions: (agentId) =>
+      ipcRenderer.invoke(IPC.CACHE_GET_SESSIONS, agentId),
+    getSession: (sessionId) =>
+      ipcRenderer.invoke(IPC.CACHE_GET_SESSION, sessionId),
+    getAgents: () => ipcRenderer.invoke(IPC.CACHE_GET_AGENTS),
+    getCursor: () => ipcRenderer.invoke(IPC.CACHE_GET_CURSOR),
+    applySnapshot: (snapshot) =>
+      ipcRenderer.invoke(IPC.CACHE_APPLY_SNAPSHOT, snapshot),
+    applyChanges: (changes) =>
+      ipcRenderer.invoke(IPC.CACHE_APPLY_CHANGES, changes),
+    putAgents: (agents) => ipcRenderer.invoke(IPC.CACHE_PUT_AGENTS, agents),
+    deleteAgent: (agentId) =>
+      ipcRenderer.invoke(IPC.CACHE_DELETE_AGENT, agentId),
+    reset: () => ipcRenderer.invoke(IPC.CACHE_RESET),
+
+    /**
+     * 监听缓存写后的更新通知
+     * @param callback - 缓存变化时的回调
+     * @returns 取消监听函数
+     */
+    onChanged: (callback) => {
+      const listener = (): void => callback();
+      ipcRenderer.on(IPC.CACHE_CHANGED, listener);
+      return () => ipcRenderer.removeListener(IPC.CACHE_CHANGED, listener);
     },
   },
 };

@@ -1,67 +1,29 @@
 /**
  * @file main/index.ts
- * @description Electron 主进程入口文件 - 负责应用生命周期管理、窗口创建、进程管理和 IPC 通信
+ * @description Electron 主进程入口文件 - 负责应用生命周期管理、窗口创建和 IPC 通信
  */
 
 import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import { join } from 'path';
 import { homedir } from 'os';
-import { spawn } from 'child_process';
-import type { ChildProcess } from 'child_process';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import log from 'electron-log';
 import { xdgData } from 'xdg-basedir';
-import net from 'net';
 import * as fs from 'fs';
 import { initStore } from './store';
+import { registerCacheIpc } from './cache/cache-ipc';
+import { ImageCache } from './image/image-cache';
 import {
-  waitForServer,
-  setServerUrl,
-  getServerUrl,
-  killOrphanProcesses,
-} from './server-manager';
+  registerImageSchemePrivileges,
+  registerImageProtocol,
+} from './image/image-protocol';
+import { HostManager } from './host/host-manager';
+import { LocalHostProvider } from './host/local-host-provider';
 import { IPC } from '@shared/channels';
 import type { ProxyFetchOptions, SelectFolderOptions } from '@shared/api';
 import { setupUpdater } from './updater';
 
 const isMac = process.platform === 'darwin';
-const isWin = process.platform === 'win32';
-const BINARY_NAME = isWin ? 'persona-agent-server.exe' : 'persona-agent-server';
-const CLOUDFLARED_NAME = isWin ? 'cloudflared.exe' : 'cloudflared';
-
-let serverProcess: ChildProcess | null = null;
-
-/**
- * 停止后端服务器进程
- * - 发送 SIGTERM 请求优雅退出
- * - 等待 close 事件，超时 5 秒后 SIGKILL 强杀
- * - 用于安装更新前确保子进程完全退出
- */
-async function stopServer(): Promise<void> {
-  const proc = serverProcess;
-  if (!proc) return;
-  serverProcess = null;
-  try {
-    proc.kill();
-    await new Promise<void>((resolve) => {
-      const timer = setTimeout(() => {
-        try {
-          proc.kill('SIGKILL');
-        } catch {
-          // 进程已退出
-        }
-        resolve();
-      }, 5000);
-      proc.once('close', () => {
-        clearTimeout(timer);
-        resolve();
-      });
-    });
-    log.info('Server process stopped for update install');
-  } catch {
-    log.debug('Server process already exited');
-  }
-}
 
 // 日志配置。dev 与正式版统一写入用户数据目录 logs/desktop.log，与 server
 // 的 agent-server.log 同目录，每次启动清空，路径规则与 server 侧 util/paths.ts 一致
@@ -71,6 +33,30 @@ if (!xdgData) {
 const DATA_DIR = join(xdgData, 'persona-agent');
 const LOGS_DIR = join(DATA_DIR, 'logs');
 const LOG_FILE = join(LOGS_DIR, 'desktop.log');
+
+/** 本机服务端的提供方式，HostManager 通过它拿到本机那条连接 */
+const localProvider = new LocalHostProvider();
+
+/** 镜像库数据变化时通知全部窗口 */
+function broadcastCacheChanged(): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send(IPC.CACHE_CHANGED);
+  }
+}
+
+/** 连接事实的唯一来源，渲染层与镜像层只认它给出的连接 */
+const hostManager = new HostManager(
+  localProvider,
+  DATA_DIR,
+  broadcastCacheChanged
+);
+
+// 连接变更广播给全部窗口，渲染层据此换地址重连重追平
+hostManager.subscribe((snapshot) => {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send(IPC.CONNECTION_CHANGED, snapshot);
+  }
+});
 
 /**
  * 从 server 的 config.yaml 读取日志开关
@@ -112,17 +98,28 @@ if (is.dev) {
 log.info(`[log] desktop.log at ${LOG_FILE}`);
 log.info('App starting...');
 
+// 图片协议的特权声明必须发生在 app ready 之前，放 whenReady 里会静默失效
+registerImageSchemePrivileges();
+
 /** 应用主入口 */
 app.whenReady().then(async () => {
   initStore();
 
+  // 图片缓存命中读数据根 image-cache，未命中经当前连接地址下载校验落盘
+  registerImageProtocol(
+    new ImageCache(join(DATA_DIR, 'image-cache'), (message) =>
+      log.info(message)
+    ),
+    () => hostManager.getAddress()
+  );
+
   process.on('SIGINT', () => {
-    serverProcess?.kill();
+    localProvider.kill();
     app.quit();
   });
 
   process.on('SIGTERM', () => {
-    serverProcess?.kill();
+    localProvider.kill();
     app.quit();
   });
 
@@ -133,10 +130,41 @@ app.whenReady().then(async () => {
     optimizer.watchWindowShortcuts(window);
   });
 
-  // IPC：获取当前服务器 URL
-  ipcMain.handle(IPC.GET_SERVER_URL, () => {
-    return getServerUrl();
+  // IPC：查询连接事实，current 是当前连接，local 是本机常驻连接
+  ipcMain.handle(IPC.GET_CONNECTION, () => {
+    return hostManager.getSnapshot();
   });
+
+  // IPC：查询设备清单，主进程 devices.json 的只读镜像
+  ipcMain.handle(IPC.GET_DEVICES, () => {
+    return hostManager.getDevices();
+  });
+
+  // IPC：条目落位，新建连接识别完成后调用
+  ipcMain.handle(
+    IPC.DEVICE_UPSERT,
+    (_event, entry: { hostId: string; hostName: string; address: string }) => {
+      hostManager.upsertDevice(entry.hostId, entry.hostName, entry.address);
+    }
+  );
+
+  // IPC：设备改名，只动本机显示
+  ipcMain.handle(IPC.DEVICE_RENAME, (_event, hostId: string, name: string) => {
+    hostManager.renameDevice(hostId, name);
+  });
+
+  // IPC：删除设备条目并释放本地镜像，本机不可删
+  ipcMain.handle(IPC.DEVICE_REMOVE, (_event, hostId: string) => {
+    return hostManager.removeDevice(hostId);
+  });
+
+  // IPC：发起主机切换，主进程内串行原子执行
+  ipcMain.handle(
+    IPC.SWITCH_HOST,
+    (_event, target: { hostId: string; address: string | null }) => {
+      return hostManager.switchHost(target.hostId, target.address);
+    }
+  );
 
   // IPC：打开文件夹选择对话框
   ipcMain.handle(
@@ -231,11 +259,16 @@ app.whenReady().then(async () => {
     return result;
   });
 
-  await startServer();
+  // 启动编排：先建立本机连接，镜像库与设备清单随连接在 HostManager 内就位
+  await hostManager.ensureLocal();
+
+  // 缓存 IPC 注册一次不随切换重建，handler 经 getter 取当前库
+  registerCacheIpc(() => hostManager.getCacheDb());
 
   const mainWindow = createWindow();
 
-  setupUpdater(mainWindow, stopServer);
+  // 安装更新前经 provider 优雅停止本机服务端进程
+  setupUpdater(mainWindow, () => localProvider.stop());
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -250,127 +283,9 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  if (serverProcess) {
-    try {
-      serverProcess.kill();
-      log.info('Server process killed on app quit');
-    } catch {
-      log.debug('服务器进程已退出');
-    }
-    serverProcess = null;
-  }
+  hostManager.closeCache();
+  localProvider.kill();
 });
-
-function getBinaryPath(): string {
-  if (is.dev) {
-    return join(__dirname, '../../../server/dist', BINARY_NAME);
-  }
-  return join(process.resourcesPath, 'bin', BINARY_NAME);
-}
-
-/**
- * 返回 cloudflared 二进制路径。
- * dev 模式下位于 packages/server/bin，生产模式位于 resources/bin。
- * 通过环境变量传递给 server 进程。
- */
-function getCloudflaredPath(): string {
-  if (is.dev) {
-    return join(__dirname, '../../../server/bin', CLOUDFLARED_NAME);
-  }
-  return join(process.resourcesPath, 'bin', CLOUDFLARED_NAME);
-}
-
-/**
- * 返回初始 Agent 播种模板目录。
- * dev 模式下位于仓库 packages/server/templates，生产模式位于 resources/templates。
- * 通过环境变量传递给 server 进程，播种语言由 server 端检测。
- */
-function getTemplatesPath(): string {
-  if (is.dev) {
-    return join(__dirname, '../../../server/templates');
-  }
-  return join(process.resourcesPath, 'templates');
-}
-
-/**
- * 查找可用的网络端口
- * @returns {Promise<number>} 可用端口号
- * @throws {Error} 获取端口失败时抛出错误
- */
-async function findAvailablePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', (err: NodeJS.ErrnoException) => {
-      reject(err);
-    });
-    server.once('listening', () => {
-      const address = server.address();
-      const port = typeof address === 'object' && address ? address.port : null;
-      server.close(() => {
-        if (port) {
-          resolve(port);
-        } else {
-          reject(new Error('Failed to get port'));
-        }
-      });
-    });
-    server.listen(0, '127.0.0.1');
-  });
-}
-
-/**
- * 启动后端服务器
- * 先清理孤儿进程，再启动二进制
- */
-async function startServer(): Promise<void> {
-  killOrphanProcesses();
-
-  let port: number;
-  try {
-    port = await findAvailablePort();
-    log.info(`Found available port: ${port}`);
-  } catch (err: unknown) {
-    log.error('Failed to find available port:', err);
-    return;
-  }
-
-  const url = `http://localhost:${port}`;
-  const binaryPath = getBinaryPath();
-  const cloudflaredPath = getCloudflaredPath();
-  const templatesPath = getTemplatesPath();
-  log.info(`Starting server from: ${binaryPath} on port ${port}`);
-  log.info(`Cloudflared path: ${cloudflaredPath}`);
-  log.info(`Templates path: ${templatesPath}`);
-
-  serverProcess = spawn(binaryPath, [String(port)], {
-    stdio: 'pipe',
-    windowsHide: true,
-    env: {
-      ...process.env,
-      PERSONA_CLOUDFLARED_BIN_PATH: cloudflaredPath,
-      PERSONA_AGENT_TEMPLATE_DIR: templatesPath,
-    },
-  });
-
-  serverProcess.on('error', (err) => {
-    log.error('Failed to start server:', err);
-  });
-
-  serverProcess.stdout?.on('data', (data) => {
-    log.info(`[server] ${data.toString().trimEnd()}`);
-  });
-  serverProcess.stderr?.on('data', (data) => {
-    log.error(`[server] ${data.toString().trimEnd()}`);
-  });
-
-  try {
-    await waitForServer(url);
-    setServerUrl(url);
-    log.info(`Server started at ${url}`);
-  } catch (err) {
-    log.error('Server failed to start:', err);
-  }
-}
 
 /**
  * 创建主应用窗口

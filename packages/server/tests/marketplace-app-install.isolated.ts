@@ -7,6 +7,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, mock } from 'bun:test';
 import * as fs from 'node:fs';
+import { rmTempDir } from './temp-cleanup.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import {
@@ -115,7 +116,7 @@ describe('installMcp agentApp passthrough', () => {
   });
 
   afterAll(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    rmTempDir(tempDir);
   });
 
   it('carries agentApp / supportedUI into saved config and pool', async () => {

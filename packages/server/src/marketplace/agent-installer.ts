@@ -15,7 +15,7 @@ import * as os from 'node:os';
 import { downloadPackage } from './downloader.js';
 import { REPO_OWNER, REPO_NAME } from './config.js';
 import { AgentConfigInputSchema, createAgentConfig } from '../agent/index.js';
-import { getAgentAssetsDir, getAgentDir } from '../util/paths.js';
+import { getAgentAssetsDir } from '../util/paths.js';
 import { Logger } from '../util/logger.js';
 import type { AgentConfig } from '../agent/index.js';
 import type { AgentMarketplaceEntry } from '@persona/shared';
@@ -98,17 +98,6 @@ export async function installAgentFromMarketplace(
     const srcAssets = path.join(tempDir, 'assets');
     if (fs.existsSync(srcAssets)) {
       fs.cpSync(srcAssets, getAgentAssetsDir(agent.id), { recursive: true });
-    }
-
-    // - 复制语音样本, 清单声明了 voiceSample 且文件存在时才复制
-    if (entry.voiceSample) {
-      const voiceSrc = path.join(tempDir, entry.voiceSample);
-      if (fs.existsSync(voiceSrc)) {
-        fs.copyFileSync(
-          voiceSrc,
-          path.join(getAgentDir(agent.id), entry.voiceSample)
-        );
-      }
     }
 
     Logger.log('MARKETPLACE', `Agent '${name}' installed successfully`);

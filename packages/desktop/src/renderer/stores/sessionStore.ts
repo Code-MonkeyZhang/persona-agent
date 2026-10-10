@@ -5,18 +5,24 @@
 
 import { create } from 'zustand';
 import type { SessionMeta, Session } from '../types/session';
-import {
-  listSessions,
-  createSession,
-  getSession,
-  deleteSession,
-  updateSession,
-} from '../lib/api';
+import { createSession, deleteSession, updateSession } from '../lib/api';
 import type { UIMessage, Thought } from '../types/chat';
 import type { Message } from '@persona/shared';
+import { logger } from '../lib/logger';
 import { deleteScrollPosition } from './scrollPositionCache';
 
 const LAST_SESSION_KEY = 'last-session-id';
+
+/** 最近一次加载的角色，缓存更新事件回来时刷新它 */
+let loadedAgentId: string | null = null;
+
+/**
+ * 读缓存里的完整会话，preload 缺席的环境返回 null。
+ * @param id - 会话 ID
+ */
+async function readSessionFromCache(id: string): Promise<Session | null> {
+  return (await window.api?.cache.getSession(id)) ?? null;
+}
 
 /**
  * 移除 thoughts 数组中最后一条 text thought。
@@ -62,6 +68,8 @@ interface SessionStore {
   updateCurrentSession: (session: Session) => void;
   updateSessionTitleLocally: (sessionId: string, title: string) => void;
   convertSessionMessages: (messages: Message[]) => UIMessage[];
+  /** 缓存更新后的受控刷新，reloadCurrent 为假时只刷新列表 */
+  refreshFromCache: (reloadCurrent: boolean) => Promise<void>;
 
   sessionPreviews: Record<string, string>;
   updateSessionPreview: (sessionId: string, preview: string) => void;
@@ -74,12 +82,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   sessionPreviews: {},
 
   /**
-   * 加载指定 agent 的所有会话，自动选中上次活跃的会话或第一个会话。
+   * 加载指定 agent 的所有会话，读本地缓存即时渲染，同步引擎在后台追平。
    * @param agentId - Agent ID
    */
   loadSessions: async (agentId: string) => {
+    loadedAgentId = agentId;
     try {
-      const sessions = await listSessions(agentId);
+      const sessions = (await window.api?.cache.getSessions(agentId)) ?? [];
       set({ sessions });
 
       if (sessions.length > 0) {
@@ -95,13 +104,39 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           targetId = sessions[0].id;
         }
 
-        const session = await getSession(agentId, targetId);
+        const session = await readSessionFromCache(targetId);
         set({ currentSession: session });
       } else {
         set({ currentSession: null });
       }
-    } catch {
-      // 加载失败保持现有列表，调用方通过返回的 Promise 感知异常
+    } catch (error) {
+      // 读缓存失败保持现有列表，调用方通过返回的 Promise 感知异常
+      logger.warn(`[SessionStore] loadSessions from cache failed: ${agentId}`, {
+        error,
+      });
+    }
+  },
+
+  /**
+   * 缓存更新后的受控刷新，列表重读，当前会话按需重读。
+   * @param reloadCurrent - 是否重载当前会话，生成中应传 false
+   */
+  refreshFromCache: async (reloadCurrent: boolean) => {
+    if (!loadedAgentId) return;
+    try {
+      const sessions =
+        (await window.api?.cache.getSessions(loadedAgentId)) ?? [];
+      set({ sessions });
+      if (reloadCurrent) {
+        const current = get().currentSession;
+        if (current) {
+          const session = await readSessionFromCache(current.id);
+          if (session) set({ currentSession: session });
+        }
+      }
+    } catch (error) {
+      // 刷新失败保持现状，下一轮缓存事件再试
+      logger.warn('[SessionStore] refreshFromCache failed', { error });
     }
   },
 
@@ -128,14 +163,14 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   /**
-   * 切换到指定会话，从服务器拉取完整数据。
-   * @param agentId - Agent ID
+   * 切换到指定会话，从本地缓存取完整数据。
+   * @param _agentId - 所属 Agent ID，缓存按会话 ID 直查，参数保留给调用方契约
    * @param id - 会话 ID
    * @returns 切换后的会话对象，失败返回 null
    */
-  switchSession: async (agentId: string, id: string) => {
+  switchSession: async (_agentId: string, id: string) => {
     try {
-      const session = await getSession(agentId, id);
+      const session = await readSessionFromCache(id);
       localStorage.setItem(LAST_SESSION_KEY, id);
       set({ currentSession: session });
       return session;
@@ -162,8 +197,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
         if (isCurrentDeleted) {
           if (newSessions.length > 0) {
-            const nextSession = await getSession(agentId, newSessions[0].id);
-            localStorage.setItem(LAST_SESSION_KEY, nextSession.id);
+            const nextSession = await readSessionFromCache(newSessions[0].id);
+            localStorage.setItem(LAST_SESSION_KEY, newSessions[0].id);
             set({
               sessions: newSessions,
               currentSession: nextSession,
@@ -306,6 +341,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
    * - 收尾信号取双信号，遇到边界条目或不带 tool_calls 的助手消息即结组
    * - app_notification 跳过，不显示也不结组；error 保持结组，错误截断的半截组不与下一轮合并
    * - 扫描结束强制结一次，兜底崩溃留下的半截内容；旧数据没有边界条目，形状信号单独工作
+   * - 消息标识取行号，行号是服务端消息主键，旧数据无行号回退下标
    * @param messages - 服务端返回的原始消息数组
    * @returns 转换后的客户端 UIMessage 数组
    */
@@ -315,12 +351,17 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     let pendingContent = '';
     let pendingStartIndex = -1;
 
+    /** 消息 UI 标识，行号在场时稳定唯一，旧数据回退下标 */
+    const messageId = (message: Message, index: number): string =>
+      message.seq !== undefined ? `msg-${message.seq}` : `session-msg-${index}`;
+
     /** 将缓冲区中的 assistant 消息合并为一条 UIMessage 产出 */
     const flushPending = () => {
       if (pendingStartIndex === -1) return;
       const finalThoughts = stripLastTextThought(pendingThoughts);
+      const start = messages[pendingStartIndex];
       result.push({
-        id: `session-msg-${pendingStartIndex}`,
+        id: messageId(start, pendingStartIndex),
         type: 'assistant',
         content: pendingContent,
         timestamp: new Date(),
@@ -393,7 +434,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         if (msg.role === 'error') flushPending();
 
         result.push({
-          id: `session-msg-${i}`,
+          id: messageId(msg, i),
           type: msg.role,
           content: typeof msg.content === 'string' ? msg.content : '',
           timestamp: new Date(),

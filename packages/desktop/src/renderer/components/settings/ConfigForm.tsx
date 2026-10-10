@@ -10,6 +10,11 @@ import { useTranslation } from 'react-i18next';
 import { useConfigStore } from '../../stores/configStore';
 import { useAgentStore } from '../../stores/agentStore';
 import { useViewStore } from '../../stores/viewStore';
+import {
+  useConnectionStore,
+  currentDeviceKey,
+} from '../../stores/connectionStore';
+import { LOCAL_DEVICE_ID } from '@shared/api';
 import { Switch } from '../ui/Switch';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -51,6 +56,10 @@ export const ConfigForm: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { config, updateField, saveConfig } = useConfigStore();
   const currentAgent = useAgentStore((s) => s.currentAgent);
+  /** 重放引导会向所连 server 写凭据，闸门与首启向导同口径，仅本机连接可用 */
+  const isLocalConnection = useConnectionStore(
+    (s) => !!s.snapshot && currentDeviceKey(s.snapshot) === LOCAL_DEVICE_ID
+  );
 
   if (!config) return null;
 
@@ -116,15 +125,17 @@ export const ConfigForm: React.FC = () => {
           <SettingRow
             label={t('config.replayLanding')}
             desc={
-              currentAgent
-                ? t('config.replayLandingDesc')
-                : t('config.replayLandingEmptyDesc')
+              !isLocalConnection
+                ? t('config.replayLandingRemoteDesc')
+                : currentAgent
+                  ? t('config.replayLandingDesc')
+                  : t('config.replayLandingEmptyDesc')
             }
           >
             <Button
               variant="secondary"
               size="sm"
-              disabled={!currentAgent}
+              disabled={!currentAgent || !isLocalConnection}
               onClick={() =>
                 currentAgent &&
                 useViewStore.getState().openLanding(currentAgent.id, 'replay')

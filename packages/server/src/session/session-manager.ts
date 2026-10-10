@@ -8,6 +8,7 @@ import type { Session, SessionMeta, CreateSessionOptions } from './types.js';
 import type { ModelConfig } from '../agent/types.js';
 import type { Message } from '../schema/index.js';
 import { getAgentConfig } from '../agent/agent-config-store.js';
+import { mixTurnEnds } from '@persona/shared';
 
 /**
  * Generate a human-readable session ID using local time + short UUID.
@@ -116,23 +117,17 @@ export class SessionManager {
    * 客户端视角的会话消息流。
    *
    * 按 turnEnds 记录的消息数把边界条目混入 messages 副本，
-   * 渲染层扫描到边界即结组。
+   * 混入规则在 shared，与桌面端缓存共用同一实现。
    * - 边界条目借用 system 角色与 turnEnd 标志，走既有 system 跳过规则的消费方自然兼容
    * - 内部消费方继续使用 getSession，数组不含边界，下标语义不变
-   * - 重复下标会连插边界条目，空缓冲结组是空操作，无害
    */
   getSessionForClient(id: string): Session | null {
     const session = this.getSession(id);
     if (!session?.turnEnds?.length) return session;
-    const messages: Message[] = [];
-    let cursor = 0;
-    for (const count of session.turnEnds) {
-      messages.push(...session.messages.slice(cursor, count));
-      messages.push({ role: 'system', content: '', turnEnd: true });
-      cursor = count;
-    }
-    messages.push(...session.messages.slice(cursor));
-    return { ...session, messages };
+    return {
+      ...session,
+      messages: mixTurnEnds(session.messages, session.turnEnds),
+    };
   }
 
   /** Delete a session */

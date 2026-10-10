@@ -52,9 +52,11 @@ Persona-agent 是一个开源的个人 AI Agent 聊天平台，让你能够完�
 - **MCP 与 Agent Skill** — 为每个 Agent 单独分配 MCP 工具与 Agent Skill，支持需要 OAuth 的 MCP 服务（Notion、GitHub）
 - **Agent App** — 为 Agent 安装专属小应用，通过应用面板交互并接收应用通知
 - **手机端远程访问** — 内置 Cloudflare Tunnel，移动端 App 可随时远程连接 Agent
+- **离线与多端同步** — 会话数据在桌面端与移动端各自落本地镜像，断网也能浏览全部历史，图片按内容缓存一次终身复用，联网后自动补齐新内容
 
 ## 📢 更新日志
 
+- 2026-10-10 — **v1.12.0**：多设备连接与设备管理、会话离线镜像与联网自动补齐、图片与资产按内容哈希缓存、连接状态实时显示、会话存储迁移 SQLite。
 - 2026-09-23 — **v1.10.1**：全应用界面视觉升级、会话侧栏收合动画与宽度记忆、克隆音色重命名、输入框常驻激活态。
 - 2026-09-19 — **v1.10.0**：全局 Inter 字体与统一字号体系、对话按轮次气泡重组、供应商配置面板重设计、边缘渐隐滚动提示。
 - 2026-09-09 — **v1.9.2**：桌面端运行日志持久化到用户数据目录，问题排查有据可查。
@@ -89,8 +91,8 @@ Persona-agent 是一个开源的个人 AI Agent 聊天平台，让你能够完�
 
 本项目支持 macOS 和 Windows 平台。前往 [GitHub Releases](https://github.com/Code-MonkeyZhang/persona-agent/releases) 下载对应平台的安装包：
 
-| 平台                | 下载                                                                    |
-| ------------------- | ----------------------------------------------------------------------- |
+| 平台                | 下载                                                                     |
+| ------------------- | ------------------------------------------------------------------------ |
 | macOS Apple Silicon | [下载安装包](https://github.com/Code-MonkeyZhang/persona-agent/releases) |
 | macOS Intel         | [下载安装包](https://github.com/Code-MonkeyZhang/persona-agent/releases) |
 | Windows x64         | [下载安装包](https://github.com/Code-MonkeyZhang/persona-agent/releases) |
@@ -131,7 +133,7 @@ Persona 让每个 Agent 都独一无二：立绘、背景、声音，全部由�
 
 ## 🛒 Agent 商城
 
-Persona 内置商城，一站式浏览、安装和管理 Agent 模板、技能（Skill）与 MCP 工具。商城目录由开源仓库 [persona-agent-marketplace](https://github.com/Code-MonkeyZhang/persona-agent-marketplace) 驱动，支持一键安装并分配 MCP 和 Skill 给指定的 Agent。
+Persona 内置商城，一站式浏览、安装和管理 Agent 模板、技能（Skill）与 MCP 工具。商城目录由开源仓库 [persona-agent-marketplace](https://github.com/Code-MonkeyZhang/persona-agent-marketplace) 驱动，支持一键安装并分配 MCP 和 Skill 给指定的 Agent。已安装商品的图标从本地加载，断网环境下也能完整显示。
 
 - **Agent**：精选角色模板，安装即用
 - **技能（Skill）**：为 Agent 注入专业知识与能力

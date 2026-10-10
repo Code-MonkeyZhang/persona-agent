@@ -33,6 +33,8 @@ interface AgentStore {
     id: string,
     input: AgentConfigUpdate
   ) => Promise<AgentConfig>;
+  /** 重取单个 agent 补正 store 身份，头像上传后调用 */
+  refreshAgentById: (id: string) => Promise<void>;
   deleteAgentById: (id: string) => Promise<boolean>;
   setAvatarPreview: (id: string, base64: string) => void;
   removeAvatarPreview: (id: string) => void;
@@ -66,6 +68,8 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
         )
       );
       set({ agents });
+      // 角色列表进缓存，离线回退用
+      void window.api?.cache.putAgents(agents);
 
       if (agents.length > 0) {
         const lastAgentId = localStorage.getItem(LAST_AGENT_KEY);
@@ -87,6 +91,20 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
         '[AgentStore] loadAgents failed:',
         error instanceof Error ? error.stack : error
       );
+      // 离线回退：HTTP 失败时读缓存里的角色列表
+      try {
+        const cached = (await window.api?.cache.getAgents()) ?? [];
+        if (cached.length > 0) {
+          logger.info(
+            `[AgentStore] Falling back to ${cached.length} cached agents`
+          );
+          const lastAgentId = localStorage.getItem(LAST_AGENT_KEY);
+          const target = cached.find((a) => a.id === lastAgentId) ?? cached[0];
+          set({ agents: cached, currentAgent: target });
+        }
+      } catch {
+        // 缓存也不可用时保持现状
+      }
     }
   },
 
@@ -125,10 +143,29 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     return agent;
   },
 
+  /**
+   * 重取单个 agent 并同步进列表与 currentAgent。
+   * 新建角色上传头像后 POST 响应里的 avatarHash 已过期，靠这里补正身份。
+   */
+  refreshAgentById: async (id: string) => {
+    try {
+      const agent = await getAgent(id);
+      const { agents, currentAgent } = get();
+      set({
+        agents: agents.map((a) => (a.id === id ? agent : a)),
+        currentAgent: currentAgent?.id === id ? agent : currentAgent,
+      });
+    } catch (error) {
+      logger.error(`[AgentStore] refreshAgentById failed for ${id}:`, error);
+    }
+  },
+
   deleteAgentById: async (id: string) => {
     try {
       const success = await deleteAgent(id);
       if (success) {
+        // 角色删除不在变更流范围，缓存行显式清理
+        void window.api?.cache.deleteAgent(id);
         const { agents, currentAgent } = get();
         const newAgents = agents.filter((a) => a.id !== id);
         const isCurrentDeleted = currentAgent?.id === id;

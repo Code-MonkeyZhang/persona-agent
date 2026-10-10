@@ -91,10 +91,12 @@ export function createMarketplaceRouter(
       const skillDir = await downloadSkill(entry);
 
       // 落盘商城元数据：清单里的显示名作者与图标只在此刻可得，SKILL.md 本身不带
+      // logoFile 记本地文件名供图标走本地，logoUrl 保留作回退链
       writeSkillMeta(skillDir, {
         displayName: entry.name,
         author: entry.author,
         logoUrl: entry.logo ? cdnUrl(entry.path, entry.logo) : undefined,
+        logoFile: entry.logo,
       });
       Logger.log('MARKETPLACE', `Wrote skill metadata for ${name}`);
 
