@@ -52,6 +52,7 @@ Persona-agent 是一个开源的个人 AI Agent 聊天平台，让你能够完�
 - **MCP 与 Agent Skill** — 为每个 Agent 单独分配 MCP 工具与 Agent Skill，支持需要 OAuth 的 MCP 服务（Notion、GitHub）
 - **Agent App** — 为 Agent 安装专属小应用，通过应用面板交互并接收应用通知
 - **手机端远程访问** — 内置 Cloudflare Tunnel，移动端 App 可随时远程连接 Agent
+- **离线与多端同步** — 会话数据在桌面端与移动端各自落本地镜像，断网也能浏览全部历史，图片按内容缓存一次终身复用，联网后自动补齐新内容
 
 ## 📢 更新日志
 

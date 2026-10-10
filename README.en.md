@@ -54,6 +54,7 @@ Install agents, MCP tools, and Skills from the Agent Marketplace in one click.
 - **MCP & Agent Skills** — Assign MCP tools and Agent Skills to each agent individually, including OAuth-based MCP services (Notion, GitHub)
 - **Agent Apps** — Install dedicated mini-apps for your Agent, interact via the app panel and receive app notifications
 - **Mobile Remote Access** — Built-in Cloudflare Tunnel for connecting to your agent from the mobile app anytime
+- **Offline & Multi-Device Sync** — Conversations are mirrored to a local database on both desktop and mobile, so full history stays readable offline; images are cached by content hash and downloaded only once, and new content catches up automatically when back online
 
 ## 📢 Changelog
 
