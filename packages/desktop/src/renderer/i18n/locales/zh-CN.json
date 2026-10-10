@@ -38,6 +38,7 @@
   "sessionItem.rename": "重命名",
   "sessionItem.delete": "删除",
   "inputBox.placeholder": "输入消息...",
+  "inputBox.placeholderDisconnected": "连接已断开，等待重连后继续对话",
   "inputBox.addAttachment": "添加附件",
   "inputBox.sendMessage": "发送消息",
   "inputBox.stopGeneration": "停止生成",

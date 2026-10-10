@@ -38,6 +38,7 @@
   "sessionItem.rename": "Rename",
   "sessionItem.delete": "Delete",
   "inputBox.placeholder": "Type a message...",
+  "inputBox.placeholderDisconnected": "Connection lost, waiting to reconnect",
   "inputBox.addAttachment": "Add attachment",
   "inputBox.sendMessage": "Send message",
   "inputBox.stopGeneration": "Stop generating",
