@@ -2,7 +2,7 @@
  * @file src/renderer/components/shell/AgentSidebar.tsx
  * @description 左侧 Agent 列表侧边栏，展示所有 Agent 头像、添加按钮、设备入口、远程访问入口和设置入口。
  * 选中态使用 framer-motion 共享布局动画，切换 Agent 时白色卡片和蓝色竖条弹性滑动。
- * 两颗连接入口用图标本身的颜色做指示：设备图标跟当前连接，云朵图标跟本机隧道。
+ * 两颗连接入口用图标本身的颜色做指示：设备图标跟当前连接且本机恒灰，路由器图标跟本机隧道。
  */
 import React, { useState } from 'react';
 import {
@@ -19,7 +19,8 @@ import { cn } from '../../lib/utils';
 import { useAgentStore } from '../../stores/agentStore';
 import { useViewStore } from '../../stores/viewStore';
 import { useTunnelStore } from '../../stores/tunnelStore';
-import { useConnectionStore } from '../../stores/connectionStore';
+import { useChatStore } from '../../stores/chatStore';
+import { useCurrentDevice } from '../../stores/connectionStore';
 import { AgentAvatar } from '../common/AgentAvatar';
 import { ServerManagerModal } from './ServerManagerModal';
 import { DeviceListPopover } from './DeviceListPopover';
@@ -32,6 +33,16 @@ const springTransition = {
   type: 'spring' as const,
   stiffness: 500,
   damping: 35,
+};
+
+/** 设备图标的连接取色档位，灰为本机常态，绿为远程在线，黄为连接过程，红为异常 */
+type ConnTone = 'idle' | 'ok' | 'busy' | 'error';
+
+const connToneClass: Record<ConnTone, string> = {
+  idle: 'text-muted-foreground',
+  ok: 'text-green-500',
+  busy: 'text-yellow-500',
+  error: 'text-red-500',
 };
 
 /**
@@ -47,9 +58,20 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = () => {
   const [serverModalOpen, setServerModalOpen] = useState(false);
 
   const tunnelStatus = useTunnelStore((s) => s.status);
-  const currentStatus = useConnectionStore(
-    (s) => s.snapshot?.current.status ?? 'connecting'
-  );
+  const connectionStatus = useChatStore((s) => s.connectionStatus);
+  const { remote } = useCurrentDevice();
+
+  /**
+   * 设备图标的取色由本机身份与连接状态合成。
+   * 本机恒灰作身份信号，远程按连接状态取色，syncing 不参与角标。
+   */
+  const deviceTone: ConnTone = !remote
+    ? 'idle'
+    : connectionStatus === 'connected'
+      ? 'ok'
+      : connectionStatus === 'connecting' || connectionStatus === 'reconnecting'
+        ? 'busy'
+        : 'error';
 
   /** 点击 Agent 头像切换到对应 Agent，如果在非聊天视图则同时切回聊天 */
   const handleAgentClick = async (id: string) => {
@@ -129,21 +151,17 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = () => {
           <Compass className="w-5 h-5" />
         </button>
 
-        {/* 设备入口：图标颜色跟出站连接，点开设备清单浮层 */}
+        {/* 设备入口：图标本体颜色跟出站连接，本机恒灰，点开设备清单浮层 */}
         <div className="relative">
           <button
             onClick={() => setDevicePopoverOpen((v) => !v)}
             title={t('device.title')}
             className={cn(
               'w-full flex flex-col items-center py-2 rounded transition-colors hover:bg-muted',
-              currentStatus === 'connected'
-                ? 'text-green-500'
-                : currentStatus === 'connecting'
-                  ? 'text-yellow-500'
-                  : 'text-red-500'
+              connToneClass[deviceTone]
             )}
           >
-            {currentStatus === 'connecting' ? (
+            {deviceTone === 'busy' ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <MonitorSmartphone className="w-5 h-5" />
