@@ -10,7 +10,7 @@ import {
   Plus,
   Compass,
   MonitorSmartphone,
-  Cloud,
+  Router,
   Loader2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -186,7 +186,7 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = () => {
               : 'text-muted-foreground'
           )}
         >
-          <Cloud className="w-5 h-5" />
+          <Router className="w-5 h-5" />
         </button>
 
         <DeviceManageModal

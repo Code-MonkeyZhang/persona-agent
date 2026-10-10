@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { X, Loader2, Cloud, AlertTriangle, RotateCcw } from 'lucide-react';
+import { X, Loader2, Router, AlertTriangle, RotateCcw } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
 import { useTunnelStore } from '../../stores/tunnelStore';
@@ -156,7 +156,7 @@ function TunnelSection() {
         <div className="bg-green-500/10 border border-green-500/30 rounded-[16px] p-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Cloud className="w-4 h-4 text-green-500" />
+              <Router className="w-4 h-4 text-green-500" />
               <span className="text-content text-green-500">
                 {t('server.publicUrl')}
               </span>
