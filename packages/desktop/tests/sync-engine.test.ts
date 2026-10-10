@@ -45,6 +45,7 @@ function makeDeps(
     applyChanges: async (changes: SessionChange[]) => {
       overrides.calls.push(`apply:${changes.map((c) => c.seq).join(',')}`);
     },
+    onStateChange: () => {},
     log: () => {},
     ...overrides,
   };
@@ -194,5 +195,42 @@ describe('SyncEngine', () => {
     engine.onChange(change(1));
     await settle(1);
     expect(calls).toEqual(['apply:1']);
+  });
+
+  /** 测试追平周期对外发 syncing 到 idle，单条回放不触发状态回调 */
+  it('should emit syncing then idle for sync and stay silent for onChange', async () => {
+    const states: string[] = [];
+    const deps = makeDeps({
+      calls: [],
+      getCursor: async () => 20,
+      fetchChanges: async () => ({ changes: [], head: 20 }),
+      onStateChange: (state) => states.push(state),
+    });
+    const engine = new SyncEngine(deps);
+
+    engine.onChange(change(21));
+    await settle(1);
+    expect(states).toEqual([]);
+
+    engine.sync();
+    await settle();
+    expect(states).toEqual(['syncing', 'idle']);
+  });
+
+  /** 测试追平失败也回落 idle，横条不在失败后卡在正在同步 */
+  it('should fall back to idle when catch-up fails', async () => {
+    const states: string[] = [];
+    const deps = makeDeps({
+      calls: [],
+      getCursor: async () => {
+        throw new Error('db offline');
+      },
+      onStateChange: (state) => states.push(state),
+    });
+    const engine = new SyncEngine(deps);
+
+    engine.sync();
+    await settle(1);
+    expect(states).toEqual(['syncing', 'idle']);
   });
 });

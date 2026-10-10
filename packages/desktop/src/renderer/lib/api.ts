@@ -3,7 +3,7 @@
  * @description 核心 API 通信层 - 封装所有 HTTP 接口调用与 WebSocket 客户端，提供后端服务地址管理
  */
 
-import type { UIMessage } from '../types/chat';
+import type { UIMessage, ConnectionStatus } from '../types/chat';
 import type { SessionMeta, Session } from '../types/session';
 import type {
   AgentConfig,
@@ -192,7 +192,8 @@ interface ListProvidersResponse {
 export class WebSocketClient {
   private ws: WebSocket | null = null;
   private listeners: Set<(msg: ServerMessage) => void> = new Set();
-  private connectionListeners: Set<(connected: boolean) => void> = new Set();
+  private connectionListeners: Set<(status: ConnectionStatus) => void> =
+    new Set();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private reconnectAttempts = 0;
@@ -215,20 +216,29 @@ export class WebSocketClient {
 
   /**
    * 注册连接状态变化的监听器。
+   * 发射值为 ConnectionStatus 四值中的三种，主动断开不发射，
+   * 切换连接期间界面保持上一个状态不闪断开。
    * @param listener - 连接状态变化时的回调函数
    * @returns 取消监听的函数
    */
-  onConnectionChange(listener: (connected: boolean) => void): () => void {
+  onConnectionChange(listener: (status: ConnectionStatus) => void): () => void {
     this.connectionListeners.add(listener);
     return () => this.connectionListeners.delete(listener);
   }
 
+  /** 向全部连接监听器发射状态 */
+  private emitStatus(status: ConnectionStatus): void {
+    this.connectionListeners.forEach((l) => l(status));
+  }
+
   /**
    * 建立 WebSocket 连接，重置重连计数，解除停止标记。
+   * 全新拨号意图对外发 connecting，覆盖开机首连与切换后的重拨。
    */
   connect(): void {
     this.stopped = false;
     this.reconnectAttempts = 0;
+    this.emitStatus('connecting');
     this.doConnect();
   }
 
@@ -240,7 +250,7 @@ export class WebSocketClient {
       this.ws.onopen = () => {
         logger.info('[WebSocket] Connected');
         this.reconnectAttempts = 0;
-        this.connectionListeners.forEach((l) => l(true));
+        this.emitStatus('connected');
 
         // 注册设备身份
         if (this.deviceInfo) {
@@ -281,7 +291,10 @@ export class WebSocketClient {
 
       this.ws.onclose = () => {
         this.stopHeartbeat();
-        this.connectionListeners.forEach((l) => l(false));
+        // 主动断开静默，切换连接期间不向界面发断开信号
+        if (!this.stopped) {
+          this.emitStatus('disconnected');
+        }
         this.attemptReconnect();
       };
 
@@ -291,9 +304,6 @@ export class WebSocketClient {
     });
   }
 
-  /**
-   * 以线性退避策略尝试重新连接，超过最大次数后停止。
-   */
   /**
    * 以指数退避策略尝试重新连接，延迟封顶三十秒且不设次数上限。
    * 断线追平依赖这条不断重连的通道，server 起停周期内连接必须自愈。
@@ -313,6 +323,7 @@ export class WebSocketClient {
     );
 
     this.reconnectTimer = setTimeout(() => {
+      this.emitStatus('reconnecting');
       this.doConnect();
     }, delay);
   }
@@ -329,6 +340,29 @@ export class WebSocketClient {
     this.stopHeartbeat();
     this.ws?.close();
     this.ws = null;
+  }
+
+  /**
+   * 跳过退避等待立即重连，红条点按的入口。
+   * 已停止、已连接或正在拨号时静默返回，退避计数保持不动，
+   * 下一次失败仍按原退避曲线等待。
+   */
+  reconnectNow(): void {
+    if (this.stopped) return;
+    if (
+      this.ws &&
+      (this.ws.readyState === WebSocket.OPEN ||
+        this.ws.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    logger.info('[WebSocket] Manual reconnect requested');
+    this.emitStatus('reconnecting');
+    this.doConnect();
   }
 
   /**

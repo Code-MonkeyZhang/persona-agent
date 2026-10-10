@@ -69,7 +69,11 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         window.api?.cache.applySnapshot(snapshot) ?? Promise.resolve(),
       applyChanges: (changes) =>
         window.api?.cache.applyChanges(changes) ?? Promise.resolve(),
-      log: (message) => logger.info(`[Sync] ${message}`),
+      onStateChange: (state) => {
+        logger.info('Sync', `catch-up ${state}`);
+        useChatStore.getState().setSyncState(state);
+      },
+      log: (message) => logger.info('Sync', message),
     });
 
     unsubscribe = client.onMessage(handleWsMessage);
@@ -85,10 +89,10 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 
     setWsClient(client);
 
-    connectionUnsubscribe = client.onConnectionChange((connected) => {
-      setConnectionStatus(connected ? 'connected' : 'disconnected');
+    connectionUnsubscribe = client.onConnectionChange((status) => {
+      setConnectionStatus(status);
       // 连接建立即追平，重连与首次连接走同一条路
-      if (connected) {
+      if (status === 'connected') {
         engine.sync();
       }
     });

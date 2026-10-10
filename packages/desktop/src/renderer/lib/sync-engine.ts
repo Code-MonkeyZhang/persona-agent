@@ -9,6 +9,12 @@
 
 import type { SessionChange, SyncSnapshot } from '@persona/shared';
 
+/** 追平分页上限 */
+const PAGE_LIMIT = 500;
+
+/** 追平过程的对外状态，横条的正在同步以此为准 */
+export type SyncState = 'idle' | 'syncing';
+
 /** 引擎的外部依赖，全部注入便于单测 */
 export interface SyncDeps {
   /** 拉全量快照 */
@@ -24,12 +30,11 @@ export interface SyncDeps {
   applySnapshot: (snapshot: SyncSnapshot) => Promise<void>;
   /** 变更批量回放入库 */
   applyChanges: (changes: SessionChange[]) => Promise<void>;
+  /** 追平状态回调，入队发 syncing，收尾发 idle，单条回放不触发 */
+  onStateChange: (state: SyncState) => void;
   /** 结构化日志 */
   log: (message: string) => void;
 }
-
-/** 追平分页上限 */
-const PAGE_LIMIT = 500;
 
 /** 会话同步引擎，依赖全注入的纯 TS 模块 */
 export class SyncEngine {
@@ -37,9 +42,12 @@ export class SyncEngine {
 
   constructor(private readonly deps: SyncDeps) {}
 
-  /** 追平到服务端最新，连接建立与重连时调用 */
+  /** 追平到服务端最新，连接建立与重连时调用，周期对外发 syncing 到 idle */
   sync(): void {
-    void this.enqueue(() => this.catchUp());
+    this.deps.onStateChange('syncing');
+    void this.enqueue(() =>
+      this.catchUp().finally(() => this.deps.onStateChange('idle'))
+    );
   }
 
   /** 回放推送来的单条变更 */

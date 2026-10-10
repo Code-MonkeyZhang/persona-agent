@@ -8,6 +8,7 @@
 
 import { create } from 'zustand';
 import type { UIMessage, ConnectionStatus, Thought } from '../types/chat';
+import type { SyncState } from '../lib/sync-engine';
 import type { ServerMessage, StepCompleteMessage } from '@persona/shared';
 import { buildPreviewText } from '@persona/shared';
 import { createMessage, sendChatMessage, WebSocketClient } from '../lib/api';
@@ -135,6 +136,8 @@ interface ChatStore {
   sessionStates: Map<string, SessionChatState>;
   currentSessionId: string | null;
   connectionStatus: ConnectionStatus;
+  /** 镜像追平状态，来自同步引擎的状态回调 */
+  syncState: SyncState;
   agentId: string | null;
   wsClient: WebSocketClient | null;
 
@@ -147,6 +150,7 @@ interface ChatStore {
   refreshSessionMessages: (sessionId: string) => Promise<void>;
   handleWsMessage: (msg: ServerMessage) => void;
   setConnectionStatus: (status: ConnectionStatus) => void;
+  setSyncState: (state: SyncState) => void;
   setAgentId: (id: string | null) => void;
   setWsClient: (client: WebSocketClient | null) => void;
 }
@@ -192,12 +196,17 @@ export const useChatStore = create<ChatStore>((set, get) => {
   return {
     sessionStates: new Map(),
     currentSessionId: null,
-    connectionStatus: 'disconnected',
+    connectionStatus: 'connecting',
+    syncState: 'idle',
     agentId: null,
     wsClient: null,
 
     setConnectionStatus: (status: ConnectionStatus) => {
       set({ connectionStatus: status });
+    },
+
+    setSyncState: (state: SyncState) => {
+      set({ syncState: state });
     },
 
     setCurrentSessionId: (id: string | null) => {
