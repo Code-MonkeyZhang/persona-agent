@@ -58,6 +58,7 @@ Install agents, MCP tools, and Skills from the Agent Marketplace in one click.
 
 ## 📢 Changelog
 
+- 2026-10-10 — **v1.12.0**: multi-device connections with device management, offline conversation mirror with automatic catch-up, content-hash caching for images and assets, live connection status, sessions migrated to SQLite.
 - 2026-09-23 — **v1.10.1**: app-wide visual refresh, collapsible session sidebar with animation and width memory, cloned voice renaming, permanently active input box.
 - 2026-09-19 — **v1.10.0**: global Inter font and unified type scale, per-turn assistant message bubbles, redesigned provider config panel, edge-fade scroll indicators.
 - 2026-09-09 — **v1.9.2**: desktop logs persisted to the user data directory for easier troubleshooting.
