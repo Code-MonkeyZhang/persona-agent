@@ -236,3 +236,32 @@ export function deviceStatus(
   if (snapshot.current.status === 'connecting') return 'connecting';
   return 'offline';
 }
+
+/** 当前设备解析结论，条目为 null 表示清单尚未就绪 */
+export interface CurrentDevice {
+  entry: DeviceEntry | null;
+  remote: boolean;
+}
+
+/** 从清单与快照解析当前设备，本机连接归位为 local，快照未就绪视为本机 */
+export function currentDeviceOf(
+  devices: DeviceEntry[],
+  snapshot: ConnectionSnapshot | null
+): CurrentDevice {
+  if (!snapshot) return { entry: null, remote: false };
+  const key = currentDeviceKey(snapshot);
+  return {
+    entry: devices.find((d) => d.hostId === key) ?? null,
+    remote: key !== LOCAL_DEVICE_ID,
+  };
+}
+
+/**
+ * 当前设备订阅钩子，归属标记与角标共用。
+ * find 返回清单既有对象，引用稳定不会引发多余渲染。
+ */
+export function useCurrentDevice(): CurrentDevice {
+  const devices = useConnectionStore((s) => s.devices);
+  const snapshot = useConnectionStore((s) => s.snapshot);
+  return currentDeviceOf(devices, snapshot);
+}

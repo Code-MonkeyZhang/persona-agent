@@ -22,6 +22,7 @@ import { McpLogo } from '../tools/toolRows';
 import { mcpStatusMeta } from '../tools/mcpStatus';
 import { ScrollArea } from '../ui/ScrollArea';
 import { StatusDot } from '../ui/StatusDot';
+import { useCurrentDevice } from '../../stores/connectionStore';
 
 /**
  * 按展示状态取区块占位文案的 i18n 键。
@@ -110,6 +111,7 @@ export function McpDetailPanel({
   onUninstall,
 }: McpDetailPanelProps) {
   const { t } = useTranslation();
+  const { remote } = useCurrentDevice();
 
   const meta = mcpStatusMeta(server);
   const toolsHint = sectionHintKey(
@@ -161,7 +163,8 @@ export function McpDetailPanel({
                   {server.status === 'needs_auth' && onAuthorize && (
                     <button
                       onClick={onAuthorize}
-                      disabled={authorizing}
+                      disabled={authorizing || remote}
+                      title={remote ? t('mcpPool.oauthRemoteHint') : undefined}
                       className={STATUS_ACTION_CLASS}
                     >
                       {authorizing ? (

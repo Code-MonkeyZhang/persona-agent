@@ -9,7 +9,7 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, Download, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { SettingRow } from '../common/SettingRow';
+import { SettingRow, HostChip } from '../common/SettingRow';
 import { ActionButton } from '../ui/ActionButton';
 import { Card } from '../ui/Card';
 import { logger } from '../../lib/logger';
@@ -86,6 +86,7 @@ export const VersionUpdateCard: React.FC = () => {
     <Card
       title={t('config.versionAndUpdate')}
       titleClassName="text-title-section font-semibold"
+      action={<HostChip label={t('config.hostLocal')} remote={false} />}
     >
       <div className="flex flex-col gap-4">
         <SettingRow label={t('config.currentVersion')} desc="Persona Desktop">
