@@ -1,11 +1,11 @@
 /**
  * @file 设备管理页，设备清单浮层的管理入口进来。
- * 上半是设备条目，看地址、改名、改地址、删除都在行内完成。
+ * 上半是设备条目，名字与地址旁的铅笔就地编辑，垃圾桶在行尾删除。
  * 下方新建连接按握手 hostId 认主机，连过的机器更新地址，没连过的建立新条目。
  * 连接过程按地址可达、握手识别、条目落位、切换同步推进，失败保留输入内容。
  */
 import { useState } from 'react';
-import { Plus, Loader2, X } from 'lucide-react';
+import { Plus, Loader2, X, Pencil, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { StatusDot } from '../ui/StatusDot';
 import { toast } from '../../stores/toastStore';
@@ -110,9 +110,6 @@ export function DeviceManageModal({ isOpen, onClose }: DeviceManageModalProps) {
                     {t(CONNECT_ERROR_KEYS[connectError])}
                   </p>
                 )}
-                <p className="text-xs text-muted-foreground mt-2.5">
-                  {t('device.connectHint')}
-                </p>
               </div>
             </section>
           </div>
@@ -206,44 +203,38 @@ function DeviceSection() {
                       </button>
                     </div>
                   ) : (
-                    <div className="text-sm font-medium text-foreground truncate">
-                      {isLocal ? t('device.local') : deviceDisplayName(device)}
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-sm font-medium text-foreground truncate">
+                        {isLocal
+                          ? t('device.local')
+                          : deviceDisplayName(device)}
+                      </span>
+                      {!isLocal && !editingThis && (
+                        <button
+                          onClick={() =>
+                            startEdit(
+                              device.hostId,
+                              'name',
+                              device.name ?? deviceDisplayName(device)
+                            )
+                          }
+                          title={t('device.rename')}
+                          className="shrink-0 p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
                 {!isLocal && !editingThis && (
-                  <div className="flex items-center gap-3 shrink-0">
-                    <button
-                      onClick={() =>
-                        startEdit(
-                          device.hostId,
-                          'name',
-                          device.name ?? deviceDisplayName(device)
-                        )
-                      }
-                      className="text-xs text-primary hover:underline"
-                    >
-                      {t('device.rename')}
-                    </button>
-                    <button
-                      onClick={() =>
-                        startEdit(
-                          device.hostId,
-                          'address',
-                          device.address ?? ''
-                        )
-                      }
-                      className="text-xs text-primary hover:underline"
-                    >
-                      {t('device.editAddress')}
-                    </button>
-                    <button
-                      onClick={() => handleRemove(device.hostId)}
-                      className="text-xs text-red-500 hover:underline"
-                    >
-                      {t('device.delete')}
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => handleRemove(device.hostId)}
+                    title={t('device.delete')}
+                    className="shrink-0 p-1 rounded text-red-500/80 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 )}
               </div>
 
@@ -274,9 +265,26 @@ function DeviceSection() {
                 </div>
               ) : (
                 <div className="pl-[26px] space-y-0.5">
-                  <code className="block text-xs font-mono text-muted-foreground break-all">
-                    {device.address}
-                  </code>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <code className="min-w-0 text-xs font-mono text-muted-foreground break-all">
+                      {device.address}
+                    </code>
+                    {!editingThis && (
+                      <button
+                        onClick={() =>
+                          startEdit(
+                            device.hostId,
+                            'address',
+                            device.address ?? ''
+                          )
+                        }
+                        title={t('device.editAddress')}
+                        className="shrink-0 p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     {t('device.lastConnected')}{' '}
                     {formatLastConnected(device.lastConnectedAt, t)}

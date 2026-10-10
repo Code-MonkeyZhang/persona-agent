@@ -348,7 +348,6 @@
   "device.save": "保存",
   "device.connectAction": "连接",
   "device.addressPlaceholder": "https://xxx.trycloudflare.com",
-  "device.connectHint": "粘贴隧道地址，连上后自动分辨：旧设备更新地址，新设备建立条目。",
   "device.deleteConfirm": "删除将同时释放该主机的本地镜像，确定删除？",
   "device.justNow": "刚刚",
   "device.minutesAgo": "{{count}} 分钟前",

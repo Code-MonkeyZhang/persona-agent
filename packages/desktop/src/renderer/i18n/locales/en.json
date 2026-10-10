@@ -348,7 +348,6 @@
   "device.save": "Save",
   "device.connectAction": "Connect",
   "device.addressPlaceholder": "https://xxx.trycloudflare.com",
-  "device.connectHint": "Paste a tunnel URL. Known devices get their address updated, unknown ones are added as new entries.",
   "device.deleteConfirm": "Removing also frees this host's local mirror. Remove it?",
   "device.justNow": "Just now",
   "device.minutesAgo": "{{count}} min ago",
