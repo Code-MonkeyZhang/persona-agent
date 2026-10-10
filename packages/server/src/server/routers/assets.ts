@@ -85,8 +85,12 @@ export function createAssetsRouter(): Router {
       const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
 
       const poseDir = getAgentAssetsPoseDir(agentId);
+      // readdir 的顺序随文件系统而变，按文件名排序保证立绘清单跨平台稳定
       const poseFiles = fs.existsSync(poseDir)
-        ? fs.readdirSync(poseDir).filter((f) => IMAGE_EXTENSIONS.test(f))
+        ? fs
+            .readdirSync(poseDir)
+            .filter((f) => IMAGE_EXTENSIONS.test(f))
+            .sort()
         : [];
       const poses = poseFiles.map((f) => ({
         name: path.parse(f).name,

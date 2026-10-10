@@ -34,6 +34,7 @@ function getAvailablePoses(agentId: string): string[] {
   return fs
     .readdirSync(poseDir)
     .filter((f) => /\.(png|jpg|jpeg|gif|webp)$/i.test(f))
+    .sort()
     .map((f) => path.parse(f).name);
 }
 
