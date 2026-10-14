@@ -1,6 +1,7 @@
 import type { ModelConfig } from './model-config.js';
 import type { Message } from './schema.js';
 import type { AgentConfig } from './agent.js';
+import type { LauncherSnapshot } from './launcher.js';
 
 /** Session metadata (first line of the JSONL file) */
 export interface SessionMeta {
@@ -73,4 +74,6 @@ export interface SyncSnapshot {
   latestSeq: number;
   sessions: SnapshotSession[];
   agents: SnapshotAgent[];
+  /** 小手机偏好节，行未写入时缺席，老服务端快照也没有此字段 */
+  launcher?: LauncherSnapshot;
 }

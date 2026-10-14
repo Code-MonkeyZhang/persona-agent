@@ -13,6 +13,7 @@
  * ├── mcp/
  * │   └── servers/
  * ├── attachments/
+ * ├── wallpapers/
  * ├── workspace/
  * └── logs/
  */
@@ -32,6 +33,7 @@ import {
   getMcpDir,
   getMcpServersDir,
   getSkillsDir,
+  getWallpapersDir,
   getWorkspaceDir,
   getTtsConfigPath,
 } from './paths.js';
@@ -69,6 +71,7 @@ const REQUIRED_DIRS = [
   getConfigDir,
   getAgentsDir,
   getAttachmentsDir,
+  getWallpapersDir,
   getWorkspaceDir,
   getLogsDir,
   getSkillsDir,

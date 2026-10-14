@@ -24,6 +24,7 @@
  * │   ├── mcp.json
  * │   └── servers/
  * ├── attachments/
+ * ├── wallpapers/
  * ├── runtimes/
  * ├── workspace/
  * └── logs/
@@ -53,6 +54,11 @@ export const getLogsDir = () => path.join(APP_DIR, 'logs');
  * 聊天附件目录，文件名即内容哈希，相同内容只存一份。
  */
 export const getAttachmentsDir = () => path.join(APP_DIR, 'attachments');
+
+/**
+ * 小手机壁纸目录，文件名即内容哈希，壁纸恒为 JPEG 不加扩展名。
+ */
+export const getWallpapersDir = () => path.join(APP_DIR, 'wallpapers');
 
 /**
  * 唯一正本 SQLite 库的文件路径，会话与消息等结构化数据都在库里。

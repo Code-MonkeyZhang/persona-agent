@@ -71,6 +71,11 @@ describe('isSafeSkillName', () => {
     expect(isSafeSkillName('')).toBe(false);
     expect(isSafeSkillName('-abc')).toBe(false);
   });
+
+  it('rejects reserved launcher slot ids', () => {
+    expect(isSafeSkillName('slot:settings')).toBe(false);
+    expect(isSafeSkillName('slot:chat')).toBe(false);
+  });
 });
 
 describe('folderNameOf', () => {

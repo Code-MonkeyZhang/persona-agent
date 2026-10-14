@@ -9,7 +9,7 @@
  */
 
 /** 当前 schema 版本，写进 PRAGMA user_version，只前进不回退。 */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /** 首次建库执行的建表语句，全部 IF NOT EXISTS，重复执行幂等。 */
 export const CREATE_TABLES_SQL = `
@@ -101,5 +101,11 @@ CREATE TABLE IF NOT EXISTS apps (
   install_path TEXT NOT NULL,
   enabled INTEGER NOT NULL DEFAULT 1,
   layout TEXT
+);
+
+CREATE TABLE IF NOT EXISTS launcher_prefs (
+  key TEXT PRIMARY KEY,
+  payload TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
 );
 `;

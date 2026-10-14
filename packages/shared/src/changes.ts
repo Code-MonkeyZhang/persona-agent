@@ -12,7 +12,8 @@ export type ChangeKind =
   | 'session_updated'
   | 'session_deleted'
   | 'turn_end'
-  | 'agents_invalidated';
+  | 'agents_invalidated'
+  | 'launcher_prefs_updated';
 
 /**
  * 单条变更事件。
@@ -22,6 +23,7 @@ export type ChangeKind =
  * - session_deleted 的 data 为空对象，id 由 sessionId 字段承载
  * - turn_end 的 data 为 { turnEnds }，是边界的完整快照
  * - agents_invalidated 的 data 为空对象，sessionId 为 null，客户端整份重拉角色列表
+ * - launcher_prefs_updated 的 data 为 { key, payload, updatedAt }，携带整份偏好文档
  */
 export interface SessionChange {
   /** 全局递增序号，客户端以此判断自己追平到哪里 */
