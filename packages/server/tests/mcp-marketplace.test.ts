@@ -5,6 +5,8 @@
  * - McpMarketplaceEntrySchema 校验
  * - saveMcpServer / deleteMcpServer，配置读写
  * - addServer / removeServer，连接池运行时增删
+ * - getMcpDisplayName，显示名解析与机器键回退
+ * - loadMcpConfig，旧版 mcp-meta.json 吸收迁移
  * - installMcp / uninstallMcp，安装/卸载编排 + ${SERVERS_DIR} 替换 + 回滚
  *
  * 所有测试在同一个文件里，共享同一套 mock，避免 mock.module 跨文件冲突。
@@ -123,12 +125,13 @@ mock.module('../src/util/uv-runtime.js', () => ({
 
 // ─── 导入被测模块 ───────────────────────────────────────────
 
-import { saveMcpServer, deleteMcpServer } from '../src/mcp/config.js';
+import { saveMcpServer, deleteMcpServer, loadMcpConfig } from '../src/mcp/config.js';
 import {
   addServer,
   removeServer,
   listMcpServers,
   getMcpServer,
+  getMcpDisplayName,
   reconnectServer,
 } from '../src/mcp/pool.js';
 import { installMcp, uninstallMcp } from '../src/marketplace/mcp-installer.js';
@@ -397,6 +400,85 @@ describe('reconnectServer', () => {
 });
 
 // ═══════════════════════════════════════════════════════════
+// 显示名解析与旧版 meta 迁移
+// ═══════════════════════════════════════════════════════════
+
+describe('getMcpDisplayName', () => {
+  it('returns the configured displayName', async () => {
+    await addServer('named', {
+      type: 'stdio',
+      command: 'echo',
+      args: [],
+      displayName: '番茄时钟',
+    });
+
+    expect(getMcpDisplayName('named')).toBe('番茄时钟');
+  });
+
+  it('falls back to the machine key when displayName is absent', async () => {
+    await addServer('bare', { type: 'stdio', command: 'echo', args: [] });
+
+    expect(getMcpDisplayName('bare')).toBe('bare');
+    expect(getMcpDisplayName('never-added')).toBe('never-added');
+  });
+});
+
+describe('loadMcpConfig legacy meta migration', () => {
+  /** 在 servers/<name>/ 下造一个旧版旁挂 meta */
+  function writeLegacyMeta(name: string, meta: Record<string, unknown>) {
+    const dir = path.join(serversDir, name);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'mcp-meta.json'), JSON.stringify(meta));
+  }
+
+  it('absorbs legacy meta into config entries and deletes the file', () => {
+    writeLegacyMeta('legacy-a', {
+      displayName: '剪刀石头布',
+      author: 'persona-agent',
+      description: 'desc',
+    });
+    writeLegacyMeta('legacy-b', { displayName: '番茄时钟' });
+    saveMcpServer('legacy-a', { type: 'stdio', command: 'a', args: [] });
+    saveMcpServer('legacy-b', { type: 'stdio', command: 'b', args: [] });
+    saveMcpServer('fresh', { type: 'stdio', command: 'c', args: [] });
+
+    const loaded = loadMcpConfig(configPath);
+
+    // meta 字段吸收进条目，无 meta 的条目不动
+    expect(loaded.get('legacy-a')).toMatchObject({
+      command: 'a',
+      displayName: '剪刀石头布',
+      author: 'persona-agent',
+      description: 'desc',
+    });
+    expect(loaded.get('legacy-b')).toMatchObject({ displayName: '番茄时钟' });
+    expect(loaded.get('fresh')?.displayName).toBeUndefined();
+
+    // 回写持久化，meta 文件删除
+    const content = JSON.parse(fs.readFileSync(configPath, 'utf8')) as {
+      mcpServers: Record<string, { displayName?: string }>;
+    };
+    expect(content.mcpServers['legacy-a'].displayName).toBe('剪刀石头布');
+    expect(
+      fs.existsSync(path.join(serversDir, 'legacy-a', 'mcp-meta.json'))
+    ).toBe(false);
+    expect(
+      fs.existsSync(path.join(serversDir, 'legacy-b', 'mcp-meta.json'))
+    ).toBe(false);
+  });
+
+  it('leaves everything untouched when no legacy meta exists', () => {
+    saveMcpServer('plain', { type: 'stdio', command: 'x', args: [] });
+    const before = fs.readFileSync(configPath, 'utf8');
+
+    const loaded = loadMcpConfig(configPath);
+
+    expect(loaded.get('plain')?.displayName).toBeUndefined();
+    expect(fs.readFileSync(configPath, 'utf8')).toBe(before);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
 // 安装/卸载编排：installMcp / uninstallMcp
 // ═══════════════════════════════════════════════════════════
 
@@ -404,11 +486,12 @@ describe('installMcp', () => {
   it('downloads, reads mcp.json, saves config, and adds to pool', async () => {
     await installMcp(makeEntry());
 
-    // 配置已写入
+    // 配置已写入，商城显示信息随条目落盘
     const content = JSON.parse(fs.readFileSync(configPath, 'utf8')) as {
-      mcpServers: Record<string, { command: string }>;
+      mcpServers: Record<string, { command: string; displayName?: string }>;
     };
     expect(content.mcpServers['test-mcp']).toBeDefined();
+    expect(content.mcpServers['test-mcp'].displayName).toBe('Test MCP');
 
     // 池里有
     expect(getMcpServer('test-mcp')).toBeDefined();

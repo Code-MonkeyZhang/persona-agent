@@ -14,6 +14,7 @@ import { logger } from '../lib/logger';
 export const AppWebViewPanel: React.FC = () => {
   const selectedApp = useAppPanelStore((s) => s.selectedApp);
   const collapsePanel = useAppPanelStore((s) => s.collapsePanel);
+  const apps = useAppPanelStore((s) => s.apps);
   const agentId = useChatStore((s) => s.agentId);
   const currentSessionId = useChatStore((s) => s.currentSessionId);
   const [baseUrl, setBaseUrl] = useState('');
@@ -72,6 +73,10 @@ export const AppWebViewPanel: React.FC = () => {
 
   if (!selectedApp) return null;
 
+  // 头部标题用显示名，apps 未就绪时兜底机器键
+  const displayName =
+    apps.find((a) => a.name === selectedApp)?.displayName ?? selectedApp;
+
   const handleReload = () => {
     setHasError(false);
     setIsLoading(true);
@@ -85,7 +90,7 @@ export const AppWebViewPanel: React.FC = () => {
           {baseUrl && (
             <img
               src={`${baseUrl}/apps/${selectedApp}/icon.png`}
-              alt={selectedApp}
+              alt={displayName}
               className="w-7 h-7 rounded-md object-cover shrink-0"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
@@ -93,10 +98,7 @@ export const AppWebViewPanel: React.FC = () => {
             />
           )}
           <span className="font-medium text-content text-foreground truncate">
-            {selectedApp
-              .split('-')
-              .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-              .join(' ')}
+            {displayName}
           </span>
         </div>
         <div className="flex items-center gap-1 shrink-0">

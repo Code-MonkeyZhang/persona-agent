@@ -20,13 +20,13 @@ export type McpConnectionType = 'stdio' | 'http' | 'oauth';
 /** MCP server info returned by GET /api/mcp (projection of server-internal entry) */
 export interface McpServerInfo {
   name: string;
-  /** 安装时落盘的显示名，手动添加的服务缺省，前端回退机器键 */
-  displayName?: string;
-  /** 简介，优先取安装 meta，回退 mcp.json 里的声明 */
+  /** 显示名，服务端兜底机器键后必有值，前端直接使用 */
+  displayName: string;
+  /** 简介，取 mcp.json 条目里的声明 */
   description?: string;
-  /** 安装时落盘的作者 */
+  /** 作者，商城安装时取清单 author */
   author?: string;
-  /** 本地图标相对地址挂内容哈希，本地文件缺失回退安装时的远程网址 */
+  /** 本地图标相对地址挂内容哈希，本地文件缺失回退配置里的远程网址 */
   logoUrl?: string;
   status: McpServerStatus;
   toolCount: number;

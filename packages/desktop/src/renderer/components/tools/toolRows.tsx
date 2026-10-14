@@ -148,7 +148,7 @@ export function McpRow({ server, selected, onClick, action }: McpRowProps) {
           imgClass="h-6 w-6 object-contain"
         />
       }
-      name={server.displayName ?? server.name}
+      name={server.displayName}
       meta={mcpStatusMeta(server)}
       action={action}
     />

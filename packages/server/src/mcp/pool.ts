@@ -14,7 +14,6 @@ import { MCPServerConnection } from './connection.js';
 import { McpOAuthProvider } from './oauth/provider.js';
 import { startCallbackServer } from './oauth/callback.js';
 import { getOAuthTokensPath } from '../util/paths.js';
-import { readMcpMeta } from './meta.js';
 import type {
   McpServerEntry,
   McpToolMeta,
@@ -44,8 +43,7 @@ const pendingOAuth: Map<string, { status: string; error?: string }> = new Map();
 let initialized = false;
 
 /**
- * 从 config 创建 connecting 状态的 entry，投影 agentApp / supportedUI 字段，
- * 并叠加安装时落盘的商城显示 meta。
+ * 从 config 创建 connecting 状态的 entry，投影 agentApp / supportedUI 字段。
  */
 function createConnectingEntry(
   name: string,
@@ -58,7 +56,6 @@ function createConnectingEntry(
     tools: [],
     agentApp: config.agentApp === true,
     supportedUI: config.supportedUI,
-    meta: readMcpMeta(name),
   };
 }
 
@@ -179,6 +176,14 @@ export function listMcpServers(): McpServerEntry[] {
  */
 export function getMcpServer(name: string): McpServerEntry | undefined {
   return serverEntries.get(name);
+}
+
+/**
+ * 取服务的显示名：配置里的 displayName 优先，缺省回退机器键。
+ * 通知前缀与界面展示统一走这里，机器键只出现在工具路由与 Agent 提示词里。
+ */
+export function getMcpDisplayName(name: string): string {
+  return serverEntries.get(name)?.config.displayName ?? name;
 }
 
 /**

@@ -30,7 +30,7 @@ export const AppIconBar: React.FC = () => {
             <button
               key={app.name}
               onClick={() => selectApp(isSelected ? null : app.name)}
-              title={app.name}
+              title={app.displayName}
               className="w-full py-3 flex flex-col items-center"
             >
               <div
@@ -42,12 +42,12 @@ export const AppIconBar: React.FC = () => {
                 )}
               >
                 <span className="text-content font-medium text-muted-foreground">
-                  {app.name.charAt(0).toUpperCase()}
+                  {app.displayName.charAt(0)}
                 </span>
                 {baseUrl && (
                   <img
                     src={`${baseUrl}/apps/${app.name}/icon.png`}
-                    alt={app.name}
+                    alt={app.displayName}
                     className="absolute w-10 h-10 object-cover"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';

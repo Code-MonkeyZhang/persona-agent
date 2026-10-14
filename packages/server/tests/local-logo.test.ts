@@ -1,7 +1,8 @@
 /**
  * @fileoverview 商城本地图标测试。
- * 覆盖解析助手的两级顺序与坏文件名拒绝、安装 meta 的 logoFile 往返、
+ * 覆盖解析助手的两级顺序与坏文件名拒绝、skill 安装 meta 的 logoFile 往返、
  * skill 与 MCP 两条 logo 路由的回图、缓存头与错误码。
+ * MCP 侧的图标字段来自池内配置条目，用内存桩登记而不真连进程。
  */
 
 import { describe, it, expect, beforeAll, afterAll, mock } from 'bun:test';
@@ -22,6 +23,9 @@ let app: Express;
 let server: Server;
 let baseUrl: string;
 
+/** MCP 池的内存桩：按 name 存配置条目，logo 路由从这里查图标字段 */
+const pooledConfigs = new Map<string, Record<string, unknown>>();
+
 mock.module('../src/util/paths.js', () => ({
   getSkillsDir: () => skillsDir,
   getMcpServersDir: () => serversDir,
@@ -33,9 +37,25 @@ mock.module('../src/util/logger.js', () => ({
   },
 }));
 
+mock.module('../src/mcp/pool.js', () => ({
+  listMcpServers: () => [],
+  getMcpServer: (name: string) =>
+    pooledConfigs.has(name)
+      ? { name, config: pooledConfigs.get(name), status: 'connected', tools: [] }
+      : undefined,
+  getMcpDisplayName: (name: string) =>
+    (pooledConfigs.get(name)?.displayName as string | undefined) ?? name,
+  setAppNotificationHandler: () => {},
+  getMcpToolsForServers: () => [],
+  getMcpPromptInfo: () => [],
+  startOAuthFlow: async () => ({ authorizationUrl: '' }),
+  getOAuthStatus: () => ({ status: 'connected' }),
+  reconnectServer: async () => {},
+  initMcpPool: async () => {},
+}));
+
 import { resolveLocalLogoFile } from '../src/util/local-logo.js';
 import { writeSkillMeta, loadSkillFile } from '../src/skill/loader.js';
-import { writeMcpMeta, readMcpMeta } from '../src/mcp/meta.js';
 import { createSkillRouter } from '../src/server/routers/skill.js';
 import { createMcpRouter } from '../src/server/routers/mcp.js';
 
@@ -76,15 +96,15 @@ body`
   return dir;
 }
 
-/** 造一个带图标的已安装 MCP 服务目录 */
+/** 造一个带图标的已安装 MCP 服务目录，图标字段登记进池内配置 */
 function makeServerDir(
   name: string,
-  meta: { logoUrl?: string; logoFile?: string } = {},
+  config: { logoUrl?: string; logoFile?: string } = {},
   logoName?: string
 ): string {
   const dir = path.join(serversDir, name);
   fs.mkdirSync(dir, { recursive: true });
-  writeMcpMeta(dir, meta);
+  pooledConfigs.set(name, { ...config });
   if (logoName) {
     fs.writeFileSync(path.join(dir, logoName), `${name}-logo-bytes`);
   }
@@ -183,24 +203,6 @@ describe('install meta logoFile roundtrip', () => {
     );
 
     expect(skill?.logoFile).toBe('icon.png');
-  });
-
-  it('keeps logoFile through writeMcpMeta and readMcpMeta', () => {
-    makeServerDir(
-      'roundtrip-mcp',
-      {
-        logoUrl: 'https://cdn.example.com/mcp/roundtrip-mcp/logo.svg',
-        logoFile: 'logo.svg',
-      },
-      'logo.svg'
-    );
-
-    const meta = readMcpMeta('roundtrip-mcp');
-
-    expect(meta?.logoFile).toBe('logo.svg');
-    expect(meta?.logoUrl).toBe(
-      'https://cdn.example.com/mcp/roundtrip-mcp/logo.svg'
-    );
   });
 });
 

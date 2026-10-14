@@ -1,7 +1,7 @@
 /**
  * @fileoverview MCP 商城安装/卸载编排。
  *
- * installMcp：下载 → 读 mcp.json → 替换占位符 → 写用户配置 → 写安装 meta → 连接池注册。
+ * installMcp：下载 → 读 mcp.json → 替换占位符 → 合并显示信息 → 写用户配置 → 连接池注册。
  * uninstallMcp：断连 + 出池 → 从配置删 → 删代码目录。
  */
 
@@ -14,7 +14,6 @@ import { folderNameOf } from './util.js';
 import { cdnUrl } from './config.js';
 import { saveMcpServer, deleteMcpServer } from '../mcp/config.js';
 import { addServer, removeServer } from '../mcp/pool.js';
-import { writeMcpMeta } from '../mcp/meta.js';
 import { Logger } from '../util/logger.js';
 import { AppError } from '../util/errors.js';
 import { detectUv, syncDeps } from '../util/uv-runtime.js';
@@ -97,24 +96,20 @@ export async function installMcp(entry: McpMarketplaceEntry): Promise<void> {
     command: rawConfig.command,
   });
 
-  // 替换占位符
-  const config = substitutePlaceholders(rawConfig, serversDir);
-
-  // 写进用户的 mcp.json，持久化保证重启后能重连
-  saveMcpServer(name, config);
-  Logger.log('MARKETPLACE', `Saved config for '${name}' to user mcp.json`);
-
-  // 商城显示信息落盘，详情页的显示名作者与 logo 从这里来，
-  // logoFile 记本地文件名供图标走本地，logoUrl 保留作回退链
-  writeMcpMeta(mcpDir, {
+  // 替换占位符并把商城显示信息并入条目，显示身份随配置一起落盘
+  const config: McpServerConfig = {
+    ...substitutePlaceholders(rawConfig, serversDir),
     displayName: entry.name,
     author: entry.author,
     description: entry.description,
     homepage: entry.homepage,
     logoUrl: entry.logo ? cdnUrl(entry.path, entry.logo) : undefined,
     logoFile: entry.logo,
-  });
-  Logger.log('MARKETPLACE', `Saved install meta for '${name}'`);
+  };
+
+  // 写进用户的 mcp.json，持久化保证重启后能重连
+  saveMcpServer(name, config);
+  Logger.log('MARKETPLACE', `Saved config for '${name}' to user mcp.json`);
 
   // uv sync 预装依赖，仅 command 为 uv 的 MCP 需要
   // 预装后 addServer 时 uv run 直接启动，不会超 60s 连接超时

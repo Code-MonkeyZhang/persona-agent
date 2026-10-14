@@ -11,6 +11,7 @@ import { logger } from '../lib/logger';
 
 interface AppInfo {
   name: string;
+  displayName: string;
 }
 
 interface AppPanelState {
@@ -38,7 +39,7 @@ export const useAppPanelStore = create<AppPanelState>()(
           const servers = await listMcpServers();
           const agentApps = servers
             .filter((s) => s.agentApp)
-            .map((s) => ({ name: s.name }));
+            .map((s) => ({ name: s.name, displayName: s.displayName }));
           set({ apps: agentApps });
           logger.info('AppPanel: loaded agent apps', {
             count: agentApps.length,

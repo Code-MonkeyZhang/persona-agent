@@ -19,7 +19,6 @@ import {
   getOAuthStatus,
   reconnectServer,
 } from '../../mcp/index.js';
-import { readMcpMeta } from '../../mcp/meta.js';
 import { getMcpServersDir } from '../../util/paths.js';
 import { isSafeSkillName } from '../../marketplace/util.js';
 import { Logger } from '../../util/logger.js';
@@ -45,18 +44,18 @@ function deriveConnectionType(entry: McpServerEntry): McpConnectionType {
 
 /**
  * 将 McpServerEntry 投影为 API 响应格式。
- * 详情页所需字段一次取齐，显示信息优先取安装 meta，缺省回退 config。
- * logoUrl 走本地图标产出链，本地文件缺失回退安装 meta 的远程网址。
+ * 详情页所需字段一次取齐，显示信息取配置条目，显示名在这里兜底机器键。
+ * logoUrl 走本地图标产出链，本地文件缺失回退配置里的远程网址。
  */
 export function projectMcpServerEntry(entry: McpServerEntry) {
   return {
     name: entry.name,
-    displayName: entry.meta?.displayName,
-    description: entry.meta?.description ?? entry.config.description,
-    author: entry.meta?.author,
+    displayName: entry.config.displayName ?? entry.name,
+    description: entry.config.description,
+    author: entry.config.author,
     logoUrl: produceLocalLogoUrl(
       path.join(getMcpServersDir(), entry.name),
-      entry.meta ?? {},
+      entry.config,
       `/api/mcp/${entry.name}/logo`,
       'MCP',
       entry.name
@@ -103,8 +102,8 @@ export function createMcpRouter(): Router {
   /**
    * GET /:name/logo — 取已安装 MCP 的本地图标。
    *
-   * 文件名只来自安装 meta 的解析结果，不来自请求参数。name 过安全
-   * 校验后才拼服务目录，路径穿越进不来。
+   * 文件名只来自配置条目里 logoFile 与 logoUrl 的解析结果，不来自请求
+   * 参数。name 过安全校验后才拼服务目录，路径穿越进不来。
    */
   router.get(
     '/:name/logo',
@@ -114,10 +113,10 @@ export function createMcpRouter(): Router {
         throw new AppError(400, 'Invalid server name');
       }
 
-      const meta = readMcpMeta(name) ?? {};
+      const config = getMcpServer(name)?.config ?? {};
       const logoPath = resolveLocalLogoFile(
         path.join(getMcpServersDir(), name),
-        meta
+        config
       );
       if (!logoPath) {
         throw new AppError(404, 'MCP logo not found');

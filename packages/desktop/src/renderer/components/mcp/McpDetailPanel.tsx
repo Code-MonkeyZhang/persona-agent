@@ -137,7 +137,7 @@ export function McpDetailPanel({
               imgClass="h-9 w-9 object-contain"
             />
           }
-          name={server.displayName ?? server.name}
+          name={server.displayName}
           desc={server.description}
           author={server.author}
         />

@@ -2,7 +2,7 @@
  * @fileoverview Agent App 商城安装透传测试
  * 覆盖：清单 schema 的 agentApp 字段解析；installMcp 安装链路中
  * 商品 mcp.json 里的 agentApp / supportedUI 标记原样透传到用户配置与连接池；
- * 安装 meta 的落盘与回读。
+ * 商城显示信息并入配置条目。
  */
 
 import { describe, it, expect, beforeAll, afterAll, mock } from 'bun:test';
@@ -75,7 +75,6 @@ mock.module('../src/util/uv-runtime.js', () => ({
 }));
 
 import { installMcp } from '../src/marketplace/mcp-installer.js';
-import { readMcpMeta } from '../src/mcp/meta.js';
 
 /** 造一个 agentApp 商品的清单条目 */
 function makeAppEntry(): McpMarketplaceEntry {
@@ -130,25 +129,19 @@ describe('installMcp agentApp passthrough', () => {
     }
   });
 
-  it('persists install meta beside mcp.json', async () => {
+  it('merges marketplace display info into the saved config', async () => {
     await installMcp(makeAppEntry());
 
-    const metaPath = path.join(serversDir, 'my-app', 'mcp-meta.json');
-    expect(fs.existsSync(metaPath)).toBe(true);
-    const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-    expect(meta.displayName).toBe('我的应用');
-    expect(meta.author).toBe('a');
-    expect(meta.description).toBe('desc');
-    expect(meta.homepage).toBe('https://example.com');
-    expect(meta.logoUrl).toBe(
+    expect(savedConfig!.displayName).toBe('我的应用');
+    expect(savedConfig!.author).toBe('a');
+    expect(savedConfig!.description).toBe('desc');
+    expect(savedConfig!.homepage).toBe('https://example.com');
+    expect(savedConfig!.logoUrl).toBe(
       'https://raw.githubusercontent.com/Code-MonkeyZhang/persona-agent-marketplace/main/mcp/my-app/icon.png'
     );
-  });
-
-  it('reads install meta back and tolerates missing meta', async () => {
-    await installMcp(makeAppEntry());
-
-    expect(readMcpMeta('my-app')?.displayName).toBe('我的应用');
-    expect(readMcpMeta('not-installed')).toBeUndefined();
+    // 旁挂 meta 不再生成，显示身份只随配置走
+    expect(
+      fs.existsSync(path.join(serversDir, 'my-app', 'mcp-meta.json'))
+    ).toBe(false);
   });
 });
