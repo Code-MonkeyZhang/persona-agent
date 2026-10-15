@@ -4,8 +4,9 @@
  * 四页模态（70vw × 70vh，圆点在顶部），每页持久 header + footer，中间区域同框切换：
  * P1 密钥与模型（供应商画廊 ⇄ key 表单）→ P2 语音服务（MiniMax Key 平铺配置）→
  * P3 身份/提示词 → P4 能力概念介绍。
- * 完成出口 P4「开始对话」：一次 PUT 落盘身份/语音（defaultModel 仅凭据可信时携带）
- * + 回写 server 的 onboarded 标记，由 App 关闭向导并切入聊天。
+ * 完成出口 P4「开始对话」：一次 PUT 落盘身份/语音，本会话确认过的供应商与模型作为
+ * defaultModel 携带，从未确认则保留播种预置值。PUT 成功才回写 server 的 onboarded 标记，
+ * 失败照常放行，下次启动向导重弹一次自愈，由 App 关闭向导并补刷新后切入聊天。
  * 重放模式由设置页入口打开，右上角关闭按钮与 Esc 为额外出口，不落任何标记。
  * 供应商与设置页共用同一数据源（GET /api/providers），品牌图标走 ProviderMark/ModelMark。
  */
@@ -154,6 +155,10 @@ export function LandingWizard({
   // 重放预填用：目标 Agent 现有默认模型，挂载后由 getAgent 填充
   const [agentDefaultModel, setAgentDefaultModel] =
     useState<ModelConfig | null>(null);
+  /** 本会话确认过的模型选择，验证成功时记录，返回画廊不丢失，完成时兜底携带 */
+  const [modelChoice, setModelChoice] = useState<ModelConfig | null>(null);
+  /** 完成出口防重入，所有路径都以 onComplete 收尾，向导随即卸载无需复位 */
+  const [finishing, setFinishing] = useState(false);
 
   // P2：语音服务（ttsKeyConfigured 由挂载时的服务端配置驱动）
   const [ttsKeyConfigured, setTtsKeyConfigured] = useState(false);
@@ -223,12 +228,8 @@ export function LandingWizard({
   }, [onClose]);
 
   const provider = providers.find((p) => p.id === selectedProvider);
-  // P1 门控统一为凭据可信：首启仅当次验证通过才可继续（设置页已有的已配置状态不放宽门控），重放放宽到已配置密钥的供应商
-  const credentialTrusted = isCredentialTrusted(
-    keyVerified,
-    mode,
-    provider?.hasAuth
-  );
+  // P1 门控统一为凭据可信，当场验证通过或该供应商已配置过密钥即可继续
+  const credentialTrusted = isCredentialTrusted(keyVerified, provider?.hasAuth);
 
   /** 进入某供应商表单：模型预填该供应商列表第一项，重放优先取 Agent 现有默认模型 */
   const openProvider = (p: ProviderStatus) => {
@@ -251,6 +252,7 @@ export function LandingWizard({
       }
       await setCredential(provider.id, apiKey.trim());
       setKeyVerified(true);
+      setModelChoice({ provider: provider.id, model: modelId });
       logger.info(`[Landing] credential saved for provider: ${provider.id}`);
     } catch (err) {
       toast.error(
@@ -281,11 +283,18 @@ export function LandingWizard({
   };
 
   /**
-   * 完成出口：一次 PUT 落盘身份/语音（defaultModel 仅凭据可信时携带），
-   * 随后回写 server 的 onboarded 标记。
-   * 回写失败只记日志照常放行，下次启动向导重弹一次自愈。
+   * 完成出口：一次 PUT 落盘身份/语音与默认模型。
+   * 屏幕上是可信选择就用屏幕上的，否则兜底用本会话确认过的，都没有则保留播种预置值。
+   * PUT 成功才回写 server 的 onboarded 标记，失败照常放行，下次启动向导重弹一次自愈。
    */
   const finish = async () => {
+    if (finishing) return;
+    setFinishing(true);
+    const carried =
+      credentialTrusted && provider
+        ? { provider: provider.id, model: modelId }
+        : modelChoice;
+    let updateSaved = false;
     try {
       const update: AgentConfigUpdate = {
         name: profile.name,
@@ -294,20 +303,27 @@ export function LandingWizard({
         voiceId,
         voiceLanguage,
       };
-      if (credentialTrusted && provider) {
-        update.defaultModel = { provider: provider.id, model: modelId };
+      if (carried) {
+        update.defaultModel = carried;
       }
       await updateAgent(agentId, update);
-      logger.info(`[Landing] wizard complete, agent updated: ${agentId}`);
+      updateSaved = true;
+      const modelLog = carried
+        ? `${carried.provider}/${carried.model}`
+        : 'preset kept';
+      logger.info(
+        `[Landing] wizard complete, agent updated: ${agentId}, model: ${modelLog}`
+      );
     } catch (err) {
-      // PUT 失败保留播种默认值继续放行，避免向导死循环；用户可稍后在 Agent 编辑器修改
       logger.error('[Landing] failed to update agent:', err);
       toast.error(t('common.saveFailed'));
     }
-    try {
-      await markSeedOnboarded();
-    } catch (err) {
-      logger.error('[Landing] failed to mark onboarded:', err);
+    if (updateSaved) {
+      try {
+        await markSeedOnboarded();
+      } catch (err) {
+        logger.error('[Landing] failed to mark onboarded:', err);
+      }
     }
     onComplete();
   };
@@ -876,6 +892,7 @@ export function LandingWizard({
               </button>
               <Button
                 className="ml-auto h-9 px-6 text-body"
+                disabled={finishing}
                 onClick={() => void finish()}
               >
                 {t('landing.finish')}
