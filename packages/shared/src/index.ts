@@ -47,8 +47,10 @@ export type { SessionChange, ChangeKind } from './changes.js';
 export {
   APP_ID_PATTERN,
   SLOT_ID_PATTERN,
+  EMPTY_ID_PREFIX,
   reconcileOrder,
-  swapAt,
+  toGridItems,
+  itemsToOrder,
   type LauncherOrderDoc,
   type WallpaperCustom,
   type WallpaperDoc,
@@ -56,6 +58,7 @@ export {
   type LauncherPrefEntry,
   type LauncherSnapshot,
   type LauncherPrefsChangeData,
+  type GridItem,
 } from './launcher.js';
 export type { HandshakeInfo } from './handshake.js';
 export * from './ws.js';

@@ -35,6 +35,35 @@ export interface WallpaperDoc {
 /** launcher_prefs 表的两行键名 */
 export type LauncherPrefKey = 'appOrder' | 'wallpaper';
 
+/** 空位占位 id 的保留前缀，不与应用 id 及 slot 前缀撞名 */
+export const EMPTY_ID_PREFIX = 'empty:';
+
+/** 网格条目，两端拖拽库都以带 id 的对象数组为数据源 */
+export interface GridItem {
+  id: string;
+}
+
+/**
+ * 把补格后的槽位数组转成网格条目，空位按当前下标合成占位 id。
+ * 槽位模型到拖拽库模型的唯一桥，两端共用。
+ */
+export function toGridItems(cells: (string | null)[]): GridItem[] {
+  return cells.map((id, index) => ({
+    id: id ?? `${EMPTY_ID_PREFIX}${index}`,
+  }));
+}
+
+/**
+ * 把网格条目还原成槽位数组，占位 id 还原为 null，末尾连续空位收掉。
+ */
+export function itemsToOrder(items: GridItem[]): (string | null)[] {
+  const order = items.map(({ id }) =>
+    id.startsWith(EMPTY_ID_PREFIX) ? null : id
+  );
+  while (order.length > 0 && order[order.length - 1] === null) order.pop();
+  return order;
+}
+
 /** 单份偏好文档的信封，updatedAt 是服务端毫秒时间戳，last-write-wins 的裁决依据 */
 export interface LauncherPrefEntry<T> {
   payload: T;
@@ -80,29 +109,4 @@ export function reconcileOrder(
 
   while (order.length > 0 && order[order.length - 1] === null) order.pop();
   return order;
-}
-
-/**
- * 把 from 位的条目挪到 to 位。
- * 目标有主则对调，目标为空则占位并清空原位，末尾连续空位收掉，越界或同位原样返回。
- */
-export function swapAt(
-  order: (string | null)[],
-  from: number,
-  to: number
-): (string | null)[] {
-  if (
-    from === to ||
-    from < 0 ||
-    to < 0 ||
-    from >= order.length ||
-    to >= order.length
-  ) {
-    return order;
-  }
-  const next = [...order];
-  next[to] = order[from] as string | null;
-  next[from] = order[to];
-  while (next.length > 0 && next[next.length - 1] === null) next.pop();
-  return next;
 }
