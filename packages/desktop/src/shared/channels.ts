@@ -33,6 +33,7 @@ export const IPC = {
   CACHE_GET_SESSIONS: 'cache:get-sessions',
   CACHE_GET_SESSION: 'cache:get-session',
   CACHE_GET_AGENTS: 'cache:get-agents',
+  CACHE_GET_LAUNCHER_PREFS: 'cache:get-launcher-prefs',
   CACHE_GET_CURSOR: 'cache:get-cursor',
   CACHE_APPLY_SNAPSHOT: 'cache:apply-snapshot',
   CACHE_APPLY_CHANGES: 'cache:apply-changes',

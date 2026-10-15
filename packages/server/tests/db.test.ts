@@ -28,6 +28,7 @@ const EXPECTED_TABLES = [
   'devices',
   'jobs',
   'kv',
+  'launcher_prefs',
   'messages',
   'read_state',
   'sessions',
@@ -44,8 +45,8 @@ describe('db bootstrap', () => {
     rmTempDir(tempDir);
   });
 
-  /** 测试九张表全部建齐 */
-  it('should create all nine tables', () => {
+  /** 测试十张表全部建齐 */
+  it('should create all ten tables', () => {
     const names = getDb()
       .query<{ name: string }>(
         "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name"

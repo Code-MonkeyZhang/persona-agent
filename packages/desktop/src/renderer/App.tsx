@@ -41,8 +41,7 @@ import { SkillsView } from './components/skills/SkillsView';
 import { MarketplaceView } from './components/marketplace/MarketplaceView';
 import { CompanionContent } from './components/companion/CompanionContent';
 import { CompanionReplyBubble } from './components/companion/CompanionReplyBubble';
-import { AppIconBar } from './components/shell/AppIconBar';
-import { AppWebViewPanel } from './components/AppWebViewPanel';
+import { PhonePanel } from './components/phone/PhonePanel';
 import { LandingWizard } from './components/landing/LandingWizard';
 import {
   Group,
@@ -59,12 +58,13 @@ import { useAgentStore } from './stores/agentStore';
 import { useProviderStore } from './stores/providerStore';
 import { useCompanionStore } from './stores/companionStore';
 import {
+  PHONE_PANEL_MAX_PERCENT,
+  PHONE_PANEL_MIN_PERCENT,
   SESSION_SIDEBAR_MAX_PX,
   SESSION_SIDEBAR_MIN_PX,
   useViewStore,
 } from './stores/viewStore';
 import { useTunnelStore } from './stores/tunnelStore';
-import { useAppPanelStore } from './stores/appPanelStore';
 import { useConnectionStore, currentDeviceKey } from './stores/connectionStore';
 import { LOCAL_DEVICE_ID } from '@shared/api';
 import { logger } from './lib/logger';
@@ -73,7 +73,7 @@ import { getSeedStatus, markSeedOnboarded } from './lib/api';
 import { shouldAutoShowWizard } from './lib/landing';
 
 /**
- * 侧栏收合展开过渡的收尾延时，毫秒。
+ * 面板收合展开过渡的收尾延时，毫秒。
  * 比 animations.css 里 220ms 的 flex-grow 过渡略长，动画结束后再摘除过渡类。
  */
 const PANEL_COLLAPSE_TRANSITION_MS = 280;
@@ -86,8 +86,10 @@ function AppContent() {
   const currentView = useViewStore((s) => s.currentView);
   const editingAgentId = useViewStore((s) => s.editingAgentId);
   const activeNav = useViewStore((s) => s.activeNav);
-  const panelCollapsed = useAppPanelStore((s) => s.panelCollapsed);
-  const selectedApp = useAppPanelStore((s) => s.selectedApp);
+  const phonePanelCollapsed = useViewStore((s) => s.phonePanelCollapsed);
+  const phonePanelSize = useViewStore((s) => s.phonePanelSize);
+  const setPhonePanelSize = useViewStore((s) => s.setPhonePanelSize);
+  const setPhonePanelCollapsed = useViewStore((s) => s.setPhonePanelCollapsed);
   const sessionSidebarCollapsed = useViewStore(
     (s) => s.sessionSidebarCollapsed
   );
@@ -109,12 +111,14 @@ function AppContent() {
   }, []);
 
   /**
-   * 拖拽侧边栏分隔条时同步宽度到 viewStore，由 zustand persist 持久化。
+   * 拖拽分隔条时同步面板状态到 viewStore，由 zustand persist 持久化。
    * 仅在用户实际操作后写入，避免初次挂载时把 Group 的 defaultLayout 又写回 store。
    * `LayoutChangedMeta.isUserInteraction === true` 时表示分隔条拖拽与键盘调整；
    * 初挂载、约束重算、defaultSize 应用、程序化收合展开都视为 false，不回写。
-   * 宽度单位是像素，Group 回调只报百分比，像素值取 onResize 缓存的 inPixels。
-   * 拖到极限触发库自动收起时宽度归零，此时只同步收起态，零宽度不落盘。
+   * 会话侧栏宽度单位是像素，Group 回调只报百分比，像素值取 onResize 缓存的 inPixels。
+   * 手机屏是百分比面板，回调值四舍五入后直接落库。
+   * 拖到极限触发库自动收起时宽度归零，此时只同步收起态，零值不落盘。
+   * 已收起面板的百分比值恒为零，收起分支靠闭包里的当前态挡掉重复写入与日志。
    */
   const handleLayoutChanged = useCallback(
     (
@@ -122,56 +126,109 @@ function AppContent() {
       meta: { isUserInteraction: boolean }
     ) => {
       if (!meta.isUserInteraction) return;
-      const next = layout['session-sidebar'];
-      if (typeof next !== 'number') return;
-      if (next <= 0.5) {
-        setSessionSidebarCollapsed(true);
+
+      const sessionNext = layout['session-sidebar'];
+      if (typeof sessionNext === 'number') {
+        if (sessionNext <= 0.5) {
+          setSessionSidebarCollapsed(true);
+        } else {
+          const px = sessionPanelSizeRef.current?.inPixels;
+          if (typeof px === 'number') {
+            const rounded = Math.round(px);
+            if (rounded !== sessionSidebarWidth) {
+              setSessionSidebarWidth(rounded);
+              logger.info(`[App] session sidebar width saved: ${rounded}px`);
+            }
+          }
+        }
+      }
+
+      const phoneNext = layout['phone-panel'];
+      if (typeof phoneNext !== 'number') return;
+      if (phoneNext <= 0.5) {
+        if (!phonePanelCollapsed) {
+          setPhonePanelCollapsed(true);
+          logger.info('[App] phone panel collapsed by drag');
+        }
         return;
       }
-      const px = sessionPanelSizeRef.current?.inPixels;
-      if (typeof px !== 'number') return;
-      const rounded = Math.round(px);
-      if (rounded !== sessionSidebarWidth) {
-        setSessionSidebarWidth(rounded);
-        logger.info(`[App] session sidebar width saved: ${rounded}px`);
+      const percent = Math.round(phoneNext);
+      if (percent !== phonePanelSize) {
+        setPhonePanelSize(percent);
+        logger.info(`[App] phone panel size saved: ${percent}%`);
       }
     },
-    [sessionSidebarWidth, setSessionSidebarWidth, setSessionSidebarCollapsed]
+    [
+      sessionSidebarWidth,
+      setSessionSidebarWidth,
+      setSessionSidebarCollapsed,
+      phonePanelCollapsed,
+      phonePanelSize,
+      setPhonePanelSize,
+      setPhonePanelCollapsed,
+    ]
   );
 
-  /**
-   * 会话侧栏走库的 collapsible 通道：Panel 常驻挂载，收起靠 collapse() 归零，
-   * 展开靠 expand() 恢复最近一次拖拽宽度。程序化收合展开期间给 Group 挂过渡类，
-   * flex-grow 由 CSS 缓动补间；手动拖拽不经过这里，保持零延迟跟手。
-   * 首次挂载按持久化状态直接就位，不播动画。
-   */
   const sessionPanelRef = usePanelRef();
+  const phonePanelRef = usePanelRef();
   const [panelsAnimating, setPanelsAnimating] = useState(false);
   const panelAnimationTimerRef = useRef<number | undefined>(undefined);
   const sessionPanelMountedRef = useRef(false);
+  const phonePanelMountedRef = useRef(false);
+
+  /**
+   * 面板走库的 collapsible 通道，会话侧栏与手机预览屏共用：
+   * Panel 常驻挂载，收起靠 collapse() 归零，展开靠 expand() 恢复最近一次拖拽尺寸。
+   * 程序化收合展开期间给 Group 挂过渡类，flex-grow 由 CSS 缓动补间；
+   * 手动拖拽不经过这里，保持零延迟跟手。
+   * 首次挂载按持久化状态直接就位，不播动画。
+   */
+  const syncPanelCollapsed = useCallback(
+    (
+      panelRef: ReturnType<typeof usePanelRef>,
+      mountedRef: { current: boolean },
+      collapsed: boolean
+    ) => {
+      const panel = panelRef.current;
+      if (!panel) return;
+      if (!mountedRef.current) {
+        mountedRef.current = true;
+        if (collapsed) panel.collapse();
+        return;
+      }
+      if (collapsed === panel.isCollapsed()) return;
+      setPanelsAnimating(true);
+      if (collapsed) {
+        panel.collapse();
+      } else {
+        panel.expand();
+      }
+      window.clearTimeout(panelAnimationTimerRef.current);
+      panelAnimationTimerRef.current = window.setTimeout(
+        () => setPanelsAnimating(false),
+        PANEL_COLLAPSE_TRANSITION_MS
+      );
+    },
+    []
+  );
 
   useLayoutEffect(() => {
-    const panel = sessionPanelRef.current;
-    if (!panel) return;
-    if (!sessionPanelMountedRef.current) {
-      sessionPanelMountedRef.current = true;
-      if (sessionSidebarCollapsed) panel.collapse();
-      return;
-    }
-    if (sessionSidebarCollapsed === panel.isCollapsed()) return;
-    setPanelsAnimating(true);
-    if (sessionSidebarCollapsed) {
-      panel.collapse();
-    } else {
-      panel.expand();
-    }
-    window.clearTimeout(panelAnimationTimerRef.current);
-    panelAnimationTimerRef.current = window.setTimeout(
-      () => setPanelsAnimating(false),
-      PANEL_COLLAPSE_TRANSITION_MS
+    syncPanelCollapsed(
+      sessionPanelRef,
+      sessionPanelMountedRef,
+      sessionSidebarCollapsed
     );
     return () => window.clearTimeout(panelAnimationTimerRef.current);
-  }, [sessionSidebarCollapsed, sessionPanelRef]);
+  }, [sessionSidebarCollapsed, sessionPanelRef, syncPanelCollapsed]);
+
+  useLayoutEffect(() => {
+    syncPanelCollapsed(
+      phonePanelRef,
+      phonePanelMountedRef,
+      phonePanelCollapsed
+    );
+    return () => window.clearTimeout(panelAnimationTimerRef.current);
+  }, [phonePanelCollapsed, phonePanelRef, syncPanelCollapsed]);
 
   const pendingProviderRef = useRef<string | undefined>();
   const messageListRef = useRef<MessageListRef>(null);
@@ -244,8 +301,13 @@ function AppContent() {
     loadSessions,
   } = useSessionStore();
 
-  const { loadAgents, currentAgent, deleteAgentById, switchAgent } =
-    useAgentStore();
+  const {
+    loadAgents,
+    currentAgent,
+    deleteAgentById,
+    switchAgent,
+    refreshAgentById,
+  } = useAgentStore();
   const { providers, loadProviders } = useProviderStore();
 
   /** 向导打开状态已提升进 viewStore，首启门控与设置页重放入口共用 */
@@ -336,18 +398,27 @@ function AppContent() {
     };
   }, [connectionStatus, connectionSnapshot, agentsLoaded]);
 
-  /** 向导完成出口，首启与重放共用：切换到目标 Agent 并进入聊天视图 */
+  /**
+   * 向导完成出口，首启与重放共用：切换到目标 Agent 并进入聊天视图。
+   * 向导直写磁盘不经过 store，这里补拉供应商列表与目标 Agent，
+   * 让聊天页的模型选择器立即读到新保存的凭据与默认模型。
+   */
   const handleLandingComplete = async () => {
     const { landing, closeLanding, setView, setActiveNav } =
       useViewStore.getState();
     const agentId = landing.agentId;
     closeLanding();
+    void loadProviders();
     if (!agentId) return;
     setView('chat');
     setActiveNav('chat');
-    if (useAgentStore.getState().currentAgent?.id !== agentId) {
+    if (useAgentStore.getState().currentAgent?.id === agentId) {
+      // 同 Agent 时 PUT 刚改过配置，重取并同步进列表与 currentAgent
+      await refreshAgentById(agentId);
+    } else {
       await switchAgent(agentId);
     }
+    logger.info(`[Landing] completion refreshed stores for agent: ${agentId}`);
   };
 
   useEffect(() => {
@@ -658,16 +729,18 @@ function AppContent() {
                     {activeNav === 'skills' && <SkillsView />}
                   </div>
                 </Panel>
-                {!panelCollapsed && selectedApp && (
-                  <>
-                    <ResizeSeparator />
-                    <Panel id="app-webview" minSize="20" maxSize="50">
-                      <AppWebViewPanel />
-                    </Panel>
-                  </>
-                )}
+                {!phonePanelCollapsed && <ResizeSeparator />}
+                <Panel
+                  id="phone-panel"
+                  defaultSize={`${phonePanelSize}`}
+                  minSize={`${PHONE_PANEL_MIN_PERCENT}`}
+                  maxSize={`${PHONE_PANEL_MAX_PERCENT}`}
+                  collapsible
+                  panelRef={phonePanelRef}
+                >
+                  <PhonePanel />
+                </Panel>
               </Group>
-              <AppIconBar />
             </>
           )}
         </div>

@@ -10,14 +10,14 @@ export type LandingMode = 'first-run' | 'replay';
 
 /**
  * 判断凭据是否可信，同时驱动 P1 继续按钮与完成时默认模型的携带。
- * 首启模式下退化为当次验证状态，与既有行为一致。
+ * 当次验证通过，或该供应商已配置过密钥，都视为可信。
+ * 首启与重放共用同一规则，已配置密钥与设置页同一信任级别。
  */
 export function isCredentialTrusted(
   keyVerified: boolean,
-  mode: LandingMode,
   providerHasAuth: boolean | undefined
 ): boolean {
-  return keyVerified || (mode === 'replay' && !!providerHasAuth);
+  return keyVerified || !!providerHasAuth;
 }
 
 /**

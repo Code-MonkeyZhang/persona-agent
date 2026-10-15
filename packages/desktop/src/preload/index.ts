@@ -191,6 +191,7 @@ const api: WindowAPI = {
     getSession: (sessionId) =>
       ipcRenderer.invoke(IPC.CACHE_GET_SESSION, sessionId),
     getAgents: () => ipcRenderer.invoke(IPC.CACHE_GET_AGENTS),
+    getLauncherPrefs: () => ipcRenderer.invoke(IPC.CACHE_GET_LAUNCHER_PREFS),
     getCursor: () => ipcRenderer.invoke(IPC.CACHE_GET_CURSOR),
     applySnapshot: (snapshot) =>
       ipcRenderer.invoke(IPC.CACHE_APPLY_SNAPSHOT, snapshot),

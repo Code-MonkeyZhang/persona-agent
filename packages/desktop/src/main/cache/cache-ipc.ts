@@ -29,6 +29,10 @@ export function registerCacheIpc(cacheGetter: () => CacheDb | null): void {
     (_event, sessionId: string) => cacheGetter()?.getSession(sessionId) ?? null
   );
   ipcMain.handle(IPC.CACHE_GET_AGENTS, () => cacheGetter()?.listAgents() ?? []);
+  ipcMain.handle(
+    IPC.CACHE_GET_LAUNCHER_PREFS,
+    () => cacheGetter()?.getLauncherPrefs() ?? null
+  );
   ipcMain.handle(IPC.CACHE_GET_CURSOR, () => cacheGetter()?.getCursor() ?? 0);
   ipcMain.handle(IPC.CACHE_APPLY_SNAPSHOT, (_event, snapshot: SyncSnapshot) => {
     const cache = cacheGetter();

@@ -12,9 +12,9 @@ import type { PendingInput } from '@persona/shared';
 /**
  * App 通知进入 Agent 上下文的文本形态。
  *
- * 存储层始终存通知原文加来源名，前缀只在进入上下文时拼接。
+ * 存储层始终存通知原文加来源显示名，前缀只在进入上下文时拼接。
  *
- * @param source - App 名称
+ * @param source - App 显示名
  * @param content - 通知原文
  * @returns 带来源前缀的 user 消息文本
  */

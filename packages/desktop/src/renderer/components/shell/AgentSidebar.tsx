@@ -2,7 +2,7 @@
  * @file src/renderer/components/shell/AgentSidebar.tsx
  * @description 左侧 Agent 列表侧边栏，展示所有 Agent 头像、添加按钮、设备入口、远程访问入口和设置入口。
  * 选中态使用 framer-motion 共享布局动画，切换 Agent 时白色卡片和蓝色竖条弹性滑动。
- * 两颗连接入口用图标本身的颜色做指示：设备图标跟当前连接且本机恒灰，路由器图标跟本机隧道。
+ * 两颗连接入口用图标本身的颜色做指示：设备图标跟当前连接且本机恒灰，路由器图标跟本机隧道的四态。
  */
 import React, { useState } from 'react';
 import {
@@ -45,6 +45,47 @@ const connToneClass: Record<ConnTone, string> = {
   error: 'text-red-500',
 };
 
+/** 路由图标的隧道状态档位，灰为未启动，橙为地址不可达，黄为等手机，绿为全就绪 */
+type TunnelIconStatus =
+  | 'tunnel_off'
+  | 'tunnel_unhealthy'
+  | 'waiting_for_mobile'
+  | 'all_good';
+
+const tunnelIconConfig: Record<
+  TunnelIconStatus,
+  { color: string; titleKey: string }
+> = {
+  tunnel_off: {
+    color: 'text-muted-foreground',
+    titleKey: 'server.tunnelNotStarted',
+  },
+  tunnel_unhealthy: {
+    color: 'text-orange-500',
+    titleKey: 'server.tunnelUnreachable',
+  },
+  waiting_for_mobile: {
+    color: 'text-yellow-500',
+    titleKey: 'server.waitingForPhone',
+  },
+  all_good: { color: 'text-green-500', titleKey: 'server.allConnected' },
+};
+
+/**
+ * 根据隧道状态、健康度和手机在线推导路由图标状态。
+ * 判断优先级：隧道开启 > 隧道健康 > 手机在线
+ */
+function deriveTunnelIconStatus(
+  tunnelStatus: string,
+  tunnelHealth: string,
+  mobileOnline: boolean
+): TunnelIconStatus {
+  if (tunnelStatus !== 'running') return 'tunnel_off';
+  if (tunnelHealth === 'unhealthy') return 'tunnel_unhealthy';
+  if (!mobileOnline) return 'waiting_for_mobile';
+  return 'all_good';
+}
+
 /**
  * Agent 列表侧边栏组件，渲染 Agent 头像列表并提供切换和添加操作。
  * 选中 Agent 时通过 framer-motion layoutId 实现弹性滑动切换动画。
@@ -58,6 +99,8 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = () => {
   const [serverModalOpen, setServerModalOpen] = useState(false);
 
   const tunnelStatus = useTunnelStore((s) => s.status);
+  const tunnelHealth = useTunnelStore((s) => s.health);
+  const mobileOnline = useTunnelStore((s) => s.mobileDeviceIds.size > 0);
   const connectionStatus = useChatStore((s) => s.connectionStatus);
   const { remote } = useCurrentDevice();
 
@@ -72,6 +115,15 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = () => {
       : connectionStatus === 'connecting' || connectionStatus === 'reconnecting'
         ? 'busy'
         : 'error';
+
+  /**
+   * 路由图标的取色由隧道状态、健康度与手机在线合成。
+   * 未启动恒灰，跑通后按健康度与手机在线分橙黄绿。
+   */
+  const tunnelIcon =
+    tunnelIconConfig[
+      deriveTunnelIconStatus(tunnelStatus, tunnelHealth, mobileOnline)
+    ];
 
   /** 点击 Agent 头像切换到对应 Agent，如果在非聊天视图则同时切回聊天 */
   const handleAgentClick = async (id: string) => {
@@ -175,15 +227,13 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = () => {
           )}
         </div>
 
-        {/* 远程访问入口：图标颜色跟入站隧道，本机服务端常驻随时可操作 */}
+        {/* 远程访问入口：图标颜色跟入站隧道的四态，本机服务端常驻随时可操作 */}
         <button
           onClick={() => setServerModalOpen(true)}
-          title={t('server.remoteAccessTitle')}
+          title={t(tunnelIcon.titleKey)}
           className={cn(
             'w-full flex flex-col items-center py-2 rounded transition-colors hover:bg-muted',
-            tunnelStatus === 'running'
-              ? 'text-green-500'
-              : 'text-muted-foreground'
+            tunnelIcon.color
           )}
         >
           <Router className="w-5 h-5" />

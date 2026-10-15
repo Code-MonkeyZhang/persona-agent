@@ -6,6 +6,7 @@ export {
   initMcpPool,
   listMcpServers,
   getMcpServer,
+  getMcpDisplayName,
   setAppNotificationHandler,
   getMcpToolsForServers,
   getMcpPromptInfo,

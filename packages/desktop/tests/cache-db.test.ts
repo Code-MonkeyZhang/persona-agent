@@ -252,4 +252,74 @@ describe('CacheDb', () => {
     expect(db.listAgents()).toEqual([]);
     expect(db.getSourceHostId()).toBe('host-1');
   });
+
+  describe('launcher prefs mirror', () => {
+    /** 测试快照 launcher 节装载进 kv 并按快照形状读回 */
+    it('should load launcher node from snapshot', () => {
+      db.applySnapshot({
+        latestSeq: 40,
+        sessions: [],
+        agents: [],
+        launcher: {
+          appOrder: {
+            payload: { appOrder: ['a', null, 'slot:settings'] },
+            updatedAt: 11,
+          },
+          wallpaper: {
+            payload: { currentId: 'dawn', customs: [] },
+            updatedAt: 12,
+          },
+        },
+      });
+      expect(db.getLauncherPrefs()).toEqual({
+        appOrder: {
+          payload: { appOrder: ['a', null, 'slot:settings'] },
+          updatedAt: 11,
+        },
+        wallpaper: { payload: { currentId: 'dawn', customs: [] }, updatedAt: 12 },
+      });
+    });
+
+    /** 测试变更按键落行，载荷缺失跳过但游标前进 */
+    it('should apply launcher change by key and skip empty payload', () => {
+      db.applyChanges([
+        change(41, 'launcher_prefs_updated', null, {
+          key: 'appOrder',
+          payload: { appOrder: ['b', 'a'] },
+          updatedAt: 42,
+        }),
+        change(42, 'launcher_prefs_updated', null, {}),
+      ]);
+      expect(db.getCursor()).toBe(42);
+      expect(db.getLauncherPrefs()?.appOrder).toEqual({
+        payload: { appOrder: ['b', 'a'] },
+        updatedAt: 42,
+      });
+      // 壁纸行不受排列变更影响
+      expect(db.getLauncherPrefs()?.wallpaper?.updatedAt).toBe(12);
+    });
+
+    /** 测试 reset 连同偏好镜像一起清空 */
+    it('should clear launcher rows on reset', () => {
+      db.reset();
+      expect(db.getLauncherPrefs()).toBeNull();
+      // 重新落一条供下个用例验证快照替换语义
+      db.applyChanges([
+        change(43, 'launcher_prefs_updated', null, {
+          key: 'wallpaper',
+          payload: { currentId: 'night', customs: [] },
+          updatedAt: 44,
+        }),
+      ]);
+      expect(db.getLauncherPrefs()?.wallpaper?.payload.currentId).toBe(
+        'night'
+      );
+    });
+
+    /** 测试不带 launcher 节的新快照清掉旧偏好行 */
+    it('should clear launcher rows when snapshot lacks launcher node', () => {
+      db.applySnapshot({ latestSeq: 50, sessions: [], agents: [] });
+      expect(db.getLauncherPrefs()).toBeNull();
+    });
+  });
 });

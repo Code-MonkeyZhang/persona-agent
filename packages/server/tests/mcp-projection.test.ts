@@ -1,7 +1,7 @@
 /**
  * @fileoverview MCP 列表投影测试
- * 覆盖 /api/mcp 的字段投影：安装 meta 的显示字段与 instructions 与工具明细透出，
- * 显示信息在 meta 缺失时回退 config，连接类型按状态与配置推导，
+ * 覆盖 /api/mcp 的字段投影：配置条目的显示字段与 instructions 与工具明细透出，
+ * 显示名缺省时回退机器键，连接类型按状态与配置推导，
  * logoUrl 走本地图标产出链，本地命中出挂哈希的相对地址，缺失回退远程网址。
  */
 import { describe, it, expect, beforeAll, afterAll, mock } from 'bun:test';
@@ -49,13 +49,14 @@ describe('projectMcpServerEntry', () => {
     fs.rmSync(path.dirname(serversDir), { recursive: true, force: true });
   });
 
-  it('projects install meta, instructions and tool details', () => {
+  it('projects config display fields, instructions and tool details', () => {
     const info = projectMcpServerEntry(
       makeEntry({
         instructions: 'Use this server to manage notes.',
-        meta: {
+        config: {
           displayName: 'Notion',
           author: 'Notion',
+          description: '笔记管理',
           logoUrl: 'https://example.com/logo.png',
         },
       })
@@ -63,13 +64,20 @@ describe('projectMcpServerEntry', () => {
 
     expect(info.displayName).toBe('Notion');
     expect(info.author).toBe('Notion');
+    expect(info.description).toBe('笔记管理');
     expect(info.logoUrl).toBe('https://example.com/logo.png');
     expect(info.instructions).toBe('Use this server to manage notes.');
     expect(info.tools).toEqual([{ name: 'search', description: '搜索页面' }]);
     expect(info.toolCount).toBe(1);
   });
 
-  it('produces a hashed local url when the meta logo resolves locally', () => {
+  it('falls back to the machine key when displayName is absent', () => {
+    const info = projectMcpServerEntry(makeEntry());
+
+    expect(info.displayName).toBe('notion');
+  });
+
+  it('produces a hashed local url when the config logo resolves locally', () => {
     const dir = path.join(serversDir, 'figma');
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'logo.svg'), '<svg/>');
@@ -77,22 +85,13 @@ describe('projectMcpServerEntry', () => {
     const info = projectMcpServerEntry(
       makeEntry({
         name: 'figma',
-        meta: { logoFile: 'logo.svg', logoUrl: 'https://example.com/logo.svg' },
+        config: { logoFile: 'logo.svg', logoUrl: 'https://example.com/logo.svg' },
       })
     );
 
     expect(info.logoUrl).toBe(
       `/api/mcp/figma/logo?h=${getFileHash(path.join(dir, 'logo.svg'))}`
     );
-  });
-
-  it('falls back to config description when meta is absent', () => {
-    const info = projectMcpServerEntry(
-      makeEntry({ config: { description: 'from config' } })
-    );
-
-    expect(info.displayName).toBeUndefined();
-    expect(info.description).toBe('from config');
   });
 
   it('derives connection type from status and config', () => {

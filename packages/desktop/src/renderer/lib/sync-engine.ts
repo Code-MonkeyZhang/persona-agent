@@ -3,6 +3,8 @@
  *
  * 缓存库与服务端正本之间的单向追平器。冷启动游标为零先拉快照整体入库，
  * 之后分页拉变更流到服务端最新序号，推送模式下按序回放 WS 推来的单条变更。
+ * 自愈一道，游标越过服务端头部说明序号流错位，整库作废重拉快照，
+ * 覆盖同一身份下库文件被恢复到旧版本的场景，换主机的错配由 host-manager 在开库时处理。
  * 断线重连后重新走一遍追平。全部操作进同一条串行队列，
  * 追平的分页批次与推送的单条变更不会交错，游标始终单调前进。
  */
@@ -26,6 +28,8 @@ export interface SyncDeps {
   ) => Promise<{ changes: SessionChange[]; head: number }>;
   /** 读本地缓存游标 */
   getCursor: () => Promise<number>;
+  /** 作废本地镜像整库清空，随后走快照整库重建 */
+  invalidateMirror: () => Promise<void>;
   /** 快照整体入库 */
   applySnapshot: (snapshot: SyncSnapshot) => Promise<void>;
   /** 变更批量回放入库 */
@@ -78,12 +82,7 @@ export class SyncEngine {
     let cursor = await this.deps.getCursor();
 
     if (cursor === 0) {
-      const snapshot = await this.deps.fetchSnapshot();
-      await this.deps.applySnapshot(snapshot);
-      cursor = snapshot.latestSeq;
-      this.deps.log(
-        `Mirrored snapshot: ${snapshot.sessions.length} sessions latestSeq=${cursor}`
-      );
+      cursor = await this.mirrorSnapshot();
     }
 
     for (;;) {
@@ -91,10 +90,29 @@ export class SyncEngine {
         cursor,
         PAGE_LIMIT
       );
+      // 游标越过服务端头部，序号流已错位，作废重建后重新对表
+      if (cursor > head) {
+        this.deps.log(
+          `Cursor ${cursor} beyond server head ${head}, re-mirroring`
+        );
+        await this.deps.invalidateMirror();
+        cursor = await this.mirrorSnapshot();
+        continue;
+      }
       if (changes.length === 0) break;
       await this.deps.applyChanges(changes);
       cursor = changes[changes.length - 1].seq;
       if (head <= cursor) break;
     }
+  }
+
+  /** 拉快照整体入库，返回快照时刻的最新序号，冷启动与游标错位共用 */
+  private async mirrorSnapshot(): Promise<number> {
+    const snapshot = await this.deps.fetchSnapshot();
+    await this.deps.applySnapshot(snapshot);
+    this.deps.log(
+      `Mirrored snapshot: ${snapshot.sessions.length} sessions latestSeq=${snapshot.latestSeq}`
+    );
+    return snapshot.latestSeq;
   }
 }

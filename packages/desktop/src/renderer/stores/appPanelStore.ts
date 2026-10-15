@@ -1,63 +1,51 @@
 /**
  * @file stores/appPanelStore.ts
- * @description Agent App 图标栏与 WebView 面板的共享状态。
- * 管理 App 列表加载、选中 App、面板折叠/展开、图标栏可见性。
+ * @description 小手机预览屏的领域状态。
+ * 管理 Agent App 清单加载与当前打开的应用，面板可见性与宽度归 viewStore。
  */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { listMcpServers } from '../lib/api';
 import { logger } from '../lib/logger';
 
-interface AppInfo {
+/** Agent App 条目，name 是机器键，logoUrl 为带内容哈希的协议地址 */
+export interface AppInfo {
   name: string;
+  displayName: string;
+  logoUrl?: string;
 }
 
 interface AppPanelState {
   apps: AppInfo[];
+  /** 当前打开的应用名，null 表示桌面态 */
   selectedApp: string | null;
-  panelCollapsed: boolean;
-  sidebarVisible: boolean;
 
   loadApps: () => Promise<void>;
   selectApp: (name: string | null) => void;
-  collapsePanel: () => void;
-  toggleSidebar: () => void;
 }
 
-export const useAppPanelStore = create<AppPanelState>()(
-  persist(
-    (set) => ({
-      apps: [],
-      selectedApp: null,
-      panelCollapsed: true,
-      sidebarVisible: true,
+export const useAppPanelStore = create<AppPanelState>()((set) => ({
+  apps: [],
+  selectedApp: null,
 
-      loadApps: async () => {
-        try {
-          const servers = await listMcpServers();
-          const agentApps = servers
-            .filter((s) => s.agentApp)
-            .map((s) => ({ name: s.name }));
-          set({ apps: agentApps });
-          logger.info('AppPanel: loaded agent apps', {
-            count: agentApps.length,
-          });
-        } catch (err) {
-          logger.error('AppPanel: failed to load agent apps', err);
-        }
-      },
-
-      selectApp: (name) =>
-        set({ selectedApp: name, panelCollapsed: name === null }),
-
-      collapsePanel: () => set({ panelCollapsed: true }),
-
-      toggleSidebar: () => set((s) => ({ sidebarVisible: !s.sidebarVisible })),
-    }),
-    {
-      name: 'app-panel-store',
-      partialize: (s) => ({ sidebarVisible: s.sidebarVisible }),
+  loadApps: async () => {
+    try {
+      const servers = await listMcpServers();
+      const agentApps = servers
+        .filter((s) => s.agentApp)
+        .map((s) => ({
+          name: s.name,
+          displayName: s.displayName,
+          logoUrl: s.logoUrl,
+        }));
+      set({ apps: agentApps });
+      logger.info('AppPanel: loaded agent apps', {
+        count: agentApps.length,
+      });
+    } catch (err) {
+      logger.error('AppPanel: failed to load agent apps', err);
     }
-  )
-);
+  },
+
+  selectApp: (name) => set({ selectedApp: name }),
+}));

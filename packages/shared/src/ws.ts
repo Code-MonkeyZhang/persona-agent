@@ -173,7 +173,7 @@ interface WorkspaceFallbackMessage {
 export interface PendingInput {
   id: string;
   source: 'user' | 'app';
-  /** App 消息的来源服务名，如 pomodoro-timer */
+  /** App 消息的来源显示名，入口处已从机器键解析，如 番茄时钟 */
   sourceName?: string;
   content: string;
 }

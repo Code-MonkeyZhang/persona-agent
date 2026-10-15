@@ -31,11 +31,15 @@ import type {
   TtsModel,
   VoiceOption,
   AgentSeedStatus,
+  LauncherOrderDoc,
+  LauncherPrefEntry,
+  WallpaperDoc,
   SessionChange,
   SyncSnapshot,
   HandshakeInfo,
 } from '@persona/shared';
 import { logger } from './logger';
+import type { WallpaperImagePair } from './wallpaper-image';
 
 interface ListAgentsResponse {
   agents: AgentConfig[];
@@ -495,6 +499,104 @@ export async function getSyncSnapshot(): Promise<SyncSnapshot> {
 interface SyncChangesResponse {
   changes: SessionChange[];
   head: number;
+}
+
+/**
+ * 提交小手机排列文档，返回带服务端时间戳的信封。
+ * 服务端落库后经变更流回推，缓存与界面据此追平。
+ */
+export async function putLauncherOrder(
+  appOrder: (string | null)[]
+): Promise<LauncherPrefEntry<LauncherOrderDoc>> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/launcher/order`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ appOrder }),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to save launcher order: ${response.status}`
+    );
+  }
+  return response.json();
+}
+
+/**
+ * 提交壁纸当前选择，返回带服务端时间戳的信封。
+ */
+export async function putLauncherWallpaperCurrent(
+  currentId: string | null
+): Promise<LauncherPrefEntry<WallpaperDoc>> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/launcher/wallpaper`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ currentId }),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to save wallpaper choice: ${response.status}`
+    );
+  }
+  return response.json();
+}
+
+/**
+ * 上传自定义壁纸，主图与缩略图两个 JPEG Blob 随表单提交。
+ */
+export async function uploadLauncherWallpaper(
+  pair: WallpaperImagePair
+): Promise<LauncherPrefEntry<WallpaperDoc>> {
+  const baseUrl = await getBaseUrl();
+  const formData = new FormData();
+  formData.append('image', pair.image, 'wallpaper.jpg');
+  formData.append('thumb', pair.thumb, 'thumb.jpg');
+  const response = await fetch(`${baseUrl}/api/launcher/wallpaper/image`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to upload wallpaper: ${response.status}`
+    );
+  }
+  return response.json();
+}
+
+/**
+ * 删除一条自定义壁纸，正使用时服务端把当前选择置回默认。
+ */
+export async function deleteLauncherWallpaperImage(
+  id: string
+): Promise<LauncherPrefEntry<WallpaperDoc>> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/launcher/wallpaper/image/${encodeURIComponent(id)}`,
+    { method: 'DELETE' }
+  );
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to delete wallpaper: ${response.status}`
+    );
+  }
+  return response.json();
+}
+
+/**
+ * 按内容哈希取壁纸文件地址，服务端 immutable 强缓存兜底。
+ */
+export function getWallpaperFileUrl(hash: string): string {
+  const base = cachedBaseUrl || `http://localhost:${DEFAULT_PORT}`;
+  return `${base}/api/launcher/wallpaper/file/${hash}`;
 }
 
 /**

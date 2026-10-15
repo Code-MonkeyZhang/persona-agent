@@ -5,6 +5,7 @@
 
 import type {
   AgentConfig,
+  LauncherSnapshot,
   Session,
   SessionChange,
   SessionMeta,
@@ -139,6 +140,7 @@ export interface WindowAPI {
     getSessions: (agentId: string) => Promise<SessionMeta[]>;
     getSession: (sessionId: string) => Promise<Session | null>;
     getAgents: () => Promise<AgentConfig[]>;
+    getLauncherPrefs: () => Promise<LauncherSnapshot | null>;
     getCursor: () => Promise<number>;
     applySnapshot: (snapshot: SyncSnapshot) => Promise<void>;
     applyChanges: (changes: SessionChange[]) => Promise<void>;

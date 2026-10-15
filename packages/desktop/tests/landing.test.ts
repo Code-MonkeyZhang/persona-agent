@@ -1,8 +1,9 @@
 /**
  * @file 首启向导纯逻辑测试，覆盖 shouldAutoShowWizard 的触发对照表
+ * 与 isCredentialTrusted 的门控规则
  */
 import { describe, it, expect } from 'vitest';
-import { shouldAutoShowWizard } from '@/lib/landing';
+import { shouldAutoShowWizard, isCredentialTrusted } from '@/lib/landing';
 import type { AgentSeedStatus } from '@persona/shared';
 
 const freshSeed: AgentSeedStatus = {
@@ -71,5 +72,21 @@ describe('shouldAutoShowWizard', () => {
         seededAgentExists: false,
       })
     ).toBe(false);
+  });
+});
+
+describe('isCredentialTrusted', () => {
+  it('trusts the current session verification regardless of stored auth', () => {
+    expect(isCredentialTrusted(true, false)).toBe(true);
+    expect(isCredentialTrusted(true, undefined)).toBe(true);
+  });
+
+  it('trusts a provider that already has a stored credential', () => {
+    expect(isCredentialTrusted(false, true)).toBe(true);
+  });
+
+  it('does not trust when nothing is verified or stored', () => {
+    expect(isCredentialTrusted(false, false)).toBe(false);
+    expect(isCredentialTrusted(false, undefined)).toBe(false);
   });
 });

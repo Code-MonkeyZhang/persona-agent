@@ -1,7 +1,7 @@
 /**
  * @fileoverview 全量同步快照构建。
  *
- * 冷启动客户端一次拉走服务端全部 Agent、会话与消息。
+ * 冷启动客户端一次拉走服务端全部 Agent、会话、消息与小手机偏好。
  * 先取 changes 表最新序号再直读业务数据，此后发生的变更序号必然更大，
  * 客户端以快照序号为起点追平变更流，重叠部分靠消息行号去重。
  */
@@ -9,6 +9,10 @@
 import { getDb } from '../db/index.js';
 import { rowToMeta, type SessionRow } from '../session/store.js';
 import { listAgentsWithHashes } from '../agent/agent-list.js';
+import {
+  getOrderEntry,
+  getWallpaperEntry,
+} from '../server/services/launcher-store.js';
 import type {
   Message,
   SnapshotMessage,
@@ -74,5 +78,13 @@ export function buildSnapshot(): SyncSnapshot {
     messages: bySession.get(row.id) ?? [],
   }));
 
-  return { latestSeq, sessions, agents: listAgentsWithHashes() };
+  return {
+    latestSeq,
+    sessions,
+    agents: listAgentsWithHashes(),
+    launcher: {
+      appOrder: getOrderEntry() ?? undefined,
+      wallpaper: getWallpaperEntry() ?? undefined,
+    },
+  };
 }

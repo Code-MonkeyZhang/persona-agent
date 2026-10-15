@@ -27,16 +27,16 @@ Persona-agent 是一个开源的个人 AI Agent 聊天平台，让你能够完�
 
 <table>
   <tr>
-    <td align="center"><b>💬 清新的对话界面，如同经典聊天App的体验</b></td>
-    <td align="center"><b>🌸 随时切换到立绘界面，表情会按照对话情绪切换</b></td>
+    <td align="center"><b>💬 简洁的对话界面，如经典聊天App的体验</b></td>
+    <td align="center"><b>🌸 立绘界面，表情会根据对话情绪实时切换</b></td>
   </tr>
   <tr>
     <td><img src="assets/preview-chat.jpg" width="400" /></td>
     <td><img src="assets/preview-companion.jpg" width="400" /></td>
   </tr>
   <tr>
-    <td align="center"><b>🛒 从内置商城一键安装AI角色以及技能和工具</b></td>
-    <td align="center"><b>🎨 随时进入Agent编辑器，从立绘、声线到提示词完全自定义</b></td>
+    <td align="center"><b>🛒 进入内置商城，一键安装AI角色、技能和工具</b></td>
+    <td align="center"><b>🎨 进入Agent编辑器，对Agent立绘、声线和提示词进行完全自定义</b></td>
   </tr>
   <tr>
     <td><img src="assets/preview-marketplace.jpg" width="400" /></td>
@@ -46,11 +46,11 @@ Persona-agent 是一个开源的个人 AI Agent 聊天平台，让你能够完�
 
 ## ✨ 核心功能
 
-- **长期记忆** — 会话自动总结，Agent 定期整理进长期记忆，跨会话记住你的偏好与正在做的事
 - **自定义角色立绘** — 为 Agent 配置角色立绘与对话背景，Agent 根据对话情绪自动切换表情
 - **自定义语音** — MiniMax TTS 驱动的语音合成回复，支持预设音色与录音克隆
-- **MCP 与 Agent Skill** — 为每个 Agent 单独分配 MCP 工具与 Agent Skill，支持需要 OAuth 的 MCP 服务（Notion、GitHub）
-- **Agent App** — 为 Agent 安装专属小应用，通过应用面板交互并接收应用通知
+- **长期记忆** — 会话自动总结，Agent 定期整理进长期记忆，跨会话记住你的偏好与正在做的事
+- **支持 MCP 与 Agent Skill** — 为每个 Agent 单独分配 MCP 工具与 Agent Skill，支持需要 OAuth 的 MCP 服务（Notion、GitHub）
+- **支持 Agent App** — 为 Agent 安装专属小应用，通过应用面板交互并接收应用通知
 - **手机端远程访问** — 内置 Cloudflare Tunnel，移动端 App 可随时远程连接 Agent
 - **离线与多端同步** — 会话数据在桌面端与移动端各自落本地镜像，断网也能浏览全部历史，图片按内容缓存一次终身复用，联网后自动补齐新内容
 

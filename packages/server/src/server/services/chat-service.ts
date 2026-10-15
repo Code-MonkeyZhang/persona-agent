@@ -12,6 +12,7 @@ import {
   resolveWorkspaceDir,
   persistResolvedWorkspace,
 } from '../../agent/index.js';
+import { getMcpDisplayName } from '../../mcp/index.js';
 import { runCompression } from './compress-service.js';
 import { buildRuntimeContext } from './runtime-context.js';
 import {
@@ -204,7 +205,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
   // 重入保护：生成中的会话不做并发回合，消息进入待注入缓冲
   if (sessionRegistry.has(sessionId)) {
     const input: Omit<PendingInput, 'id'> = appSource
-      ? { source: 'app', sourceName: appSource, content }
+      ? { source: 'app', sourceName: getMcpDisplayName(appSource), content }
       : { source: 'user', content };
     const pending = addPendingInput(sessionId, input);
     return { success: true, pendingId: pending.id };
@@ -262,23 +263,25 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
 
     let historyLength = agent.messages.length;
     if (appSource) {
-      // App 通知：Agent 收到带前缀的 user 消息，session 存储 app_notification 原文
-      agent.addUserMessage(formatAppNotificationForAgent(appSource, content));
+      // App 通知：机器键在入口换成显示名，Agent 前缀、落盘与广播同用一份
+      const sourceName = getMcpDisplayName(appSource);
+      // Agent 收到带前缀的 user 消息，session 存储 app_notification 原文
+      agent.addUserMessage(formatAppNotificationForAgent(sourceName, content));
       sessionManager.appendMessage(sessionId, {
         role: 'app_notification',
-        source: appSource,
+        source: sourceName,
         content,
       });
       // 广播回合开始信号，客户端据此创建 AI 占位气泡，之后 step_complete 正常填入
       broadcastToSession(sessionId, {
         type: 'app_notification',
         sessionId,
-        source: appSource,
+        source: sourceName,
         content,
       });
       Logger.log('CHAT', 'App notification broadcast', {
         sessionId,
-        source: appSource,
+        source: sourceName,
       });
     } else {
       agent.addUserMessage(content);

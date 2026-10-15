@@ -44,6 +44,22 @@ export {
   mixTurnEnds,
 } from './session-view.js';
 export type { SessionChange, ChangeKind } from './changes.js';
+export {
+  APP_ID_PATTERN,
+  SLOT_ID_PATTERN,
+  EMPTY_ID_PREFIX,
+  reconcileOrder,
+  toGridItems,
+  itemsToOrder,
+  type LauncherOrderDoc,
+  type WallpaperCustom,
+  type WallpaperDoc,
+  type LauncherPrefKey,
+  type LauncherPrefEntry,
+  type LauncherSnapshot,
+  type LauncherPrefsChangeData,
+  type GridItem,
+} from './launcher.js';
 export type { HandshakeInfo } from './handshake.js';
 export * from './ws.js';
 export type { ProviderStatus } from './provider.js';

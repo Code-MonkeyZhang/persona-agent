@@ -29,6 +29,7 @@ import { createHandshakeRouter } from './routers/handshake.js';
 import { createDeviceRouter } from './routers/device.js';
 import { createAttachmentRouter } from './routers/attachment.js';
 import { createSyncRouter } from './routers/sync.js';
+import { createLauncherRouter } from './routers/launcher.js';
 import { processAppNotification } from './services/app-notification-service.js';
 import { initWebSocket, isWebSocketInitialized } from './websocket-server.js';
 import { startDreamScheduler } from './services/dream-scheduler.js';
@@ -146,6 +147,7 @@ app.use('/api/handshake', createHandshakeRouter());
 app.use('/api/devices', createDeviceRouter());
 app.use('/api/attachments', createAttachmentRouter());
 app.use('/api/sync', createSyncRouter());
+app.use('/api/launcher', createLauncherRouter());
 
 const httpServer = createHttpServer(app);
 

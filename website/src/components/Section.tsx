@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 
 type SectionProps = {
+  id?: string;
   eyebrow?: string;
   title: string;
   children?: ReactNode;
@@ -20,15 +21,16 @@ export function SectionHeading({ eyebrow, title }: { eyebrow?: string; title: st
   );
 }
 
-export default function Section({ eyebrow, title, children }: SectionProps) {
+export default function Section({ id, eyebrow, title, children }: SectionProps) {
   const reduce = useReducedMotion();
   return (
     <motion.section
+      id={id}
       initial={reduce ? false : { opacity: 0, y: 12 }}
       whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-80px' }}
       transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-      className="py-16"
+      className="scroll-mt-16 py-16"
     >
       <div className="container-wide">
         <SectionHeading eyebrow={eyebrow} title={title} />
