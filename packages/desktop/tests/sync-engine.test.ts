@@ -39,6 +39,9 @@ function makeDeps(
       return { changes: [change(since + 1)], head: since + 1 };
     },
     getCursor: async () => 0,
+    invalidateMirror: async () => {
+      overrides.calls.push('invalidate');
+    },
     applySnapshot: async (s: SyncSnapshot) => {
       overrides.calls.push(`apply-snapshot:${s.latestSeq}`);
     },
@@ -110,6 +113,34 @@ describe('SyncEngine', () => {
     await settle();
 
     expect(calls).toEqual(['cursor:20', 'fetch:20']);
+  });
+
+  /** 测试游标越过服务端头部时作废镜像重拉快照对齐新序号流 */
+  it('should re-mirror when cursor is beyond server head', async () => {
+    const calls: string[] = [];
+    const logs: string[] = [];
+    const deps = makeDeps({
+      calls,
+      getCursor: async () => 20,
+      fetchChanges: async (since: number) => {
+        calls.push(`fetch:${since}`);
+        return { changes: [], head: 10 };
+      },
+      log: (message: string) => logs.push(message),
+    });
+    const engine = new SyncEngine(deps);
+
+    engine.sync();
+    await settle();
+
+    expect(calls).toEqual([
+      'fetch:20',
+      'invalidate',
+      'snapshot',
+      'apply-snapshot:10',
+      'fetch:10',
+    ]);
+    expect(logs.some((m) => m.includes('beyond server head'))).toBe(true);
   });
 
   /** 测试多页追平按序回放到 head */

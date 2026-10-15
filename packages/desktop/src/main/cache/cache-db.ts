@@ -14,6 +14,8 @@ import {
   deriveSessionPreview,
   mixTurnEnds,
   type AgentConfig,
+  type LauncherSnapshot,
+  type LauncherPrefsChangeData,
   type Message,
   type Session,
   type SessionChange,
@@ -34,6 +36,12 @@ const CURSOR_KEY = 'sync_cursor';
 
 /** 缓存 kv 里的镜像来源主机键 */
 const SOURCE_HOST_KEY = 'source_host_id';
+
+/** 缓存 kv 里的排列文档信封键 */
+const LAUNCHER_ORDER_KEY = 'launcher_pref:appOrder';
+
+/** 缓存 kv 里的壁纸文档信封键 */
+const LAUNCHER_WALLPAPER_KEY = 'launcher_pref:wallpaper';
 
 /** 缓存里会话行的 meta 载荷，SessionMeta 全量外加 turnEnds 边界快照 */
 type SessionBlob = SessionMeta & { turnEnds?: number[] };
@@ -249,6 +257,20 @@ export class CacheDb {
     return rows.map((r) => JSON.parse(r.data) as AgentConfig);
   }
 
+  /**
+   * 偏好镜像的读取形状，与服务端快照 launcher 节一致，
+   * 两行都未镜像时返回 null。
+   */
+  getLauncherPrefs(): LauncherSnapshot | null {
+    const order = this.getKv(LAUNCHER_ORDER_KEY);
+    const wallpaper = this.getKv(LAUNCHER_WALLPAPER_KEY);
+    if (!order && !wallpaper) return null;
+    const result: LauncherSnapshot = {};
+    if (order) result.appOrder = JSON.parse(order);
+    if (wallpaper) result.wallpaper = JSON.parse(wallpaper);
+    return result;
+  }
+
   /** 全量快照整体入库，先清空再装载，游标推进到快照序号 */
   applySnapshot(snapshot: SyncSnapshot): void {
     this.transaction(() => {
@@ -286,10 +308,27 @@ export class CacheDb {
       for (const agent of snapshot.agents) {
         insertAgent.run(agent.id, JSON.stringify(agent));
       }
+      // 偏好文档随快照整体替换，旧键先清防止残留已删除的行
+      this.db
+        .prepare('DELETE FROM kv WHERE key IN (?, ?)')
+        .run(LAUNCHER_ORDER_KEY, LAUNCHER_WALLPAPER_KEY);
+      const insertPref = this.db.prepare(
+        'INSERT INTO kv (key, value) VALUES (?, ?)'
+      );
+      const launcher = snapshot.launcher;
+      if (launcher?.appOrder) {
+        insertPref.run(LAUNCHER_ORDER_KEY, JSON.stringify(launcher.appOrder));
+      }
+      if (launcher?.wallpaper) {
+        insertPref.run(
+          LAUNCHER_WALLPAPER_KEY,
+          JSON.stringify(launcher.wallpaper)
+        );
+      }
       this.setCursorValue(snapshot.latestSeq);
     });
     this.log(
-      `[Cache] Applied snapshot: ${snapshot.sessions.length} sessions ${snapshot.agents.length} agents latestSeq=${snapshot.latestSeq}`
+      `[Cache] Applied snapshot: ${snapshot.sessions.length} sessions ${snapshot.agents.length} agents launcher=${snapshot.launcher ? 'yes' : 'no'} latestSeq=${snapshot.latestSeq}`
     );
     this.onChanged?.();
   }
@@ -387,6 +426,31 @@ export class CacheDb {
       case 'agents_invalidated':
         // 事件体不带增量数据，游标照常前进，渲染层收 WS 事件后整份重拉角色清单
         return;
+      case 'launcher_prefs_updated': {
+        // 载荷携带整份文档，按键落成 kv 行，渲染层经缓存通知刷新
+        const payload = change.data as Partial<LauncherPrefsChangeData>;
+        if (
+          (payload.key !== 'appOrder' && payload.key !== 'wallpaper') ||
+          typeof payload.updatedAt !== 'number'
+        ) {
+          this.log(
+            `[Cache] Skip launcher_prefs_updated without payload seq=${change.seq}`
+          );
+          return;
+        }
+        const key =
+          payload.key === 'appOrder'
+            ? LAUNCHER_ORDER_KEY
+            : LAUNCHER_WALLPAPER_KEY;
+        this.setKv(
+          key,
+          JSON.stringify({
+            payload: payload.payload,
+            updatedAt: payload.updatedAt,
+          })
+        );
+        return;
+      }
       default:
         this.log(
           `[Cache] Unknown change kind ${change.kind} seq=${change.seq}`

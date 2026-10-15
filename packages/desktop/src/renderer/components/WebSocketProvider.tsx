@@ -16,6 +16,7 @@ import { useSessionStore } from '../stores/sessionStore';
 import { useAgentStore } from '../stores/agentStore';
 import { useTunnelStore } from '../stores/tunnelStore';
 import { useConnectionStore } from '../stores/connectionStore';
+import { useLauncherPrefsStore } from '../stores/launcherPrefsStore';
 import { toast } from '../stores/toastStore';
 import i18n from '../i18n';
 import { logger } from '../lib/logger';
@@ -69,6 +70,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         window.api?.cache.applySnapshot(snapshot) ?? Promise.resolve(),
       applyChanges: (changes) =>
         window.api?.cache.applyChanges(changes) ?? Promise.resolve(),
+      invalidateMirror: () => window.api?.cache.reset() ?? Promise.resolve(),
       onStateChange: (state) => {
         logger.info('Sync', `catch-up ${state}`);
         useChatStore.getState().setSyncState(state);
@@ -113,6 +115,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     cacheUnsubscribe = window.api?.cache.onChanged(() => {
       if (cacheRefreshTimer) clearTimeout(cacheRefreshTimer);
       cacheRefreshTimer = setTimeout(() => {
+        void useLauncherPrefsStore.getState().refresh();
         const sessionState = useSessionStore.getState();
         const chatState = useChatStore.getState();
         const current = sessionState.currentSession;
