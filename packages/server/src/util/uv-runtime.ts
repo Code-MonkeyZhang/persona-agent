@@ -20,6 +20,14 @@ const UV_RELEASE_URL =
 const INSTALL_TIMEOUT_MS = 180_000;
 /** uv sync 依赖预装的超时，单位毫秒 */
 const SYNC_TIMEOUT_MS = 300_000;
+/**
+ * uv 型 MCP 默认固定的 Python 版本。
+ *
+ * 不固定版本时 uv 会拉最新稳定版，刚发布的解释器上大量 C 扩展包
+ * 还没有预编译 wheel，会回退到源码编译，Windows 用户机器没有 MSVC
+ * 直接失败。选发布满两年的版本保证 wheel 覆盖完整。
+ */
+const MCP_PYTHON_DEFAULT = '3.12';
 
 interface UvStatus {
   ok: boolean;
@@ -167,9 +175,13 @@ export async function installUv(): Promise<void> {
       }
     }
 
-    // 拉取 Python 解释器
-    Logger.log('UV', 'Installing Python interpreter');
-    await runUvCommand(uvPath, ['python', 'install'], INSTALL_TIMEOUT_MS);
+    // 拉取 Python 解释器，固定版本避免 uv 默认拉到生态未跟上的最新版
+    Logger.log('UV', `Installing Python interpreter ${MCP_PYTHON_DEFAULT}`);
+    await runUvCommand(
+      uvPath,
+      ['python', 'install', MCP_PYTHON_DEFAULT],
+      INSTALL_TIMEOUT_MS
+    );
     Logger.log('UV', 'Python interpreter installed');
   } catch (err) {
     Logger.log(
@@ -265,6 +277,23 @@ function moveUvOutOfSubdir(runtimesDir: string): void {
 }
 
 /**
+ * 构造 uv sync 的参数。
+ *
+ * 目录里有 .python-version 时 uv 原生按它选解释器，尊重 MCP 作者自己的
+ * 版本选择；没有时追加 --python 默认版本，防止 uv 挑到刚发布、生态还没
+ * 提供 wheel 的解释器后回退源码编译。
+ *
+ * @param mcpDir MCP 项目目录
+ * @returns uv sync 的完整参数
+ */
+export function buildSyncArgs(mcpDir: string): string[] {
+  if (fs.existsSync(path.join(mcpDir, '.python-version'))) {
+    return ['sync'];
+  }
+  return ['sync', '--python', MCP_PYTHON_DEFAULT];
+}
+
+/**
  * 在指定 MCP 目录运行 uv sync 预装依赖。
  *
  * Python 解释器在 installUv 时已拉好，这里只建 venv + 装项目依赖。
@@ -275,9 +304,10 @@ function moveUvOutOfSubdir(runtimesDir: string): void {
  */
 export async function syncDeps(mcpDir: string): Promise<void> {
   const uvPath = getUvBinPath();
-  Logger.log('UV', `Running uv sync in ${mcpDir}`);
+  const args = buildSyncArgs(mcpDir);
+  Logger.log('UV', `Running uv ${args.join(' ')} in ${mcpDir}`);
   try {
-    await runUvCommand(uvPath, ['sync'], SYNC_TIMEOUT_MS, mcpDir);
+    await runUvCommand(uvPath, args, SYNC_TIMEOUT_MS, mcpDir);
   } catch (err) {
     Logger.log(
       'UV',
