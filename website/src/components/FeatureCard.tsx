@@ -29,9 +29,7 @@ export default function FeatureCard({
         transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
         className={reverse ? 'md:order-2' : ''}
       >
-        <div className="overflow-hidden rounded-2xl border border-paper-line bg-paper-tint shadow-[0_24px_48px_-24px_rgba(10,10,10,0.25)]">
-          <img src={media} alt={alt} loading="lazy" className="block h-auto w-full" />
-        </div>
+        <img src={media} alt={alt} loading="lazy" className="block h-auto w-full" />
       </motion.div>
 
       <motion.div

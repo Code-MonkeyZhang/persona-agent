@@ -52,12 +52,7 @@ function HeroPrimaryButton() {
 function HeroShot() {
   const { t } = useLocale();
   return (
-    <div className="mx-auto mt-14 max-w-3xl overflow-hidden rounded-xl border border-paper-line bg-paper shadow-[0_32px_64px_-28px_rgba(10,10,10,0.28)]">
-      <div className="flex h-9 items-center gap-1.5 border-b border-paper-line bg-paper-tint px-3.5">
-        <span className="h-3 w-3 rounded-full border border-black/10 bg-[#FF5F57]" />
-        <span className="h-3 w-3 rounded-full border border-black/10 bg-[#FEBC2E]" />
-        <span className="h-3 w-3 rounded-full border border-black/10 bg-[#28C840]" />
-      </div>
+    <div className="mx-auto mt-14 max-w-3xl">
       <img src={chatImg} alt={t('alt.chat')} className="block w-full" />
     </div>
   );
@@ -119,7 +114,7 @@ function MarketplaceSection() {
           whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-60px' }}
           transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
-          className="relative mt-10 h-[380px] overflow-hidden rounded-xl border border-paper-line bg-paper shadow-[0_24px_48px_-24px_rgba(10,10,10,0.22)]"
+          className="relative mt-10 h-[380px] overflow-hidden"
         >
           <img
             src={marketImg}
@@ -168,16 +163,12 @@ function MobileSection() {
             transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
             className="mx-auto w-full max-w-[280px]"
           >
-            <div className="rounded-[28px] border border-paper-line bg-paper p-2.5 shadow-[0_24px_48px_-24px_rgba(10,10,10,0.25)]">
-              <div className="overflow-hidden rounded-[20px] bg-black">
-                <img
-                  src={mobileImg}
-                  alt={t('alt.mobile')}
-                  loading="lazy"
-                  className="block w-full"
-                />
-              </div>
-            </div>
+            <img
+              src={mobileImg}
+              alt={t('alt.mobile')}
+              loading="lazy"
+              className="block w-full"
+            />
           </motion.div>
 
           <motion.div
