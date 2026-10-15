@@ -5,10 +5,9 @@
  * macOS 使用系统原生红绿灯，Windows/Linux 自绘红绿灯。
  */
 import React from 'react';
-import { PanelLeft, PanelLeftClose, LayoutGrid } from 'lucide-react';
+import { PanelLeft, PanelLeftClose, Smartphone } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useViewStore } from '../../stores/viewStore';
-import { useAppPanelStore } from '../../stores/appPanelStore';
 import { WindowControls } from './WindowControls';
 import { isMac } from '../../lib/platform';
 import { cn } from '../../lib/utils';
@@ -24,8 +23,8 @@ export const TitleBar: React.FC = () => {
     (s) => s.sessionSidebarCollapsed
   );
   const toggleSessionSidebar = useViewStore((s) => s.toggleSessionSidebar);
-  const toggleAppSidebar = useAppPanelStore((s) => s.toggleSidebar);
-  const appSidebarVisible = useAppPanelStore((s) => s.sidebarVisible);
+  const togglePhonePanel = useViewStore((s) => s.togglePhonePanel);
+  const phonePanelCollapsed = useViewStore((s) => s.phonePanelCollapsed);
 
   const showSessionToggle = currentView === 'chat';
 
@@ -61,16 +60,16 @@ export const TitleBar: React.FC = () => {
           style={{ paddingRight: isMac ? '12px' : '12px' }}
         >
           <button
-            onClick={toggleAppSidebar}
+            onClick={togglePhonePanel}
             className={cn(
               'p-1.5 rounded-md hover:bg-black/[0.06] transition-colors',
-              appSidebarVisible
-                ? 'text-primary'
-                : 'text-muted-foreground hover:text-foreground'
+              phonePanelCollapsed
+                ? 'text-muted-foreground hover:text-foreground'
+                : 'text-primary'
             )}
-            title={t('common.toggleAppSidebar')}
+            title={t('common.togglePhonePanel')}
           >
-            <LayoutGrid className="w-4 h-4" />
+            <Smartphone className="w-4 h-4" />
           </button>
         </div>
       )}

@@ -149,7 +149,7 @@ export const useMcpStore = create<McpStore>((set, get) => ({
 
   /**
    * 卸载一个 MCP 服务并刷新列表。
-   * Agent App 卸载有图标栏联动，正开着该 App 的面板时一并收起。
+   * Agent App 卸载联动预览屏，正开着该 App 时清掉打开态并重拉清单。
    */
   uninstall: async (name) => {
     logger.info(`[Mcp] Uninstalling ${name}`);
@@ -160,7 +160,7 @@ export const useMcpStore = create<McpStore>((set, get) => ({
       if (appPanel.apps.some((a) => a.name === name)) {
         if (appPanel.selectedApp === name) appPanel.selectApp(null);
         await appPanel.loadApps();
-        logger.info(`[Mcp] Refreshed app icon bar after ${name} uninstall`);
+        logger.info(`[Mcp] Refreshed phone panel apps after ${name} uninstall`);
       }
       toast.success(i18n.t('marketplace.uninstallSuccess', { name }));
     } catch (err) {

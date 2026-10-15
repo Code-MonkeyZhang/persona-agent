@@ -16,6 +16,15 @@ export const SESSION_SIDEBAR_MAX_PX = 340;
 /** 会话侧边栏默认宽度，单位像素 */
 export const SESSION_SIDEBAR_DEFAULT_PX = 280;
 
+/** 手机预览屏最小宽度，单位为 Group 宽度百分比 */
+export const PHONE_PANEL_MIN_PERCENT = 25;
+
+/** 手机预览屏最大宽度，单位为 Group 宽度百分比 */
+export const PHONE_PANEL_MAX_PERCENT = 50;
+
+/** 手机预览屏默认宽度，单位为 Group 宽度百分比 */
+export const PHONE_PANEL_DEFAULT_PERCENT = 38;
+
 /** 全局视图：设置页、商城与聊天页互斥切换 */
 type ViewType = 'chat' | 'settings' | 'marketplace';
 
@@ -46,6 +55,16 @@ interface ViewStore {
    * Panel 声明为 preserve-pixel-size，窗口缩放不改变此值。
    */
   sessionSidebarWidth: number;
+  /**
+   * 手机预览屏收起态，收起时面板归零宽度但保持挂载，
+   * 展开恢复最近一次拖拽比例。
+   */
+  phonePanelCollapsed: boolean;
+  /**
+   * 手机预览屏宽度，单位为 Group 宽度百分比，取值区间见常量 MIN 到 MAX。
+   * 面板按比例伸缩，窗口缩放不改变此值。
+   */
+  phonePanelSize: number;
   /** 不进 partialize，跨应用重启保持关闭 */
   landing: LandingState;
 
@@ -59,6 +78,13 @@ interface ViewStore {
    */
   setSessionSidebarCollapsed: (collapsed: boolean) => void;
   setSessionSidebarWidth: (width: number) => void;
+  togglePhonePanel: () => void;
+  /**
+   * 幂等写入手机预览屏收起态。
+   * 拖拽分隔条触发库自动收起时由 App 反向同步，TitleBar 图标随之翻转。
+   */
+  setPhonePanelCollapsed: (collapsed: boolean) => void;
+  setPhonePanelSize: (size: number) => void;
   openAgentEditor: (agentId: string | null) => void;
   closeAgentEditor: () => void;
   openLanding: (agentId: string, mode: LandingMode) => void;
@@ -74,6 +100,8 @@ export const useViewStore = create<ViewStore>()(
       settingsTab: 'general',
       sessionSidebarCollapsed: false,
       sessionSidebarWidth: SESSION_SIDEBAR_DEFAULT_PX,
+      phonePanelCollapsed: true,
+      phonePanelSize: PHONE_PANEL_DEFAULT_PERCENT,
       landing: { agentId: null, mode: 'first-run' },
 
       setView: (view) => set({ currentView: view }),
@@ -84,6 +112,11 @@ export const useViewStore = create<ViewStore>()(
       setSessionSidebarCollapsed: (collapsed) =>
         set({ sessionSidebarCollapsed: collapsed }),
       setSessionSidebarWidth: (width) => set({ sessionSidebarWidth: width }),
+      togglePhonePanel: () =>
+        set((s) => ({ phonePanelCollapsed: !s.phonePanelCollapsed })),
+      setPhonePanelCollapsed: (collapsed) =>
+        set({ phonePanelCollapsed: collapsed }),
+      setPhonePanelSize: (size) => set({ phonePanelSize: size }),
 
       /**
        * 打开 Agent 编辑器，仅切换 activeNav。
@@ -117,24 +150,34 @@ export const useViewStore = create<ViewStore>()(
     }),
     {
       name: 'view-store',
-      version: 1,
+      version: 2,
       /**
        * 旧版把宽度存成 Group 百分比，百分比依赖当时的窗口尺寸，无法无损换算像素。
        * 版本低于 1 的存量数据直接重置为像素默认值，收起态原样保留。
+       * 版本低于 2 的手机屏宽度重置为默认百分比，让调宽后的默认值对存量记忆也生效。
        */
       migrate: (persisted, version) => {
         const state = persisted as ViewStore;
+        let next = state;
         if (version < 1) {
           logger.info(
             `[ViewStore] sidebar width migrated: ${state.sessionSidebarWidth} -> ${SESSION_SIDEBAR_DEFAULT_PX}px`
           );
-          return { ...state, sessionSidebarWidth: SESSION_SIDEBAR_DEFAULT_PX };
+          next = { ...next, sessionSidebarWidth: SESSION_SIDEBAR_DEFAULT_PX };
         }
-        return state;
+        if (version < 2) {
+          logger.info(
+            `[ViewStore] phone panel size migrated: ${state.phonePanelSize}% -> ${PHONE_PANEL_DEFAULT_PERCENT}%`
+          );
+          next = { ...next, phonePanelSize: PHONE_PANEL_DEFAULT_PERCENT };
+        }
+        return next;
       },
       partialize: (s) => ({
         sessionSidebarCollapsed: s.sessionSidebarCollapsed,
         sessionSidebarWidth: s.sessionSidebarWidth,
+        phonePanelCollapsed: s.phonePanelCollapsed,
+        phonePanelSize: s.phonePanelSize,
       }),
     }
   )
