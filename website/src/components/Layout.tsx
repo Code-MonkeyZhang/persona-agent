@@ -12,13 +12,6 @@ export default function Layout({ children }: LayoutProps) {
   const { locale, t, toggle } = useLocale();
   const isHome = useLocation().pathname === '/';
 
-  const navItems = [
-    { href: '#features', key: 'nav.features' as const },
-    { href: '#marketplace', key: 'nav.market' as const },
-    { href: '#mobile', key: 'nav.mobile' as const },
-    { href: '#download', key: 'nav.download' as const },
-  ];
-
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-50 border-b border-paper-line bg-paper/90 backdrop-blur">
@@ -31,28 +24,6 @@ export default function Layout({ children }: LayoutProps) {
             />
             <span className="text-sm font-semibold tracking-tight text-ink">Persona Agent</span>
           </Link>
-
-          <div className="hidden items-center gap-6 text-sm text-ink-soft md:flex">
-            {navItems.map((item) =>
-              isHome ? (
-                <a
-                  key={item.key}
-                  href={item.href}
-                  className="transition-opacity duration-150 hover:opacity-70"
-                >
-                  {t(item.key)}
-                </a>
-              ) : (
-                <Link
-                  key={item.key}
-                  to={`/${item.href}`}
-                  className="transition-opacity duration-150 hover:opacity-70"
-                >
-                  {t(item.key)}
-                </Link>
-              ),
-            )}
-          </div>
 
           <div className="flex items-center gap-3">
             <button
