@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { useLocale } from '../../i18n';
 import { DemoWindow } from './chrome';
@@ -63,6 +64,12 @@ export default function HeroScene({ running, reduced }: { running: boolean; redu
 
   const buttonOn = elapsed >= T.button;
   const companion = elapsed >= T.slide;
+  const [poseMounted, setPoseMounted] = useState(false);
+
+  // The pose stays mounted after the first slide so the loop wrap never blanks the character while the strip slides back.
+  useEffect(() => {
+    if (companion) setPoseMounted(true);
+  }, [companion]);
 
   const message2 = t('comp.userMsg');
   const typing2 = elapsed >= T.typeStart && elapsed < T.typeEnd;
@@ -129,7 +136,7 @@ export default function HeroScene({ running, reduced }: { running: boolean; redu
 
               <div className="relative h-full w-1/2 shrink-0 overflow-hidden border-l border-demo-border">
                 <img src={aronaBg} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                {companion
+                {poseMounted
                   ? POSES.map((src, index) => (
                       <motion.img
                         key={src}

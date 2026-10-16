@@ -4,11 +4,71 @@ import { DemoWindow, PHONE_BG } from './chrome';
 
 type CapsTab = 'tools' | 'skills' | 'phone';
 
-const TOOLS = [
-  { name: 'filesystem', descKey: 'cap.t1d', connected: true, countKey: 'cap.t1c' },
-  { name: 'puppeteer', descKey: 'cap.t2d', connected: true, countKey: 'cap.t2c' },
-  { name: 'weather', descKey: 'cap.t3d', connected: false, countKey: 'cap.t3c' },
-] as const;
+type StatusKey = 'cap.fsSt' | 'cap.wtSt' | 'cap.ppSt' | 'cap.appSt';
+type TypeKey = 'cap.typeMcp' | 'cap.typeApp';
+
+type ToolEntry = {
+  id: string;
+  icon: string;
+  name: string;
+  mono: boolean;
+  statusKey: StatusKey;
+  dot: 'green' | 'amber' | 'off';
+  typeKey: TypeKey;
+  url?: string;
+  fns?: string[];
+};
+
+const TOOLS: ToolEntry[] = [
+  {
+    id: 'filesystem',
+    icon: '🗂️',
+    name: 'filesystem',
+    mono: true,
+    statusKey: 'cap.fsSt',
+    dot: 'green',
+    typeKey: 'cap.typeMcp',
+    url: 'http://127.0.0.1:3001/sse',
+    fns: ['read_file', 'write_file', 'list_dir', 'move_file'],
+  },
+  {
+    id: 'weather',
+    icon: '☁️',
+    name: 'weather',
+    mono: true,
+    statusKey: 'cap.wtSt',
+    dot: 'green',
+    typeKey: 'cap.typeMcp',
+    url: 'http://127.0.0.1:3002/sse',
+    fns: ['get_weather', 'get_forecast', 'get_alerts'],
+  },
+  {
+    id: 'puppeteer',
+    icon: '🌐',
+    name: 'puppeteer',
+    mono: true,
+    statusKey: 'cap.ppSt',
+    dot: 'off',
+    typeKey: 'cap.typeMcp',
+    url: 'http://127.0.0.1:3003/sse',
+    fns: ['navigate', 'click', 'screenshot', 'fill'],
+  },
+  {
+    id: 'adventure',
+    icon: '🎮',
+    name: '',
+    mono: false,
+    statusKey: 'cap.appSt',
+    dot: 'amber',
+    typeKey: 'cap.typeApp',
+  },
+];
+
+const DOT_CLASS = {
+  green: 'bg-green-500',
+  amber: 'bg-amber-400',
+  off: 'bg-neutral-300',
+} as const;
 
 const SKILLS = [
   { icon: '🌤️', nameKey: 'cap.s1n', descKey: 'cap.s1d' },
@@ -69,18 +129,88 @@ function AppScreen({ id }: { id: AppId }) {
   );
 }
 
-/** Static replica of the capability center, tabs answer to direct clicks only. */
+/** One row of the tool list, leading icon box, two text lines, and the assign toggle. */
+function ToolRow({
+  tool,
+  label,
+  assigned,
+  selected,
+  onSelect,
+  onToggle,
+}: {
+  tool: ToolEntry;
+  label: string;
+  assigned: boolean;
+  selected: boolean;
+  onSelect: () => void;
+  onToggle: () => void;
+}) {
+  const { t } = useLocale();
+  return (
+    <div
+      className={`flex cursor-pointer items-center gap-2.5 rounded-[9px] border px-2 py-1.5 transition-colors ${
+        selected
+          ? 'border-demo-border bg-[#f6f4f0] shadow-[inset_2.5px_0_0_#2c7fdd]'
+          : 'border-transparent hover:bg-[#faf8f4]'
+      }`}
+      onClick={onSelect}
+    >
+      <span className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-lg bg-[#eef0ee] text-[14px]">
+        {tool.icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span
+          className={`block truncate text-[12.5px] font-semibold text-demo-fg ${tool.mono ? 'font-mono' : ''}`}
+        >
+          {tool.mono ? tool.name : label}
+        </span>
+        <span className="mt-px flex items-center gap-1.5 text-[10.5px] text-demo-muted-fg">
+          <span className={`h-1.5 w-1.5 rounded-full ${DOT_CLASS[tool.dot]}`} />
+          {t(tool.statusKey)}
+        </span>
+      </span>
+      <button
+        type="button"
+        aria-label={t(assigned ? 'cap.unassignAria' : 'cap.assignAria')}
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggle();
+        }}
+        className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border text-[12px] leading-none transition-colors ${
+          assigned
+            ? 'border-demo-border bg-white text-demo-muted-fg'
+            : 'border-demo-primary/35 bg-white text-demo-primary'
+        }`}
+      >
+        {assigned ? '−' : '+'}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Static replica of the capability center. The tools tab mirrors the real
+ * tools page with assigned and unassigned groups feeding a shared detail
+ * panel, while skills and pocket phone tabs keep their card grids.
+ */
 export default function CapsStage() {
   const { t } = useLocale();
   const [tab, setTab] = useState<CapsTab>('tools');
   const [app, setApp] = useState<AppId>('calc');
   const [skillOn, setSkillOn] = useState([true, true, false, false]);
+  const [assigned, setAssigned] = useState<string[]>(['filesystem', 'weather']);
+  const [selected, setSelected] = useState('filesystem');
 
   const tabs: Array<[CapsTab, string]> = [
     ['tools', t('cap.tabTools')],
     ['skills', t('cap.tabSkills')],
     ['phone', t('cap.tabPhone')],
   ];
+
+  const current = TOOLS.find((tool) => tool.id === selected) ?? TOOLS[0];
+  const isAssigned = (id: string) => assigned.includes(id);
+  const toggle = (id: string) =>
+    setAssigned((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   return (
     <DemoWindow title={t('cap.winTitle')}>
@@ -103,23 +233,107 @@ export default function CapsStage() {
         </div>
 
         {tab === 'tools' ? (
-          <div className="grid gap-2.5">
-            {TOOLS.map((tool) => (
-              <div key={tool.name} className="flex items-center gap-3 rounded-xl border border-demo-border bg-white px-4 py-3">
-                <span className={`h-2 w-2 shrink-0 rounded-full ${tool.connected ? 'bg-green-500' : 'bg-neutral-300'}`} />
+          <div className="flex h-[430px] overflow-hidden rounded-xl border border-demo-border">
+            <div className="flex w-[220px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-demo-border p-2.5">
+              <p className="mb-0.5 mt-1 px-2 text-[10.5px] font-bold uppercase tracking-wider text-demo-muted-fg/70">
+                {t('cap.grpAssigned')}
+              </p>
+              {TOOLS.filter((tool) => isAssigned(tool.id)).map((tool) => (
+                <ToolRow
+                  key={tool.id}
+                  tool={tool}
+                  label={t('cap.appRowN')}
+                  assigned
+                  selected={selected === tool.id}
+                  onSelect={() => setSelected(tool.id)}
+                  onToggle={() => toggle(tool.id)}
+                />
+              ))}
+              <p className="mb-0.5 mt-2.5 px-2 text-[10.5px] font-bold uppercase tracking-wider text-demo-muted-fg/70">
+                {t('cap.grpPool')}
+              </p>
+              {TOOLS.filter((tool) => !isAssigned(tool.id)).map((tool) => (
+                <ToolRow
+                  key={tool.id}
+                  tool={tool}
+                  label={t('cap.appRowN')}
+                  assigned={false}
+                  selected={selected === tool.id}
+                  onSelect={() => setSelected(tool.id)}
+                  onToggle={() => toggle(tool.id)}
+                />
+              ))}
+            </div>
+
+            <div className="min-w-0 flex-1 p-4">
+              <div className="flex items-center gap-2.5 border-b border-demo-border pb-3">
+                <span className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-[10px] bg-[#eef0ee] text-[17px]">
+                  {current.icon}
+                </span>
                 <div className="min-w-0">
-                  <p className="font-mono text-[13px] font-semibold text-demo-fg">{tool.name}</p>
-                  <p className="mt-0.5 text-[11px] leading-relaxed text-demo-muted-fg">{t(tool.descKey)}</p>
+                  <p
+                    className={`truncate text-[15px] font-bold text-demo-fg ${current.mono ? 'font-mono' : ''}`}
+                  >
+                    {current.mono ? current.name : t('cap.appRowN')}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-demo-muted-fg">{t(current.typeKey)}</p>
                 </div>
-                <span
-                  className={`ml-auto shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-bold ${
-                    tool.connected ? 'bg-green-100 text-green-600' : 'bg-demo-muted text-neutral-400'
-                  }`}
-                >
-                  {t(tool.countKey)}
+              </div>
+
+              <div className="flex gap-3.5 border-b border-[#f0ede6] py-3">
+                <span className="w-[72px] shrink-0 text-[12px] text-demo-muted-fg">
+                  {t('cap.fieldStatus')}
+                </span>
+                <span className="flex items-center gap-2 text-[12.5px] text-demo-fg">
+                  <span className={`h-1.5 w-1.5 rounded-full ${DOT_CLASS[current.dot]}`} />
+                  {t(current.dot === 'off' ? 'cap.stOff' : 'cap.stConnected')}
                 </span>
               </div>
-            ))}
+
+              {current.url ? (
+                <div className="flex gap-3.5 border-b border-[#f0ede6] py-3">
+                  <span className="w-[72px] shrink-0 text-[12px] text-demo-muted-fg">
+                    {t('cap.fieldUrl')}
+                  </span>
+                  <span className="min-w-0 truncate font-mono text-[11.5px] text-demo-fg/80">
+                    {current.url}
+                  </span>
+                </div>
+              ) : null}
+
+              {current.fns ? (
+                <div className="flex gap-3.5 border-b border-[#f0ede6] py-3">
+                  <span className="w-[72px] shrink-0 pt-0.5 text-[12px] text-demo-muted-fg">
+                    {t('cap.fieldFns')}
+                  </span>
+                  <span className="flex flex-wrap gap-1.5">
+                    {current.fns.map((fn) => (
+                      <span
+                        key={fn}
+                        className="rounded-md border border-demo-border bg-[#f6f4f0] px-2 py-0.5 font-mono text-[11px] text-demo-fg/80"
+                      >
+                        {fn}
+                      </span>
+                    ))}
+                  </span>
+                </div>
+              ) : null}
+
+              <div className="mt-3.5 flex gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-demo-border bg-white px-3.5 py-1.5 text-[12px] text-demo-muted-fg transition-colors hover:border-neutral-300"
+                >
+                  {t('cap.reconnect')}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-red-200 bg-white px-3.5 py-1.5 text-[12px] text-red-500 transition-colors hover:border-red-300"
+                >
+                  {t('cap.uninstall')}
+                </button>
+              </div>
+            </div>
           </div>
         ) : null}
 

@@ -34,7 +34,7 @@ function detectedCardOf(platform: Platform): CardId | null {
   }
 }
 
-function AppleLogo() {
+export function AppleLogo() {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -60,7 +60,7 @@ function WindowsLogo() {
   );
 }
 
-function AndroidLogo() {
+export function AndroidLogo() {
   return (
     <svg
       viewBox="0 0 24 24"

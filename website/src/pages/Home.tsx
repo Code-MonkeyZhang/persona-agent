@@ -1,15 +1,15 @@
 import { motion, useReducedMotion } from 'motion/react';
-import { Check } from 'lucide-react';
+import { Check, Github } from 'lucide-react';
 import Layout from '../components/Layout';
-import DownloadSection from '../components/DownloadSection';
+import DownloadSection, { AppleLogo, AndroidLogo } from '../components/DownloadSection';
 import { SectionHead } from '../components/demo/chrome';
 import HeroStage from '../components/demo/HeroStage';
 import EditorStage from '../components/demo/EditorStage';
 import CapsStage from '../components/demo/CapsStage';
-import MobileMock from '../components/demo/MobileMock';
+import MobileStage from '../components/demo/MobileStage';
 import MarketStage from '../components/demo/MarketStage';
 import { useLocale } from '../i18n';
-import { useLatestReleases, detectPlatform, DESKTOP_RELEASES_URL } from '../lib/releases';
+import { useLatestReleases, detectPlatform, DESKTOP_RELEASES_URL, APP_STORE_URL, MOBILE_RELEASES_URL } from '../lib/releases';
 
 function HeroPrimaryButton() {
   const { t } = useLocale();
@@ -114,23 +114,7 @@ function OpenSourceSection() {
   return (
     <section className="bg-ink py-16 text-paper">
       <div className="container-wide">
-        <motion.div
-          initial={reduce ? false : { opacity: 0, y: 12 }}
-          whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-          className="mx-auto max-w-xl text-center"
-        >
-          <p className="mb-3 text-xs font-medium uppercase tracking-widest text-paper/50">
-            {t('oss.eyebrow')}
-          </p>
-          <h2 className="text-2xl font-semibold tracking-tight text-paper sm:text-3xl">
-            {t('oss.title')}
-          </h2>
-          <p className="mt-4 text-base leading-relaxed text-paper/70">{t('oss.sub')}</p>
-        </motion.div>
-
-        <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {repos.map((repo) => (
             <motion.a
               key={repo.href}
@@ -158,6 +142,7 @@ export default function Home() {
   const { t } = useLocale();
   const reduce = useReducedMotion();
   const detectedPlatform = detectPlatform();
+  const releases = useLatestReleases();
 
   return (
     <Layout>
@@ -168,7 +153,7 @@ export default function Home() {
               initial={reduce ? false : { opacity: 0, y: 12 }}
               animate={reduce ? undefined : { opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1], delay: 0.05 }}
-              className="max-w-xl text-4xl font-bold leading-[1.15] tracking-tight text-ink sm:text-5xl"
+              className="max-w-xl whitespace-pre-line text-4xl font-bold leading-[1.15] tracking-tight text-ink sm:text-5xl"
             >
               {t('hero.title')}
             </motion.h1>
@@ -200,8 +185,14 @@ export default function Home() {
               className="mt-3 flex flex-wrap items-center gap-3"
             >
               <HeroPrimaryButton />
-              <a href="#download" className="btn-ghost">
-                {t('hero.allPlatforms')}
+              <a
+                href="https://github.com/code-monkeyzhang/persona-agent"
+                target="_blank"
+                rel="noreferrer"
+                className="btn-ghost"
+              >
+                <Github size={15} />
+                {t('hero.github')}
               </a>
             </motion.div>
 
@@ -225,8 +216,49 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="editor" className="scroll-mt-16 border-t border-paper-line bg-paper-tint py-16">
-        <div className="container-wide grid items-center gap-12 lg:grid-cols-2 lg:gap-14">
+      <section id="mobile" className="scroll-mt-16 border-t border-paper-line bg-paper-tint py-16">
+        <div className="container-wide">
+          <div>
+            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-ink-faint">
+              {t('tun.eyebrow')}
+            </p>
+            <h2 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+              {t('tun.title')}
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-ink-soft">{t('tun.sub')}</p>
+          </div>
+          <motion.div
+            initial={reduce ? false : { opacity: 0, y: 12 }}
+            whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-60px' }}
+            transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+            className="mt-6 flex flex-wrap justify-start gap-3"
+          >
+            <a
+              href={APP_STORE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-paper-line bg-paper px-4 py-2 text-sm font-semibold text-ink transition-transform duration-150 active:scale-[0.97]"
+            >
+              <AppleLogo />
+              {t('tun.appStore')}
+            </a>
+            <a
+              href={releases.androidApk ?? MOBILE_RELEASES_URL}
+              className="inline-flex items-center gap-2 rounded-full border border-paper-line bg-paper px-4 py-2 text-sm font-semibold text-ink transition-transform duration-150 active:scale-[0.97]"
+            >
+              <AndroidLogo />
+              {t('tun.apk')}
+            </a>
+          </motion.div>
+          <div className="mt-12">
+            <MobileStage />
+          </div>
+        </div>
+      </section>
+
+      <section id="editor" className="scroll-mt-16 border-t border-paper-line py-16">
+        <div className="container-wide grid items-center gap-12 lg:grid-cols-[1fr_1.25fr] lg:gap-14">
           <EditorStage />
           <div>
             <p className="mb-3 text-xs font-medium uppercase tracking-widest text-ink-faint">
@@ -240,7 +272,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="capabilities" className="scroll-mt-16 border-t border-paper-line py-16">
+      <section id="capabilities" className="scroll-mt-16 border-t border-paper-line bg-paper-tint py-16">
         <div className="container-wide grid items-center gap-12 lg:grid-cols-2 lg:gap-14">
           <div>
             <p className="mb-3 text-xs font-medium uppercase tracking-widest text-ink-faint">
@@ -253,14 +285,6 @@ export default function Home() {
           </div>
           <CapsStage />
         </div>
-      </section>
-
-      <section id="mobile" className="scroll-mt-16 border-t border-paper-line bg-paper-tint py-16">
-        <div className="container-wide">
-          <SectionHead eyebrow={t('tun.eyebrow')} title={t('tun.title')} sub={t('tun.sub')} />
-          <div className="mt-12">
-            <MobileMock />
-          </div>        </div>
       </section>
 
       <section id="marketplace" className="scroll-mt-16 border-t border-paper-line py-16">

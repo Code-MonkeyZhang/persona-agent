@@ -112,8 +112,32 @@
     animation-play-state: paused;
   }
 
+  /* One shot entrance of demo bubbles and chips, a small rise with a fade. */
+  @keyframes demo-pop {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .demo-pop {
+    animation: demo-pop 0.35s cubic-bezier(0.23, 1, 0.32, 1) both;
+  }
+
+  .player-paused .demo-pop {
+    animation-play-state: paused;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .caret-blink {
+      animation: none;
+    }
+
+    .demo-pop {
       animation: none;
     }
   }
