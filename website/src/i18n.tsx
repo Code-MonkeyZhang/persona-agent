@@ -103,8 +103,6 @@ const zh = {
   'dl.btn': '下载',
   'dl.btnIos': '前往 App Store',
   'dl.btnAndroid': '下载 APK',
-  'dl.foot':
-    'macOS 打开 DMG 拖入 Applications 即可 · Windows 运行 EXE 按提示完成安装 · 全部版本与更新日志见 GitHub Releases',
 
   'oss.c1t': '桌面端主仓',
   'oss.c1d': 'Server 与 Desktop 全部源码，Bun + Electron + React',
@@ -221,8 +219,6 @@ const en: typeof zh = {
   'dl.btn': 'Download',
   'dl.btnIos': 'Open App Store',
   'dl.btnAndroid': 'Download APK',
-  'dl.foot':
-    'macOS: open the DMG and drag into Applications · Windows: run the EXE installer · full changelog on GitHub Releases',
 
   'oss.c1t': 'Desktop monorepo',
   'oss.c1d': 'Full source of server & desktop, Bun + Electron + React',

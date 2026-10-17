@@ -205,8 +205,6 @@ export default function DownloadSection() {
             );
           })}
         </div>
-
-        <p className="mt-8 text-center text-xs leading-relaxed text-ink-faint">{t('dl.foot')}</p>
       </div>
     </section>
   );
