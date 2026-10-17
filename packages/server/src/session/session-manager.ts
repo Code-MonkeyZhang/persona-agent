@@ -5,9 +5,10 @@
 import { randomUUID } from 'node:crypto';
 import { SessionStore } from './store.js';
 import type { Session, SessionMeta, CreateSessionOptions } from './types.js';
-import type { ModelConfig } from '../agent/types.js';
+import type { AgentConfig, ModelConfig } from '../agent/types.js';
 import type { Message } from '../schema/index.js';
 import { getAgentConfig } from '../agent/agent-config-store.js';
+import { Logger } from '../util/logger.js';
 import { mixTurnEnds } from '@persona/shared';
 
 /**
@@ -54,7 +55,12 @@ export class SessionManager {
       .sort((a, b) => b.updatedAt - a.updatedAt);
   }
 
-  /** Create a new session */
+  /**
+   * Create a new session.
+   *
+   * The model stays empty on purpose; it is frozen from the agent default
+   * by {@link ensureModel} when the first message is sent.
+   */
   createSession(options: CreateSessionOptions = {}): Session {
     const agentConfig = getAgentConfig(this.agentId);
     if (!agentConfig) {
@@ -72,7 +78,6 @@ export class SessionManager {
       updatedAt: now,
       messages: [],
       workspacePath: agentConfig.defaultWorkspacePath,
-      model: agentConfig.defaultModel,
     };
 
     this.store.createSessionFile(session);
@@ -85,6 +90,10 @@ export class SessionManager {
    * Unlike `createSession`, this uses {@link chatSessionId} as the ID
    * and `"聊天"` as the title. The caller should check `getSession` first
    * to avoid overwriting an existing chat session.
+   *
+   * The model stays empty on purpose; it is frozen from the agent default
+   * by {@link ensureModel} when the first message is sent, so a default
+   * chosen later in onboarding is never shadowed by a stale copy.
    */
   createChatSession(): Session {
     const agentConfig = getAgentConfig(this.agentId);
@@ -101,7 +110,6 @@ export class SessionManager {
       updatedAt: now,
       messages: [],
       workspacePath: agentConfig.defaultWorkspacePath,
-      model: agentConfig.defaultModel,
     };
 
     this.store.createSessionFile(session);
@@ -159,6 +167,33 @@ export class SessionManager {
   /** Update session workspace path */
   updateWorkspacePath(id: string, workspacePath: string): Session | null {
     return this.updateSessionField(id, { workspacePath });
+  }
+
+  /**
+   * 首次使用时固化会话模型。
+   *
+   * 会话创建时不再照抄 Agent 默认模型,出生到首次发送之间 model 保持空,
+   * 界面与发送链路在空值期间按 Agent 默认值回落。本方法在发送链路开头调用,
+   * 已有模型直接返回,没有则取当前 Agent 默认值写入会话并返回,
+   * 此后会话模型不再跟随默认值变化。
+   *
+   * @param id - Session 唯一标识符
+   * @param agentConfig - 会话所属 Agent 的配置
+   * @returns 固化后的模型配置,会话不存在时返回 null
+   */
+  ensureModel(id: string, agentConfig: AgentConfig): ModelConfig | null {
+    const session = this.getSession(id);
+    if (!session) return null;
+    if (session.model) return session.model;
+
+    const updated = this.updateModel(id, agentConfig.defaultModel);
+    Logger.log('SESSION', 'Model frozen from agent default', {
+      sessionId: id,
+      agentId: this.agentId,
+      provider: agentConfig.defaultModel.provider,
+      model: agentConfig.defaultModel.model,
+    });
+    return updated?.model ?? agentConfig.defaultModel;
   }
 
   /** Update session model */

@@ -155,7 +155,8 @@ export function createAgentRunConfig(
   workspaceDir: string,
   sessionManager: SessionManager
 ): AgentRunConfig {
-  const modelConfig = session.model;
+  // 会话模型未固化时回落 Agent 默认值,固化由发送链路开头的 ensureModel 完成
+  const modelConfig = session.model ?? agentConfig.defaultModel;
   const provider = modelConfig.provider;
   const modelId = modelConfig.model;
 
