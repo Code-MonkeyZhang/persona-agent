@@ -11,6 +11,7 @@ import { StatusDot } from '../ui/StatusDot';
 import { toast } from '../../stores/toastStore';
 import {
   useConnectionStore,
+  useDeviceProbing,
   deviceDisplayName,
   deviceStatus,
   type ConnectError,
@@ -122,14 +123,19 @@ export function DeviceManageModal({ isOpen, onClose }: DeviceManageModalProps) {
 /**
  * 设备条目区：每行名字、地址、上次连接齐全，改名改地址就地展开输入，本机置顶且不可删。
  * 删除当前连着的主机时先切回本机再删，删除会释放该主机的本地镜像。
+ * 本区随清单打开挂载，探测轮询随之起停。
  */
 function DeviceSection() {
   const { t } = useTranslation();
   const devices = useConnectionStore((s) => s.devices);
   const snapshot = useConnectionStore((s) => s.snapshot);
+  const probes = useConnectionStore((s) => s.probes);
+  const currentWsStatus = useConnectionStore((s) => s.currentWsStatus);
   const renameDevice = useConnectionStore((s) => s.renameDevice);
   const removeDevice = useConnectionStore((s) => s.removeDevice);
   const updateDeviceAddress = useConnectionStore((s) => s.updateDeviceAddress);
+
+  useDeviceProbing();
   /** 行内编辑态，field 区分正在改名字还是改地址 */
   const [editing, setEditing] = useState<{
     hostId: string;
@@ -180,7 +186,11 @@ function DeviceSection() {
             <div key={device.hostId} className="px-4 py-3 space-y-1.5">
               <div className="flex items-center gap-3">
                 <StatusDot
-                  color={deviceStatusDot[deviceStatus(device, snapshot)]}
+                  color={
+                    deviceStatusDot[
+                      deviceStatus(device, snapshot, probes, currentWsStatus)
+                    ]
+                  }
                 />
                 <div className="flex-1 min-w-0">
                   {editingThis === 'name' ? (

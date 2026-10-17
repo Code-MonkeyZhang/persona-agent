@@ -51,6 +51,7 @@ mock.module('../src/util/paths.js', () => ({
 import { createSessionRouter } from '../src/server/routers/session.js';
 import { createAgentRouter } from '../src/server/routers/agent.js';
 import { createAgentConfig } from '../src/agent/index.js';
+import { getAgentConfig } from '../src/agent/agent-config-store.js';
 import { getAgentDir } from '../src/util/paths.js';
 import { getDb, closeDb } from '../src/db/index.js';
 
@@ -638,7 +639,7 @@ describe('Session Module Integration Tests', () => {
 
     /** createSession 测试 */
     describe('createSession', () => {
-      /** 测试自动生成 ID 创建 session */
+      /** 测试自动生成 ID 创建 session,模型留空待首次发送固化 */
       it('should create session with auto-generated ID', () => {
         const session = manager.createSession();
 
@@ -646,7 +647,7 @@ describe('Session Module Integration Tests', () => {
         expect(session.agentId).toBe(agentId);
         expect(session.title).toBe('New Session');
         expect(session.messages).toEqual([]);
-        expect(session.model).toEqual(defaultModel);
+        expect(session.model).toBeUndefined();
       });
 
       /** 测试生成的 ID 符合 timestamp-shortUUID 格式 */
@@ -663,7 +664,7 @@ describe('Session Module Integration Tests', () => {
         });
 
         expect(session.title).toBe('Custom Title');
-        expect(session.model).toEqual(defaultModel);
+        expect(session.model).toBeUndefined();
       });
 
       /** 测试创建的 session 出现在列表中 */
@@ -869,6 +870,39 @@ describe('Session Module Integration Tests', () => {
         const updated = manager.updateModel(session.id, newModel);
 
         expect(updated?.model).toEqual(newModel);
+      });
+    });
+
+    /** ensureModel 测试 */
+    describe('ensureModel', () => {
+      /** 空模型会话固化成 Agent 当前默认模型并落库 */
+      it('should freeze empty model to agent default', () => {
+        const session = manager.createSession();
+        const agentConfig = getAgentConfig(agentId)!;
+
+        const frozen = manager.ensureModel(session.id, agentConfig);
+
+        expect(frozen).toEqual(defaultModel);
+        expect(manager.getSession(session.id)?.model).toEqual(defaultModel);
+      });
+
+      /** 已有模型的会话原样返回,不覆盖用户选择 */
+      it('should keep existing model untouched', () => {
+        const session = manager.createSession();
+        const agentConfig = getAgentConfig(agentId)!;
+        const chosen = { provider: 'anthropic', model: 'claude-3' };
+        manager.updateModel(session.id, chosen);
+
+        const frozen = manager.ensureModel(session.id, agentConfig);
+
+        expect(frozen).toEqual(chosen);
+      });
+
+      /** 会话不存在时返回 null */
+      it('should return null for missing session', () => {
+        const agentConfig = getAgentConfig(agentId)!;
+
+        expect(manager.ensureModel('no-such-session', agentConfig)).toBeNull();
       });
     });
   });

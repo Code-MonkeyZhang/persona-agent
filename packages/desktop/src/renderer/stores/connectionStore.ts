@@ -4,8 +4,10 @@
  * 快照与清单来自主进程的查询与推送，切换与清单动作只做 IPC 转发。
  * connectByAddress 按地址可达、握手识别、条目落位、切换同步四阶段推进，
  * 各阶段失败都有明确的错误码供界面提示。
+ * 设备探测只在清单可见期间运行，探测结论与连接事实共同决定状态点颜色。
  */
 
+import { useEffect } from 'react';
 import { create } from 'zustand';
 import {
   LOCAL_DEVICE_ID,
@@ -36,17 +38,40 @@ export type ConnectError =
   | 'identity_mismatch'
   | 'switch_failed';
 
+/** 当前主机的实时通道状态，来自 WebSocket 客户端的连接回调 */
+export type WsLinkStatus =
+  | 'connecting'
+  | 'connected'
+  | 'disconnected'
+  | 'reconnecting';
+
+/** 单台设备的探测超时，几秒内无回应即判连不上 */
+const PROBE_TIMEOUT_MS = 5000;
+
+/** 清单可见期间的探测轮询间隔 */
+const PROBE_INTERVAL_MS = 30_000;
+
 interface ConnectionState {
   /** 当前连接事实快照，null 表示尚未初始化 */
   snapshot: ConnectionSnapshot | null;
   /** 设备清单镜像，来自主进程 devices.json */
   devices: DeviceEntry[];
+  /** 探测结论，hostId 到能否连上的映射，缺项表示还没查过 */
+  probes: Record<string, boolean>;
+  /** 当前主机的实时通道状态，null 表示尚未上报，中途断开靠它转红 */
+  currentWsStatus: WsLinkStatus | null;
   /** 切换进行中 */
   switching: boolean;
   /** 新建连接的推进阶段，非 idle 时按钮转圈 */
   connectStage: ConnectStage;
   /** 新建连接的失败原因，idle 时清空 */
   connectError: ConnectError | null;
+  /** 记录当前主机的通道状态，由 WebSocket 客户端的连接回调推进 */
+  setCurrentWsStatus: (status: WsLinkStatus) => void;
+  /** 探测单台设备，握手即探测，身份不符也算连不上 */
+  probeDevice: (hostId: string) => Promise<void>;
+  /** 探测全部设备并按间隔轮询，返回停止函数，清单关闭时调用 */
+  startProbing: () => () => void;
   /** 拉快照与清单并订阅连接变更，应用挂载时调用一次 */
   init: () => void;
   /** 切换到目标主机，失败落日志并返回带错误码的结果 */
@@ -67,9 +92,50 @@ interface ConnectionState {
 export const useConnectionStore = create<ConnectionState>((set, get) => ({
   snapshot: null,
   devices: [],
+  probes: {},
+  currentWsStatus: null,
   switching: false,
   connectStage: 'idle',
   connectError: null,
+
+  setCurrentWsStatus: (status) => set({ currentWsStatus: status }),
+
+  probeDevice: async (hostId) => {
+    const { devices, probes } = get();
+    const entry = devices.find((d) => d.hostId === hostId);
+    // 本机跟随服务进程状态，没有地址的条目无从探测
+    if (!entry || entry.hostId === LOCAL_DEVICE_ID || !entry.address) return;
+    let reachable = false;
+    try {
+      const info = await fetchHandshake(entry.address, PROBE_TIMEOUT_MS);
+      reachable = info.hostId === hostId;
+    } catch {
+      reachable = false;
+    }
+    // 结论没变时不写状态不打日志，轮询期间保持安静
+    if (probes[hostId] === reachable) return;
+    set({ probes: { ...probes, [hostId]: reachable } });
+    if (reachable) {
+      logger.info(`[DeviceProbe] ${hostId} reachable at ${entry.address}`);
+    } else {
+      logger.warn(`[DeviceProbe] ${hostId} unreachable at ${entry.address}`);
+    }
+  },
+
+  startProbing: () => {
+    const probeAll = () => {
+      for (const device of get().devices) {
+        void get().probeDevice(device.hostId);
+      }
+    };
+    probeAll();
+    const timer = setInterval(probeAll, PROBE_INTERVAL_MS);
+    logger.info('[DeviceProbe] Round probing started');
+    return () => {
+      clearInterval(timer);
+      logger.info('[DeviceProbe] Round probing stopped');
+    };
+  },
 
   init: () => {
     if (initialized) return;
@@ -100,6 +166,10 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         logger.warn(
           `[Connection] Switch to ${hostId} failed: ${result?.ok === false ? result.error : 'ipc unavailable'}`
         );
+        // 失败后马上补查这一台，状态点红绿立见分晓
+        if (hostId !== LOCAL_DEVICE_ID) {
+          void get().probeDevice(hostId);
+        }
       }
       return result;
     } finally {
@@ -221,20 +291,41 @@ export function deviceDisplayName(entry: DeviceEntry): string {
   return entry.name ?? entry.hostName ?? entry.hostId.slice(0, 8);
 }
 
-/** 条目状态点：本机常驻在线，当前主机跟随连接事实，其余视为离线 */
+/** 状态点四态，绿检查过能连上，红检查过连不上，黄连接进行中，灰还不知道 */
+export type DeviceDotStatus = 'online' | 'connecting' | 'offline' | 'unknown';
+
+/**
+ * 条目状态点，回答这台设备现在能不能连上。
+ * 本机跟随本机服务进程状态，当前主机跟随实时通道状态，
+ * 其余设备看探测结论，没查过或没有地址都算不知道。
+ */
 export function deviceStatus(
   entry: DeviceEntry,
-  snapshot: ConnectionSnapshot | null
-): 'online' | 'connecting' | 'offline' {
-  if (entry.hostId === LOCAL_DEVICE_ID) return 'online';
-  if (!snapshot) return 'offline';
+  snapshot: ConnectionSnapshot | null,
+  probes: Record<string, boolean>,
+  currentWsStatus: WsLinkStatus | null
+): DeviceDotStatus {
+  if (entry.hostId === LOCAL_DEVICE_ID) {
+    const local = snapshot?.local.status;
+    if (local === 'connected') return 'online';
+    if (local === 'connecting') return 'connecting';
+    if (local === 'disconnected') return 'offline';
+    return 'unknown';
+  }
   const isCurrent =
-    entry.hostId === snapshot.current.hostId ||
-    entry.hostId === currentDeviceKey(snapshot);
-  if (!isCurrent) return 'offline';
-  if (snapshot.current.status === 'connected') return 'online';
-  if (snapshot.current.status === 'connecting') return 'connecting';
-  return 'offline';
+    !!snapshot &&
+    (entry.hostId === snapshot.current.hostId ||
+      entry.hostId === currentDeviceKey(snapshot));
+  if (isCurrent) {
+    const link = currentWsStatus ?? snapshot.current.status;
+    if (link === 'connected') return 'online';
+    if (link === 'connecting' || link === 'reconnecting') return 'connecting';
+    return 'offline';
+  }
+  if (!entry.address) return 'unknown';
+  const reachable = probes[entry.hostId];
+  if (reachable === undefined) return 'unknown';
+  return reachable ? 'online' : 'offline';
 }
 
 /** 当前设备解析结论，条目为 null 表示清单尚未就绪 */
@@ -264,4 +355,12 @@ export function useCurrentDevice(): CurrentDevice {
   const devices = useConnectionStore((s) => s.devices);
   const snapshot = useConnectionStore((s) => s.snapshot);
   return currentDeviceOf(devices, snapshot);
+}
+
+/**
+ * 清单可见期间驱动探测的钩子，挂载即查一轮并按间隔轮询，卸载即停。
+ * 调用方必须随清单开挂载卸载，常驻组件里挂它会让轮询永不停止。
+ */
+export function useDeviceProbing(): void {
+  useEffect(() => useConnectionStore.getState().startProbing(), []);
 }

@@ -11,7 +11,14 @@ export interface SessionMeta {
   createdAt: number;
   updatedAt: number;
   workspacePath?: string;
-  model: ModelConfig;
+  /**
+   * 会话当前模型。
+   *
+   * 创建时留空,首次发送时由 Agent 默认模型固化;
+   * undefined 表示尚未发过消息且用户未显式选择过模型,
+   * 读取方应回落到 Agent 的 defaultModel。
+   */
+  model?: ModelConfig;
   /**
    * 原始消息已压缩到的下标。
    *

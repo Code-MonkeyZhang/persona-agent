@@ -26,6 +26,15 @@ export default {
           tint: '#fafafa',
           line: '#e5e5e5',
         },
+        demo: {
+          primary: '#2c7fdd',
+          'primary-fg': '#f0f6fe',
+          muted: '#f5f5f5',
+          'muted-fg': '#787878',
+          border: '#e8e8e8',
+          fg: '#0b0f19',
+          placeholder: '#c9c9c9',
+        },
       },
       transitionTimingFunction: {
         'emil-out': 'cubic-bezier(0.23, 1, 0.32, 1)',

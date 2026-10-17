@@ -20,6 +20,7 @@ import {
   estimateMessageTokens,
 } from '../../agent/memory/token-estimate.js';
 import type { Message, ToolCall } from '../../schema/index.js';
+import type { ModelConfig } from '../../agent/types.js';
 import type { PendingInput } from '@persona/shared';
 import type { ToolResult } from '../../tools/index.js';
 import { Logger } from '../../util/logger.js';
@@ -182,6 +183,10 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     return emitError(`Agent not found: ${agentId}`);
   }
 
+  // 首条消息固化会话模型:空值取 Agent 默认值落库,后续快照与收尾读到的都是已固化值
+  const frozenModel = sessionManager.ensureModel(sessionId, agentConfig);
+  if (frozenModel) session.model = frozenModel;
+
   // 运行时解析工作目录：显式配置失效时写回生效路径并广播，
   // 下次解析直接通过，避免每个回合重复回退
   const resolved = resolveWorkspaceDir(session, agentConfig);
@@ -329,7 +334,8 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     const isDefaultTitle = session.title === 'New Session';
     if (!appSource && isFirstMessage && isDefaultTitle && !isChatSession) {
       Logger.log('TITLE', 'Auto-generating title', { sessionId });
-      const { provider: modelProvider, model: modelId } = session.model;
+      const { provider: modelProvider, model: modelId } =
+        session.model ?? agentConfig.defaultModel;
       generateTitle(content, modelProvider, modelId)
         .then((title) => {
           if (!title) {
@@ -572,9 +578,12 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     // Fire-and-forget: TTS voice processing
     // App 通知触发的回合与手动发消息同权，是否播报由客户端开关决定
     if (voiceEnabled) {
-      handleTtsAsync(sessionId, session, agentConfig, lastContentText).catch(
-        () => {}
-      );
+      handleTtsAsync(
+        sessionId,
+        session.model ?? agentConfig.defaultModel,
+        agentConfig,
+        lastContentText
+      ).catch(() => {});
     }
 
     // Fire-and-forget: 异步上下文压缩
@@ -608,7 +617,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
  */
 async function handleTtsAsync(
   sessionId: string,
-  session: { model: { provider: string; model: string } },
+  model: ModelConfig,
   agentConfig: { voiceId?: string; voiceLanguage?: string },
   lastContentText: string | null
 ): Promise<void> {
@@ -672,8 +681,8 @@ async function handleTtsAsync(
 
   const speakText = await processTextForTTS(lastContentText, {
     language: agentConfig.voiceLanguage,
-    provider: session.model.provider,
-    modelId: session.model.model,
+    provider: model.provider,
+    modelId: model.model,
   });
 
   Logger.log('TTS', 'speak_ready sent', {

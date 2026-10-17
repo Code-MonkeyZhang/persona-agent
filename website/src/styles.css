@@ -89,3 +89,88 @@
     @apply decoration-ink;
   }
 }
+
+@layer utilities {
+  /* Blinking caret of the chat scene input while the message types itself. */
+  @keyframes caret-blink {
+    0%,
+    45% {
+      opacity: 1;
+    }
+    50%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  .caret-blink {
+    animation: caret-blink 0.9s steps(1) infinite;
+  }
+
+  /* Hovering the player freezes every CSS driven motion together with the scene clocks. */
+  .player-paused .caret-blink {
+    animation-play-state: paused;
+  }
+
+  /* One shot entrance of demo bubbles and chips, a small rise with a fade. */
+  @keyframes demo-pop {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .demo-pop {
+    animation: demo-pop 0.35s cubic-bezier(0.23, 1, 0.32, 1) both;
+  }
+
+  .player-paused .demo-pop {
+    animation-play-state: paused;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .caret-blink {
+      animation: none;
+    }
+
+    .demo-pop {
+      animation: none;
+    }
+  }
+}
+
+@layer components {
+  .cap-lane {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+  }
+
+  .cap-track {
+    display: flex;
+    width: max-content;
+    gap: 12px;
+    animation: cap-drift 36s linear infinite;
+    will-change: transform;
+  }
+
+  .cap-lane:hover .cap-track {
+    animation-play-state: paused;
+  }
+
+  @keyframes cap-drift {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cap-track {
+      animation: none;
+    }
+  }
+}

@@ -12,13 +12,14 @@ import { useAgentStore } from '../../stores/agentStore';
 import { useViewStore } from '../../stores/viewStore';
 import {
   useConnectionStore,
+  useCurrentDevice,
   currentDeviceKey,
 } from '../../stores/connectionStore';
 import { LOCAL_DEVICE_ID } from '@shared/api';
 import { Switch } from '../ui/Switch';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
-import { SettingRow } from '../common/SettingRow';
+import { SettingRow, HostChip } from '../common/SettingRow';
 import { EnvironmentCard } from './EnvironmentCard';
 import { VersionUpdateCard } from './VersionUpdateCard';
 import { configFilePath, dataPath, dataRootPath } from '../../lib/platform';
@@ -60,6 +61,8 @@ export const ConfigForm: React.FC = () => {
   const isLocalConnection = useConnectionStore(
     (s) => !!s.snapshot && currentDeviceKey(s.snapshot) === LOCAL_DEVICE_ID
   );
+  /** 卡头归属标记走当前设备解析，快照未就绪视为本机，不亮标记 */
+  const { remote } = useCurrentDevice();
 
   if (!config) return null;
 
@@ -147,9 +150,18 @@ export const ConfigForm: React.FC = () => {
         </div>
       </Card>
 
+      <EnvironmentCard />
+
+      <VersionUpdateCard />
+
       <Card
         title={t('config.storagePaths')}
         titleClassName="text-title-section font-semibold"
+        action={
+          remote ? (
+            <HostChip label={t('config.hostLocal')} remote={false} />
+          ) : undefined
+        }
       >
         <div className="flex flex-col gap-4">
           {STORAGE_PATHS.map((item) => (
@@ -161,10 +173,6 @@ export const ConfigForm: React.FC = () => {
           ))}
         </div>
       </Card>
-
-      <EnvironmentCard />
-
-      <VersionUpdateCard />
     </div>
   );
 };

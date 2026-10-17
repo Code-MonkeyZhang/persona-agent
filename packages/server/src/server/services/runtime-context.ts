@@ -79,10 +79,14 @@ function takeSnapshot(
       mcp[name] = status;
     }
   }
+  // 会话模型在发送链路开头已固化,空值回落仅作类型完备,快照不会见到空值
+  const modelLabel = session.model
+    ? `${session.model.provider}/${session.model.model}`
+    : 'unresolved';
   return {
     mcp,
     workspacePath: workspaceDir,
-    model: `${session.model.provider}/${session.model.model}`,
+    model: modelLabel,
     skills: [...(skillNames ?? [])].sort(),
   };
 }
