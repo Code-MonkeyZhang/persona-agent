@@ -13,6 +13,7 @@ import { SettingRow, HostChip } from '../common/SettingRow';
 import { ActionButton } from '../ui/ActionButton';
 import { Card } from '../ui/Card';
 import { logger } from '../../lib/logger';
+import { useCurrentDevice } from '../../stores/connectionStore';
 import type { UpdateStatus } from '@shared/api';
 
 /** 卡片内部状态，由主进程推送的 UpdateStatus 映射而来 */
@@ -27,6 +28,7 @@ type CardState =
 
 export const VersionUpdateCard: React.FC = () => {
   const { t } = useTranslation();
+  const { remote } = useCurrentDevice();
   const [version, setVersion] = useState('');
   const [state, setState] = useState<CardState>({ type: 'idle' });
 
@@ -86,7 +88,11 @@ export const VersionUpdateCard: React.FC = () => {
     <Card
       title={t('config.versionAndUpdate')}
       titleClassName="text-title-section font-semibold"
-      action={<HostChip label={t('config.hostLocal')} remote={false} />}
+      action={
+        remote ? (
+          <HostChip label={t('config.hostLocal')} remote={false} />
+        ) : undefined
+      }
     >
       <div className="flex flex-col gap-4">
         <SettingRow label={t('config.currentVersion')} desc="Persona Desktop">

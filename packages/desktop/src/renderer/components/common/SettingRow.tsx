@@ -86,7 +86,7 @@ export function HostChip({ label, remote }: HostChipProps) {
 
 /**
  * 连远程时渲染一颗主机名归属标签，本机态不渲染任何内容。
- * 没有标题锚点的孤标签场景统一用它，标签常显的场景直接用 HostChip。
+ * 卡片头部与孤标签场景统一用它，远程态仍需显示本机字样的场景直接用 HostChip。
  * className 只作用在远程态渲染出的包装层上，本机态连包装层也不出。
  */
 export function RemoteHostChip({ className }: { className?: string }) {
