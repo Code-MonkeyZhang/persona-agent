@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Volume2 } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { useLocale } from '../../i18n';
@@ -36,7 +37,14 @@ function Row({ label, top = false, children }: { label: string; top?: boolean; c
   );
 }
 
-/** Dropdown shell with click-outside closing, shared by the model and voice pickers. */
+/** Fixed coordinates of an open menu, either top or bottom anchors it to the viewport edge. */
+type MenuBox = { left: number; top?: number; bottom?: number; width: number; maxHeight: number };
+
+/**
+ * Dropdown shell shared by the model and voice pickers. The menu portals to
+ * the page body with fixed coordinates so the demo window frame cannot clip
+ * it, and it opens downward, flipping up when the viewport lacks room below.
+ */
 function Dropdown({
   open,
   onToggle,
@@ -48,17 +56,63 @@ function Dropdown({
   trigger: ReactNode;
   children: ReactNode;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const toggleRef = useRef(onToggle);
+  const [box, setBox] = useState<MenuBox | null>(null);
+
   useEffect(() => {
-    if (!open) return;
-    const close = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) onToggle();
+    toggleRef.current = onToggle;
+  });
+
+  useEffect(() => {
+    if (!open) {
+      setBox(null);
+      return;
+    }
+    const measure = () => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const spaceBelow = window.innerHeight - rect.bottom - 16;
+      const spaceAbove = rect.top - 16;
+      if (spaceBelow >= 180 || spaceBelow >= spaceAbove) {
+        setBox({
+          left: rect.left,
+          top: rect.bottom + 4,
+          width: rect.width,
+          maxHeight: Math.max(160, Math.min(220, spaceBelow)),
+        });
+      } else {
+        setBox({
+          left: rect.left,
+          bottom: window.innerHeight - rect.top + 4,
+          width: rect.width,
+          maxHeight: Math.max(160, Math.min(220, spaceAbove)),
+        });
+      }
     };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [open, onToggle]);
+    measure();
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      toggleRef.current();
+    };
+    const onViewportChange = (event: Event) => {
+      if (menuRef.current?.contains(event.target as Node)) return;
+      measure();
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('scroll', onViewportChange, true);
+    window.addEventListener('resize', onViewportChange);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      window.removeEventListener('scroll', onViewportChange, true);
+      window.removeEventListener('resize', onViewportChange);
+    };
+  }, [open]);
+
   return (
-    <div ref={ref} className="relative min-w-0 flex-1">
+    <div ref={triggerRef} className="min-w-0 flex-1">
       <button
         type="button"
         onClick={onToggle}
@@ -67,10 +121,17 @@ function Dropdown({
         <span className="flex min-w-0 items-baseline gap-1.5 truncate">{trigger}</span>
         <ChevronDown size={12} className="shrink-0 text-demo-muted-fg" />
       </button>
-      {open ? (
-        <div className="absolute inset-x-0 top-[calc(100%+4px)] z-10 max-h-[220px] overflow-auto rounded-[10px] border border-demo-border bg-white p-1.5 shadow-[0_12px_28px_-12px_rgba(10,10,10,0.25)]">
-          {children}
-        </div>
+      {open && box ? (
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{ left: box.left, top: box.top, bottom: box.bottom, width: box.width, maxHeight: box.maxHeight }}
+            className="fixed z-50 overflow-auto rounded-[10px] border border-demo-border bg-white p-1.5 shadow-[0_12px_28px_-12px_rgba(10,10,10,0.25)]"
+          >
+            {children}
+          </div>,
+          document.body,
+        )
       ) : null}
     </div>
   );
