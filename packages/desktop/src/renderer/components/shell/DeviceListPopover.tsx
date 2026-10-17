@@ -1,6 +1,7 @@
 /**
  * @file 设备清单浮层，左下角设备入口点开。
- * 行内只有状态点与设备名，选中高亮即当前设备的全部表达。
+ * 行内只有状态点与设备名，状态点回答这台设备现在能不能连上，选中高亮即当前设备。
+ * 浮层挂载期间驱动探测轮询，点开即查一轮，关闭即停。
  * 点击条目即切换，失败与离线都有 toast 反馈。
  * 底部唯一的管理设备进设备管理页，新建连接与条目维护都收在页面里。
  */
@@ -11,17 +12,20 @@ import { StatusDot } from '../ui/StatusDot';
 import { toast } from '../../stores/toastStore';
 import {
   useConnectionStore,
+  useDeviceProbing,
   currentDeviceKey,
   deviceDisplayName,
   deviceStatus,
+  type DeviceDotStatus,
 } from '../../stores/connectionStore';
 import { LOCAL_DEVICE_ID } from '@shared/api';
 
 /** 状态点配色，设备清单浮层与设备管理页共用 */
-export const deviceStatusDot: Record<string, string> = {
+export const deviceStatusDot: Record<DeviceDotStatus, string> = {
   online: 'bg-green-500',
   connecting: 'bg-yellow-500 animate-pulse',
-  offline: 'bg-muted-foreground/40',
+  offline: 'bg-red-500',
+  unknown: 'bg-muted-foreground/40 animate-pulse',
 };
 
 export function DeviceListPopover({
@@ -34,8 +38,12 @@ export function DeviceListPopover({
   const { t } = useTranslation();
   const devices = useConnectionStore((s) => s.devices);
   const snapshot = useConnectionStore((s) => s.snapshot);
+  const probes = useConnectionStore((s) => s.probes);
+  const currentWsStatus = useConnectionStore((s) => s.currentWsStatus);
   const switchHost = useConnectionStore((s) => s.switchHost);
   const currentKey = snapshot ? currentDeviceKey(snapshot) : LOCAL_DEVICE_ID;
+
+  useDeviceProbing();
 
   const handleSwitch = (hostId: string, address: string | null) => {
     void switchHost(hostId, address).then((result) => {
@@ -72,7 +80,11 @@ export function DeviceListPopover({
                 )}
               >
                 <StatusDot
-                  color={deviceStatusDot[deviceStatus(device, snapshot)]}
+                  color={
+                    deviceStatusDot[
+                      deviceStatus(device, snapshot, probes, currentWsStatus)
+                    ]
+                  }
                 />
                 <span
                   className={cn(

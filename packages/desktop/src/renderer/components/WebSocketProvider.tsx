@@ -93,6 +93,8 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 
     connectionUnsubscribe = client.onConnectionChange((status) => {
       setConnectionStatus(status);
+      // 设备状态点靠这份实时状态感知当前主机的连接与断开
+      useConnectionStore.getState().setCurrentWsStatus(status);
       // 连接建立即追平，重连与首次连接走同一条路
       if (status === 'connected') {
         engine.sync();

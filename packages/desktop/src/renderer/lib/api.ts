@@ -105,18 +105,33 @@ export async function invalidateBaseUrl(): Promise<string> {
 /**
  * 取目标地址的握手信息。
  * 地址不可达或响应异常时抛错，调用方据此给出明确提示。
+ * timeoutMs 限定等待上限，探测场景用它裁掉挂死的地址。
  */
-export async function fetchHandshake(address: string): Promise<HandshakeInfo> {
+export async function fetchHandshake(
+  address: string,
+  timeoutMs?: number
+): Promise<HandshakeInfo> {
   const base = address.replace(/\/+$/, '');
-  const response = await fetch(`${base}/api/handshake`);
-  if (!response.ok) {
-    throw new Error(`handshake failed with status ${response.status}`);
+  const controller = new AbortController();
+  const timer =
+    timeoutMs === undefined
+      ? null
+      : setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${base}/api/handshake`, {
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`handshake failed with status ${response.status}`);
+    }
+    const info = (await response.json()) as HandshakeInfo;
+    if (!info.hostId || !info.hostName || !info.version) {
+      throw new Error('handshake response missing fields');
+    }
+    return info;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
-  const info = (await response.json()) as HandshakeInfo;
-  if (!info.hostId || !info.hostName || !info.version) {
-    throw new Error('handshake response missing fields');
-  }
-  return info;
 }
 
 // DTO 类型已迁移至 @persona/shared
