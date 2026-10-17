@@ -110,7 +110,7 @@ export default function MobileStage() {
               <img
                 src={aronaAvatar}
                 alt=""
-                className="h-[16px] w-[16px] rounded-full object-cover ring-2 ring-demo-primary ring-offset-[2px] ring-offset-white"
+                className="h-[16px] w-[16px] rounded-full object-cover"
               />
               <img src={kurisuAvatar} alt="" className="h-[16px] w-[16px] rounded-full object-cover" />
               <div className="grow" />

@@ -142,3 +142,35 @@
     }
   }
 }
+
+@layer components {
+  .cap-lane {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+  }
+
+  .cap-track {
+    display: flex;
+    width: max-content;
+    gap: 12px;
+    animation: cap-drift 36s linear infinite;
+    will-change: transform;
+  }
+
+  .cap-lane:hover .cap-track {
+    animation-play-state: paused;
+  }
+
+  @keyframes cap-drift {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cap-track {
+      animation: none;
+    }
+  }
+}

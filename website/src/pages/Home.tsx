@@ -2,14 +2,34 @@ import { motion, useReducedMotion } from 'motion/react';
 import { Check, Github } from 'lucide-react';
 import Layout from '../components/Layout';
 import DownloadSection, { AppleLogo, AndroidLogo } from '../components/DownloadSection';
-import { SectionHead } from '../components/demo/chrome';
 import HeroStage from '../components/demo/HeroStage';
 import EditorStage from '../components/demo/EditorStage';
-import CapsStage from '../components/demo/CapsStage';
+import { CAP_MCPS, CAP_SKILLS, type CapItem } from '../components/demo/capsCatalog';
 import MobileStage from '../components/demo/MobileStage';
-import MarketStage from '../components/demo/MarketStage';
 import { useLocale } from '../i18n';
 import { useLatestReleases, detectPlatform, DESKTOP_RELEASES_URL, APP_STORE_URL, MOBILE_RELEASES_URL } from '../lib/releases';
+
+/** One seamless horizontal marquee lane of catalog chips, pausing on hover. */
+function CapLane({ items }: { items: CapItem[] }) {
+  const { t } = useLocale();
+  // Repeat the set enough times that both halves of the -50% loop stay wider than the lane.
+  const chips = Array.from({ length: items.length >= 6 ? 4 : 6 }, () => items).flat();
+  return (
+    <div className="cap-lane">
+      <div className="cap-track">
+        {chips.map((item, index) => (
+          <span
+            key={`${item.nameKey}-${index}`}
+            className="inline-flex shrink-0 items-center gap-2 rounded-full border border-paper-line bg-paper py-1.5 pl-1.5 pr-4 text-sm font-semibold text-ink-soft"
+          >
+            <img src={item.logo} alt="" className="h-7 w-7 object-contain" />
+            {t(item.nameKey)}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function HeroPrimaryButton() {
   const { t } = useLocale();
@@ -40,7 +60,7 @@ function HeroPrimaryButton() {
 
 function HeroProps() {
   const { t } = useLocale();
-  const props = ['hero.free', 'hero.prop2', 'hero.prop3'] as const;
+  const props = ['hero.free', 'hero.prop2', 'hero.prop3', 'hero.prop4'] as const;
   return (
     <div className="mt-8 flex flex-col gap-3">
       {props.map((key) => (
@@ -52,39 +72,6 @@ function HeroProps() {
         </div>
       ))}
     </div>
-  );
-}
-
-function ProviderSection() {
-  const { t } = useLocale();
-  const reduce = useReducedMotion();
-  const chips = t('eco.chips')
-    .split(',')
-    .map((name) => name.trim())
-    .filter(Boolean);
-  return (
-    <section className="border-t border-paper-line bg-paper-tint py-16">
-      <div className="container-wide">
-        <SectionHead eyebrow={t('eco.eyebrow')} title={t('eco.title')} sub={t('eco.sub')} />
-
-        <motion.div
-          initial={reduce ? false : { opacity: 0, y: 12 }}
-          whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-60px' }}
-          transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1], delay: 0.05 }}
-          className="mx-auto mt-10 flex max-w-3xl flex-wrap justify-center gap-2.5"
-        >
-          {chips.map((name) => (
-            <span
-              key={name}
-              className="rounded-full border border-paper-line bg-paper px-4 py-2 text-sm font-medium text-ink-soft"
-            >
-              {name}
-            </span>
-          ))}
-        </motion.div>
-      </div>
-    </section>
   );
 }
 
@@ -216,7 +203,25 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="mobile" className="scroll-mt-16 border-t border-paper-line bg-paper-tint py-16">
+      <section id="capabilities" className="scroll-mt-16 border-t border-paper-line bg-paper-tint py-16">
+        <div className="container-wide">
+          <div>
+            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-ink-faint">
+              {t('cap.eyebrow')}
+            </p>
+            <h2 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+              {t('cap.title')}
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-ink-soft">{t('cap.sub')}</p>
+          </div>
+          <div className="mt-10 space-y-4">
+            <CapLane items={CAP_MCPS} />
+            <CapLane items={CAP_SKILLS} />
+          </div>
+        </div>
+      </section>
+
+      <section id="mobile" className="scroll-mt-16 border-t border-paper-line py-16">
         <div className="container-wide">
           <div>
             <p className="mb-3 text-xs font-medium uppercase tracking-widest text-ink-faint">
@@ -257,9 +262,8 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="editor" className="scroll-mt-16 border-t border-paper-line py-16">
-        <div className="container-wide grid items-center gap-12 lg:grid-cols-[1fr_1.25fr] lg:gap-14">
-          <EditorStage />
+      <section id="editor" className="scroll-mt-16 border-t border-paper-line bg-paper-tint py-16">
+        <div className="container-wide">
           <div>
             <p className="mb-3 text-xs font-medium uppercase tracking-widest text-ink-faint">
               {t('ed.eyebrow')}
@@ -269,38 +273,12 @@ export default function Home() {
             </h2>
             <p className="mt-4 text-base leading-relaxed text-ink-soft">{t('ed.sub')}</p>
           </div>
-        </div>
-      </section>
-
-      <section id="capabilities" className="scroll-mt-16 border-t border-paper-line bg-paper-tint py-16">
-        <div className="container-wide grid items-center gap-12 lg:grid-cols-2 lg:gap-14">
-          <div>
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-ink-faint">
-              {t('cap.eyebrow')}
-            </p>
-            <h2 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-              {t('cap.title')}
-            </h2>
-            <p className="mt-4 text-base leading-relaxed text-ink-soft">{t('cap.sub')}</p>
-          </div>
-          <CapsStage />
-        </div>
-      </section>
-
-      <section id="marketplace" className="scroll-mt-16 border-t border-paper-line py-16">
-        <div className="container-wide">
-          <SectionHead
-            eyebrow={t('market.eyebrow')}
-            title={t('market.title')}
-            sub={t('market.sub')}
-          />
-          <div className="mt-10">
-            <MarketStage />
+          <div className="mt-10 max-w-[640px] md:ml-[25%]">
+            <EditorStage />
           </div>
         </div>
       </section>
 
-      <ProviderSection />
       <DownloadSection />
       <OpenSourceSection />
     </Layout>

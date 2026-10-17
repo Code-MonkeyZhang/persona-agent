@@ -1,14 +1,4 @@
 import type { ReactNode } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
-
-/**
- * Screen background of the demo phone panes, radial highlights over a cool base.
- * Kept verbatim from the desktop demo PhoneScreen so pocket apps read the same.
- */
-export const PHONE_BG =
-  'radial-gradient(420px 300px at 88% -8%, rgba(34,139,230,0.10), transparent 60%), ' +
-  'radial-gradient(360px 300px at -8% 108%, rgba(139,92,246,0.07), transparent 60%), ' +
-  'linear-gradient(168deg, #e9f1fa 0%, #f3f6fb 50%, #eef1f6 100%)';
 
 /** macOS traffic lights, purely decorative, mirrors the desktop demo window controls. */
 function TrafficLights() {
@@ -45,23 +35,5 @@ export function DemoWindow({ title, lights = false, children, className = '' }: 
       ) : null}
       {children}
     </div>
-  );
-}
-
-/** Centered section header shared by the staged sections. */
-export function SectionHead({ eyebrow, title, sub }: { eyebrow: string; title: string; sub: string }) {
-  const reduce = useReducedMotion();
-  return (
-    <motion.div
-      initial={reduce ? false : { opacity: 0, y: 12 }}
-      whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-80px' }}
-      transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-      className="mx-auto max-w-2xl text-center"
-    >
-      <p className="mb-3 text-xs font-medium uppercase tracking-widest text-ink-faint">{eyebrow}</p>
-      <h2 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{title}</h2>
-      <p className="mt-4 text-base leading-relaxed text-ink-soft">{sub}</p>
-    </motion.div>
   );
 }

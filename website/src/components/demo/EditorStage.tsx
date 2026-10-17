@@ -1,78 +1,165 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ChevronDown, Volume2 } from 'lucide-react';
+import { motion, useReducedMotion } from 'motion/react';
 import { useLocale } from '../../i18n';
 import { DemoWindow } from './chrome';
+import { CLONED_VOICES, MODEL_GROUPS, PRESET_VOICES } from './editorCatalog';
 import aronaBg from '../../assets/demo/arona-bg.jpg';
 import aronaPoseDefault from '../../assets/demo/arona-pose.png';
 import aronaPoseHappy from '../../assets/demo/arona-pose-happy.png';
 import aronaPoseLike from '../../assets/demo/arona-pose-like.png';
+import aronaPoseShy from '../../assets/demo/arona-pose-shy.png';
+import aronaPoseAngry from '../../assets/demo/arona-pose-angry.png';
+import aronaPoseConfused from '../../assets/demo/arona-pose-confused.png';
 
-const POSES = [aronaPoseDefault, aronaPoseHappy, aronaPoseLike];
+const POSES = [
+  aronaPoseDefault,
+  aronaPoseHappy,
+  aronaPoseLike,
+  aronaPoseShy,
+  aronaPoseAngry,
+  aronaPoseConfused,
+];
 
-const VOICE_KEYS = ['ed.vNone', 'ed.vFemale', 'ed.vMale', 'ed.vClone'] as const;
+/** Flat model list with provider labels, index pairs with the selected pose state. */
+const FLAT_MODELS = MODEL_GROUPS.flatMap((group) =>
+  group.models.map((model) => ({ model, providerKey: group.providerKey }))
+);
 
-/** Field row of one editor card, label column plus value slot. */
-function Field({
-  label,
-  children,
-  top = false,
-}: {
-  label: string;
-  children: React.ReactNode;
-  top?: boolean;
-}) {
+/** Label column plus value slot, no card titles so the column stays calm. */
+function Row({ label, top = false, children }: { label: string; top?: boolean; children: ReactNode }) {
   return (
-    <div className="grid grid-cols-[68px_1fr] items-start gap-2.5 py-1">
-      <span className={`text-[12px] text-demo-muted-fg ${top ? 'pt-1.5' : 'pt-0.5'}`}>{label}</span>
+    <div className={`grid grid-cols-[60px_1fr] gap-2.5 ${top ? 'items-start' : 'items-center'}`}>
+      <span className={`text-[12px] text-demo-muted-fg ${top ? 'pt-1.5' : ''}`}>{label}</span>
       <div className="min-w-0">{children}</div>
     </div>
   );
 }
 
-/** One titled card of the editor form. */
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+/** Dropdown shell with click-outside closing, shared by the model and voice pickers. */
+function Dropdown({
+  open,
+  onToggle,
+  trigger,
+  children,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  trigger: ReactNode;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) onToggle();
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open, onToggle]);
   return (
-    <section className="rounded-[10px] border border-demo-border bg-[#fbfaf8] px-3 py-2.5">
-      <h3 className="mb-1 text-[10.5px] font-bold uppercase tracking-wider text-demo-muted-fg">
-        {title}
-      </h3>
+    <div ref={ref} className="relative min-w-0 flex-1">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-2 rounded-lg border border-demo-border bg-white px-2.5 py-1.5 text-left text-[12.5px] text-demo-fg transition-colors hover:border-neutral-300"
+      >
+        <span className="flex min-w-0 items-baseline gap-1.5 truncate">{trigger}</span>
+        <ChevronDown size={12} className="shrink-0 text-demo-muted-fg" />
+      </button>
+      {open ? (
+        <div className="absolute inset-x-0 top-[calc(100%+4px)] z-10 max-h-[220px] overflow-auto rounded-[10px] border border-demo-border bg-white p-1.5 shadow-[0_12px_28px_-12px_rgba(10,10,10,0.25)]">
+          {children}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** One option row of a dropdown menu, selected state tints the row blue. */
+function Opt({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center justify-between gap-2 rounded-[7px] px-2 py-1.5 text-left text-[12.5px] transition-colors ${
+        selected ? 'bg-demo-primary/10 font-semibold text-demo-primary' : 'text-demo-fg hover:bg-demo-muted'
+      }`}
+    >
       {children}
-    </section>
+    </button>
+  );
+}
+
+/** Uppercase group caption inside a dropdown menu. */
+function GroupLabel({ children }: { children: ReactNode }) {
+  return (
+    <p className="px-2 pb-0.5 pt-1.5 text-[10.5px] font-bold uppercase tracking-wider text-demo-muted-fg">
+      {children}
+    </p>
   );
 }
 
 /**
- * Static replica of the agent editor. Field cards mirror the real editor
- * and pose plus voice controls answer to direct clicks.
+ * Static replica of the agent editor as a split pane. The left side previews
+ * the standing pose and the right column holds the live controls: pose thumbs,
+ * the model picker grouped by provider, the voice picker with cloned and preset
+ * groups, all answering to direct clicks. The preview pane layers the poses
+ * over the scene background and cross fades between them, auto rotating until
+ * the visitor picks one, and reduced motion keeps it still and instant.
  */
 export default function EditorStage() {
   const { t } = useLocale();
+  const reduce = useReducedMotion();
   const [pose, setPose] = useState(0);
-  const [voice, setVoice] = useState(1);
+  const [poseManual, setPoseManual] = useState(false);
+  const [model, setModel] = useState(0);
+  const [voice, setVoice] = useState('shaonv');
+  const [menu, setMenu] = useState<'model' | 'voice' | null>(null);
+
+  useEffect(() => {
+    if (poseManual || reduce) return;
+    const id = window.setInterval(() => setPose((current) => (current + 1) % POSES.length), 2500);
+    return () => window.clearInterval(id);
+  }, [poseManual, reduce]);
+
+  const current = FLAT_MODELS[model];
 
   return (
     <DemoWindow title={t('ed.winTitle')}>
-      <div className="flex flex-col gap-2.5 p-4">
-        <Card title={t('ed.basic')}>
-          <Field label={t('ed.name')}>
-            <span className="block rounded-lg border border-demo-border bg-white px-2.5 py-1.5 text-[12.5px] text-demo-fg">
+      <div className="grid md:grid-cols-[224px_1fr]">
+        <div className="relative h-[212px] overflow-hidden border-b border-demo-border bg-[#fbfaf8] md:h-auto md:border-b-0 md:border-r">
+          <img src={aronaBg} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          {POSES.map((src, index) => (
+            <motion.img
+              key={src}
+              src={src}
+              alt=""
+              initial={false}
+              animate={{ opacity: pose === index ? 1 : 0 }}
+              transition={{ duration: reduce ? 0 : 0.3, ease: 'linear' }}
+              className="absolute bottom-0 left-1/2 z-[1] h-full -translate-x-1/2 object-contain object-bottom"
+            />
+          ))}
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-2.5 p-4">
+          <Row label={t('ed.name')}>
+            <span className="block truncate rounded-lg border border-demo-border bg-white px-2.5 py-1.5 text-[12.5px] text-demo-fg">
               {t('ed.n1')}
             </span>
-          </Field>
-          <Field label={t('ed.desc')}>
-            <span className="block truncate rounded-lg border border-demo-border bg-white px-2.5 py-1.5 text-[12.5px] text-demo-muted-fg">
-              {t('ed.descVal')}
-            </span>
-          </Field>
-        </Card>
+          </Row>
 
-        <Card title={t('ed.appearance')}>
-          <Field label={t('ed.pose')}>
-            <div className="flex items-center gap-2">
+          <Row label={t('ed.pose')}>
+            <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {POSES.map((src, index) => (
                 <button
                   key={src}
                   type="button"
-                  onClick={() => setPose(index)}
+                  onClick={() => {
+                    setPose(index);
+                    setPoseManual(true);
+                  }}
                   aria-label={t('ed.pose')}
                   className={`h-[52px] w-[52px] shrink-0 overflow-hidden rounded-lg border bg-white transition-colors ${
                     pose === index
@@ -80,63 +167,98 @@ export default function EditorStage() {
                       : 'border-demo-border hover:border-neutral-300'
                   }`}
                 >
-                  <img src={src} alt="" className="h-full w-full object-contain object-bottom" />
+                  <img src={src} alt="" className="h-full w-full object-contain" />
                 </button>
               ))}
-              <span className="ml-auto shrink-0 rounded-full bg-demo-primary/10 px-2 py-0.5 text-[10.5px] font-semibold text-demo-primary">
-                {t('ed.applied')}
-              </span>
             </div>
-          </Field>
-          <div className="mt-1.5" />
-          <Field label={t('ed.bg')}>
-            <div className="flex items-center gap-2">
-              <span className="h-[40px] w-[72px] shrink-0 overflow-hidden rounded-lg border border-demo-border">
-                <img src={aronaBg} alt="" className="h-full w-full object-cover" />
-              </span>
-              <span className="rounded-full bg-demo-muted px-2 py-0.5 text-[10.5px] font-semibold text-demo-muted-fg">
-                {t('ed.change')}
-              </span>
-            </div>
-          </Field>
-        </Card>
+          </Row>
 
-        <Card title={t('ed.modelCard')}>
-          <Field label={t('ed.model')}>
-            <span className="flex items-center justify-between rounded-lg border border-demo-border bg-white px-2.5 py-1.5 text-[12.5px] text-demo-fg">
-              GLM-4.7
-              <span className="text-[11px] text-demo-muted-fg">{t('ed.modelDim')}</span>
-            </span>
-          </Field>
-          <div className="mt-1" />
-          <Field label={t('ed.prompt')} top>
-            <p className="h-[58px] overflow-hidden whitespace-pre-line rounded-lg border border-demo-border bg-white px-2.5 py-2 font-mono text-[11.5px] leading-relaxed text-neutral-600">
+          <Row label={t('ed.model')}>
+            <Dropdown
+              open={menu === 'model'}
+              onToggle={() => setMenu(menu === 'model' ? null : 'model')}
+              trigger={
+                <>
+                  <span className="truncate font-medium">{current.model}</span>
+                  <span className="shrink-0 text-[11px] text-demo-muted-fg">{t(current.providerKey)}</span>
+                </>
+              }
+            >
+              {MODEL_GROUPS.map((group) => (
+                <div key={group.providerKey}>
+                  <GroupLabel>{t(group.providerKey)}</GroupLabel>
+                  {group.models.map((name) => (
+                    <Opt
+                      key={name}
+                      selected={current.model === name}
+                      onClick={() => {
+                        setModel(FLAT_MODELS.findIndex((entry) => entry.model === name));
+                        setMenu(null);
+                      }}
+                    >
+                      <span>{name}</span>
+                    </Opt>
+                  ))}
+                </div>
+              ))}
+            </Dropdown>
+          </Row>
+
+          <Row label={t('ed.voice')}>
+            <div className="flex items-center gap-2">
+              <Dropdown
+                open={menu === 'voice'}
+                onToggle={() => setMenu(menu === 'voice' ? null : 'voice')}
+                trigger={
+                  voice === 'none' ? (
+                    <span className="truncate font-medium">{t('ed.vNone')}</span>
+                  ) : (
+                    (() => {
+                      const option = [...CLONED_VOICES, ...PRESET_VOICES].find((entry) => entry.id === voice);
+                      return (
+                        <>
+                          <span className="truncate font-medium">{t(option!.nameKey)}</span>
+                          <span className="shrink-0 text-[11px] text-demo-muted-fg">{t(option!.tagKey!)}</span>
+                        </>
+                      );
+                    })()
+                  )
+                }
+              >
+                <Opt selected={voice === 'none'} onClick={() => { setVoice('none'); setMenu(null); }}>
+                  <span>{t('ed.vNone')}</span>
+                </Opt>
+                <GroupLabel>{t('ed.vgClone')}</GroupLabel>
+                {CLONED_VOICES.map((option) => (
+                  <Opt key={option.id} selected={voice === option.id} onClick={() => { setVoice(option.id); setMenu(null); }}>
+                    <span>{t(option.nameKey)}</span>
+                    <span className="text-[11px] text-demo-muted-fg">{t(option.tagKey!)}</span>
+                  </Opt>
+                ))}
+                <GroupLabel>{t('ed.vgPreset')}</GroupLabel>
+                {PRESET_VOICES.map((option) => (
+                  <Opt key={option.id} selected={voice === option.id} onClick={() => { setVoice(option.id); setMenu(null); }}>
+                    <span>{t(option.nameKey)}</span>
+                    <span className="text-[11px] text-demo-muted-fg">{t(option.tagKey!)}</span>
+                  </Opt>
+                ))}
+              </Dropdown>
+              <button
+                type="button"
+                aria-label={t('ed.listen')}
+                className="flex h-[31px] w-8 shrink-0 items-center justify-center rounded-lg border border-demo-border bg-white text-demo-muted-fg transition-colors hover:border-neutral-300 hover:text-demo-fg"
+              >
+                <Volume2 size={13} />
+              </button>
+            </div>
+          </Row>
+
+          <Row label={t('ed.prompt')} top>
+            <p className="whitespace-pre-line rounded-lg border border-demo-border bg-white px-2.5 py-2 font-mono text-[11.5px] leading-relaxed text-neutral-600">
               {t('ed.promptVal')}
             </p>
-          </Field>
-        </Card>
-
-        <Card title={t('ed.voiceCard')}>
-          <div className="flex items-center gap-1.5 py-1">
-            {VOICE_KEYS.map((key, index) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setVoice(index)}
-                className={`shrink-0 rounded-full border px-2.5 py-1 text-[11.5px] font-semibold transition-colors ${
-                  voice === index
-                    ? 'border-demo-primary/35 bg-demo-primary/10 text-demo-primary'
-                    : 'border-demo-border bg-white text-demo-muted-fg hover:border-neutral-300'
-                }`}
-              >
-                {t(key)}
-              </button>
-            ))}
-            <span className="ml-auto shrink-0 text-[11px] text-demo-muted-fg">
-              🔈 {t('ed.listen')}
-            </span>
-          </div>
-        </Card>
+          </Row>
+        </div>
       </div>
     </DemoWindow>
   );
