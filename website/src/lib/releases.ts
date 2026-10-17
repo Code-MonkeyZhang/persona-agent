@@ -26,7 +26,7 @@ const EMPTY: LatestReleases = {
   androidVersion: null,
 };
 
-const CACHE_KEY = 'pa-releases';
+const CACHE_KEY = 'pa-releases-v2';
 const CACHE_TTL_MS = 60 * 60 * 1000;
 
 type CachedReleases = LatestReleases & { fetchedAt: number };
@@ -70,9 +70,9 @@ function resolveDesktopAssets(assets: GithubAsset[]): DesktopAssets {
   const find = (prefix: string, ext: string) =>
     assets.find((a) => a.name.startsWith(prefix) && a.name.endsWith(ext))?.browser_download_url;
   return {
-    macArm: find('Persona-darwin-arm64-', '.dmg'),
-    macX64: find('Persona-darwin-x64-', '.dmg'),
-    win: find('Persona-win32-x64-', '.exe'),
+    macArm: find('Persona-mac-arm64-', '.dmg'),
+    macX64: find('Persona-mac-x64-', '.dmg'),
+    win: find('Persona-win-x64-', '.exe'),
   };
 }
 
