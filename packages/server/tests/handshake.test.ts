@@ -25,6 +25,7 @@ mock.module('../src/util/paths.js', () => ({
 
 import { createHandshakeRouter } from '../src/server/routers/handshake.js';
 import { getDb, closeDb } from '../src/db/index.js';
+import { detectHostName } from '../src/server/host-identity.js';
 
 function findAvailablePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -89,8 +90,8 @@ describe('handshake', () => {
     expect(second.hostId).toBe(first.hostId);
   });
 
-  /** 身份落 kv 持久化，自称名默认取 OS hostname */
-  it('should persist identity into kv with os hostname', async () => {
+  /** 身份落 kv 持久化，自称名取 OS 层的友好电脑名 */
+  it('should persist identity into kv with friendly host name', async () => {
     const body = (await (await fetch(`${BASE_URL}/api/handshake`)).json()) as {
       hostId: string;
       hostName: string;
@@ -101,6 +102,6 @@ describe('handshake', () => {
       )
       .get('host_id');
     expect(row?.value).toBe(body.hostId);
-    expect(body.hostName).toBe(os.hostname());
+    expect(body.hostName).toBe(detectHostName());
   });
 });
