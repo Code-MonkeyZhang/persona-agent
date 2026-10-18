@@ -21,7 +21,6 @@ function localEntry(): DeviceEntry {
   return {
     hostId: LOCAL_DEVICE_ID,
     name: null,
-    hostName: null,
     address: null,
     lastConnectedAt: null,
   };
@@ -65,6 +64,8 @@ export class DeviceRegistry {
       return emptyRegistry();
     }
 
+    this.migrateLegacyHostName(data.devices);
+
     if (!data.devices.some((d) => d.hostId === LOCAL_DEVICE_ID)) {
       data.devices.unshift(localEntry());
     }
@@ -72,6 +73,29 @@ export class DeviceRegistry {
       data.currentHostId = LOCAL_DEVICE_ID;
     }
     return data;
+  }
+
+  /**
+   * 旧模型的一次性迁移：旧版把握手自称名单独存成 hostName 字段且每次连接刷新。
+   * 未改名的条目把它抄进 name 后删除该字段，改过名的直接删除，幂等可重跑。
+   */
+  private migrateLegacyHostName(devices: DeviceEntry[]): void {
+    let migrated = 0;
+    for (const device of devices as Array<
+      DeviceEntry & { hostName?: string | null }
+    >) {
+      if (!('hostName' in device)) continue;
+      if (device.name == null && device.hostName != null) {
+        device.name = device.hostName;
+      }
+      delete device.hostName;
+      migrated += 1;
+    }
+    if (migrated > 0) {
+      this.log(
+        `[DeviceRegistry] Migrated ${migrated} devices to the local-label model`
+      );
+    }
   }
 
   /** 原子写清单，临时文件加 rename，中途断电不产生半份文件 */

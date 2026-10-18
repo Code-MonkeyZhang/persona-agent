@@ -44,7 +44,7 @@ const api: WindowAPI = {
   getDevices: () => ipcRenderer.invoke(IPC.GET_DEVICES),
 
   /**
-   * 条目落位，识别为旧主机时更新地址与自称名，新主机建条目。
+   * 条目落位，识别为旧主机时只更新地址，新主机用 hostName 作 name 初始值。
    * @param entry - 握手识别出的主机身份与地址
    */
   upsertDevice: (entry: {

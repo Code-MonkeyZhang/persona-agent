@@ -172,23 +172,23 @@ export class HostManager {
     return this.deviceRegistry.load().devices;
   }
 
-  /** 条目落位，旧主机更新地址与自称名，新主机建条目 */
+  /** 条目落位，旧主机只更新地址，新主机建条目并用自称名作 name 初始值 */
   upsertDevice(hostId: string, hostName: string, address: string): void {
     const data = this.deviceRegistry.load();
     const entry = data.devices.find((d) => d.hostId === hostId);
     if (entry) {
       entry.address = address;
-      entry.hostName = hostName;
       log.info(`[host] Device ${hostId} re-registered at ${address}`);
     } else {
       data.devices.push({
         hostId,
-        name: null,
-        hostName,
+        name: hostName,
         address,
         lastConnectedAt: null,
       });
-      log.info(`[host] Device ${hostId} registered at ${address}`);
+      log.info(
+        `[host] Device ${hostId} registered at ${address} as "${hostName}"`
+      );
     }
     this.deviceRegistry.save(data);
   }

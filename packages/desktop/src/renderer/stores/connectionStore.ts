@@ -236,7 +236,8 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     if (!entry || !clean) return;
     await window.api?.upsertDevice({
       hostId,
-      hostName: entry.hostName ?? '',
+      // 已有条目只吃地址，初始名传空串表示不适用
+      hostName: '',
       address: clean,
     });
     await refreshDevices(set);
@@ -286,9 +287,9 @@ export function currentDeviceKey(snapshot: ConnectionSnapshot): string {
     : snapshot.current.hostId;
 }
 
-/** 显示名顺序：用户改名优先，自称名次之，hostId 前几位兜底 */
+/** 显示名顺序：本地标签优先，hostId 前几位兜底 */
 export function deviceDisplayName(entry: DeviceEntry): string {
-  return entry.name ?? entry.hostName ?? entry.hostId.slice(0, 8);
+  return entry.name ?? entry.hostId.slice(0, 8);
 }
 
 /** 状态点四态，绿检查过能连上，红检查过连不上，黄连接进行中，灰还不知道 */
