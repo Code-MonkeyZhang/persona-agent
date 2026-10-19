@@ -6,7 +6,7 @@ import HeroStage from '../components/demo/HeroStage';
 import EditorStage from '../components/demo/EditorStage';
 import { CAP_MCPS, CAP_SKILLS, type CapItem } from '../components/demo/capsCatalog';
 import MobileStage from '../components/demo/MobileStage';
-import { useLocale } from '../i18n';
+import { useLocale, type I18nKey } from '../i18n';
 import { useLatestReleases, detectPlatform, DESKTOP_RELEASES_URL, APP_STORE_URL, MOBILE_RELEASES_URL } from '../lib/releases';
 
 /** One seamless horizontal marquee lane of catalog chips, pausing on hover. */
@@ -58,12 +58,12 @@ function HeroPrimaryButton() {
   }
 }
 
-function HeroProps() {
+/** Shared check list of the hero and editor sections, dark discs with white checks. */
+function CheckList({ items }: { items: readonly I18nKey[] }) {
   const { t } = useLocale();
-  const props = ['hero.free', 'hero.prop2', 'hero.prop3', 'hero.prop4'] as const;
   return (
     <div className="mt-8 flex flex-col gap-3">
-      {props.map((key) => (
+      {items.map((key) => (
         <div key={key} className="flex items-center gap-2.5 text-sm font-medium text-ink-soft">
           <span className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full bg-ink text-paper">
             <Check size={10} strokeWidth={3.4} />
@@ -188,7 +188,7 @@ export default function Home() {
               animate={reduce ? undefined : { opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1], delay: 0.2 }}
             >
-              <HeroProps />
+              <CheckList items={['hero.free', 'hero.prop2', 'hero.prop3', 'hero.prop4']} />
             </motion.div>
           </div>
 
@@ -263,7 +263,7 @@ export default function Home() {
       </section>
 
       <section id="editor" className="scroll-mt-16 border-t border-paper-line bg-paper-tint py-16">
-        <div className="container-wide">
+        <div className="container-wide grid items-center gap-12 lg:grid-cols-[1fr_auto]">
           <div>
             <p className="mb-3 text-xs font-medium uppercase tracking-widest text-ink-faint">
               {t('ed.eyebrow')}
@@ -271,11 +271,10 @@ export default function Home() {
             <h2 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
               {t('ed.title')}
             </h2>
-            <p className="mt-4 text-base leading-relaxed text-ink-soft">{t('ed.sub')}</p>
+            <p className="mt-4 max-w-md text-base leading-relaxed text-ink-soft">{t('ed.sub')}</p>
+            <CheckList items={['ed.check1', 'ed.check2', 'ed.check3', 'ed.check4']} />
           </div>
-          <div className="mt-10 max-w-[640px] md:ml-[25%]">
-            <EditorStage />
-          </div>
+          <EditorStage />
         </div>
       </section>
 

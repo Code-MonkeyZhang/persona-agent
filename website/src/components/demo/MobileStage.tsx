@@ -35,6 +35,19 @@ const flowPulse: Variant = (delay: number) => ({
   },
 });
 
+/** Vertical twin of flowPulse for the stacked layout, pulses drop along the y axis. */
+const flowPulseDown: Variant = (delay: number) => ({
+  y: ['0%', '15%', '85%', '100%'],
+  opacity: [0, 1, 1, 0],
+  transition: {
+    delay,
+    duration: 2.2,
+    times: [0, 0.15, 0.85, 1],
+    ease: 'linear',
+    repeat: Infinity,
+  },
+});
+
 const SESSIONS = [
   { titleKey: 'mob.s1t', previewKey: 'mob.s1p', timeKey: 'mob.s1time', at: T.s1 },
   { titleKey: 'mob.s2t', previewKey: 'mob.s2p', timeKey: 'mob.s2time', at: T.s2 },
@@ -101,10 +114,10 @@ export default function MobileStage() {
   return (
     <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
       <div
-        className={`flex select-none items-center justify-center gap-2 py-6 ${paused ? 'player-paused' : ''}`}
+        className={`flex select-none flex-col items-center justify-center gap-2 py-6 sm:flex-row ${paused ? 'player-paused' : ''}`}
       >
         {/* Desktop all-in-one, a miniature of the companion app shown in the hero. */}
-        <div className="flex w-[280px] shrink-0 flex-col items-center">
+        <div className="flex w-[280px] max-w-full shrink-0 flex-col items-center">
           <div className="flex h-[176px] w-full overflow-hidden rounded-t-[10px] border-2 border-b-0 border-[#d8d2c4] bg-white shadow-[0_6px_18px_-10px_rgba(10,10,10,0.18)]">
             <div className="flex w-[26px] shrink-0 flex-col items-center gap-1.5 border-r border-demo-border py-1.5">
               <img
@@ -153,8 +166,42 @@ export default function MobileStage() {
           <div className="h-[8px] w-[80px] rounded-b-[10px] bg-gradient-to-b from-[#e8e3d8] to-[#c9c3b5] shadow-[0_8px_12px_-7px_rgba(10,10,10,0.3)]" />
         </div>
 
+        {/* Tunnel wire for narrow viewports, drops from the desktop stand down to the phone. */}
+        <div className="relative -my-2 h-[72px] w-[240px] max-w-full shrink-0 sm:hidden">
+          <motion.div
+            initial={false}
+            animate={{ scaleY: linked ? 1 : 0 }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}
+            className="absolute inset-y-0 left-1/2 origin-top border-l-2 border-dashed border-[#c9c4b8]"
+          />
+          {/* The pill keeps clear of the line with plain offsets so demo-pop never fights a translate class. */}
+          {tag ? (
+            <span className="demo-pop absolute left-[calc(50%+14px)] top-1/2 -mt-2.5 whitespace-nowrap rounded-full border border-demo-border bg-white px-2.5 py-0.5 text-[9.5px] font-semibold text-demo-primary">
+              {t('mob.tunnel')}
+            </span>
+          ) : null}
+          <div
+            className={`absolute inset-y-0 left-1/2 transition-opacity duration-300 ${linked ? 'opacity-100' : 'opacity-0'}`}
+          >
+            {!reduced
+              ? [0, 0.7, 1.4].map((delay) => (
+                  <motion.span
+                    key={delay}
+                    custom={delay}
+                    variants={{ flow: flowPulseDown }}
+                    animate={pulse}
+                    initial={false}
+                    className="absolute top-0 left-[-3.5px] h-full w-[7px] opacity-0"
+                  >
+                    <span className="block h-[7px] w-[7px] rounded-full bg-demo-primary" />
+                  </motion.span>
+                ))
+              : null}
+          </div>
+        </div>
+
         {/* Tunnel wire, grows once then keeps carrying pulses toward the phone. */}
-        <div className="relative -ml-0.5 -mr-2 h-[120px] max-w-[230px] flex-1 shrink-0">
+        <div className="relative -ml-0.5 -mr-2 hidden h-[120px] max-w-[230px] flex-1 shrink-0 sm:block">
           <motion.div
             initial={false}
             animate={{ scaleX: linked ? 1 : 0 }}
@@ -214,7 +261,7 @@ export default function MobileStage() {
                   <img src={aronaAvatar} alt="" className="h-[38px] w-[38px] rounded-full object-cover" />
                 </span>
                 <span className="max-w-[80px] truncate text-[10px] font-semibold text-[#007AFF]">
-                  {t('ed.n1')}
+                  {t('mob.agent1')}
                 </span>
               </span>
               <span className="flex shrink-0 flex-col items-center gap-1">
