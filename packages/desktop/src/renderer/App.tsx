@@ -61,7 +61,7 @@ import {
   PHONE_PANEL_MAX_PERCENT,
   PHONE_PANEL_MIN_PERCENT,
   SESSION_SIDEBAR_MAX_PX,
-  SESSION_SIDEBAR_MIN_PX,
+  SESSION_SIDEBAR_MIN_PERCENT,
   useViewStore,
 } from './stores/viewStore';
 import { useTunnelStore } from './stores/tunnelStore';
@@ -640,7 +640,7 @@ function AppContent() {
                 <Panel
                   id="session-sidebar"
                   defaultSize={`${sessionSidebarWidth}px`}
-                  minSize={`${SESSION_SIDEBAR_MIN_PX}px`}
+                  minSize={`${SESSION_SIDEBAR_MIN_PERCENT}`}
                   maxSize={`${SESSION_SIDEBAR_MAX_PX}px`}
                   groupResizeBehavior="preserve-pixel-size"
                   collapsible
