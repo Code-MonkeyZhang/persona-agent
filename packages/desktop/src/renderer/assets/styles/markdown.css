@@ -5,6 +5,8 @@
 .msg-content {
   font-size: var(--font-content);
   line-height: 1.6;
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
 }
 
