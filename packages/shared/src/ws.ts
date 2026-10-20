@@ -230,6 +230,8 @@ interface RegisterMessage {
 export type ClientMessage =
   | { type: 'subscribe'; payload: { sessionId: string } }
   | { type: 'unsubscribe'; payload: { sessionId: string } }
+  /** 进入会话的已读上报，服务端据此清除 hasUnread 并广播，幂等空写无害 */
+  | { type: 'viewed'; payload: { sessionId: string } }
   | { type: 'ping' }
   | RegisterMessage
   | { type: 'abort'; payload: { sessionId: string } };

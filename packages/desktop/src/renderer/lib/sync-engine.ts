@@ -10,6 +10,7 @@
  */
 
 import type { SessionChange, SyncSnapshot } from '@persona/shared';
+import { getErrorMessage } from './utils';
 
 /** 追平分页上限 */
 const PAGE_LIMIT = 500;
@@ -68,9 +69,7 @@ export class SyncEngine {
       try {
         await work();
       } catch (error) {
-        this.deps.log(
-          `Sync failed: ${error instanceof Error ? error.message : String(error)}`
-        );
+        this.deps.log(`Sync failed: ${getErrorMessage(error)}`);
       }
     };
     this.queue = this.queue.then(run, run);

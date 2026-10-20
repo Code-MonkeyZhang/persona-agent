@@ -9,7 +9,7 @@
  */
 
 /** 当前 schema 版本，写进 PRAGMA user_version，只前进不回退。 */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /** 首次建库执行的建表语句，全部 IF NOT EXISTS，重复执行幂等。 */
 export const CREATE_TABLES_SQL = `
@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   current_pose TEXT,
   turn_ends TEXT,
   last_message_preview TEXT,
+  has_unread INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );

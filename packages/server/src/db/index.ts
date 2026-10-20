@@ -21,6 +21,7 @@ let db: Database | null = null;
  * - 打开前确保父目录存在，打开后设 WAL 与外键约束
  * - 建表与版本写入在同一个事务里完成
  * - user_version 只前进不回退，版本更高的库原样保留
+ * - 旧版本库在此处补列迁移，新列同步写进 CREATE_TABLES_SQL 照顾全新库
  */
 export function getDb(): Database {
   if (db) return db;
@@ -35,6 +36,12 @@ export function getDb(): Database {
   const currentVersion = readUserVersion(conn);
   conn.transaction(() => {
     conn.run(CREATE_TABLES_SQL);
+    // v3 → v4：sessions 补 has_unread 列，全新库建表已带列故跳过
+    if (currentVersion > 0 && currentVersion < 4) {
+      conn.run(
+        'ALTER TABLE sessions ADD COLUMN has_unread INTEGER NOT NULL DEFAULT 0'
+      );
+    }
     if (currentVersion < SCHEMA_VERSION) {
       conn.run(`PRAGMA user_version = ${SCHEMA_VERSION}`);
     }

@@ -477,6 +477,18 @@ function AppContent() {
     }
   }, [activeSessionId, currentAgent, setAgentId, convertSessionMessages]);
 
+  /**
+   * 前台会话的未读上报。
+   * 前台且带未读即发送 viewed,单一入口覆盖进入会话与广播置位两种来源,
+   * 广播把前台会话置未读时依赖变化触发补发,竞态自愈,服务端幂等空写无副作用。
+   */
+  useEffect(() => {
+    if (!currentSession?.hasUnread) return;
+    if (currentView !== 'chat' || activeNav !== 'chat') return;
+    useChatStore.getState().wsClient?.viewed(currentSession.id);
+    logger.info(`[App] session viewed: ${currentSession.id}`);
+  }, [currentSession?.id, currentSession?.hasUnread, currentView, activeNav]);
+
   /* 模型/工作目录显示值：当前会话 → 草稿暂存 → Agent 默认 */
   const currentModelId =
     currentSession?.model?.model ||

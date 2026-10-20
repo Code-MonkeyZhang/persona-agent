@@ -420,6 +420,14 @@ export class WebSocketClient {
   }
 
   /**
+   * 上报进入会话的已读，服务端据此清除 hasUnread 并经变更流广播全端。
+   * 一次性动作不加入 activeSessionIds，重复上报在服务端是幂等空写。
+   */
+  viewed(sessionId: string): void {
+    this.send({ type: 'viewed', payload: { sessionId } });
+  }
+
+  /**
    * 启动心跳定时器，周期性发送 ping 防止服务端超时断开。
    */
   private startHeartbeat(): void {

@@ -31,7 +31,11 @@ import { createAttachmentRouter } from './routers/attachment.js';
 import { createSyncRouter } from './routers/sync.js';
 import { createLauncherRouter } from './routers/launcher.js';
 import { processAppNotification } from './services/app-notification-service.js';
-import { initWebSocket, isWebSocketInitialized } from './websocket-server.js';
+import {
+  initWebSocket,
+  isWebSocketInitialized,
+  setViewedHandler,
+} from './websocket-server.js';
 import { startDreamScheduler } from './services/dream-scheduler.js';
 
 import { listAgentConfigs } from '../agent/index.js';
@@ -121,6 +125,14 @@ setAppNotificationHandler((params, serverName) => {
 
 void initMcpPool();
 Logger.setSessionManagers(sessionManagers);
+// 未读清除回调,viewed 上报经此落到对应 Agent 的 manager,
+// 置 false 落库后由变更流广播到全部在线端,任何一端看过即全局看过
+setViewedHandler((sessionId) => {
+  for (const manager of sessionManagers.values()) {
+    if (manager.updateHasUnread(sessionId, false)) return;
+  }
+  Logger.log('SERVER', `Viewed session not found: ${sessionId}`);
+});
 startDreamScheduler();
 
 app.use('/api/providers', createProviderRouter());
