@@ -42,6 +42,38 @@
 }
 
 /* ============================================
+   Session Signal Slot — 会话信号位运行态
+   九宫格波纹,SpinKit cube grid 口径,
+   格延迟经 CSS 变量注入做对角波纹,规格见会话运行状态显示设计文档
+   ============================================ */
+
+@keyframes signal-grid-pulse {
+  0%,
+  70%,
+  100% {
+    transform: scale(0.5);
+  }
+  35% {
+    transform: scale(0);
+  }
+}
+
+.signal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 4px);
+  grid-template-rows: repeat(3, 4px);
+  width: 12px;
+  height: 12px;
+}
+
+.signal-grid > span {
+  border-radius: 1px;
+  background: hsl(var(--primary));
+  animation: signal-grid-pulse 1.3s ease-in-out infinite;
+  animation-delay: var(--d);
+}
+
+/* ============================================
    Collapsible Group — 分组折叠高度动画
 
    借助 radix 暴露的 --radix-collapsible-content-height

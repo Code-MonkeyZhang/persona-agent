@@ -34,8 +34,12 @@ import {
   initWebSocket,
   shutdownWebSocket,
   getOnlineDevices,
+  setViewedHandler,
 } from '../src/server/websocket-server.js';
 import { getDb, closeDb } from '../src/db/index.js';
+import { SessionStore } from '../src/session/store.js';
+import * as sessionRegistry from '../src/server/services/session-registry.js';
+import type { SessionMeta } from '@persona/shared';
 
 function findAvailablePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -135,6 +139,13 @@ describe('WebSocket Device Identity', () => {
     const port = await findAvailablePort();
     httpServer = createServer();
     initWebSocket(httpServer);
+    // 模拟 http-server 装配,viewed 上报经回调落到对应 agent 的 store
+    setViewedHandler((sessionId) => {
+      const store = new SessionStore('ws-test-agent');
+      if (!store.setHasUnread(sessionId, false)) {
+        throw new Error(`viewed session not found: ${sessionId}`);
+      }
+    });
     await new Promise<void>((resolve) => {
       httpServer.listen(port, '0.0.0.0', () => resolve());
     });
@@ -231,6 +242,61 @@ describe('WebSocket Device Identity', () => {
     expect(pong.type).toBe('pong');
 
     await client.close();
+  });
+
+  it('sends runs snapshot with running sessions on connect', async () => {
+    sessionRegistry.register('chat-snapshot-test', new AbortController());
+    try {
+      const client = await connectClient(wsUrl);
+      const snap = await client.waitFor('runs_snapshot');
+      expect(snap.sessionIds).toContain('chat-snapshot-test');
+      await client.close();
+    } finally {
+      sessionRegistry.unregister('chat-snapshot-test');
+    }
+  });
+
+  it('viewed clears unread flag and broadcasts change to all clients', async () => {    const agentId = 'ws-test-agent';
+    const store = new SessionStore(agentId);
+    const meta: SessionMeta = {
+      id: 'ws-unread-session',
+      agentId,
+      title: 'unread session',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    store.createSessionFile(meta);
+    store.setHasUnread('ws-unread-session', true);
+
+    const sender = await connectClient(wsUrl);
+    const observer = await connectClient(wsUrl);
+
+    sender.send({ type: 'viewed', payload: { sessionId: 'ws-unread-session' } });
+
+    // 上报端与旁观端都应收到 session_updated 变更广播
+    const [senderChange, observerChange] = await Promise.all([
+      sender.waitFor('change'),
+      observer.waitFor('change'),
+    ]);
+    expect(senderChange.change).toMatchObject({
+      kind: 'session_updated',
+      sessionId: 'ws-unread-session',
+    });
+    expect(observerChange.change).toMatchObject({
+      kind: 'session_updated',
+      sessionId: 'ws-unread-session',
+    });
+
+    // 库中未读标记已清除
+    const row = getDb()
+      .query<{ has_unread: number }>(
+        'SELECT has_unread FROM sessions WHERE id = ?'
+      )
+      .get('ws-unread-session');
+    expect(row?.has_unread).toBe(0);
+
+    await sender.close();
+    await observer.close();
   });
 
   it('unregistered client does not appear in online devices', async () => {

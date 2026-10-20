@@ -21,8 +21,10 @@ import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useAgentStore } from '../../stores/agentStore';
 import { useViewStore } from '../../stores/viewStore';
+import { useChatStore } from '../../stores/chatStore';
 import { useScrollFade } from '../../hooks/useScrollFade';
 import { SessionItem } from './SessionItem';
+import { SignalSlot } from './SignalSlot';
 import { ConnectionStrip } from './ConnectionStrip';
 import { AgentAvatar } from '../common/AgentAvatar';
 import { cn } from '../../lib/utils';
@@ -90,6 +92,19 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   const regularSessions = filteredSessions
     .filter((s) => !s.id.startsWith('chat'))
     .sort((a, b) => b.updatedAt - a.updatedAt);
+
+  // 聊天入口的运行腿取全局广播集合,本机状态兜底,信号位收敛运行与未读两信号
+  const chatSessionId = chatSession?.id;
+  const chatRunning = useChatStore((s) =>
+    chatSessionId
+      ? s.runningSessions.includes(chatSessionId) ||
+        (s.sessionStates.get(chatSessionId)?.isLoading ?? false)
+      : false
+  );
+  const isChatOnStage =
+    Boolean(chatSession) &&
+    currentSession?.id === chatSessionId &&
+    activeNav === 'chat';
 
   useEffect(() => {
     if (currentAgent) {
@@ -183,6 +198,12 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
                   {chatPreview}
                 </span>
               </div>
+              {/* 信号位贴卡片右上角,前台会话的未读本地抑制不画点 */}
+              <SignalSlot
+                running={chatRunning}
+                unread={Boolean(chatSession.hasUnread) && !isChatOnStage}
+                className="self-start mt-1"
+              />
             </button>
           </div>
         )}
@@ -238,7 +259,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
       >
         <div className="pb-1">
           {regularSessions.length === 0 ? (
-            <div className="px-7 py-3 text-caption text-muted-foreground">
+            <div className="px-8 py-3 text-caption text-muted-foreground">
               {currentAgent
                 ? t('sessionSidebar.noTaskSessions')
                 : t('common.noAgent')}

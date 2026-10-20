@@ -24,7 +24,7 @@ import type { ModelConfig } from '../../agent/types.js';
 import type { PendingInput } from '@persona/shared';
 import type { ToolResult } from '../../tools/index.js';
 import { Logger } from '../../util/logger.js';
-import { broadcastToSession } from '../websocket-server.js';
+import { broadcastToSession, broadcastToAll } from '../websocket-server.js';
 import * as sessionRegistry from './session-registry.js';
 import {
   addPendingInput,
@@ -219,6 +219,9 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
   const abortController = new AbortController();
   sessionRegistry.register(sessionId, abortController);
   Logger.log('CHAT', 'Abort controller registered', { sessionId });
+  // 回合开始的全局广播,未订阅该会话的端据此点亮信号位运行腿
+  broadcastToAll({ type: 'run_started', sessionId });
+  Logger.log('CHAT', 'Run started broadcast', { sessionId });
 
   try {
     const runConfig = createAgentRunConfig(
@@ -572,6 +575,10 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       });
     }
 
+    // 回合完成落盘后无条件置未读,在场抑制由前端处理,清除经变更流广播全端
+    sessionManager.updateHasUnread(sessionId, true);
+    Logger.log('CHAT', 'Has unread set on round complete', { sessionId });
+
     // 回合边界信号，回合工作结束
     broadcastToSession(sessionId, { type: 'round_complete', sessionId });
 
@@ -605,6 +612,9 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     return emitError(err.message);
   } finally {
     sessionRegistry.unregister(sessionId);
+    // 回合结束的全局广播,完成、出错与中止共用 finally 出口,客户端据此熄灭运行腿
+    broadcastToAll({ type: 'run_ended', sessionId });
+    Logger.log('CHAT', 'Run ended broadcast', { sessionId });
   }
 }
 

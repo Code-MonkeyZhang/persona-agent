@@ -197,6 +197,24 @@ interface ChangeMessage {
   change: SessionChange;
 }
 
+/** 回合开始的全局广播，registry 登记时发往全部在线端，客户端据此点亮非订阅会话的运行信号 */
+interface RunStartedMessage {
+  type: 'run_started';
+  sessionId: string;
+}
+
+/** 回合结束的全局广播，registry 注销时发往全部在线端，完成、出错与中止共用此出口 */
+interface RunEndedMessage {
+  type: 'run_ended';
+  sessionId: string;
+}
+
+interface RunsSnapshotMessage {
+  /** 连接建立时的运行中会话全量列表，晚接入与重连端据此补态 */
+  type: 'runs_snapshot';
+  sessionIds: string[];
+}
+
 export type ServerMessage =
   | ConnectedMessage
   | SubscribedMessage
@@ -216,6 +234,9 @@ export type ServerMessage =
   | UserMessageEvent
   | WorkspaceFallbackMessage
   | PendingInputChangedMessage
+  | RunStartedMessage
+  | RunEndedMessage
+  | RunsSnapshotMessage
   | ChangeMessage;
 
 // ── Client → Server 消息 ──

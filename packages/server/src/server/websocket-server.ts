@@ -37,6 +37,17 @@ let wss: WebSocketServer | null = null;
 let deviceCleanupTimer: ReturnType<typeof setInterval> | null = null;
 /** 变更流订阅是否生效，防止重复初始化造成重复推送 */
 let changeSubscribed = false;
+/** viewed 消息的处理回调，由 http-server 装配时注入以访问 sessionManagers */
+let viewedHandler: ((sessionId: string) => void) | null = null;
+
+/**
+ * 注入 viewed 消息的处理回调。
+ *
+ * 本模块不持有 sessionManagers，未读清除的落库能力经此回调由装配方提供。
+ */
+export function setViewedHandler(handler: (sessionId: string) => void): void {
+  viewedHandler = handler;
+}
 
 export function initWebSocket(server: import('http').Server): WebSocketServer {
   const instance = new WebSocketServer({ noServer: true });
@@ -68,6 +79,16 @@ export function initWebSocket(server: import('http').Server): WebSocketServer {
     Logger.log('WS', `Client connected: ${clientId}`);
 
     sendToClient(client, { type: 'connected', clientId });
+    // 连接建立即推运行快照,晚接入与重连端不缺运行态,广播不重放
+    const runningIds = sessionRegistry.list();
+    sendToClient(client, {
+      type: 'runs_snapshot',
+      sessionIds: runningIds,
+    });
+    Logger.log('WS', 'Runs snapshot sent', {
+      clientId,
+      count: runningIds.length,
+    });
 
     ws.on('message', (data: Buffer) => {
       try {
@@ -130,6 +151,16 @@ function handleClientMessage(
         clientId: client.id,
         sessionId,
       });
+      break;
+    }
+
+    case 'viewed': {
+      const { sessionId } = message.payload;
+      Logger.log('WS', 'Session viewed', {
+        clientId: client.id,
+        sessionId,
+      });
+      viewedHandler?.(sessionId);
       break;
     }
 

@@ -14,6 +14,7 @@ import { buildPreviewText } from '@persona/shared';
 import { createMessage, sendChatMessage, WebSocketClient } from '../lib/api';
 import { toast } from './toastStore';
 import { logger } from '../lib/logger';
+import { getErrorMessage } from '../lib/utils';
 import i18n from '../i18n';
 import { useAgentStore } from './agentStore';
 import { useSessionStore, stripLastTextThought } from './sessionStore';
@@ -140,6 +141,11 @@ interface ChatStore {
   syncState: SyncState;
   agentId: string | null;
   wsClient: WebSocketClient | null;
+  /**
+   * 运行中会话的全局集合，run_started 与 run_ended 广播维护，
+   * runs_snapshot 整体替换，信号位运行腿与本机 isLoading 取或。
+   */
+  runningSessions: string[];
 
   setCurrentSessionId: (id: string | null) => void;
   initSessionState: (sessionId: string, messages: UIMessage[]) => void;
@@ -188,7 +194,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
     } catch (err) {
       logger.error('Failed to refresh session messages', {
         sessionId,
-        error: err instanceof Error ? err.message : String(err),
+        error: getErrorMessage(err),
       });
     }
   }
@@ -200,6 +206,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
     syncState: 'idle',
     agentId: null,
     wsClient: null,
+    runningSessions: [],
 
     setConnectionStatus: (status: ConnectionStatus) => {
       set({ connectionStatus: status });
@@ -377,6 +384,36 @@ export const useChatStore = create<ChatStore>((set, get) => {
      */
     handleWsMessage: (msg: ServerMessage) => {
       switch (msg.type) {
+        case 'run_started': {
+          // 幂等添加,广播重放或快照竞态不产生重复成员
+          set((state) =>
+            state.runningSessions.includes(msg.sessionId)
+              ? state
+              : { runningSessions: [...state.runningSessions, msg.sessionId] }
+          );
+          logger.info('Run started', { sessionId: msg.sessionId });
+          break;
+        }
+
+        case 'run_ended': {
+          set((state) => ({
+            runningSessions: state.runningSessions.filter(
+              (id) => id !== msg.sessionId
+            ),
+          }));
+          logger.info('Run ended', { sessionId: msg.sessionId });
+          break;
+        }
+
+        case 'runs_snapshot': {
+          // 快照整体替换,晚接入与重连端据此对齐 server 运行全量
+          set({ runningSessions: msg.sessionIds });
+          logger.info('Runs snapshot received', {
+            count: msg.sessionIds.length,
+          });
+          break;
+        }
+
         case 'subscribed': {
           const sessionId = msg.sessionId;
           if (msg.isGenerating) {
