@@ -468,6 +468,7 @@
   "mcpPool.retrying": "重试中…",
   "phone.empty": "还没有 Agent App，去商城安装一个",
   "phone.back": "返回",
+  "phone.pageLoadFailed": "页面加载失败，点按重试",
   "phone.settings": "设置",
   "phone.wallpaper": "壁纸",
   "phone.wallpaperDefault": "默认",

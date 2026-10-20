@@ -2,17 +2,17 @@
  * @file components/phone/PhoneSettingsView.tsx
  * @description 手机屏内的设置伪 App 打开态。
  * 壁纸与桌面布局这类小手机自身偏好在此配置，
- * 子页用本地 state 切换，Esc 逐层退回，退无可退回桌面。
+ * 子页用本地 state 切换，顶栏走 PhoneAppBar，返回钮与 Esc 逐层退回，退无可退回桌面。
  */
 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  ChevronLeft,
   ChevronRight,
   Image as ImageIcon,
   LayoutGrid,
+  Settings,
 } from 'lucide-react';
 import {
   WALLPAPER_PRESETS,
@@ -21,6 +21,7 @@ import {
 import { useAppPanelStore } from '../../stores/appPanelStore';
 import { useLauncherPrefsStore } from '../../stores/launcherPrefsStore';
 import { cn } from '../../lib/utils';
+import { PhoneAppBar } from './PhoneAppBar';
 import { PhoneWallpaperPage } from './PhoneWallpaperPage';
 
 type SettingsPage = 'settings' | 'wallpaper';
@@ -87,18 +88,22 @@ export function PhoneSettingsView() {
   const doc = wallpaper?.payload ?? null;
   const { background } = resolveWallpaper(doc);
 
+  /** 返回钮逐层退，壁纸页退设置页，设置页退桌面 */
+  const handleBack = () => {
+    if (page === 'wallpaper') setPage('settings');
+    else selectApp(null);
+  };
+
   /**
    * Esc 是返回键的键盘等价物，先退子页，退无可退回桌面。
    */
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (page === 'wallpaper') setPage('settings');
-      else selectApp(null);
+      if (e.key === 'Escape') handleBack();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [page, selectApp]);
+  }, [handleBack]);
 
   /** 当前壁纸展示名，预设走 i18n 键，自定义走条目名 */
   let currentName = t('phone.wallpaperDefault');
@@ -119,29 +124,17 @@ export function PhoneSettingsView() {
 
   return (
     <div className="h-full flex flex-col bg-background">
-      <div className="relative h-11 shrink-0 border-b border-border flex items-center justify-center">
-        {page === 'wallpaper' ? (
-          <button
-            onClick={() => setPage('settings')}
-            className="absolute left-1 h-9 px-2.5 flex items-center gap-0.5 rounded-lg text-[13px] font-medium text-[#228be6] hover:bg-black/[0.04] active:bg-black/[0.06] transition-colors"
-          >
-            <ChevronLeft className="w-[18px] h-[18px]" />
-            {t('phone.settings')}
-          </button>
-        ) : (
-          <button
-            onClick={() => selectApp(null)}
-            title={t('phone.back')}
-            className="absolute left-1 h-9 px-2.5 flex items-center gap-0.5 rounded-lg text-[13px] font-medium text-[#228be6] hover:bg-black/[0.04] active:bg-black/[0.06] transition-colors"
-          >
-            <ChevronLeft className="w-[18px] h-[18px]" />
-            {t('phone.back')}
-          </button>
-        )}
-        <span className="max-w-[60%] text-[13px] font-semibold text-foreground truncate">
-          {page === 'wallpaper' ? t('phone.wallpaper') : t('phone.settings')}
-        </span>
-      </div>
+      <PhoneAppBar
+        title={
+          page === 'wallpaper' ? t('phone.wallpaper') : t('phone.settings')
+        }
+        tile={
+          <div className="w-6 h-6 rounded-[6px] shrink-0 flex items-center justify-center bg-[#f3f5f8] border border-[rgba(22,32,46,0.08)]">
+            <Settings className="w-[11px] h-[11px] text-[#5c6470]" />
+          </div>
+        }
+        onBack={handleBack}
+      />
 
       {/* 内容层：设置首页常驻，壁纸页以覆盖层形式接管 */}
       <div className="relative flex-1 min-h-0">
