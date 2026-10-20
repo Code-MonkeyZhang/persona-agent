@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { startTunnel, stopTunnel, getTunnelStatus } from '../lib/api';
 import { logger } from '../lib/logger';
+import { getErrorMessage } from '../lib/utils';
 
 type TunnelStatus = 'stopped' | 'starting' | 'running' | 'error';
 type TunnelHealth = 'unknown' | 'healthy' | 'unhealthy';
@@ -59,7 +60,7 @@ export const useTunnelStore = create<TunnelStore>((set, get) => ({
     } catch (err) {
       set({
         status: 'error',
-        error: err instanceof Error ? err.message : 'Failed to start tunnel',
+        error: getErrorMessage(err, 'Failed to start tunnel'),
       });
     }
   },
@@ -80,7 +81,7 @@ export const useTunnelStore = create<TunnelStore>((set, get) => ({
       });
     } catch (err) {
       set({
-        error: err instanceof Error ? err.message : 'Failed to stop tunnel',
+        error: getErrorMessage(err, 'Failed to stop tunnel'),
       });
     }
   },

@@ -25,6 +25,8 @@ import {
   type BashStatus,
 } from '../../lib/api';
 import { isWin } from '../../lib/platform';
+import { logger } from '../../lib/logger';
+import { getErrorMessage } from '../../lib/utils';
 
 const GIT_BASH_DOWNLOAD_URL = 'https://git-scm.com/download/win';
 
@@ -147,9 +149,8 @@ const UvRow: React.FC = () => {
       setState(result.ok ? 'ready' : 'error');
       if (!result.ok) setErrorMsg(t('config.uvInstallFailed'));
     } catch (err) {
-      setErrorMsg(
-        err instanceof Error ? err.message : t('config.uvInstallFailed')
-      );
+      logger.error('[EnvironmentCard] uv install failed:', err);
+      setErrorMsg(getErrorMessage(err, t('config.uvInstallFailed')));
       setState('error');
     }
   };

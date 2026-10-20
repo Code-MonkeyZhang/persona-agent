@@ -16,6 +16,7 @@ import {
 } from '../lib/api';
 import { useAppPanelStore } from './appPanelStore';
 import { logger } from '../lib/logger';
+import { getErrorMessage } from '../lib/utils';
 import { toast } from './toastStore';
 import i18n from '../i18n';
 
@@ -65,7 +66,7 @@ export const useMcpStore = create<McpStore>((set, get) => ({
     } catch (err) {
       logger.error('[Mcp] Failed to load servers:', err);
       set({
-        error: err instanceof Error ? err.message : i18n.t('common.loadFailed'),
+        error: getErrorMessage(err, i18n.t('common.loadFailed')),
         loading: false,
       });
     }
@@ -114,8 +115,7 @@ export const useMcpStore = create<McpStore>((set, get) => ({
     } catch (err) {
       stopOAuthPoll();
       set({ authorizing: null });
-      const msg =
-        err instanceof Error ? err.message : i18n.t('common.loadFailed');
+      const msg = getErrorMessage(err, i18n.t('common.loadFailed'));
       logger.error(`[Mcp] OAuth start failed for ${name}:`, msg);
       toast.error(msg);
     }
@@ -135,8 +135,7 @@ export const useMcpStore = create<McpStore>((set, get) => ({
       await reconnectMcp(name);
       await get().load();
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : i18n.t('common.loadFailed');
+      const msg = getErrorMessage(err, i18n.t('common.loadFailed'));
       logger.error(`[Mcp] Failed to reconnect ${name}:`, msg);
       toast.error(msg);
       await get()
@@ -164,8 +163,7 @@ export const useMcpStore = create<McpStore>((set, get) => ({
       }
       toast.success(i18n.t('marketplace.uninstallSuccess', { name }));
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : i18n.t('common.loadFailed');
+      const msg = getErrorMessage(err, i18n.t('common.loadFailed'));
       logger.error(`[Mcp] Failed to uninstall ${name}:`, msg);
       toast.error(msg);
     }

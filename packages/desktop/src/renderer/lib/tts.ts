@@ -4,6 +4,7 @@
  */
 
 import { logger } from './logger';
+import { getErrorMessage } from './utils';
 import i18n from '../i18n';
 
 const TTS_API_URL = 'https://api.minimaxi.com/v1/t2a_v2';
@@ -83,13 +84,8 @@ export async function synthesize(
       body,
     });
   } catch (err) {
-    logger.error(
-      '[TTS] proxyFetch network error:',
-      err instanceof Error ? err.message : String(err)
-    );
-    throw new Error(
-      `${i18n.t('tts.networkError')}: ${err instanceof Error ? err.message : String(err)}`
-    );
+    logger.error('[TTS] proxyFetch network error:', getErrorMessage(err));
+    throw new Error(`${i18n.t('tts.networkError')}: ${getErrorMessage(err)}`);
   }
 
   // 将响应体从 ArrayBuffer 解码为 JSON 文本

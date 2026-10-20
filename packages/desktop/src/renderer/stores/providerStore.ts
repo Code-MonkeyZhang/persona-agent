@@ -12,6 +12,8 @@ import {
   type ProviderStatus,
   type VerifyResult,
 } from '../lib/api';
+import { logger } from '../lib/logger';
+import { getErrorMessage } from '../lib/utils';
 
 interface ProviderStore {
   providers: ProviderStatus[];
@@ -90,12 +92,13 @@ export const useProviderStore = create<ProviderStore>((set, get) => ({
       }
       return result;
     } catch (error) {
+      logger.error(
+        `[ProviderStore] Failed to verify credential for ${provider}:`,
+        error
+      );
       const result: VerifyResult = {
         valid: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to verify credential',
+        error: getErrorMessage(error, 'Failed to verify credential'),
       };
       return result;
     } finally {

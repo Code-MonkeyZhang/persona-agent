@@ -39,6 +39,7 @@ import type {
   HandshakeInfo,
 } from '@persona/shared';
 import { logger } from './logger';
+import { getErrorMessage } from './utils';
 import type { WallpaperImagePair } from './wallpaper-image';
 
 interface ListAgentsResponse {
@@ -303,7 +304,7 @@ export class WebSocketClient {
         } catch (error) {
           logger.error(
             '[WebSocket] Failed to parse message:',
-            error instanceof Error ? error.message : String(error)
+            getErrorMessage(error)
           );
         }
       };
