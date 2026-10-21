@@ -26,6 +26,12 @@ export default function Layout({ children }: LayoutProps) {
           </Link>
 
           <div className="flex items-center gap-3">
+            <Link
+              to="/docs"
+              className="text-caption font-medium text-ink-soft transition-colors duration-150 hover:text-ink"
+            >
+              {t('nav.docs')}
+            </Link>
             <button
               type="button"
               onClick={toggle}

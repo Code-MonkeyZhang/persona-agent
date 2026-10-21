@@ -4,6 +4,7 @@ export type Locale = 'zh' | 'en';
 
 const zh = {
   'nav.download': '下载',
+  'nav.docs': '文档',
 
   'hero.free': 'MIT协议免费开源，免部署一键安装',
   'hero.title': '完全属于你的，\n开源Personal Agent',
@@ -103,6 +104,7 @@ const zh = {
 
 const en: typeof zh = {
   'nav.download': 'Download',
+  'nav.docs': 'Docs',
 
   'hero.free': 'Free and open source under the MIT license, one click install with zero setup',
   'hero.title': 'Entirely yours,\nthe open-source Personal Agent',

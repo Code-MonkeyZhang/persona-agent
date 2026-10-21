@@ -1,3 +1,5 @@
+import typography from '@tailwindcss/typography';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
@@ -14,7 +16,7 @@ export default {
           'Arial',
           'sans-serif',
         ],
-        mono: ['SF Mono', 'Fira Code', 'Menlo', 'Consolas', 'monospace'],
+        mono: ['SF Mono', 'Fira Code', 'Fira Mono', 'Menlo', 'Consolas', 'monospace'],
       },
       // 语义层字号类映射到 styles.css 数值层的 CSS 变量，写字号一律用语义类。
       fontSize: {
@@ -58,5 +60,5 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [typography],
 };

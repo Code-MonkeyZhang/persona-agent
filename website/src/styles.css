@@ -92,6 +92,30 @@
     @apply rounded-2xl border border-paper-line bg-paper p-6 transition-colors duration-200;
   }
 
+  /* 手册正文阅读区，正文锚定 18px 档，标题按 em 相对正文缩放，正文调档时标题自动跟随。 */
+  .prose-docs {
+    font-size: var(--text-18);
+    line-height: var(--text-18-line-height);
+  }
+
+  .prose-docs h1 {
+    font-size: 1.4em;
+    line-height: 1.4;
+    font-weight: 600;
+  }
+
+  .prose-docs h2 {
+    font-size: 1.22em;
+    line-height: 1.4;
+    font-weight: 600;
+  }
+
+  .prose-docs h3 {
+    font-size: 1.08em;
+    line-height: 1.4;
+    font-weight: 600;
+  }
+
   .prose-policy h1 {
     @apply text-title-display font-bold tracking-tight text-ink;
   }
