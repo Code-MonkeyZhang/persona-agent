@@ -20,7 +20,7 @@ function CapLane({ items }: { items: CapItem[] }) {
         {chips.map((item, index) => (
           <span
             key={`${item.nameKey}-${index}`}
-            className="inline-flex shrink-0 items-center gap-2 rounded-full border border-paper-line bg-paper py-1.5 pl-1.5 pr-4 text-sm font-semibold text-ink-soft"
+            className="inline-flex shrink-0 items-center gap-2 rounded-full border border-paper-line bg-paper py-1.5 pl-1.5 pr-4 text-content font-semibold text-ink-soft"
           >
             <img src={item.logo} alt="" className="h-7 w-7 object-contain" />
             {t(item.nameKey)}
@@ -64,7 +64,7 @@ function CheckList({ items }: { items: readonly I18nKey[] }) {
   return (
     <div className="mt-8 flex flex-col gap-3">
       {items.map((key) => (
-        <div key={key} className="flex items-center gap-2.5 text-sm font-medium text-ink-soft">
+        <div key={key} className="flex items-center gap-2.5 text-content font-medium text-ink-soft">
           <span className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full bg-ink text-paper">
             <Check size={10} strokeWidth={3.4} />
           </span>
@@ -114,9 +114,9 @@ function OpenSourceSection() {
               transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
               className="block rounded-2xl border border-paper/20 p-5 transition-colors duration-150 hover:border-paper/50"
             >
-              <p className="font-mono text-xs text-paper/60">{repo.path}</p>
-              <h3 className="mt-2 text-base font-semibold text-paper">{t(repo.titleKey)}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-paper/75">{t(repo.descKey)}</p>
+              <p className="font-mono text-caption text-paper/60">{repo.path}</p>
+              <h3 className="mt-2 text-lead font-semibold text-paper">{t(repo.titleKey)}</h3>
+              <p className="mt-2 text-content text-paper/75">{t(repo.descKey)}</p>
             </motion.a>
           ))}
         </div>
@@ -140,7 +140,7 @@ export default function Home() {
               initial={reduce ? false : { opacity: 0, y: 12 }}
               animate={reduce ? undefined : { opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1], delay: 0.05 }}
-              className="max-w-xl whitespace-pre-line text-4xl font-bold leading-[1.15] tracking-tight text-ink sm:text-5xl"
+              className="max-w-xl whitespace-pre-line text-hero-title font-bold tracking-tight text-ink sm:text-hero-title-lg"
             >
               {t('hero.title')}
             </motion.h1>
@@ -149,7 +149,7 @@ export default function Home() {
               initial={reduce ? false : { opacity: 0, y: 12 }}
               animate={reduce ? undefined : { opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1], delay: 0.1 }}
-              className="mt-6 max-w-md text-base leading-relaxed text-ink-soft sm:text-lg"
+              className="mt-6 max-w-md text-lead text-ink-soft sm:text-content-lg"
             >
               {t('hero.sub')}
             </motion.p>
@@ -159,7 +159,7 @@ export default function Home() {
                 initial={reduce ? false : { opacity: 0, y: 12 }}
                 animate={reduce ? undefined : { opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1], delay: 0.12 }}
-                className="mt-6 text-xs font-medium text-ink-faint"
+                className="mt-6 text-caption font-medium text-ink-faint"
               >
                 {t('dl.detected')}
               </motion.p>
@@ -206,13 +206,13 @@ export default function Home() {
       <section id="capabilities" className="scroll-mt-16 border-t border-paper-line bg-paper-tint py-16">
         <div className="container-wide">
           <div>
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-ink-faint">
+            <p className="mb-3 text-caption font-medium uppercase tracking-widest text-ink-faint">
               {t('cap.eyebrow')}
             </p>
-            <h2 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+            <h2 className="text-section-title font-semibold tracking-tight text-ink sm:text-title-display">
               {t('cap.title')}
             </h2>
-            <p className="mt-4 text-base leading-relaxed text-ink-soft">{t('cap.sub')}</p>
+            <p className="mt-4 text-lead text-ink-soft">{t('cap.sub')}</p>
           </div>
           <div className="mt-10 space-y-4">
             <CapLane items={CAP_MCPS} />
@@ -224,13 +224,13 @@ export default function Home() {
       <section id="mobile" className="scroll-mt-16 border-t border-paper-line py-16">
         <div className="container-wide">
           <div>
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-ink-faint">
+            <p className="mb-3 text-caption font-medium uppercase tracking-widest text-ink-faint">
               {t('tun.eyebrow')}
             </p>
-            <h2 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+            <h2 className="text-section-title font-semibold tracking-tight text-ink sm:text-title-display">
               {t('tun.title')}
             </h2>
-            <p className="mt-4 text-base leading-relaxed text-ink-soft">{t('tun.sub')}</p>
+            <p className="mt-4 text-lead text-ink-soft">{t('tun.sub')}</p>
           </div>
           <motion.div
             initial={reduce ? false : { opacity: 0, y: 12 }}
@@ -243,14 +243,14 @@ export default function Home() {
               href={APP_STORE_URL}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-paper-line bg-paper px-4 py-2 text-sm font-semibold text-ink transition-transform duration-150 active:scale-[0.97]"
+              className="inline-flex items-center gap-2 rounded-full border border-paper-line bg-paper px-4 py-2 text-content font-semibold text-ink transition-transform duration-150 active:scale-[0.97]"
             >
               <AppleLogo />
               {t('tun.appStore')}
             </a>
             <a
               href={releases.androidApk ?? MOBILE_RELEASES_URL}
-              className="inline-flex items-center gap-2 rounded-full border border-paper-line bg-paper px-4 py-2 text-sm font-semibold text-ink transition-transform duration-150 active:scale-[0.97]"
+              className="inline-flex items-center gap-2 rounded-full border border-paper-line bg-paper px-4 py-2 text-content font-semibold text-ink transition-transform duration-150 active:scale-[0.97]"
             >
               <AndroidLogo />
               {t('tun.apk')}
@@ -265,13 +265,13 @@ export default function Home() {
       <section id="editor" className="scroll-mt-16 border-t border-paper-line bg-paper-tint py-16">
         <div className="container-wide grid items-center gap-12 lg:grid-cols-[1fr_auto]">
           <div>
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-ink-faint">
+            <p className="mb-3 text-caption font-medium uppercase tracking-widest text-ink-faint">
               {t('ed.eyebrow')}
             </p>
-            <h2 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+            <h2 className="text-section-title font-semibold tracking-tight text-ink sm:text-title-display">
               {t('ed.title')}
             </h2>
-            <p className="mt-4 max-w-md text-base leading-relaxed text-ink-soft">{t('ed.sub')}</p>
+            <p className="mt-4 max-w-md text-lead text-ink-soft">{t('ed.sub')}</p>
             <CheckList items={['ed.check1', 'ed.check2', 'ed.check3', 'ed.check4']} />
           </div>
           <EditorStage />
