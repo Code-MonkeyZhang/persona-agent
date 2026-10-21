@@ -139,6 +139,7 @@ export interface WindowAPI {
     getSessions: (agentId: string) => Promise<SessionMeta[]>;
     getSession: (sessionId: string) => Promise<Session | null>;
     getAgents: () => Promise<AgentConfig[]>;
+    getUnreadAgents: () => Promise<string[]>;
     getLauncherPrefs: () => Promise<LauncherSnapshot | null>;
     getCursor: () => Promise<number>;
     applySnapshot: (snapshot: SyncSnapshot) => Promise<void>;

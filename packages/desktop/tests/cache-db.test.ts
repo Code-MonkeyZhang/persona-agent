@@ -322,4 +322,39 @@ describe('CacheDb', () => {
       expect(db.getLauncherPrefs()).toBeNull();
     });
   });
+
+  /** 测试未读 agent 聚合随置位与清除变动 */
+  it('should aggregate unread agents across session metas', () => {
+    db.applyChanges([
+      change(
+        51,
+        'session_updated',
+        'u1',
+        meta('u1', 'a1', { hasUnread: true })
+      ),
+      change(
+        52,
+        'session_updated',
+        'u2',
+        meta('u2', 'a2', { hasUnread: true })
+      ),
+      change(
+        53,
+        'session_updated',
+        'u3',
+        meta('u3', 'a1', { hasUnread: false })
+      ),
+    ]);
+    expect([...db.listUnreadAgentIds()].sort()).toEqual(['a1', 'a2']);
+
+    db.applyChanges([
+      change(
+        54,
+        'session_updated',
+        'u2',
+        meta('u2', 'a2', { hasUnread: false })
+      ),
+    ]);
+    expect(db.listUnreadAgentIds()).toEqual(['a1']);
+  });
 });

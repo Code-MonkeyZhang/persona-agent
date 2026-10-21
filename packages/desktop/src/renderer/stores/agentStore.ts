@@ -25,8 +25,12 @@ interface AgentStore {
   agents: AgentConfig[];
   currentAgent: AgentConfig | null;
   agentAvatarPreviews: Record<string, string>;
+  /** 名下存在未读会话的 agent 清单，头像角标消费 */
+  unreadAgentIds: string[];
 
   loadAgents: () => Promise<void>;
+  /** 从镜像库重取未读 agent 聚合并更新清单 */
+  refreshUnread: () => Promise<void>;
   switchAgent: (id: string) => Promise<AgentConfig | null>;
   createNewAgent: (input: AgentConfigInput) => Promise<AgentConfig | null>;
   updateAgentById: (
@@ -54,8 +58,11 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
   agents: [],
   currentAgent: null,
   agentAvatarPreviews: {},
+  unreadAgentIds: [],
 
   loadAgents: async () => {
+    // 未读聚合只读镜像库，与角色列表互不依赖，随加载顺带刷新让冷启动即可见
+    void get().refreshUnread();
     try {
       logger.info('[AgentStore] loadAgents started');
       const agents = await listAgents();
@@ -116,6 +123,20 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
       return agent;
     } catch {
       return null;
+    }
+  },
+
+  /**
+   * 从镜像库聚合名下还有未读会话的 agent，头像角标的唯一数据源。
+   * 缓存写后的更新通知与角色加载都会触发，库不可用时保留旧清单等下轮补齐。
+   */
+  refreshUnread: async () => {
+    try {
+      const unreadAgentIds = (await window.api?.cache.getUnreadAgents()) ?? [];
+      set({ unreadAgentIds });
+      logger.info(`[AgentStore] unread agents: ${unreadAgentIds.length}`);
+    } catch (error) {
+      logger.warn('[AgentStore] refreshUnread failed:', error);
     }
   },
 

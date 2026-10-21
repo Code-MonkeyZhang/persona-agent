@@ -118,6 +118,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       if (cacheRefreshTimer) clearTimeout(cacheRefreshTimer);
       cacheRefreshTimer = setTimeout(() => {
         void useLauncherPrefsStore.getState().refresh();
+        void useAgentStore.getState().refreshUnread();
         const sessionState = useSessionStore.getState();
         const chatState = useChatStore.getState();
         const current = sessionState.currentSession;

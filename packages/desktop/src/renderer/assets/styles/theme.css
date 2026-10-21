@@ -15,6 +15,8 @@
     --popover-foreground: 222.2 84% 4.9%;
     --primary: 212 72% 52%;
     --primary-foreground: 210 40% 98%;
+    /* 未读标记专用绿，色值对齐手机端 success 的 #00C851 */
+    --success: 144 100% 39%;
     --secondary: 0 0% 96.1%;
     --secondary-foreground: 0 0% 9%;
     --muted: 0 0% 96.1%;

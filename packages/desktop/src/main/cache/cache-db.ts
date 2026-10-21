@@ -199,6 +199,16 @@ export class CacheDb {
     });
   }
 
+  /** 名下存在未读会话的 agent 清单，头像角标的聚合数据源 */
+  listUnreadAgentIds(): string[] {
+    const rows = this.db
+      .prepare(
+        "SELECT DISTINCT agent_id FROM sessions WHERE json_extract(meta, '$.hasUnread') = 1"
+      )
+      .all() as unknown as Array<{ agent_id: string }>;
+    return rows.map((row) => row.agent_id);
+  }
+
   /** 从消息尾部提取聊天会话预览 */
   private chatPreview(sessionId: string): string | undefined {
     const rows = this.db

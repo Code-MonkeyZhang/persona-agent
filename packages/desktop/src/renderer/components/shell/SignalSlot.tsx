@@ -49,7 +49,7 @@ export const SignalSlot: React.FC<SignalSlotProps> = ({
         ))}
       </span>
     ) : (
-      unread && <span className="w-[8px] h-[8px] rounded-full bg-primary" />
+      unread && <span className="w-[8px] h-[8px] rounded-full bg-success" />
     )}
   </span>
 );

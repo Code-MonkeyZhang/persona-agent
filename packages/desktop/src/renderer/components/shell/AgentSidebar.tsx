@@ -92,7 +92,7 @@ function deriveTunnelIconStatus(
  */
 export const AgentSidebar: React.FC<AgentSidebarProps> = () => {
   const { t } = useTranslation();
-  const { agents, currentAgent, switchAgent } = useAgentStore();
+  const { agents, currentAgent, switchAgent, unreadAgentIds } = useAgentStore();
   const { currentView, setView, openAgentEditor } = useViewStore();
   const [devicePopoverOpen, setDevicePopoverOpen] = useState(false);
   const [deviceManageOpen, setDeviceManageOpen] = useState(false);
@@ -162,11 +162,12 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = () => {
                     className="absolute left-0 top-2 bottom-2 right-3 rounded-r-2xl bg-background shadow-soft"
                   />
                 )}
-                <AgentAvatar
-                  agent={agent}
-                  size="md"
-                  className="relative z-10"
-                />
+                <div className="relative z-10 inline-flex">
+                  <AgentAvatar agent={agent} size="md" />
+                  {unreadAgentIds.includes(agent.id) && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-success ring-2 ring-background" />
+                  )}
+                </div>
                 {/* 选中态蓝色竖条，跟随卡片一起滑动 */}
                 {isSelected && (
                   <motion.div
