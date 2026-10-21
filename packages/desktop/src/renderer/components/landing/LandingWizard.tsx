@@ -19,7 +19,7 @@ import {
   Volume2,
   AudioLines,
   Mic,
-  ChevronLeft,
+  ArrowLeft,
   ExternalLink,
   PenLine,
   FileText,
@@ -413,7 +413,7 @@ export function LandingWizard({
                   className="text-caption leading-none text-muted-foreground hover:text-foreground mb-3 flex items-center gap-1"
                   onClick={() => setSelectedProvider(null)}
                 >
-                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <ArrowLeft className="w-3.5 h-3.5" />
                   {t('landing.backToGallery')}
                 </button>
 
@@ -655,7 +655,7 @@ export function LandingWizard({
                 className="flex items-center gap-1 text-caption leading-none text-muted-foreground hover:text-foreground"
                 onClick={() => setPage(0)}
               >
-                <ChevronLeft className="w-3.5 h-3.5" />
+                <ArrowLeft className="w-3.5 h-3.5" />
                 {t('landing.back')}
               </button>
               <Button
@@ -833,7 +833,7 @@ export function LandingWizard({
                 className="flex items-center gap-1 text-caption leading-none text-muted-foreground hover:text-foreground"
                 onClick={() => setPage(1)}
               >
-                <ChevronLeft className="w-3.5 h-3.5" />
+                <ArrowLeft className="w-3.5 h-3.5" />
                 {t('landing.back')}
               </button>
               <Button
@@ -885,7 +885,7 @@ export function LandingWizard({
                 className="flex items-center gap-1 text-caption leading-none text-muted-foreground hover:text-foreground"
                 onClick={() => setPage(2)}
               >
-                <ChevronLeft className="w-3.5 h-3.5" />
+                <ArrowLeft className="w-3.5 h-3.5" />
                 {t('landing.back')}
               </button>
               <Button
