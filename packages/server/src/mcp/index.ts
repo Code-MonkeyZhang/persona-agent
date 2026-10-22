@@ -4,6 +4,7 @@
 
 export {
   initMcpPool,
+  shutdownMcpPool,
   listMcpServers,
   getMcpServer,
   getMcpDisplayName,

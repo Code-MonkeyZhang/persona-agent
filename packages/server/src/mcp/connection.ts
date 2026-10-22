@@ -329,6 +329,13 @@ export class MCPServerConnection {
   get authorizationUrl(): string | undefined {
     return this.authProvider?.getAuthorizationUrl();
   }
+
+  /** stdio 子进程的进程编号，非 stdio 或未连接时为 undefined，供清账记录使用 */
+  get childPid(): number | undefined {
+    return this.transport instanceof StdioClientTransport
+      ? (this.transport.pid ?? undefined)
+      : undefined;
+  }
 }
 
 /**

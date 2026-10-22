@@ -60,6 +60,8 @@ export class LocalHostProvider {
 
     this.serverProcess = spawn(binaryPath, [String(port)], {
       stdio: 'pipe',
+      // POSIX 下让 server 自成进程组，后代自动同组，退出时对整组发信号带走全部后代
+      detached: process.platform !== 'win32',
       windowsHide: true,
       env: {
         ...process.env,
@@ -91,44 +93,60 @@ export class LocalHostProvider {
   }
 
   /**
-   * 优雅停止服务端进程
-   * - 发送 SIGTERM 请求优雅退出
-   * - 等待 close 事件，超时 5 秒后 SIGKILL 强杀
-   * - 用于安装更新前确保子进程完全退出
+   * 优雅停止服务端进程，安装更新前调用
+   * - POSIX 对整个进程组先发 SIGTERM，等待 close 事件，超时 5 秒升级 SIGKILL
+   * - Windows 沿父子树直接强杀
    */
   async stop(): Promise<void> {
     const proc = this.serverProcess;
-    if (!proc) return;
+    if (!proc?.pid) return;
+    const pid = proc.pid;
     this.serverProcess = null;
     this.serverAddress = null;
     try {
-      proc.kill();
+      if (isWin) {
+        killProcessTree(pid);
+      } else {
+        signalProcessGroup(pid, 'SIGTERM');
+      }
       await new Promise<void>((resolve) => {
         const timer = setTimeout(() => {
-          try {
-            proc.kill('SIGKILL');
-          } catch {
-            // 进程已退出
-          }
+          if (!isWin) signalProcessGroup(pid, 'SIGKILL');
           resolve();
         }, 5000);
+        timer.unref();
         proc.once('close', () => {
           clearTimeout(timer);
           resolve();
         });
       });
-      log.info('[local-host] Server process stopped for update install');
+      log.info('[local-host] Server process group stopped for update install');
     } catch {
       log.debug('[local-host] Server process already exited');
     }
   }
 
-  /** 同步终止服务端进程，用于应用退出与 SIGINT、SIGTERM 信号 */
+  /**
+   * 同步终止服务端进程，用于应用退出与 SIGINT、SIGTERM 信号
+   * POSIX 对整个进程组先 SIGTERM，短暂宽限后升级 SIGKILL，
+   * 退出路径不能久等，升级交给定时器，漏网的部分由 server 清账记录兜底
+   */
   kill(): void {
-    if (!this.serverProcess) return;
+    const proc = this.serverProcess;
+    if (!proc?.pid) return;
+    const pid = proc.pid;
     try {
-      this.serverProcess.kill();
-      log.info('[local-host] Server process killed on app quit');
+      if (isWin) {
+        killProcessTree(pid);
+      } else {
+        signalProcessGroup(pid, 'SIGTERM');
+        const timer = setTimeout(
+          () => signalProcessGroup(pid, 'SIGKILL'),
+          1500
+        );
+        timer.unref();
+      }
+      log.info('[local-host] Server process group killed on app quit');
     } catch {
       log.debug('[local-host] 服务器进程已退出');
     }
@@ -217,7 +235,30 @@ async function waitForServer(url: string, maxAttempts = 30): Promise<void> {
 }
 
 /**
- * 清理上次桌面端异常退出后可能残留的服务器进程。
+ * 对 server 进程组发信号，覆盖 server 与其全部后代。
+ * server 启动时已自成进程组，负数编号表示整组投递，
+ * 由内核直接送达每个成员，server 卡死或已死都不影响孩子收到信号。
+ */
+function signalProcessGroup(pid: number, signal: NodeJS.Signals): void {
+  try {
+    process.kill(-pid, signal);
+  } catch {
+    // 组已不在
+  }
+}
+
+/** Windows 无进程组机制，沿父子树强杀整条进程链 */
+function killProcessTree(pid: number): void {
+  try {
+    execSync(`taskkill /PID ${pid} /T /F`, { stdio: 'ignore' });
+  } catch {
+    // 进程树已不在
+  }
+}
+
+/**
+ * 清理上次桌面端异常退出后残留的服务器进程。
+ * 只负责捞 server 本体，server 身后的 App 子进程由 server 侧的清账记录回收。
  * macOS/Linux 使用 killall，Windows 使用 taskkill。
  * 命令失败时静默忽略。
  */

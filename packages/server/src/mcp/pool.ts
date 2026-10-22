@@ -10,6 +10,11 @@ import { Logger } from '../util/logger.js';
 import { errorMessage } from '../util/errors.js';
 import { loadMcpConfig } from './config.js';
 import { connectAllServers, connectOne, type ConnectResult } from './loader.js';
+import {
+  recordAppPid,
+  removeAppPids,
+  sweepStaleAppPids,
+} from './app-pid-ledger.js';
 import { MCPServerConnection } from './connection.js';
 import { McpOAuthProvider } from './oauth/provider.js';
 import { startCallbackServer } from './oauth/callback.js';
@@ -81,6 +86,11 @@ function applyConnectResult(name: string, result: ConnectResult): void {
 
   entry.instructions = result.serverConn?.instructions?.trim() || undefined;
 
+  // Agent App 的子进程编号进清账记录，正常收尾除名，漏掉的下次启动回收
+  if (entry.agentApp && result.serverConn?.childPid) {
+    recordAppPid(name, result.serverConn.childPid, entry.config);
+  }
+
   if (result.connection) {
     entry.status = 'connected';
     entry.tools = result.tools;
@@ -135,6 +145,9 @@ async function connectAndApply(
  */
 export async function initMcpPool(): Promise<void> {
   if (initialized) return;
+
+  // 上一场漏下的 App 子进程先按清账记录回收，再拉新的
+  await sweepStaleAppPids();
 
   const serverConfigs = loadMcpConfig();
   if (serverConfigs.size === 0) {
@@ -495,21 +508,14 @@ export async function addServer(
  * @param name server 名字
  */
 export async function removeServer(name: string): Promise<void> {
-  const conn = connections.get(name);
-  if (conn) {
-    await conn.disconnect().catch(() => {});
-    connections.delete(name);
-  }
+  if (!serverEntries.has(name)) return;
 
-  const serverConn = serverConnections.get(name);
-  if (serverConn) {
-    await serverConn.disconnect().catch(() => {});
-    serverConnections.delete(name);
-  }
+  await disconnectServerHandles(name);
 
   pendingOAuth.delete(name);
   appPorts.delete(name);
   serverEntries.delete(name);
+  removeAppPids([name]);
 
   Logger.log('MCP', `Server '${name}' removed from pool`);
 }
@@ -539,17 +545,7 @@ export async function reconnectServer(name: string): Promise<void> {
   Logger.log('MCP', `Reconnecting server '${name}'`);
 
   const task = (async () => {
-    const conn = connections.get(name);
-    if (conn) {
-      await conn.disconnect().catch(() => {});
-      connections.delete(name);
-    }
-
-    const serverConn = serverConnections.get(name);
-    if (serverConn) {
-      await serverConn.disconnect().catch(() => {});
-      serverConnections.delete(name);
-    }
+    await disconnectServerHandles(name);
 
     appPorts.delete(name);
     entry.status = 'connecting';
@@ -562,4 +558,74 @@ export async function reconnectServer(name: string): Promise<void> {
 
   reconnecting.set(name, task);
   return task;
+}
+
+/**
+ * 断开一个服务的两份连接句柄并清出池，移除、重连与整池收尾共用。
+ * 断开失败不抛异常，返回是否全部成功，整池收尾据此决定清账记录是否除名。
+ */
+async function disconnectServerHandles(name: string): Promise<boolean> {
+  const conn = connections.get(name);
+  const serverConn = serverConnections.get(name);
+  connections.delete(name);
+  serverConnections.delete(name);
+
+  const jobs: Promise<void>[] = [];
+  if (conn) jobs.push(conn.disconnect());
+  if (serverConn) jobs.push(serverConn.disconnect());
+
+  const results = await Promise.allSettled(jobs);
+  const ok = results.every((r) => r.status === 'fulfilled');
+  if (!ok) {
+    Logger.log('MCP', `Disconnect failed for '${name}', ignored`);
+  }
+  return ok;
+}
+
+/**
+ * 整池收尾，server 退出流程在结束自己之前调用。
+ *
+ * 并发断开全部服务，单个失败不影响其他服务。
+ * 断开干净的服务从清账记录除名，失败的保留给下次启动清账兜底。
+ * 收完清空全部池内状态，池回到未初始化形态。
+ */
+export async function shutdownMcpPool(): Promise<void> {
+  const names = Array.from(
+    new Set([
+      ...connections.keys(),
+      ...serverConnections.keys(),
+      ...serverEntries.keys(),
+    ])
+  );
+  if (names.length === 0) {
+    Logger.log('MCP', 'Pool empty, nothing to shut down');
+    return;
+  }
+
+  Logger.log('MCP', `Shutting down ${names.length} pooled server(s)`);
+
+  const settled = await Promise.allSettled(
+    names.map((name) => disconnectServerHandles(name))
+  );
+  const reaped: string[] = [];
+  settled.forEach((result, i) => {
+    if (result.status === 'fulfilled' && result.value) {
+      const name = names[i];
+      if (name) reaped.push(name);
+    }
+  });
+  removeAppPids(reaped);
+
+  connections.clear();
+  serverConnections.clear();
+  serverEntries.clear();
+  appPorts.clear();
+  pendingOAuth.clear();
+  reconnecting.clear();
+  initialized = false;
+
+  Logger.log(
+    'MCP',
+    `Pool shut down, ${reaped.length}/${names.length} servers reaped cleanly`
+  );
 }
