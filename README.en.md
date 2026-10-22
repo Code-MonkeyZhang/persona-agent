@@ -15,7 +15,7 @@
 
 **An open-source personal AI companion you can fully customize**
 
-[📥 Download](https://github.com/Code-MonkeyZhang/persona-agent/releases) · [🐛 Report a Bug](https://github.com/Code-MonkeyZhang/persona-agent/issues) · [🛒 Agent Marketplace](https://github.com/Code-MonkeyZhang/persona-agent-marketplace)
+[🌐 Website](https://code-monkeyzhang.github.io/persona-agent/) · [📥 Desktop Download](https://github.com/Code-MonkeyZhang/persona-agent/releases) · [📱 Mobile Download](#-mobile) · [🛒 Agent Marketplace](https://github.com/Code-MonkeyZhang/persona-agent-marketplace) · [🐛 Report a Bug](https://github.com/Code-MonkeyZhang/persona-agent/issues)
 
 </div>
 
@@ -145,6 +145,13 @@ Persona ships with a built-in marketplace to browse, install, and manage Agent t
 
 Persona also provides an iOS and Android mobile app. Connect to your agent via Cloudflare Tunnel and chat anytime, anywhere.
 
+→ [View Mobile Project](https://github.com/Code-MonkeyZhang/persona-agent-mobile)
+
+| Platform | Download                                                                              |
+| -------- | ------------------------------------------------------------------------------------- |
+| iOS      | [Download on the App Store](https://apps.apple.com/us/app/persona-agent/id6793809721) |
+| Android  | [Download APK](https://github.com/Code-MonkeyZhang/persona-agent-mobile/releases)     |
+
 <table>
   <tr>
     <td align="center"><b>Mobile Demo</b></td>
@@ -157,8 +164,6 @@ Persona also provides an iOS and Android mobile app. Connect to your agent via C
     <td><img src="assets/agent-detail.gif" width="250" /></td>
   </tr>
 </table>
-
-→ [View Mobile Project](https://github.com/Code-MonkeyZhang/persona-agent-mobile)
 
 ## 💜 Acknowledgements
 

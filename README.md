@@ -15,7 +15,7 @@
 
 **一个完全可自定义的开源个人 AI 陪伴助手**
 
-[📥 下载最新版本](https://github.com/Code-MonkeyZhang/persona-agent/releases) · [🐛 报告 Bug](https://github.com/Code-MonkeyZhang/persona-agent/issues) · [🛒 Agent 商城](https://github.com/Code-MonkeyZhang/persona-agent-marketplace)
+[🌐 官网](https://code-monkeyzhang.github.io/persona-agent/) · [📥 桌面端下载](https://github.com/Code-MonkeyZhang/persona-agent/releases) · [📱 手机端下载](#-移动端) · [🛒 Agent 商城](https://github.com/Code-MonkeyZhang/persona-agent-marketplace) · [🐛 报告 Bug](https://github.com/Code-MonkeyZhang/persona-agent/issues)
 
 </div>
 
@@ -143,6 +143,13 @@ Persona 内置商城，一站式浏览、安装和管理 Agent 模板、技能�
 
 Persona 还提供 iOS 和 Android 的移动端 app，通过 Cloudflare Tunnel 连接你的智能体，随时随地与 Agent 对话。
 
+→ [查看移动端项目](https://github.com/Code-MonkeyZhang/persona-agent-mobile)
+
+| 平台    | 下载                                                                          |
+| ------- | ----------------------------------------------------------------------------- |
+| iOS     | [App Store 下载](https://apps.apple.com/us/app/persona-agent/id6793809721)    |
+| Android | [APK 下载](https://github.com/Code-MonkeyZhang/persona-agent-mobile/releases) |
+
 <table>
   <tr>
     <td align="center"><b>移动端演示</b></td>
@@ -155,8 +162,6 @@ Persona 还提供 iOS 和 Android 的移动端 app，通过 Cloudflare Tunnel �
     <td><img src="assets/agent-detail.gif" width="250" /></td>
   </tr>
 </table>
-
-→ [查看移动端项目](https://github.com/Code-MonkeyZhang/persona-agent-mobile)
 
 ## 💜 致谢
 
