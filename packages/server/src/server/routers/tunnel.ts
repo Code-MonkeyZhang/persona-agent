@@ -79,7 +79,6 @@ export function createTunnelRouter(): Router {
       url: current.url,
       error: current.error,
       health: current.health,
-      lastHealthCheck: current.lastHealthCheck,
       onlineDevices: getOnlineDevices(),
     });
   });
