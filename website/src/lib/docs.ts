@@ -8,78 +8,40 @@ export interface DocHeading {
 
 export interface DocEntry {
   slug: string;
-  chapter: string;
   title: string;
   description?: string;
   content: string;
   headings: DocHeading[];
 }
 
-// 章节顺序与页序由这份配置声明，新增页面时加目录加文件名。
+// 章节顺序由这份配置声明，一章一个文件，文件名即地址。
 export interface DocChapter {
-  folder: string;
+  slug: string;
   zh: string;
   en: string;
-  pages: string[];
 }
 
 export const CHAPTERS: DocChapter[] = [
-  {
-    folder: 'getting-started',
-    zh: '快速开始',
-    en: 'Getting Started',
-    pages: ['intro', 'install', 'first-run', 'model-access', 'first-chat'],
-  },
-  {
-    folder: 'agents',
-    zh: '角色管理',
-    en: 'Agents',
-    pages: ['preset', 'create', 'context-memory', 'appearance', 'from-marketplace'],
-  },
-  {
-    folder: 'voice',
-    zh: '音色',
-    en: 'Voice',
-    pages: ['setup', 'presets', 'cloning', 'playback'],
-  },
-  {
-    folder: 'agent-apps',
-    zh: 'AgentApp',
-    en: 'Agent Apps',
-    pages: ['concepts', 'install', 'personalize', 'notifications'],
-  },
-  {
-    folder: 'mcp-tools',
-    zh: 'MCP工具',
-    en: 'MCP Tools',
-    pages: ['concepts', 'install', 'assign', 'builtin'],
-  },
-  {
-    folder: 'skills',
-    zh: 'AgentSkill技能',
-    en: 'Agent Skills',
-    pages: ['concepts', 'install', 'assign'],
-  },
-  {
-    folder: 'remote',
-    zh: '远程访问',
-    en: 'Remote Access',
-    pages: ['tunnel', 'pairing', 'devices', 'sync'],
-  },
-  {
-    folder: 'troubleshooting',
-    zh: '故障排查',
-    en: 'Troubleshooting',
-    pages: ['environment', 'common', 'logs', 'support'],
-  },
+  { slug: 'getting-started', zh: '快速开始', en: 'Getting Started' },
+  { slug: 'agents', zh: 'AI角色管理', en: 'Agents' },
+  { slug: 'agent-apps', zh: 'AgentApp', en: 'Agent Apps' },
+  { slug: 'mcp-tools', zh: 'MCP工具', en: 'MCP Tools' },
+  { slug: 'skills', zh: 'AgentSkill技能', en: 'Agent Skills' },
+  { slug: 'remote', zh: '移动端连接', en: 'Remote Access' },
+  { slug: 'troubleshooting', zh: '常见问题', en: 'Troubleshooting' },
 ];
 
-// 旧版单级地址到新结构的重定向表，外部已发出的链接不断。
+// 旧版单级地址到新章页的重定向表，外部已发出的链接不断。
 const LEGACY_SLUGS: Record<string, string> = {
-  intro: 'getting-started/intro',
-  interface: 'getting-started/first-chat',
-  'daily-use': 'getting-started/first-chat',
-  settings: 'getting-started/model-access',
+  intro: 'getting-started',
+  interface: 'getting-started',
+  'daily-use': 'getting-started',
+  settings: 'getting-started',
+};
+
+// 已删除的旧目录映射到承接其内容的章。
+const LEGACY_FOLDERS: Record<string, string> = {
+  voice: 'agents',
 };
 
 type RawFiles = Record<string, string>;
@@ -96,10 +58,15 @@ const enFiles = import.meta.glob('/src/docs/en/**/*.md', {
   eager: true,
 }) as RawFiles;
 
-export const DOCS_DEFAULT_SLUG = `${CHAPTERS[0].folder}/${CHAPTERS[0].pages[0]}`;
+export const DOCS_DEFAULT_SLUG = CHAPTERS[0].slug;
 
+// 旧的单级地址与旧的章加页两级地址都归到对应的章页。
 export function resolveLegacySlug(slug: string): string | undefined {
-  return LEGACY_SLUGS[slug];
+  if (LEGACY_SLUGS[slug]) return LEGACY_SLUGS[slug];
+  const segments = slug.split('/').filter(Boolean);
+  if (segments.length === 0 || segments.length > 2) return undefined;
+  const folder = LEGACY_FOLDERS[segments[0]] ?? segments[0];
+  return CHAPTERS.some((chapter) => chapter.slug === folder) ? folder : undefined;
 }
 
 // react-markdown 不认识 frontmatter，渲染前必须剥掉，这里顺手把标题描述取出来。
@@ -148,24 +115,21 @@ function extractHeadings(content: string): DocHeading[] {
 }
 
 function loadPages(files: RawFiles, locale: 'zh' | 'en'): DocEntry[] {
-  return CHAPTERS.flatMap((chapter) =>
-    chapter.pages.flatMap((page) => {
-      const raw = files[`/src/docs/${locale}/${chapter.folder}/${page}.md`];
-      if (!raw) return [];
-      const { data, content } = parseFrontmatter(raw);
-      const body = stripLeadingH1(content);
-      return [
-        {
-          slug: `${chapter.folder}/${page}`,
-          chapter: chapter.folder,
-          title: data.title ?? page,
-          description: data.description,
-          content: body,
-          headings: extractHeadings(body),
-        },
-      ];
-    }),
-  );
+  return CHAPTERS.flatMap((chapter) => {
+    const raw = files[`/src/docs/${locale}/${chapter.slug}.md`];
+    if (!raw) return [];
+    const { data, content } = parseFrontmatter(raw);
+    const body = stripLeadingH1(content);
+    return [
+      {
+        slug: chapter.slug,
+        title: data.title ?? (locale === 'zh' ? chapter.zh : chapter.en),
+        description: data.description,
+        content: body,
+        headings: extractHeadings(body),
+      },
+    ];
+  });
 }
 
 export const docs = {
@@ -173,21 +137,11 @@ export const docs = {
   en: loadPages(enFiles, 'en'),
 };
 
-// 侧边栏分组视图，把平铺页表按章节聚合并带上本地化章名。
-export function getSidebarChapters(
-  locale: 'zh' | 'en',
-): Array<{ folder: string; title: string; pages: DocEntry[] }> {
-  const pages = docs[locale];
-  return CHAPTERS.map((chapter) => ({
-    folder: chapter.folder,
+// 侧边栏条目视图，一章一条。
+export function getSidebarChapters(locale: 'zh' | 'en'): Array<{ slug: string; title: string }> {
+  const loaded = new Set(docs[locale].map((page) => page.slug));
+  return CHAPTERS.filter((chapter) => loaded.has(chapter.slug)).map((chapter) => ({
+    slug: chapter.slug,
     title: locale === 'zh' ? chapter.zh : chapter.en,
-    pages: pages.filter((item) => item.chapter === chapter.folder),
-  })).filter((group) => group.pages.length > 0);
-}
-
-// 眉标用的章名查询。
-export function getChapterTitle(folder: string, locale: 'zh' | 'en'): string {
-  const chapter = CHAPTERS.find((item) => item.folder === folder);
-  if (!chapter) return '';
-  return locale === 'zh' ? chapter.zh : chapter.en;
+  }));
 }

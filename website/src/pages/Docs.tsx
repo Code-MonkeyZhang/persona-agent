@@ -4,16 +4,14 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
-import { ArrowUpRight, ChevronDown, Link2, Search } from 'lucide-react';
+import { Link2, Search } from 'lucide-react';
 import Layout from '../components/Layout';
 import { useLocale } from '../i18n';
 import {
   docs,
   DOCS_DEFAULT_SLUG,
-  getChapterTitle,
   getSidebarChapters,
   resolveLegacySlug,
-  type DocEntry,
   type DocHeading,
 } from '../lib/docs';
 import 'highlight.js/styles/github.css';
@@ -117,27 +115,18 @@ function AnchorHeading({
   );
 }
 
-type SidebarChapter = { folder: string; title: string; pages: DocEntry[] };
-
-// 左侧全高侧边栏，章节可折叠，搜索框实时过滤全书页面标题。
+// 左侧全高侧边栏，一章一条，搜索框实时过滤章名。
 function Sidebar({
   chapters,
   currentSlug,
   locale,
 }: {
-  chapters: SidebarChapter[];
+  chapters: Array<{ slug: string; title: string }>;
   currentSlug: string;
   locale: 'zh' | 'en';
 }) {
   const [query, setQuery] = useState('');
-  const [expanded, setExpanded] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
-  const currentChapter = currentSlug.split('/')[0];
-
-  // 导航到新章节时自动展开它并收起其他章。
-  useEffect(() => {
-    setExpanded([currentChapter]);
-  }, [currentChapter]);
 
   // 桌面端监听 Cmd 加 K 聚焦搜索框，与输入框右侧的快捷键提示呼应。
   useEffect(() => {
@@ -153,16 +142,10 @@ function Sidebar({
   }, []);
 
   const keyword = query.trim().toLowerCase();
-  const results = keyword
-    ? chapters.flatMap((chapter) =>
-        chapter.pages
-          .filter((item) => item.title.toLowerCase().includes(keyword))
-          .map((item) => ({ item, chapter })),
-      )
-    : null;
+  const results = keyword ? chapters.filter((item) => item.title.toLowerCase().includes(keyword)) : null;
 
   const linkClass = (active: boolean) =>
-    'block rounded-md px-2.5 py-2 text-nav transition-colors duration-100 ' +
+    'block rounded-md px-2.5 py-2 text-body transition-colors duration-100 ' +
     (active
       ? 'bg-paper-tint font-medium text-ink'
       : 'text-ink-soft hover:bg-paper-tint hover:text-ink');
@@ -185,61 +168,22 @@ function Sidebar({
           </kbd>
         </div>
 
-        {results ? (
-          <nav className="mt-4 flex flex-col gap-0.5">
-            {results.map(({ item, chapter }) => (
-              <Link key={item.slug} to={`/docs/${item.slug}`} className={linkClass(item.slug === currentSlug)}>
-                <span className="mr-1.5 text-caption text-ink-faint">{chapter.title}</span>
-                {item.title}
-              </Link>
-            ))}
-            {results.length === 0 && (
-              <p className="px-2.5 py-2 text-nav text-ink-faint">
-                {locale === 'zh' ? '没有匹配的页面' : 'No results'}
-              </p>
-            )}
-          </nav>
-        ) : (
-          <nav className="mt-4 flex flex-col">
-            {chapters.map((chapter) => {
-              const open = expanded.includes(chapter.folder);
-              return (
-                <div key={chapter.folder} className="mb-1">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setExpanded((prev) =>
-                        prev.includes(chapter.folder)
-                          ? prev.filter((folder) => folder !== chapter.folder)
-                          : [...prev, chapter.folder],
-                      )
-                    }
-                    className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-body font-medium text-ink-faint transition-colors duration-100 hover:text-ink"
-                  >
-                    <span>{chapter.title}</span>
-                    <ChevronDown
-                      size={14}
-                      className={'shrink-0 transition-transform duration-150 ' + (open ? '' : '-rotate-90')}
-                    />
-                  </button>
-                  {open && (
-                    <div className="mb-1 ml-1.5 flex flex-col gap-0.5 border-l border-paper-line pl-1.5">
-                      {chapter.pages.map((item) => (
-                        <Link
-                          key={item.slug}
-                          to={`/docs/${item.slug}`}
-                          className={linkClass(item.slug === currentSlug)}
-                        >
-                          {item.title}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </nav>
-        )}
+        <nav className="mt-4 flex flex-col gap-0.5">
+          {(results ?? chapters).map((chapter) => (
+            <Link
+              key={chapter.slug}
+              to={`/docs/${chapter.slug}`}
+              className={linkClass(chapter.slug === currentSlug)}
+            >
+              {chapter.title}
+            </Link>
+          ))}
+          {results?.length === 0 && (
+            <p className="px-2.5 py-2 text-nav text-ink-faint">
+              {locale === 'zh' ? '没有匹配的页面' : 'No results'}
+            </p>
+          )}
+        </nav>
       </div>
     </aside>
   );
@@ -336,10 +280,13 @@ export default function Docs() {
         const resolved = src?.startsWith('/')
           ? import.meta.env.BASE_URL + src.slice(1)
           : src ?? '';
-        // 头像类走圆形，其余小图走方形，截图类资源以后按全宽处理。
+        // 头像类走圆形，SVG 品牌图标按 24 像素自然尺寸内联，其余缩略图走方形。
+        // 垂直 margin 必须显式清零，prose 给图片挂的 2em 上下 margin 会把表格行撑到三倍高。
         const shape = resolved.includes('avatar')
-          ? 'inline size-24 rounded-full border border-paper-line'
-          : 'inline size-12 rounded-lg';
+          ? 'inline my-0 size-24 rounded-full border border-paper-line'
+          : resolved.endsWith('.svg')
+            ? 'inline my-0 size-6 align-middle'
+            : 'inline my-0 size-12 rounded-lg';
         return <img src={resolved} alt={alt ?? ''} loading="lazy" className={shape} />;
       },
       h2: ({ id, children }: { id?: string; children?: ReactNode }) => (
@@ -360,22 +307,14 @@ export default function Docs() {
     return <Navigate to={`/docs/${DOCS_DEFAULT_SLUG}`} replace />;
   }
 
-  // 旧版单级地址重定向到新结构，章节目录地址跳到该章第一页。
+  // 旧版地址重定向到对应章页，未知地址回默认章。
   if (!page) {
-    const legacy = segments.length === 1 ? resolveLegacySlug(segments[0]) : undefined;
+    const legacy = resolveLegacySlug(segments.join('/'));
     if (legacy) {
       return <Navigate to={`/docs/${legacy}`} replace />;
     }
-    const chapterFirst = chapters.find((chapter) => chapter.folder === segments[0])?.pages[0];
-    if (chapterFirst) {
-      return <Navigate to={`/docs/${chapterFirst.slug}`} replace />;
-    }
     return <Navigate to={`/docs/${DOCS_DEFAULT_SLUG}`} replace />;
   }
-
-  const currentIndex = pages.findIndex((item) => item.slug === page.slug);
-  const next =
-    currentIndex >= 0 && currentIndex < pages.length - 1 ? pages[currentIndex + 1] : undefined;
 
   return (
     <Layout>
@@ -384,12 +323,9 @@ export default function Docs() {
 
         <div className="flex min-w-0 flex-1 justify-center">
           <div className="w-full max-w-[720px] px-6 py-10 lg:py-12">
-            {/* 眉标显示章名，大号标题不走 prose 默认样式。 */}
+            {/* 大号标题不走 prose 默认样式。 */}
             <header className="mb-8">
-              <p className="text-body font-medium text-demo-primary">
-                {getChapterTitle(page.chapter, locale)}
-              </p>
-              <h1 className="mt-2 text-title-display font-semibold tracking-tight text-ink">
+              <h1 className="text-title-display font-semibold tracking-tight text-ink">
                 {page.title}
               </h1>
               {page.description && (
@@ -406,30 +342,6 @@ export default function Docs() {
                 {page.content}
               </ReactMarkdown>
             </article>
-
-            {/* 下一步卡片按全书顺序跨章衔接，最后一页不显示。 */}
-            {next && (
-              <Link
-                to={`/docs/${next.slug}`}
-                className="group mt-12 block rounded-2xl border border-paper-line px-6 py-5 transition-colors duration-150 hover:border-ink/30"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-paper-tint text-ink">
-                    <ArrowUpRight size={16} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-body text-ink-faint">
-                      {locale === 'zh' ? '下一篇' : 'Up next'}
-                    </p>
-                    <p className="mt-0.5 truncate text-nav font-medium text-ink">{next.title}</p>
-                  </div>
-                  <ArrowUpRight
-                    size={16}
-                    className="shrink-0 text-ink-faint opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-                  />
-                </div>
-              </Link>
-            )}
           </div>
 
           <OnThisPage headings={page.headings} activeId={activeId} locale={locale} onJump={setActiveId} />
