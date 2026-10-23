@@ -61,9 +61,20 @@ describe('app-pid-ledger', () => {
     expect(readAppPidEntries()).toEqual([]);
   });
 
+  /**
+   * 跨平台的活进程探子，用当前 bun 可执行文件跑一个待命脚本。
+   * 脚本目录会出现在命令行里，回收逻辑靠它做身份匹配。
+   */
+  function spawnSleeper(): { proc: Bun.Subprocess; dir: string } {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'app-pid-sleeper-'));
+    const script = path.join(dir, 'sleeper.js');
+    fs.writeFileSync(script, 'setTimeout(() => process.exit(0), 60000);\n');
+    return { proc: Bun.spawn([process.execPath, script]), dir };
+  }
+
   it('reaps a live process whose command line matches the recorded dir', async () => {
-    const proc = Bun.spawn(['/bin/sleep', '60']);
-    recordAppPid('sleeper', proc.pid, { command: 'uv', cwd: '/bin/sleep' });
+    const { proc, dir } = spawnSleeper();
+    recordAppPid('sleeper', proc.pid, { command: 'uv', cwd: dir });
 
     await sweepStaleAppPids();
 
@@ -76,7 +87,7 @@ describe('app-pid-ledger', () => {
   });
 
   it('skips a live process whose identity does not match', async () => {
-    const proc = Bun.spawn(['/bin/sleep', '60']);
+    const { proc } = spawnSleeper();
     recordAppPid('stranger', proc.pid, {
       command: 'uv',
       cwd: '/definitely/not/ours',
