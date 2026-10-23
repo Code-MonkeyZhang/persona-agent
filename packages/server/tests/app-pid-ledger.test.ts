@@ -61,20 +61,27 @@ describe('app-pid-ledger', () => {
     expect(readAppPidEntries()).toEqual([]);
   });
 
+  let sleeperSeq = 0;
+
   /**
-   * 跨平台的活进程探子，用当前 bun 可执行文件跑一个待命脚本。
-   * 脚本目录会出现在命令行里，回收逻辑靠它做身份匹配。
+   * 跨平台的活进程探子，用当前 bun 可执行文件跑一段内联待命脚本。
+   * 身份标记直接写进脚本文本，命令行里原样可见，不依赖路径形态。
+   * Windows 上 WMI 登记新进程的命令行有延迟，先等它稳定再进入回收。
    */
-  function spawnSleeper(): { proc: Bun.Subprocess; dir: string } {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'app-pid-sleeper-'));
-    const script = path.join(dir, 'sleeper.js');
-    fs.writeFileSync(script, 'setTimeout(() => process.exit(0), 60000);\n');
-    return { proc: Bun.spawn([process.execPath, script]), dir };
+  async function spawnSleeper(): Promise<{ proc: Bun.Subprocess; marker: string }> {
+    const marker = `app-pid-sleeper-${++sleeperSeq}`;
+    const proc = Bun.spawn([
+      process.execPath,
+      '-e',
+      `const marker = '${marker}'; setTimeout(() => process.exit(0), 60000);`,
+    ]);
+    await Bun.sleep(1500);
+    return { proc, marker };
   }
 
   it('reaps a live process whose command line matches the recorded dir', async () => {
-    const { proc, dir } = spawnSleeper();
-    recordAppPid('sleeper', proc.pid, { command: 'uv', cwd: dir });
+    const { proc, marker } = await spawnSleeper();
+    recordAppPid('sleeper', proc.pid, { command: 'uv', cwd: marker });
 
     await sweepStaleAppPids();
 
@@ -84,10 +91,10 @@ describe('app-pid-ledger', () => {
       new Promise((_, reject) => setTimeout(() => reject(new Error('still alive')), 3000)),
     ]);
     expect(code).toBeDefined();
-  });
+  }, 15000);
 
   it('skips a live process whose identity does not match', async () => {
-    const { proc } = spawnSleeper();
+    const { proc } = await spawnSleeper();
     recordAppPid('stranger', proc.pid, {
       command: 'uv',
       cwd: '/definitely/not/ours',
@@ -99,5 +106,5 @@ describe('app-pid-ledger', () => {
     expect(proc.exitCode === null && proc.signalCode === null).toBe(true);
     proc.kill();
     await proc.exited;
-  });
+  }, 15000);
 });

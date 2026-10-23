@@ -105,8 +105,15 @@ function commandLineOf(pid: number): Promise<string | null> {
   });
 }
 
-/** 先 SIGTERM 给自行退出的机会，宽限一秒仍存活再 SIGKILL */
+/**
+ * 先 SIGTERM 给自行退出的机会，宽限一秒仍存活再 SIGKILL。
+ * Windows 没有 SIGTERM 语义，改用 taskkill 强杀并带走整棵子进程树。
+ */
 function killPid(pid: number): void {
+  if (process.platform === 'win32') {
+    execFile('taskkill', ['/PID', String(pid), '/T', '/F'], () => {});
+    return;
+  }
   try {
     process.kill(pid, 'SIGTERM');
   } catch {
