@@ -468,6 +468,7 @@
   "mcpPool.retrying": "Retrying…",
   "phone.empty": "No agent app yet, install one from the marketplace",
   "phone.back": "Back",
+  "phone.pageLoadFailed": "Failed to load page, tap to retry",
   "phone.settings": "Settings",
   "phone.wallpaper": "Wallpaper",
   "phone.wallpaperDefault": "Default",

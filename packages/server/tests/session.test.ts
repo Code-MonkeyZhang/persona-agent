@@ -370,6 +370,50 @@ describe('Session Module Integration Tests', () => {
       });
     });
 
+    /** setHasUnread 测试 */
+    describe('setHasUnread', () => {
+      /** 测试置位与清除经 loadSession 读回布尔 */
+      it('should set and clear the unread flag', () => {
+        store.createSessionFile(createMeta('unread-test'));
+        expect(store.loadSession('unread-test')?.hasUnread).toBe(false);
+
+        expect(store.setHasUnread('unread-test', true)).toBe(true);
+        expect(store.loadSession('unread-test')?.hasUnread).toBe(true);
+
+        expect(store.setHasUnread('unread-test', false)).toBe(true);
+        expect(store.loadSession('unread-test')?.hasUnread).toBe(false);
+      });
+
+      /** 测试窄更新不触碰 updated_at,列表排序不随未读状态跳动 */
+      it('should not touch updated_at on flag updates', () => {
+        store.createSessionFile(createMeta('unread-stamp'));
+        const before = store.loadSession('unread-stamp')?.updatedAt;
+
+        store.setHasUnread('unread-stamp', true);
+        store.setHasUnread('unread-stamp', false);
+
+        expect(store.loadSession('unread-stamp')?.updatedAt).toBe(before);
+      });
+
+      /** 测试置位登记 session_updated 变更行,变更流据此扩散到全部端 */
+      it('should register a session_updated change row', () => {
+        store.createSessionFile(createMeta('unread-change'));
+        store.setHasUnread('unread-change', true);
+
+        const row = getDb()
+          .query<{ kind: string; session_id: string }>(
+            "SELECT kind, session_id FROM changes WHERE kind = 'session_updated' AND session_id = ?"
+          )
+          .get('unread-change');
+        expect(row).not.toBeNull();
+      });
+
+      /** 测试不存在的会话返回 false */
+      it('should return false for non-existent session', () => {
+        expect(store.setHasUnread('non-existent', true)).toBe(false);
+      });
+    });
+
     /** listSessionFiles 测试 */
     describe('listSessionFiles', () => {
       /** 测试列出所有 session 元数据 */

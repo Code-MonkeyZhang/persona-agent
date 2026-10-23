@@ -44,7 +44,6 @@ function entry(
   return {
     hostId,
     name,
-    hostName: `${hostId}-host`,
     address,
     lastConnectedAt: null,
   };

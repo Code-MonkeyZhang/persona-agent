@@ -66,6 +66,15 @@ describe('db bootstrap', () => {
     expect(row?.user_version).toBe(SCHEMA_VERSION);
   });
 
+  /** 测试 sessions 表带上未读列,新库建表与旧库迁移两条路径共用此断言 */
+  it('should include has_unread column in sessions', () => {
+    const cols = getDb()
+      .query<{ name: string }>('PRAGMA table_info(sessions)')
+      .all()
+      .map((row) => row.name);
+    expect(cols).toContain('has_unread');
+  });
+
   /** 测试 journal_mode 为 wal */
   it('should enable WAL journal mode', () => {
     const row = getDb()

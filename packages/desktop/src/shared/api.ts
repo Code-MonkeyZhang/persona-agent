@@ -75,10 +75,8 @@ export const LOCAL_DEVICE_ID = 'local';
 export interface DeviceEntry {
   /** 本机固定为 local，远程主机为握手返回的 hostId */
   hostId: string;
-  /** 用户改过的显示名，null 表示未改过 */
+  /** 本地标签，建档时取握手自称名作初始值，此后归用户所有 */
   name: string | null;
-  /** 握手自称名，服务端 OS hostname，显示名顺序在自称名之前 */
-  hostName: string | null;
   /** 最近一次成功连接的地址，本机为 null */
   address: string | null;
   /** 最近一次成功连接的时间戳，毫秒 */
@@ -93,6 +91,7 @@ export interface WindowAPI {
   selectFolder: (options?: SelectFolderOptions) => Promise<string | null>;
   getConnection: () => Promise<ConnectionSnapshot>;
   getDevices: () => Promise<DeviceEntry[]>;
+  /** 条目落位，旧主机只更新地址，新主机用 hostName 作 name 初始值 */
   upsertDevice: (entry: {
     hostId: string;
     hostName: string;
@@ -140,6 +139,7 @@ export interface WindowAPI {
     getSessions: (agentId: string) => Promise<SessionMeta[]>;
     getSession: (sessionId: string) => Promise<Session | null>;
     getAgents: () => Promise<AgentConfig[]>;
+    getUnreadAgents: () => Promise<string[]>;
     getLauncherPrefs: () => Promise<LauncherSnapshot | null>;
     getCursor: () => Promise<number>;
     applySnapshot: (snapshot: SyncSnapshot) => Promise<void>;

@@ -43,6 +43,19 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * 从 catch 到的 unknown 错误中提取可展示给人的消息
+ * - Error 实例取 message 属性
+ * - 其他值传入兜底文案时用兜底，未传时用 String 转换
+ * @param err - catch 块拿到的未知类型错误
+ * @param fallback - 非 Error 值的兜底文案，如界面翻译或固定短句
+ * @returns 可直接用于提示或日志的字符串
+ */
+export function getErrorMessage(err: unknown, fallback?: string): string {
+  if (err instanceof Error) return err.message;
+  return fallback ?? String(err);
+}
+
+/**
  * 将文件读取为 Data URL 字符串
  * @param file - 待读取的文件
  * @returns base64 编码的 Data URL

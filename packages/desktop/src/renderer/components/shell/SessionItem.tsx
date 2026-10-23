@@ -10,6 +10,8 @@ import { useTranslation } from 'react-i18next';
 import type { SessionMeta } from '../../types/session';
 import { cn } from '../../lib/utils';
 import { useInlineRename } from '../../hooks/useInlineRename';
+import { useChatStore } from '../../stores/chatStore';
+import { SignalSlot } from './SignalSlot';
 
 interface SessionItemProps {
   session: SessionMeta;
@@ -42,6 +44,13 @@ export const SessionItem: React.FC<SessionItemProps> = ({
   const { editingKey, draft, setDraft, inputRef, start, confirm, cancel } =
     useInlineRename<string>((id, title) => onRename(id, title));
   const isEditing = editingKey === session.id;
+
+  // 运行腿取全局广播集合,本机 isLoading 兜底,取或覆盖跨端广播与本地乐观两种来源
+  const isRunning = useChatStore(
+    (s) =>
+      s.runningSessions.includes(session.id) ||
+      (s.sessionStates.get(session.id)?.isLoading ?? false)
+  );
 
   /**
    * 处理重命名输入框的键盘事件：Enter 保存，Escape 取消
@@ -106,11 +115,17 @@ export const SessionItem: React.FC<SessionItemProps> = ({
     <>
       <div
         className={cn(
-          'group relative pl-7 pr-7 py-2 rounded-lg cursor-pointer transition-colors',
+          'group relative pl-8 pr-7 py-2 rounded-lg cursor-pointer transition-colors',
           isActive ? 'bg-muted text-foreground' : 'hover:bg-muted'
         )}
         onClick={() => !isEditing && onSelect(session.id)}
       >
+        {/* 运行与未读收敛到行首缩进区同一个信号位,标题位置恒定不移 */}
+        <SignalSlot
+          running={isRunning}
+          unread={Boolean(session.hasUnread) && !isActive}
+          className="absolute left-1 top-1/2 -translate-y-1/2"
+        />
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             {isEditing ? (

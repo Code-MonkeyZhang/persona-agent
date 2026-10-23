@@ -2,7 +2,8 @@
  * @fileoverview 运行中会话的 AbortController 注册表。
  *
  * 模块级单例。ChatService 注册 controller，WebSocket 服务
- * 收到客户端 abort 消息时查表触发。
+ * 收到客户端 abort 消息时查表触发，连接建立时经 list 取
+ * 运行全量列表推送快照。
  */
 
 const controllers = new Map<string, AbortController>();
@@ -20,6 +21,11 @@ export function unregister(sessionId: string): void {
 /** 查询会话是否正在运行（用于重入保护） */
 export function has(sessionId: string): boolean {
   return controllers.has(sessionId);
+}
+
+/** 运行中的全部会话 ID，连接快照的数据源 */
+export function list(): string[] {
+  return [...controllers.keys()];
 }
 
 /**

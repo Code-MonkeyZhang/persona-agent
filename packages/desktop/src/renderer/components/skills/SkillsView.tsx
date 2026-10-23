@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { listSkills, type SkillInfo } from '../../lib/api';
 import { useAgentStore } from '../../stores/agentStore';
 import { logger } from '../../lib/logger';
+import { getErrorMessage } from '../../lib/utils';
 import { ListState } from '../common/ListState';
 import { EmptyPane } from '../common/SidePanel';
 import { useValidatedSelection } from '../../hooks/useValidatedSelection';
@@ -31,7 +32,7 @@ export const SkillsView: React.FC = () => {
       .then(setSkills)
       .catch((err) => {
         logger.error('Failed to load skills:', err);
-        setError(err instanceof Error ? err.message : String(err));
+        setError(getErrorMessage(err));
       });
   }, []);
 

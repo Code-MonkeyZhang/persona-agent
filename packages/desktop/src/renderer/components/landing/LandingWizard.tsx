@@ -19,7 +19,7 @@ import {
   Volume2,
   AudioLines,
   Mic,
-  ChevronLeft,
+  ArrowLeft,
   ExternalLink,
   PenLine,
   FileText,
@@ -53,7 +53,7 @@ import {
   getAgentAvatarUrl,
   type VoiceOption,
 } from '../../lib/api';
-import { getRandomPreviewText } from '../../lib/utils';
+import { getRandomPreviewText, getErrorMessage } from '../../lib/utils';
 import { verifyTtsApiKey, MINIMAX_DOCS_URL } from '../../lib/tts';
 import { toast } from '../../stores/toastStore';
 import { useProviderStore } from '../../stores/providerStore';
@@ -255,9 +255,7 @@ export function LandingWizard({
       setModelChoice({ provider: provider.id, model: modelId });
       logger.info(`[Landing] credential saved for provider: ${provider.id}`);
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : t('landing.verifyFailed')
-      );
+      toast.error(getErrorMessage(err, t('landing.verifyFailed')));
     } finally {
       setVerifying(false);
     }
@@ -276,7 +274,7 @@ export function LandingWizard({
       logger.info('[Landing] tts credential saved');
     } catch (err) {
       logger.error('[Landing] failed to save tts credential:', err);
-      toast.error(err instanceof Error ? err.message : t('voice.verifyFailed'));
+      toast.error(getErrorMessage(err, t('voice.verifyFailed')));
     } finally {
       setTtsVerifying(false);
     }
@@ -415,7 +413,7 @@ export function LandingWizard({
                   className="text-caption leading-none text-muted-foreground hover:text-foreground mb-3 flex items-center gap-1"
                   onClick={() => setSelectedProvider(null)}
                 >
-                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <ArrowLeft className="w-3.5 h-3.5" />
                   {t('landing.backToGallery')}
                 </button>
 
@@ -657,7 +655,7 @@ export function LandingWizard({
                 className="flex items-center gap-1 text-caption leading-none text-muted-foreground hover:text-foreground"
                 onClick={() => setPage(0)}
               >
-                <ChevronLeft className="w-3.5 h-3.5" />
+                <ArrowLeft className="w-3.5 h-3.5" />
                 {t('landing.back')}
               </button>
               <Button
@@ -835,7 +833,7 @@ export function LandingWizard({
                 className="flex items-center gap-1 text-caption leading-none text-muted-foreground hover:text-foreground"
                 onClick={() => setPage(1)}
               >
-                <ChevronLeft className="w-3.5 h-3.5" />
+                <ArrowLeft className="w-3.5 h-3.5" />
                 {t('landing.back')}
               </button>
               <Button
@@ -887,7 +885,7 @@ export function LandingWizard({
                 className="flex items-center gap-1 text-caption leading-none text-muted-foreground hover:text-foreground"
                 onClick={() => setPage(2)}
               >
-                <ChevronLeft className="w-3.5 h-3.5" />
+                <ArrowLeft className="w-3.5 h-3.5" />
                 {t('landing.back')}
               </button>
               <Button

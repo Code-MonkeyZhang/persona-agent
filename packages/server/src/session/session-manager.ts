@@ -207,6 +207,17 @@ export class SessionManager {
   }
 
   /**
+   * 更新会话未读标记。
+   *
+   * 回合收尾置 true,客户端 viewed 上报置 false,幂等空写无害。
+   * 走 store 的窄更新,不触碰 updated_at,列表排序不随未读状态跳动。
+   * @returns `true` if the session row exists, `false` otherwise
+   */
+  updateHasUnread(id: string, hasUnread: boolean): boolean {
+    return this.store.setHasUnread(id, hasUnread);
+  }
+
+  /**
    * 更新聊天 Session 的压缩进度指针。
    *
    * 压缩完成后由 compress-service 调用，推进 `summarizedUpTo`；

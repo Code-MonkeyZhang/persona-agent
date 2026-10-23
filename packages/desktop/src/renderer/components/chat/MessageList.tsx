@@ -87,10 +87,10 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
         )
       )}
 
-      {/* 内容区域 */}
+      {/* 内容区域：min-w-0 允许宽度缩到内容 min-content 以下，长代码行才能在块内横滚 */}
       <div
         className={cn(
-          'group max-w-[85%]',
+          'group min-w-0 max-w-[85%]',
           isUser ? 'flex flex-col items-end' : 'flex flex-col items-start'
         )}
       >
@@ -103,7 +103,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
         {hasContent && (
           <div
             className={cn(
-              'px-4 py-2.5 rounded-2xl transition-colors duration-300',
+              'max-w-full px-4 py-2.5 rounded-2xl transition-colors duration-300',
               isUser &&
                 (message.queued
                   ? 'bg-muted text-foreground/70'

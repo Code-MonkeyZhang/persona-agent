@@ -22,14 +22,20 @@ export default function Layout({ children }: LayoutProps) {
               alt="Persona Agent logo"
               className="h-7 w-7 rounded-lg border border-paper-line"
             />
-            <span className="text-sm font-semibold tracking-tight text-ink">Persona Agent</span>
+            <span className="text-content font-semibold tracking-tight text-ink">Persona Agent</span>
           </Link>
 
           <div className="flex items-center gap-3">
+            <Link
+              to="/docs"
+              className="text-caption font-medium text-ink-soft transition-colors duration-150 hover:text-ink"
+            >
+              {t('nav.docs')}
+            </Link>
             <button
               type="button"
               onClick={toggle}
-              className="rounded-full border border-paper-line px-3 py-1.5 text-xs font-medium text-ink-soft transition-colors duration-150 hover:border-ink-faint hover:text-ink"
+              className="rounded-full border border-paper-line px-3 py-1.5 text-caption font-medium text-ink-soft transition-colors duration-150 hover:border-ink-faint hover:text-ink"
               aria-label={locale === 'zh' ? 'Switch to English' : '切换到中文'}
             >
               {locale === 'zh' ? 'EN' : '中文'}
@@ -44,12 +50,12 @@ export default function Layout({ children }: LayoutProps) {
               <Github size={18} strokeWidth={2} />
             </a>
             {isHome ? (
-              <a href="#download" className="btn-primary gap-1.5 !px-4 !py-1.5 text-xs">
+              <a href="#download" className="btn-primary gap-1.5 !px-4 !py-1.5 text-caption">
                 <Download size={14} strokeWidth={2} />
                 {t('nav.download')}
               </a>
             ) : (
-              <Link to="/#download" className="btn-primary gap-1.5 !px-4 !py-1.5 text-xs">
+              <Link to="/#download" className="btn-primary gap-1.5 !px-4 !py-1.5 text-caption">
                 <Download size={14} strokeWidth={2} />
                 {t('nav.download')}
               </Link>
@@ -61,7 +67,7 @@ export default function Layout({ children }: LayoutProps) {
       <main className="flex-1">{children}</main>
 
       <footer className="border-t border-paper-line">
-        <div className="container-wide flex flex-col items-start justify-between gap-3 py-8 text-xs text-ink-faint sm:flex-row sm:items-center">
+        <div className="container-wide flex flex-col items-start justify-between gap-3 py-8 text-caption text-ink-faint sm:flex-row sm:items-center">
           <p>© {new Date().getFullYear()} Feurther Technologies LLC · {t('footer.claim')}</p>
           <div className="flex items-center gap-5">
             <a

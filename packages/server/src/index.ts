@@ -5,6 +5,7 @@
 import { Command } from 'commander';
 import type { Server } from 'node:http';
 import { initAllDirsAndFiles, Logger } from './util/index.js';
+import { errorMessage } from './util/errors.js';
 import { getDb } from './db/index.js';
 import { getLogsDir, getConfigPath } from './util/paths.js';
 import { loadConfig } from './config.js';
@@ -41,14 +42,58 @@ program
 
 program.parse();
 
+/** 退出总预算，停隧道与整池收尾共享，超时无条件退出 */
+const SHUTDOWN_BUDGET_MS = 5000;
+/** 停隧道一步的分预算，防止隧道卡住吃光总预算 */
+const TUNNEL_STOP_BUDGET_MS = 3000;
+
+/**
+ * 注册退出信号处理，SIGTERM 与 SIGINT 共用一条收尾链。
+ *
+ * 顺序是先停隧道，再整池收尾逐个告别子进程，最后关自己的网页服务。
+ * 整体套五秒硬预算，任何一步卡住都按时退出，
+ * 漏掉的部分由清账记录留给下次启动兜底。
+ */
 function setupExitHandlers(httpServer: Server): void {
+  let exiting = false;
+
   const cleanup = (): void => {
+    if (exiting) return;
+    exiting = true;
     Logger.log('SERVER', 'Server shutting down');
-    void import('./server/services/tunnel-service.js')
-      .then(({ stopTunnel }) => stopTunnel())
-      .catch(() => {});
-    httpServer.close();
-    process.exit(0);
+
+    const deadline = setTimeout(() => {
+      Logger.log('SERVER', 'Shutdown budget exhausted, exiting anyway');
+      process.exit(0);
+    }, SHUTDOWN_BUDGET_MS);
+    deadline.unref?.();
+
+    void (async () => {
+      try {
+        const { stopTunnel } =
+          await import('./server/services/tunnel-service.js');
+        await Promise.race([
+          stopTunnel(),
+          new Promise((resolve) => {
+            const timer = setTimeout(resolve, TUNNEL_STOP_BUDGET_MS);
+            timer.unref?.();
+          }),
+        ]);
+      } catch (error: unknown) {
+        Logger.log('SERVER', `Tunnel stop failed: ${errorMessage(error)}`);
+      }
+
+      try {
+        const { shutdownMcpPool } = await import('./mcp/index.js');
+        await shutdownMcpPool();
+      } catch (error: unknown) {
+        Logger.log('ERROR', `MCP pool shutdown failed: ${errorMessage(error)}`);
+      }
+
+      httpServer.close();
+      Logger.log('SERVER', 'Shutdown complete');
+      process.exit(0);
+    })();
   };
 
   process.on('SIGTERM', cleanup);

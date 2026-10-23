@@ -28,6 +28,7 @@ import { useAgentStore } from './agentStore';
 import { useAppPanelStore } from './appPanelStore';
 import { useViewStore } from './viewStore';
 import { logger } from '../lib/logger';
+import { getErrorMessage } from '../lib/utils';
 import { toast } from './toastStore';
 import i18n from '../i18n';
 
@@ -102,8 +103,7 @@ export const useMarketplaceStore = create<MarketplaceStore>((set, get) => ({
     } catch (err) {
       logger.error('[Marketplace] loadSkillMarketplace failed:', err);
       set({
-        skillError:
-          err instanceof Error ? err.message : i18n.t('marketplace.loadFailed'),
+        skillError: getErrorMessage(err, i18n.t('marketplace.loadFailed')),
         skillLoading: false,
       });
     }
@@ -124,8 +124,7 @@ export const useMarketplaceStore = create<MarketplaceStore>((set, get) => ({
     } catch (err) {
       logger.error('[Marketplace] loadMcpMarketplace failed:', err);
       set({
-        mcpError:
-          err instanceof Error ? err.message : i18n.t('marketplace.loadFailed'),
+        mcpError: getErrorMessage(err, i18n.t('marketplace.loadFailed')),
         mcpLoading: false,
       });
     }
@@ -148,8 +147,7 @@ export const useMarketplaceStore = create<MarketplaceStore>((set, get) => ({
     } catch (err) {
       logger.error('[Marketplace] loadAgentMarketplace failed:', err);
       set({
-        agentError:
-          err instanceof Error ? err.message : i18n.t('marketplace.loadFailed'),
+        agentError: getErrorMessage(err, i18n.t('marketplace.loadFailed')),
         agentLoading: false,
       });
     }
@@ -166,9 +164,7 @@ export const useMarketplaceStore = create<MarketplaceStore>((set, get) => ({
       toast.success(i18n.t('marketplace.installSuccess', { name: entry.name }));
     } catch (err) {
       logger.error(`[Marketplace] Failed to install skill ${folder}:`, err);
-      toast.error(
-        err instanceof Error ? err.message : i18n.t('common.loadFailed')
-      );
+      toast.error(getErrorMessage(err, i18n.t('common.loadFailed')));
     } finally {
       set((s) => {
         const next = new Set(s.installing);
@@ -193,9 +189,7 @@ export const useMarketplaceStore = create<MarketplaceStore>((set, get) => ({
       }
     } catch (err) {
       logger.error(`[Marketplace] Failed to install MCP ${folder}:`, err);
-      toast.error(
-        err instanceof Error ? err.message : i18n.t('common.loadFailed')
-      );
+      toast.error(getErrorMessage(err, i18n.t('common.loadFailed')));
     } finally {
       set((s) => {
         const next = new Set(s.installing);
@@ -224,9 +218,7 @@ export const useMarketplaceStore = create<MarketplaceStore>((set, get) => ({
       useViewStore.getState().setView('chat');
     } catch (err) {
       logger.error(`[Marketplace] Failed to install agent ${folder}:`, err);
-      toast.error(
-        err instanceof Error ? err.message : i18n.t('common.loadFailed')
-      );
+      toast.error(getErrorMessage(err, i18n.t('common.loadFailed')));
     } finally {
       set((s) => {
         const next = new Set(s.installing);
@@ -244,8 +236,7 @@ export const useMarketplaceStore = create<MarketplaceStore>((set, get) => ({
     } catch (err) {
       logger.error('[Marketplace] loadSkillManage failed:', err);
       set({
-        skillsManageError:
-          err instanceof Error ? err.message : i18n.t('skills.loadFailed'),
+        skillsManageError: getErrorMessage(err, i18n.t('skills.loadFailed')),
         skillsManageLoading: false,
       });
     }
@@ -258,8 +249,7 @@ export const useMarketplaceStore = create<MarketplaceStore>((set, get) => ({
       await get().loadSkillManage();
       toast.success(i18n.t('marketplace.uninstallSuccess', { name }));
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : i18n.t('common.loadFailed');
+      const msg = getErrorMessage(err, i18n.t('common.loadFailed'));
       logger.error(`[Marketplace] Failed to uninstall skill ${name}:`, err);
       toast.error(msg);
       throw err;

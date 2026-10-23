@@ -7,8 +7,8 @@ import { persist } from 'zustand/middleware';
 import { logger } from '../lib/logger';
 import type { LandingMode } from '../lib/landing';
 
-/** 会话侧边栏最小宽度，单位像素，窗口缩放不改变此下限 */
-export const SESSION_SIDEBAR_MIN_PX = 240;
+/** 会话侧边栏最小宽度，单位为 Group 宽度百分比，下限随窗口宽度等比缩放 */
+export const SESSION_SIDEBAR_MIN_PERCENT = 20;
 
 /** 会话侧边栏最大宽度，单位像素 */
 export const SESSION_SIDEBAR_MAX_PX = 340;

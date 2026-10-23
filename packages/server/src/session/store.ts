@@ -28,6 +28,7 @@ export interface SessionRow {
   current_pose: string | null;
   turn_ends: string | null;
   last_message_preview: string | null;
+  has_unread: number;
   created_at: number;
   updated_at: number;
 }
@@ -59,6 +60,8 @@ export function rowToMeta(row: SessionRow): SessionMeta {
       : JSON.parse(row.model)) as ModelConfig,
     summarizedUpTo: row.summarized_up_to ?? undefined,
     currentPose: row.current_pose ?? undefined,
+    // 未读列存 0/1，读回还原为布尔，0 与 undefined 在消费方等价
+    hasUnread: row.has_unread === 1,
   };
 }
 
@@ -107,8 +110,9 @@ export class SessionStore {
       db.query(
         `INSERT INTO sessions
           (id, agent_id, title, workspace_path, model, summarized_up_to,
-           current_pose, turn_ends, last_message_preview, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`
+           current_pose, turn_ends, last_message_preview, has_unread,
+           created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?)`
       ).run(
         meta.id,
         meta.agentId,
@@ -117,6 +121,7 @@ export class SessionStore {
         JSON.stringify(meta.model) ?? null,
         meta.summarizedUpTo ?? null,
         meta.currentPose ?? null,
+        meta.hasUnread ? 1 : 0,
         meta.createdAt,
         meta.updatedAt
       );
@@ -222,7 +227,7 @@ export class SessionStore {
     const event = db.transaction((): SessionChange | null => {
       db.query(
         `UPDATE sessions SET title = ?, workspace_path = ?, model = ?,
-          summarized_up_to = ?, current_pose = ?, updated_at = ?
+          summarized_up_to = ?, current_pose = ?, has_unread = ?, updated_at = ?
          WHERE id = ? AND agent_id = ?`
       ).run(
         meta.title,
@@ -230,6 +235,7 @@ export class SessionStore {
         JSON.stringify(meta.model) ?? null,
         meta.summarizedUpTo ?? null,
         meta.currentPose ?? null,
+        meta.hasUnread ? 1 : 0,
         meta.updatedAt,
         id,
         this.agentId
@@ -246,6 +252,37 @@ export class SessionStore {
       );
     })();
     if (event) emitSessionChange(event);
+  }
+
+  /**
+   * Update the unread flag of the session row.
+   *
+   * 窄更新只碰 has_unread 列,不动 updated_at,会话排序不随未读状态跳动,
+   * 同事务登记携带完整元信息的 session_updated 事件,变更流据此扩散到全部端。
+   * @returns `true` if the session row exists, `false` otherwise
+   */
+  setHasUnread(id: string, hasUnread: boolean): boolean {
+    const db = getDb();
+    const event = db.transaction((): SessionChange | null => {
+      const result = db
+        .query(
+          'UPDATE sessions SET has_unread = ? WHERE id = ? AND agent_id = ?'
+        )
+        .run(hasUnread ? 1 : 0, id, this.agentId);
+      if (result.changes === 0) return null;
+      const row = statement<SessionRow>(
+        'SELECT * FROM sessions WHERE id = ? AND agent_id = ?'
+      ).get(id, this.agentId);
+      if (!row) return null;
+      return insertChangeRow(
+        db,
+        'session_updated',
+        id,
+        buildSessionPayload(row, id)
+      );
+    })();
+    if (event) emitSessionChange(event);
+    return event !== null;
   }
 
   /**

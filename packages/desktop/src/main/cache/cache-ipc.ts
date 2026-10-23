@@ -30,6 +30,10 @@ export function registerCacheIpc(cacheGetter: () => CacheDb | null): void {
   );
   ipcMain.handle(IPC.CACHE_GET_AGENTS, () => cacheGetter()?.listAgents() ?? []);
   ipcMain.handle(
+    IPC.CACHE_GET_UNREAD_AGENTS,
+    () => cacheGetter()?.listUnreadAgentIds() ?? []
+  );
+  ipcMain.handle(
     IPC.CACHE_GET_LAUNCHER_PREFS,
     () => cacheGetter()?.getLauncherPrefs() ?? null
   );

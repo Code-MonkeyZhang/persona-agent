@@ -73,7 +73,6 @@ describe('device registry', () => {
     data.devices.push({
       hostId: 'remote-1',
       name: '工作室电脑',
-      hostName: 'studio',
       address: 'https://studio.example.com',
       lastConnectedAt: 123,
     });
@@ -81,6 +80,29 @@ describe('device registry', () => {
     registry.save(data);
 
     expect(registry.load()).toEqual(data);
+  });
+
+  /** 旧模型的 hostName 字段读入时迁移为本地标签，改过名的直接丢弃，重跑幂等 */
+  it('migrates legacy hostName into the local label', () => {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(
+      filePath,
+      JSON.stringify({
+        currentHostId: 'remote-1',
+        devices: [
+          { hostId: 'local', name: null, hostName: null, address: null, lastConnectedAt: null },
+          { hostId: 'remote-1', name: null, hostName: 'studio', address: 'http://x', lastConnectedAt: 1 },
+          { hostId: 'remote-2', name: '改名过的', hostName: 'nas', address: 'http://y', lastConnectedAt: 2 },
+        ],
+      }),
+      'utf-8'
+    );
+    const first = registry.load();
+    expect(first.devices.find((d) => d.hostId === 'remote-1')?.name).toBe('studio');
+    expect(first.devices.find((d) => d.hostId === 'remote-2')?.name).toBe('改名过的');
+    registry.save(first);
+    expect(fs.readFileSync(filePath, 'utf-8')).not.toContain('hostName');
+    expect(registry.load()).toEqual(first);
   });
 
   /** 原子写不在目录里留临时文件 */

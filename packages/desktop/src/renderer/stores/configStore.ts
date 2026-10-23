@@ -5,6 +5,8 @@
 
 import { create } from 'zustand';
 import { getConfig, updateConfig } from '../lib/api';
+import { logger } from '../lib/logger';
+import { getErrorMessage } from '../lib/utils';
 
 interface RetryConfig {
   enabled: boolean;
@@ -61,9 +63,11 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
       const config = await getConfig();
       set({ config, loading: false });
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to load config';
-      set({ error: errorMessage, loading: false });
+      logger.error('[ConfigStore] Failed to load config:', error);
+      set({
+        error: getErrorMessage(error, 'Failed to load config'),
+        loading: false,
+      });
     }
   },
 
@@ -78,9 +82,8 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
       await updateConfig(config);
       set({ config });
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to save config';
-      set({ error: errorMessage });
+      logger.error('[ConfigStore] Failed to save config:', error);
+      set({ error: getErrorMessage(error, 'Failed to save config') });
       throw error;
     }
   },

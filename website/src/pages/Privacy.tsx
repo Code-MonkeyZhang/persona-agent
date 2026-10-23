@@ -7,11 +7,11 @@ export default function Privacy() {
     <Layout>
       <article className="container-prose py-20">
         <div className="prose-policy">
-          <p className="text-xs font-medium uppercase tracking-widest text-ink-faint">
+          <p className="text-caption font-medium uppercase tracking-widest text-ink-faint">
             Privacy Policy
           </p>
           <h1 className="mt-3">Persona Mobile Privacy Policy</h1>
-          <p className="mt-3 text-sm text-ink-faint">
+          <p className="mt-3 text-content text-ink-faint">
             Effective Date: {EFFECTIVE_DATE}
           </p>
 

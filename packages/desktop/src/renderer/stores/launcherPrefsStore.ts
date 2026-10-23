@@ -19,6 +19,7 @@ import {
 } from '../lib/api';
 import { processWallpaperFile } from '../lib/wallpaper-image';
 import { logger } from '../lib/logger';
+import { getErrorMessage } from '../lib/utils';
 import { toast } from './toastStore';
 
 interface LauncherPrefsState {
@@ -41,7 +42,7 @@ interface LauncherPrefsState {
 
 /** 统一的失败提示，服务端报错原文透出便于定位 */
 function failToast(action: string, err: unknown): void {
-  const msg = err instanceof Error ? err.message : String(err);
+  const msg = getErrorMessage(err);
   logger.error(`LauncherPrefs: ${action} failed`, err);
   toast.error(msg);
 }

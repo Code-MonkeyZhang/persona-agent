@@ -86,6 +86,8 @@ export async function connectOne(
     env: {
       ...config.env,
       ...(appPort ? { APP_PORT: String(appPort) } : {}),
+      // 宿主编号随端口一起注入，App 靠它轮询探测宿主是否还活着
+      ...(appPort ? { PERSONA_SERVER_PID: String(process.pid) } : {}),
     },
     url: config.url,
     headers: config.headers,

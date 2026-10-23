@@ -45,7 +45,7 @@ import {
   SelectValue,
 } from '../ui/Select';
 import { useVoicePreview } from '../../hooks/useVoicePreview';
-import { getRandomPreviewText } from '../../lib/utils';
+import { getRandomPreviewText, getErrorMessage } from '../../lib/utils';
 import { toast } from '../../stores/toastStore';
 import { logger } from '../../lib/logger';
 
@@ -166,8 +166,7 @@ export const VoiceConfigPanel: React.FC = () => {
       setKeyConfigured(true);
       setFeedback({ type: 'success', message: t('voice.apiKeyVerified') });
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : t('voice.verifyFailed');
+      const message = getErrorMessage(err, t('voice.verifyFailed'));
       setFeedback({ type: 'error', message });
     } finally {
       setVerifying(false);
@@ -218,8 +217,7 @@ export const VoiceConfigPanel: React.FC = () => {
       await deleteClonedVoice(voiceId);
       setClonedVoices((prev) => prev.filter((v) => v.id !== voiceId));
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : t('common.deleteFailed');
+      const message = getErrorMessage(err, t('common.deleteFailed'));
       toast.error(message);
     }
   };
@@ -235,8 +233,7 @@ export const VoiceConfigPanel: React.FC = () => {
       );
       setRenamingId(null);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : t('common.saveFailed');
+      const message = getErrorMessage(err, t('common.saveFailed'));
       toast.error(message);
     }
   };
@@ -306,8 +303,7 @@ export const VoiceConfigPanel: React.FC = () => {
       resetCloneForm();
       toast.success(t('voice.cloneSuccess'));
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : t('voice.cloneFailed');
+      const message = getErrorMessage(err, t('voice.cloneFailed'));
       toast.error(message);
     } finally {
       setCloning(false);

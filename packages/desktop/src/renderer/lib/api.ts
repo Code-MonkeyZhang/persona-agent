@@ -39,6 +39,7 @@ import type {
   HandshakeInfo,
 } from '@persona/shared';
 import { logger } from './logger';
+import { getErrorMessage } from './utils';
 import type { WallpaperImagePair } from './wallpaper-image';
 
 interface ListAgentsResponse {
@@ -303,7 +304,7 @@ export class WebSocketClient {
         } catch (error) {
           logger.error(
             '[WebSocket] Failed to parse message:',
-            error instanceof Error ? error.message : String(error)
+            getErrorMessage(error)
           );
         }
       };
@@ -416,6 +417,14 @@ export class WebSocketClient {
    */
   abort(sessionId: string): void {
     this.send({ type: 'abort', payload: { sessionId } });
+  }
+
+  /**
+   * 上报进入会话的已读，服务端据此清除 hasUnread 并经变更流广播全端。
+   * 一次性动作不加入 activeSessionIds，重复上报在服务端是幂等空写。
+   */
+  viewed(sessionId: string): void {
+    this.send({ type: 'viewed', payload: { sessionId } });
   }
 
   /**

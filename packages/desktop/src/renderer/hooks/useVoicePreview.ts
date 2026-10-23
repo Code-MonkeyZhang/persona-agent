@@ -9,6 +9,7 @@ import { synthesize } from '../lib/tts';
 import { audioPlayer } from '../lib/audio-player';
 import { toast } from '../stores/toastStore';
 import { logger } from '../lib/logger';
+import { getErrorMessage } from '../lib/utils';
 
 interface PreviewLabels {
   noKey: string;
@@ -46,7 +47,7 @@ export function useVoicePreview() {
       );
       audioPlayer.play(audio);
     } catch (err) {
-      const message = err instanceof Error ? err.message : labels.failed;
+      const message = getErrorMessage(err, labels.failed);
       logger.error('[VoicePreview] failed:', message);
       toast.error(message);
     } finally {

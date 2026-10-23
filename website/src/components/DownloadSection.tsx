@@ -85,7 +85,7 @@ function CardAction({
       href={button.href}
       target={button.external ? '_blank' : undefined}
       rel={button.external ? 'noreferrer' : undefined}
-      className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold transition-transform duration-150 active:scale-[0.97] ${
+      className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border px-3 py-2 text-caption font-semibold transition-transform duration-150 active:scale-[0.97] ${
         isDetected ? 'border-ink bg-ink text-paper' : 'border-paper-line text-ink'
       }`}
     >
@@ -156,10 +156,10 @@ export default function DownloadSection() {
           transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
           className="mx-auto max-w-2xl text-center"
         >
-          <p className="mb-3 text-xs font-medium uppercase tracking-widest text-ink-faint">
+          <p className="mb-3 text-caption font-medium uppercase tracking-widest text-ink-faint">
             {t('dl.eyebrow')}
           </p>
-          <h2 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+          <h2 className="text-section-title font-semibold tracking-tight text-ink sm:text-title-display">
             {t('dl.title')}
           </h2>
         </motion.div>
@@ -181,16 +181,16 @@ export default function DownloadSection() {
                 }`}
               >
                 {isDetected && (
-                  <span className="absolute -top-2.5 left-4 rounded-full bg-ink px-2.5 py-0.5 text-[11px] font-semibold text-paper">
+                  <span className="absolute -top-2.5 left-4 rounded-full bg-ink px-2.5 py-0.5 text-micro font-semibold text-paper">
                     {t('dl.detected')}
                   </span>
                 )}
                 <div className="flex items-center gap-2 text-ink">
                   {card.icon}
-                  <h3 className="text-sm font-semibold text-ink">
+                  <h3 className="text-content font-semibold text-ink">
                     {card.title}
                     {card.version ? (
-                      <span className="ml-1.5 text-[11px] font-normal text-ink-faint">
+                      <span className="ml-1.5 text-micro font-normal text-ink-faint">
                         {card.version}
                       </span>
                     ) : null}

@@ -31,6 +31,15 @@ export interface SessionMeta {
   currentPose?: string;
 
   /**
+   * 会话未读标记。
+   *
+   * server 权威字段，round_complete 落盘后无条件置 true，客户端 viewed
+   * 上报置 false，任何一端看过即全局看过。undefined 与 false 等价，
+   * 服务端列默认 0。read_state 表的按设备游标属储存层预留，与本字段脱钩。
+   */
+  hasUnread?: boolean;
+
+  /**
    * 最后一条真实消息的预览文本。
    *
    * 列表接口派生字段，由 listSessionFiles 从已读入的消息行现算，不落盘。

@@ -37,9 +37,13 @@ mock.module('../src/util/paths.js', () => ({
   getCloudflaredBinPath: () => cloudflaredBinPath,
 }));
 
+const tunnelLogs: Array<{ tag: string; message: string; data?: unknown }> = [];
+
 mock.module('../src/util/logger.js', () => ({
   Logger: {
-    log: () => {},
+    log: (tag: string, message: string, data?: unknown) => {
+      tunnelLogs.push({ tag, message, data });
+    },
     initialize: () => '',
     setEnabled: () => {},
     setSessionManagers: () => {},
@@ -55,54 +59,53 @@ mock.module('../src/server/index.js', () => ({
 
 /**
  * Fake ChildProcess that simulates cloudflared output.
- * Emits stderr data with a tunnel URL after a configurable delay.
+ * Emits the tunnel URL on stderr after a configurable delay when one is given.
+ * Records kill signals and can be told to ignore SIGTERM or all kills.
  */
+interface FakeChild extends ChildProcess {
+  emitLine: (line: string) => void;
+  killSignals: string[];
+}
+
 function createFakeChildProcess(
-  url: string,
-  delayMs: number
-): ChildProcess & { emitStderr: (data: string) => void } {
-  const emitter = new EventEmitter() as ChildProcess & {
-    emitStderr: (data: string) => void;
-  };
+  url: string | null,
+  delayMs = 50,
+  opts: { ignoreSigTerm?: boolean; ignoreKill?: boolean } = {}
+): FakeChild {
+  const emitter = new EventEmitter() as FakeChild;
 
   const stderr = new EventEmitter();
   const stdout = new EventEmitter();
 
   emitter.stderr = stderr;
   emitter.stdout = stdout;
-  emitter.kill = mock(() => {
-    emitter.emit('exit', 0);
+  emitter.killSignals = [];
+
+  emitter.kill = mock((signal?: string) => {
+    emitter.killSignals.push(signal ?? 'SIGTERM');
+    if (opts.ignoreKill) return true;
+    if (opts.ignoreSigTerm && signal === 'SIGTERM') return true;
+    emitter.emit('exit', null);
+    return true;
   });
 
-  emitter.emitStderr = (data: string) => {
-    stderr.emit('data', Buffer.from(data));
+  emitter.emitLine = (line: string) => {
+    stderr.emit('data', Buffer.from(line));
   };
 
-  setTimeout(() => {
-    stderr.emit(
-      'data',
-      Buffer.from(
-        `INF | Your quick Tunnel has been created! Visit it at ${url}`
-      )
-    );
-  }, delayMs);
+  if (url) {
+    setTimeout(() => {
+      emitter.emitLine(
+        `INF |  Your quick Tunnel has been created! Visit it at ${url}`
+      );
+    }, delayMs);
+  }
 
-  return emitter;
-}
-
-/**
- * Fake ChildProcess that never emits a URL (for timeout/stuck testing).
- */
-function createStuckChildProcess(): ChildProcess {
-  const emitter = new EventEmitter() as ChildProcess;
-  emitter.stderr = new EventEmitter();
-  emitter.stdout = new EventEmitter();
-  emitter.kill = mock();
   return emitter;
 }
 
 let spawnImpl: (...args: unknown[]) => ChildProcess = () =>
-  createStuckChildProcess();
+  createFakeChildProcess(null);
 
 mock.module('node:child_process', () => ({
   ...realChildProcess,
@@ -114,9 +117,8 @@ import {
   startTunnel,
   stopTunnel,
   getTunnelStatus,
-  onStatusChange,
-  offStatusChange,
   _resetState,
+  _timings,
 } from '../src/server/services/tunnel-service.js';
 import { createTunnelRouter } from '../src/server/routers/tunnel.js';
 
@@ -164,7 +166,8 @@ describe('Cloudflare Tunnel Integration', () => {
 
   beforeEach(() => {
     _resetState();
-    spawnImpl = () => createStuckChildProcess();
+    tunnelLogs.length = 0;
+    spawnImpl = () => createFakeChildProcess(null);
   });
 
   // ================================================================
@@ -204,7 +207,7 @@ describe('Cloudflare Tunnel Integration', () => {
     });
 
     it('startTunnel rejects when already starting', async () => {
-      const fake = createStuckChildProcess();
+      const fake = createFakeChildProcess(null);
       spawnImpl = () => fake;
 
       const promise = startTunnel(3000);
@@ -238,22 +241,6 @@ describe('Cloudflare Tunnel Integration', () => {
       await expect(stopTunnel()).resolves.toBeUndefined();
     });
 
-    it('onStatusChange fires callback on state transitions', async () => {
-      const fakeUrl = 'https://callback-test.trycloudflare.com';
-      const fake = createFakeChildProcess(fakeUrl, 50);
-      spawnImpl = () => fake;
-
-      const states: string[] = [];
-      const cb = (s: { status: string }) => states.push(s.status);
-      onStatusChange(cb);
-
-      await startTunnel(3000);
-      expect(states).toContain('starting');
-      expect(states).toContain('running');
-
-      offStatusChange(cb);
-    });
-
     it('process exit resets state to stopped', async () => {
       const fakeUrl = 'https://exit-test.trycloudflare.com';
       const fake = createFakeChildProcess(fakeUrl, 50);
@@ -283,14 +270,111 @@ describe('Cloudflare Tunnel Integration', () => {
       expect(getTunnelStatus().status).toBe('error');
     });
 
-    it('getTunnelStatus returns a snapshot with health fields', () => {
+    it('getTunnelStatus returns an independent snapshot', () => {
       const s1 = getTunnelStatus();
       const s2 = getTunnelStatus();
       expect(s1).toEqual(s2);
       expect(s1).not.toBe(s2);
       expect(s1.health).toBe('unknown');
-      expect(s1.lastHealthCheck).toBeNull();
-      expect(s1.consecutiveFailures).toBe(0);
+    });
+
+    it('late events from an old run do not touch the new run', async () => {
+      const fakeA = createFakeChildProcess(
+        'https://old-run.trycloudflare.com',
+        10
+      );
+      spawnImpl = () => fakeA;
+      await startTunnel(3000);
+      fakeA.emit('exit', 0);
+      expect(getTunnelStatus().status).toBe('stopped');
+
+      const fakeB = createFakeChildProcess(
+        'https://new-run.trycloudflare.com',
+        10
+      );
+      spawnImpl = () => fakeB;
+      await startTunnel(3000);
+      expect(getTunnelStatus().status).toBe('running');
+
+      fakeA.emitLine(
+        'INF |  trailing noise from the old run https://ghost-url.trycloudflare.com'
+      );
+      fakeA.emit('exit', 1);
+
+      expect(getTunnelStatus().status).toBe('running');
+      expect(getTunnelStatus().url).toBe('https://new-run.trycloudflare.com');
+    });
+
+    it('edge connection reports drive the health field with a grace period', async () => {
+      _timings.edgeGraceMs = 50;
+      const fake = createFakeChildProcess(
+        'https://health-track.trycloudflare.com',
+        10
+      );
+      spawnImpl = () => fake;
+      await startTunnel(3000);
+
+      expect(getTunnelStatus().health).toBe('unknown');
+      fake.emitLine('INF |  Registered tunnel connection connIndex=0');
+      expect(getTunnelStatus().health).toBe('healthy');
+
+      fake.emitLine('INF |  Unregistered tunnel connection connIndex=0');
+      expect(getTunnelStatus().health).toBe('healthy');
+
+      await new Promise((r) => setTimeout(r, 80));
+      expect(getTunnelStatus().health).toBe('unhealthy');
+
+      fake.emitLine('INF |  Registered tunnel connection connIndex=1');
+      expect(getTunnelStatus().health).toBe('healthy');
+    });
+
+    it('stop escalates to SIGKILL when SIGTERM is ignored', async () => {
+      _timings.stopGraceMs = 50;
+      const fake = createFakeChildProcess(
+        'https://escalate-me.trycloudflare.com',
+        10,
+        { ignoreSigTerm: true }
+      );
+      spawnImpl = () => fake;
+      await startTunnel(3000);
+
+      await stopTunnel();
+
+      expect(fake.killSignals).toEqual(['SIGTERM', 'SIGKILL']);
+      expect(getTunnelStatus().status).toBe('stopped');
+    });
+
+    it('logs the output tail when cloudflared exits before the URL', async () => {
+      const fake = createFakeChildProcess(null);
+      spawnImpl = () => fake;
+
+      const promise = startTunnel(3000);
+      fake.emitLine('ERR |  failed to connect to the edge');
+      fake.emitLine('ERR |  another diagnostic line');
+      fake.emit('exit', 1);
+
+      await expect(promise).rejects.toThrow('before URL was found');
+      const tail = tunnelLogs.find(
+        (l) => l.message === 'Output tail before exit'
+      );
+      expect(tail?.data).toContain('failed to connect to the edge');
+      expect(tail?.data).toContain('another diagnostic line');
+    });
+
+    it('rejects on timeout and finishes the run', async () => {
+      _timings.startTimeoutMs = 50;
+      _timings.stopGraceMs = 20;
+      _timings.killWaitMs = 20;
+      const fake = createFakeChildProcess(null, 50, { ignoreSigTerm: true });
+      spawnImpl = () => fake;
+
+      await expect(startTunnel(3000)).rejects.toThrow(
+        'Timeout waiting for tunnel URL'
+      );
+      await new Promise((r) => setTimeout(r, 60));
+
+      expect(getTunnelStatus().status).toBe('error');
+      expect(getTunnelStatus().error).toBe('Timeout waiting for tunnel URL');
     });
   });
 
@@ -351,15 +435,15 @@ describe('Cloudflare Tunnel Integration', () => {
       expect(res.status).toBe(200);
       const data = (await res.json()) as {
         status: string;
-        url: null;
+        url: string | null;
+        error: string | null;
         health: string;
-        lastHealthCheck: number | null;
         onlineDevices: unknown[];
       };
       expect(data.status).toBe('stopped');
       expect(data.url).toBeNull();
+      expect(data.error).toBeNull();
       expect(data.health).toBe('unknown');
-      expect(data.lastHealthCheck).toBeNull();
       expect(data.onlineDevices).toEqual([]);
     });
   });
