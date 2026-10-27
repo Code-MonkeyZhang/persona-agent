@@ -79,6 +79,8 @@
   "config.languageDesc": "Switch interface display language",
   "config.enableLogging": "Enable Logging",
   "config.enableLoggingDesc": "Record runtime logs to local files",
+  "config.thoughtProcess": "Thought Process",
+  "config.thoughtProcessDesc": "Show the view thought process entry on messages",
   "config.replayLanding": "Replay Onboarding",
   "config.replayLandingDesc": "Reopen the onboarding wizard for the current agent",
   "config.replayLandingEmptyDesc": "Create an agent before replaying the wizard",
