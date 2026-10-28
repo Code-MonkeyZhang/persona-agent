@@ -27,14 +27,22 @@ interface WebSocketClient {
   deviceType: DeviceType | null;
   deviceName: string | null;
   lastSeen: number;
+  missedPongs: number;
+  /** 最近一次下行发送时间，保活循环据此挑选空闲连接 */
+  lastSentAt: number;
 }
 
-/** 设备离线判定阈值，超过此时间未收到 ping/pong 即判定离线 */
-const DEVICE_TIMEOUT_MS = 30_000;
+/** 服务端主动探测的间隔，静默连接每轮收到一次协议层 ping */
+export const PROBE_INTERVAL_MS = 17_500;
+/** 连续漏回容忍上限，两次探测无回应即停滞约 35 秒，此时才断开连接 */
+export const MAX_MISSED_PONGS = 2;
+/** 应用层保活节拍，与探测节拍解耦，空闲连接每轮收到一条 keepalive 数据帧 */
+export const KEEPALIVE_INTERVAL_MS = 5_000;
 
 const clients = new Map<string, WebSocketClient>();
 let wss: WebSocketServer | null = null;
-let deviceCleanupTimer: ReturnType<typeof setInterval> | null = null;
+let probeTimer: ReturnType<typeof setInterval> | null = null;
+let keepaliveTimer: ReturnType<typeof setInterval> | null = null;
 /** 变更流订阅是否生效，防止重复初始化造成重复推送 */
 let changeSubscribed = false;
 /** viewed 消息的处理回调，由 http-server 装配时注入以访问 sessionManagers */
@@ -73,12 +81,18 @@ export function initWebSocket(server: import('http').Server): WebSocketServer {
       deviceType: null,
       deviceName: null,
       lastSeen: Date.now(),
+      missedPongs: 0,
+      lastSentAt: Date.now(),
     };
 
     clients.set(clientId, client);
     Logger.log('WS', `Client connected: ${clientId}`);
 
-    sendToClient(client, { type: 'connected', clientId });
+    sendToClient(client, {
+      type: 'connected',
+      clientId,
+      keepaliveIntervalMs: KEEPALIVE_INTERVAL_MS,
+    });
     // 连接建立即推运行快照,晚接入与重连端不缺运行态,广播不重放
     const runningIds = sessionRegistry.list();
     sendToClient(client, {
@@ -93,11 +107,15 @@ export function initWebSocket(server: import('http').Server): WebSocketServer {
     ws.on('message', (data: Buffer) => {
       try {
         const message = JSON.parse(data.toString());
+        // 任何消息都是活性信号，正常使用流量本身即保活
+        markAlive(client);
         handleClientMessage(client, message);
       } catch (error) {
         Logger.log('WS', 'Invalid message:', error);
       }
     });
+
+    ws.on('pong', () => markAlive(client));
 
     ws.on('close', () => handleClientDisconnect(client));
 
@@ -107,7 +125,8 @@ export function initWebSocket(server: import('http').Server): WebSocketServer {
     });
   });
 
-  startDeviceCleanup();
+  startProbe();
+  startKeepalive();
   subscribeToSessionChanges();
 
   Logger.log('WS', 'WebSocket server initialized (noServer mode, /ws)');
@@ -165,7 +184,7 @@ function handleClientMessage(
     }
 
     case 'ping':
-      client.lastSeen = Date.now();
+      // 旧版客户端的应用层心跳，协议层探测接管后仅为兼容保留
       sendToClient(client, { type: 'pong' });
       break;
 
@@ -173,7 +192,6 @@ function handleClientMessage(
       client.deviceId = message.deviceId;
       client.deviceType = message.deviceType;
       client.deviceName = message.deviceName;
-      client.lastSeen = Date.now();
       Logger.log(
         'WS',
         `Device registered: ${message.deviceName} (${message.deviceType}) deviceId=${message.deviceId}`
@@ -251,6 +269,7 @@ function broadcastToOthers(
 function sendToClient(client: WebSocketClient, message: ServerMessage): void {
   if (client.ws.readyState === WebSocket.OPEN) {
     client.ws.send(JSON.stringify(message));
+    client.lastSentAt = Date.now();
   }
 }
 
@@ -291,31 +310,80 @@ export function getOnlineDevices(): Array<{
     }));
 }
 
+/** 刷新连接活性，任何消息与协议层 pong 都会清零漏回计数 */
+function markAlive(client: WebSocketClient): void {
+  client.lastSeen = Date.now();
+  client.missedPongs = 0;
+}
+
 /**
- * 启动定期清理定时器，关闭 lastSeen 超时的连接。
- * 超时连接的 close 事件会触发 handleClientDisconnect 完成清理和广播。
+ * 单轮探测对单个连接的处置决定。
+ * elapsedMs 为距最近一次活性的毫秒数，missedPongs 为已累计的连续漏回次数。
+ * 活跃返回 skip，需要继续探测返回 ping，连续漏回达到上限返回 terminate。
  */
-function startDeviceCleanup(): void {
-  if (deviceCleanupTimer) return;
-  deviceCleanupTimer = setInterval(() => {
+export function decideProbeAction(
+  elapsedMs: number,
+  missedPongs: number
+): 'skip' | 'ping' | 'terminate' {
+  if (elapsedMs < PROBE_INTERVAL_MS) return 'skip';
+  return missedPongs + 1 >= MAX_MISSED_PONGS ? 'terminate' : 'ping';
+}
+
+/**
+ * 启动探测定时器，周期性向静默连接发协议层 ping。
+ * 连续漏回达到上限才关闭连接，close 事件触发 handleClientDisconnect
+ * 完成清理和广播，单次漏回只记录不打断。
+ */
+function startProbe(): void {
+  if (probeTimer) return;
+  probeTimer = setInterval(() => {
     const now = Date.now();
     for (const client of clients.values()) {
-      if (client.deviceId && now - client.lastSeen > DEVICE_TIMEOUT_MS) {
+      const action = decideProbeAction(
+        now - client.lastSeen,
+        client.missedPongs
+      );
+      if (action === 'skip') continue;
+      if (action === 'terminate') {
         Logger.log(
           'WS',
-          `Device timeout, closing: ${client.deviceName} (${client.deviceId})`
+          `Probe missed ${client.missedPongs + 1} times, closing: ${client.deviceName ?? client.id}`
         );
         client.ws.close();
+        continue;
+      }
+      client.missedPongs += 1;
+      client.ws.ping();
+    }
+  }, PROBE_INTERVAL_MS);
+}
+
+/**
+ * 启动保活定时器，周期性向下行空闲的连接发应用层 keepalive。
+ * 协议层探测回复对客户端脚本不可见，客户端看门狗的新鲜度判定依赖这条数据帧，
+ * 忙连接的业务消息本身即保活，不打扰。
+ */
+function startKeepalive(): void {
+  if (keepaliveTimer) return;
+  keepaliveTimer = setInterval(() => {
+    const now = Date.now();
+    for (const client of clients.values()) {
+      if (now - client.lastSentAt >= KEEPALIVE_INTERVAL_MS) {
+        sendToClient(client, { type: 'keepalive' });
       }
     }
-  }, DEVICE_TIMEOUT_MS);
+  }, KEEPALIVE_INTERVAL_MS);
 }
 
 export function shutdownWebSocket(): void {
   if (wss) {
-    if (deviceCleanupTimer) {
-      clearInterval(deviceCleanupTimer);
-      deviceCleanupTimer = null;
+    if (probeTimer) {
+      clearInterval(probeTimer);
+      probeTimer = null;
+    }
+    if (keepaliveTimer) {
+      clearInterval(keepaliveTimer);
+      keepaliveTimer = null;
     }
     for (const client of clients.values()) {
       client.ws.close();

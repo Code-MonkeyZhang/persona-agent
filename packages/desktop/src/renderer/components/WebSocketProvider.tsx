@@ -38,6 +38,7 @@ interface WebSocketProviderProps {
  */
 export function WebSocketProvider({ children }: WebSocketProviderProps) {
   const clientRef = useRef<WebSocketClient | null>(null);
+  const lastStatusRef = useRef<string | null>(null);
   const handleWsMessage = useChatStore((state) => state.handleWsMessage);
   const setConnectionStatus = useChatStore(
     (state) => state.setConnectionStatus
@@ -92,6 +93,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     setWsClient(client);
 
     connectionUnsubscribe = client.onConnectionChange((status) => {
+      lastStatusRef.current = status;
       setConnectionStatus(status);
       // 设备状态点靠这份实时状态感知当前主机的连接与断开
       useConnectionStore.getState().setCurrentWsStatus(status);
@@ -100,6 +102,15 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         engine.sync();
       }
     });
+
+    // 离线终态下点亮窗口即焕新重连，与红条点按同一条 connect 路径
+    const handleWindowFocus = () => {
+      if (lastStatusRef.current === 'disconnected') {
+        logger.info('[WebSocket] Window focus while offline, reconnecting');
+        client.connect();
+      }
+    };
+    window.addEventListener('focus', handleWindowFocus);
 
     // 连接变更先断开旧连接，地址缓存回填后再重连，新地址由 urlProvider 重取
     hostChangeUnsubscribe = window.api?.onConnectionChanged((snapshot) => {
@@ -141,6 +152,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       connectionUnsubscribe?.();
       hostChangeUnsubscribe?.();
       cacheUnsubscribe?.();
+      window.removeEventListener('focus', handleWindowFocus);
       if (cacheRefreshTimer) clearTimeout(cacheRefreshTimer);
       clientRef.current?.disconnect();
       clientRef.current = null;

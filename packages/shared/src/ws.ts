@@ -15,6 +15,8 @@ import type { SessionChange } from './changes.js';
 interface ConnectedMessage {
   type: 'connected';
   clientId: string;
+  /** 服务端保活节拍毫秒数，缺失表示旧服务端不发保活，客户端看门狗据此决定是否武装 */
+  keepaliveIntervalMs?: number;
 }
 
 interface SubscribedMessage {
@@ -103,6 +105,14 @@ interface SpeakErrorMessage {
 
 interface PongMessage {
   type: 'pong';
+}
+
+/**
+ * 服务端向下行空闲的连接发送的保活心跳。
+ * 协议层探测回复对客户端脚本不可见，看门狗的新鲜度判定只能依赖这条数据帧。
+ */
+interface KeepaliveMessage {
+  type: 'keepalive';
 }
 
 interface PairRequestMessage {
@@ -226,6 +236,7 @@ export type ServerMessage =
   | SpeakReadyMessage
   | SpeakErrorMessage
   | PongMessage
+  | KeepaliveMessage
   | PairRequestMessage
   | DeviceOnlineMessage
   | DeviceOfflineMessage
