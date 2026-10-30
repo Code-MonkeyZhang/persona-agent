@@ -22,10 +22,12 @@ import {
 import type { Message, ToolCall } from '../../schema/index.js';
 import type { ModelConfig } from '../../agent/types.js';
 import type { PendingInput } from '@persona/shared';
+import { summarizeToolInput } from '@persona/shared';
 import type { ToolResult } from '../../tools/index.js';
 import { Logger } from '../../util/logger.js';
 import { broadcastToSession, broadcastToAll } from '../websocket-server.js';
 import * as sessionRegistry from './session-registry.js';
+import * as activityRegistry from './activity-registry.js';
 import {
   addPendingInput,
   drainPendingInputs,
@@ -486,6 +488,8 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
               toolCalls: [],
               toolResults: [],
             };
+            // 新步骤开始即回到思考态，中途接入端看到思考中
+            activityRegistry.setActivity(sessionId, { kind: 'thinking' });
             break;
 
           case 'thinking':
@@ -505,6 +509,33 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
               currentStep.toolCalls.push(...event.tool_calls);
             }
             break;
+
+          case 'tool_start': {
+            // 工具开始即广播执行中身份，不进 currentStep 聚合，步骤落盘口径不变
+            if (!currentStep) break;
+            const toolName = event.toolCall.function.name;
+            const args = event.toolCall.function.arguments || {};
+            const paramSummary = summarizeToolInput(toolName, args);
+            activityRegistry.setActivity(sessionId, {
+              kind: 'tool',
+              stepIndex: currentStep.stepIndex,
+              toolName,
+              paramSummary,
+            });
+            broadcastToSession(sessionId, {
+              type: 'tool_started',
+              sessionId,
+              stepIndex: currentStep.stepIndex,
+              toolName,
+              paramSummary,
+            });
+            Logger.log('CHAT', 'Tool started broadcast', {
+              sessionId,
+              stepIndex: currentStep.stepIndex,
+              toolName,
+            });
+            break;
+          }
 
           case 'tool_result': {
             if (currentStep) {
@@ -612,6 +643,8 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     return emitError(err.message);
   } finally {
     sessionRegistry.unregister(sessionId);
+    // 回合结束清除动作登记，成功错误中止共用此出口
+    activityRegistry.clearActivity(sessionId);
     // 回合结束的全局广播,完成、出错与中止共用 finally 出口,客户端据此熄灭运行腿
     broadcastToAll({ type: 'run_ended', sessionId });
     Logger.log('CHAT', 'Run ended broadcast', { sessionId });

@@ -16,6 +16,7 @@ import type {
 } from '@persona/shared';
 import { Logger } from '../util/logger.js';
 import * as sessionRegistry from './services/session-registry.js';
+import { getActivity } from './services/activity-registry.js';
 import { upsertDevice, touchLastOnline } from './services/device-store.js';
 import { sessionChangeEmitter } from '../session/changes.js';
 
@@ -159,7 +160,13 @@ function handleClientMessage(
         sessionId,
         isGenerating,
       });
-      sendToClient(client, { type: 'subscribed', sessionId, isGenerating });
+      // 生成中的会话附带当前动作，中途接入端立即显示工具执行或思考中
+      sendToClient(client, {
+        type: 'subscribed',
+        sessionId,
+        isGenerating,
+        currentActivity: isGenerating ? getActivity(sessionId) : undefined,
+      });
       break;
     }
 
