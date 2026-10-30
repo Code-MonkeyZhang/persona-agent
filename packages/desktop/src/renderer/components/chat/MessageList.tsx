@@ -139,8 +139,13 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
   );
 };
 
-/** 列表顶部留白，模块级常量保证 Virtuoso components 引用稳定 */
-const ListHeader = () => <div className="h-4" />;
+/**
+ * 列表顶部留白，模块级常量保证 Virtuoso components 引用稳定。
+ * 顶部为 LiveStrip 行档预留，行档高 h-9 加边线 1px 共 37px，加原留白 16px 得 53px，
+ * 与底部输入浮层的 bottomPadding 机制对称，行档高度调整时此常量同步改。
+ */
+const STRIP_TOP_RESERVE = 53;
+const ListHeader = () => <div style={{ height: STRIP_TOP_RESERVE }} />;
 
 interface MessageListProps {
   messages: UIMessage[];

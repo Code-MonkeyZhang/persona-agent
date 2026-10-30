@@ -10,7 +10,8 @@ import { create } from 'zustand';
 import type { UIMessage, ConnectionStatus, Thought } from '../types/chat';
 import type { SyncState } from '../lib/sync-engine';
 import type { ServerMessage, StepCompleteMessage } from '@persona/shared';
-import { buildPreviewText } from '@persona/shared';
+import { buildPreviewText, summarizeToolInput } from '@persona/shared';
+import type { LiveRunState, LiveStep } from '../components/chat/LiveStrip';
 import { createMessage, sendChatMessage, WebSocketClient } from '../lib/api';
 import { toast } from './toastStore';
 import { logger } from '../lib/logger';
@@ -72,6 +73,74 @@ function cycleToThoughts(msg: StepCompleteMessage): Thought[] {
 }
 
 /**
+ * 把 step_complete 的思考步骤合并进实时时间线。
+ * 本步的思考段与解说文本插到未闭合工具步之前还原先思考后执行的叙述顺序，
+ * 未闭合工具步与本次 tool_use 按出现顺序一一配对，agent 串行执行保证顺序一致，
+ * 闭合时补全输入输出与失败态，tool_started 漏收的 tool_use 补一条已完成步，
+ * 配对不上的未闭合步按孤儿收尾避免呼吸行悬挂，text 步骤由气泡正文承担不进行。
+ * @param liveRun - 当前实时状态，null 时惰性创建
+ * @param thoughts - cycleToThoughts 的产物
+ * @returns 合并后的实时状态
+ */
+function mergeStepIntoLiveRun(
+  liveRun: LiveRunState | null,
+  thoughts: Thought[]
+): LiveRunState {
+  const now = Date.now();
+  const steps = (liveRun?.steps ?? []).map((s) => ({ ...s }));
+  const isOpenTool = (s: LiveStep) => s.tool !== '' && s.endedAt === undefined;
+
+  const thinkSteps: LiveStep[] = [];
+  for (const th of thoughts) {
+    if ((th.type === 'thinking' || th.type === 'text') && th.content) {
+      thinkSteps.push({
+        tool: '',
+        detail: th.content,
+        startedAt: now,
+        endedAt: now,
+      });
+    }
+  }
+
+  const toolThoughts = thoughts.filter((th) => th.type === 'tool_use');
+  const openSteps = steps.filter(isOpenTool);
+  const closed: LiveStep[] = [];
+  const missed: LiveStep[] = [];
+  toolThoughts.forEach((th, i) => {
+    const step: LiveStep = {
+      tool: th.toolName ?? '',
+      detail: summarizeToolInput(th.toolName ?? '', th.toolInput),
+      startedAt: openSteps[i]?.startedAt ?? now,
+      endedAt: now,
+      input: th.toolInput ? JSON.stringify(th.toolInput) : undefined,
+      output: th.toolResult?.output,
+      failed: th.isError || th.toolResult?.isError || undefined,
+    };
+    if (i < openSteps.length) closed.push(step);
+    else missed.push(step);
+  });
+  const orphans = openSteps
+    .slice(toolThoughts.length)
+    .map((s) => ({ ...s, endedAt: s.endedAt ?? now }));
+
+  const result: LiveStep[] = [];
+  let spliced = false;
+  for (const s of steps) {
+    if (isOpenTool(s)) {
+      if (!spliced) {
+        result.push(...thinkSteps, ...closed, ...orphans);
+        spliced = true;
+      }
+      continue;
+    }
+    result.push(s);
+  }
+  if (!spliced) result.push(...thinkSteps);
+  result.push(...missed);
+  return { steps: result };
+}
+
+/**
  * 把轮次缓冲组装成一条助手消息，可能为空。
  *
  * turn_complete 正常组装与 aborted / error 的半截冲刷共用。
@@ -101,24 +170,31 @@ function assemblePendingBubble(
   ];
 }
 
-/** 轮次缓冲的空状态，供切换生成态与回合结束时复位 */
+/** 轮次缓冲与时间线的复位态，供切换生成态与回合结束时复位 */
 function emptyPending(): Pick<
   SessionChatState,
-  'pendingThoughts' | 'pendingContent' | 'armedCacheRefresh'
+  'pendingThoughts' | 'pendingContent' | 'armedCacheRefresh' | 'liveRun'
 > {
-  return { pendingThoughts: [], pendingContent: '', armedCacheRefresh: false };
+  return {
+    pendingThoughts: [],
+    pendingContent: '',
+    armedCacheRefresh: false,
+    liveRun: null,
+  };
 }
 
 /**
  * 将 session 切到生成态。
  * 用于用户发消息以及 App 通知/恢复订阅触发的外部回合——
- * isLoading 置位后，步骤事件进轮次缓冲，turn_complete 到达时组装整轮气泡。
+ * isLoading 置位后，步骤事件进轮次缓冲，turn_complete 到达时组装整轮气泡，
+ * liveRun 同步开空时间线供顶栏时间线驱动。
  */
 function withLoadingState(sessionState: SessionChatState): SessionChatState {
   return {
     ...sessionState,
     ...emptyPending(),
     isLoading: true,
+    liveRun: { steps: [] },
   };
 }
 
@@ -131,6 +207,8 @@ interface SessionChatState {
   pendingContent: string;
   /** 错过步骤事件的轮次由空缓冲 turn_complete 武装，round_complete 后从磁盘整包刷新 */
   armedCacheRefresh: boolean;
+  /** 回合运行期的实时时间线缓冲，步骤事件推进，轮末随气泡组装清空，null 表示空闲 */
+  liveRun: LiveRunState | null;
 }
 
 interface ChatStore {
@@ -385,13 +463,28 @@ export const useChatStore = create<ChatStore>((set, get) => {
     handleWsMessage: (msg: ServerMessage) => {
       switch (msg.type) {
         case 'run_started': {
-          // 幂等添加,广播重放或快照竞态不产生重复成员
-          set((state) =>
-            state.runningSessions.includes(msg.sessionId)
-              ? state
-              : { runningSessions: [...state.runningSessions, msg.sessionId] }
-          );
-          logger.info('Run started', { sessionId: msg.sessionId });
+          const sessionId = msg.sessionId;
+          set((state) => {
+            const newStates = new Map(state.sessionStates);
+            const sessionState = newStates.get(sessionId);
+            // 已加载的会话补建空时间线，远端发起的回合在本端立即显示思考中
+            if (sessionState) {
+              newStates.set(sessionId, {
+                ...sessionState,
+                liveRun: { steps: [] },
+              });
+            }
+            return {
+              // 幂等添加,广播重放或快照竞态不产生重复成员
+              runningSessions: state.runningSessions.includes(sessionId)
+                ? state.runningSessions
+                : [...state.runningSessions, sessionId],
+              sessionStates: newStates,
+            };
+          });
+          logger.info('[live-strip] Run started, timeline armed', {
+            sessionId,
+          });
           break;
         }
 
@@ -416,18 +509,35 @@ export const useChatStore = create<ChatStore>((set, get) => {
 
         case 'subscribed': {
           const sessionId = msg.sessionId;
+          const activity = msg.currentActivity;
           if (msg.isGenerating) {
             set((state) => {
               const newStates = new Map(state.sessionStates);
               const sessionState = newStates.get(sessionId);
               // 只增不减：仅在当前未加载时恢复，避免与 sendMessage 已切入的生成态冲突
               if (sessionState && !sessionState.isLoading) {
-                newStates.set(sessionId, withLoadingState(sessionState));
+                newStates.set(sessionId, {
+                  ...withLoadingState(sessionState),
+                  // tool 态当前动作直接开活动工具步，中途接入立即显示执行中身份
+                  liveRun:
+                    activity?.kind === 'tool'
+                      ? {
+                          steps: [
+                            {
+                              tool: activity.toolName,
+                              detail: activity.paramSummary,
+                              startedAt: Date.now(),
+                            },
+                          ],
+                        }
+                      : { steps: [] },
+                });
               }
               return { sessionStates: newStates };
             });
-            logger.info('Session is generating, restored loading state', {
+            logger.info('[live-strip] Generating restored via subscribe', {
               sessionId,
+              activity: activity?.kind ?? 'thinking',
             });
           } else {
             logger.info('Subscribed to session:', sessionId);
@@ -499,6 +609,42 @@ export const useChatStore = create<ChatStore>((set, get) => {
           break;
         }
 
+        case 'tool_started': {
+          const sessionId = msg.sessionId;
+          const sessionState = get().sessionStates.get(sessionId);
+          // 迟到守卫：回合未在进行中即丢弃，不污染空闲时间线
+          if (!sessionState?.isLoading) {
+            logger.info('Late tool_started ignored', { sessionId });
+            break;
+          }
+          const startedAt = Date.now();
+          set((state) => {
+            const newStates = new Map(state.sessionStates);
+            const ss = newStates.get(sessionId);
+            if (!ss) return {};
+            newStates.set(sessionId, {
+              ...ss,
+              liveRun: {
+                steps: [
+                  ...(ss.liveRun?.steps ?? []),
+                  {
+                    tool: msg.toolName,
+                    detail: msg.paramSummary,
+                    startedAt,
+                  },
+                ],
+              },
+            });
+            return { sessionStates: newStates };
+          });
+          logger.info('[live-strip] Tool started', {
+            sessionId,
+            stepIndex: msg.stepIndex,
+            toolName: msg.toolName,
+          });
+          break;
+        }
+
         case 'step_complete': {
           const sessionId = msg.sessionId;
           const newThoughts = cycleToThoughts(msg);
@@ -527,7 +673,12 @@ export const useChatStore = create<ChatStore>((set, get) => {
               break;
             }
 
-            // 步骤只进轮次缓冲，界面无中间助手内容，turn_complete 到达时整轮组装
+            // 步骤进轮次缓冲与实时时间线，界面无中间助手内容，
+            // turn_complete 到达时整轮组装，liveRun 惰性创建覆盖续跑轮次
+            const mergedLiveRun = mergeStepIntoLiveRun(
+              sessionState.liveRun,
+              newThoughts
+            );
             set((state) => {
               const newStates = new Map(state.sessionStates);
               const ss = newStates.get(sessionId);
@@ -536,8 +687,14 @@ export const useChatStore = create<ChatStore>((set, get) => {
                 ...ss,
                 pendingThoughts: [...ss.pendingThoughts, ...newThoughts],
                 pendingContent: msg.content || ss.pendingContent,
+                liveRun: mergedLiveRun,
               });
               return { sessionStates: newStates };
+            });
+            logger.info('[live-strip] Step merged', {
+              sessionId,
+              stepIndex: msg.stepIndex,
+              timelineSteps: mergedLiveRun.steps.length,
             });
 
             // 同步更新会话预览
@@ -565,7 +722,11 @@ export const useChatStore = create<ChatStore>((set, get) => {
               const newStates = new Map(state.sessionStates);
               const ss = newStates.get(sessionId);
               if (ss) {
-                newStates.set(sessionId, { ...ss, armedCacheRefresh: true });
+                newStates.set(sessionId, {
+                  ...ss,
+                  ...emptyPending(),
+                  armedCacheRefresh: true,
+                });
               }
               return { sessionStates: newStates };
             });
@@ -576,6 +737,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
           }
 
           // 组装整轮气泡追加到末尾，追加天然形成聊天顺序，插话灰气泡排在整轮之上
+          // 时间线步骤随组装迁入消息流，liveRun 清空避免同批步骤重复出现
           set((state) => {
             const newStates = new Map(state.sessionStates);
             const ss = newStates.get(sessionId);
@@ -585,6 +747,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
                 messages: [...ss.messages, ...bubble],
                 pendingThoughts: [],
                 pendingContent: '',
+                liveRun: null,
               });
             }
             return { sessionStates: newStates };

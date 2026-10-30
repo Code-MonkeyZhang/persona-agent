@@ -28,6 +28,7 @@ import {
 import { motion } from 'framer-motion';
 import { TitleBar } from './components/shell/TitleBar';
 import { Header } from './components/shell/Header';
+import { LiveStrip } from './components/chat/LiveStrip';
 import {
   MessageList,
   type MessageListRef,
@@ -715,7 +716,7 @@ function AppContent() {
                 <div className="h-full overflow-hidden">
                   {activeNav === 'chat' && (
                     <div className="h-full flex flex-col">
-                      <Header isLoading={isLoading} />
+                      <Header />
                       <div className="flex-1 min-h-0 relative">
                         {/* 双 pane 横向滑动容器，整屏滑动同一时间只看到一个 pane */}
                         <div className="absolute inset-0 overflow-hidden">
@@ -746,6 +747,9 @@ function AppContent() {
                             </div>
                           </motion.div>
                         </div>
+
+                        {/* 顶栏时间线浮层，浮在消息区上方，输入浮层保持更高层级 */}
+                        <LiveStrip />
 
                         {/* 浮层：常驻底部，聊天态与陪伴态共用同一个 InputBox */}
                         <div className="absolute bottom-0 left-0 right-0 z-20">

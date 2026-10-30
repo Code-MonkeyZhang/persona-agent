@@ -3,6 +3,7 @@
  * @description 聊天区顶部标题栏，显示当前会话标题，提供语音开关和陪伴面板切换。
  * 新对话入口位于 SessionSidebar 的「会话」标题行，Header 不再承载。
  * 窗口拖拽和红绿灯由 TitleBar 统一管理，Header 不再承担拖拽职责。
+ * 运行态指示由 LiveStrip 时间线承担，Header 不再承载。
  */
 import React, { useCallback } from 'react';
 import { VenetianMask, Volume2, VolumeX } from 'lucide-react';
@@ -15,16 +16,10 @@ import { toast } from '../../stores/toastStore';
 import { Button } from '../ui/Button';
 import { cn } from '../../lib/utils';
 
-interface HeaderProps {
-  /** 当前会话是否正在生成，控制标题旁的运行指示 */
-  isLoading?: boolean;
-}
-
 /**
  * 顶部标题栏组件，显示当前会话标题，提供语音开关和陪伴面板切换
- * @param props.isLoading - 当前会话生成状态
  */
-export const Header: React.FC<HeaderProps> = ({ isLoading }) => {
+export const Header: React.FC = () => {
   const { t } = useTranslation();
   const { currentSession } = useSessionStore();
   const { currentAgent } = useAgentStore();
@@ -57,17 +52,6 @@ export const Header: React.FC<HeaderProps> = ({ isLoading }) => {
         <h1 className="font-semibold text-title-section text-foreground truncate">
           {currentSession?.title || t('header.newChat')}
         </h1>
-        {isLoading && (
-          // 会话运行中指示：标题旁三点跳动
-          <span
-            className="flex items-center gap-1"
-            aria-label={t('header.generating')}
-          >
-            <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-typing-dot" />
-            <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-typing-dot [animation-delay:200ms]" />
-            <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-typing-dot [animation-delay:400ms]" />
-          </span>
-        )}
       </div>
       <div className="flex items-center gap-2 pr-4">
         {currentAgent && (

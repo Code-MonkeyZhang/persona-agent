@@ -54,6 +54,15 @@ export default {
         soft: 'var(--shadow-soft)',
         pop: 'var(--shadow-pop)',
       },
+      keyframes: {
+        'hair-sweep': {
+          from: { left: '-40%' },
+          to: { left: '100%' },
+        },
+      },
+      animation: {
+        'hair-sweep': 'hair-sweep 1.4s ease-in-out infinite',
+      },
       fontFamily: {
         sans: ['var(--font-family-sans)'],
         mono: ['var(--font-family-mono)'],
