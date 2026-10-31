@@ -485,6 +485,156 @@ chatDescribe('Chat Module Integration Tests', () => {
       TEST_CONFIG.timeout
     );
 
+    /** 测试：工具轮广播 tool_started 且 paramSummary 与调用参数对应 */
+    it(
+      'should broadcast tool_started with paramSummary for tool calls',
+      async () => {
+        const workspaceDir = path.join(tempDir, 'workspace');
+        fs.mkdirSync(workspaceDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(workspaceDir, 'notes.txt'),
+          'timeline smoke notes'
+        );
+
+        const started: Array<{
+          toolName: string;
+          paramSummary: string;
+          stepIndex: number;
+        }> = [];
+
+        await new Promise<void>((resolve, reject) => {
+          ws = new WebSocket(WS_URL);
+          ws.on('open', () => {
+            ws.send(
+              JSON.stringify({ type: 'subscribe', payload: { sessionId } })
+            );
+          });
+          ws.on('message', (data: Buffer) => {
+            const message = JSON.parse(data.toString()) as {
+              type: string;
+              toolName?: string;
+              paramSummary?: string;
+              stepIndex?: number;
+            };
+            if (message.type === 'tool_started') {
+              started.push({
+                toolName: message.toolName ?? '',
+                paramSummary: message.paramSummary ?? '',
+                stepIndex: message.stepIndex ?? -1,
+              });
+            }
+            if (message.type === 'round_complete') {
+              ws.close();
+              resolve();
+            }
+          });
+          ws.on('error', reject);
+          setTimeout(() => {
+            fetch(
+              `${BASE_URL}/api/agents/${agentId}/sessions/${sessionId}/chat`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  content:
+                    'Use the read_file tool to read notes.txt in your workspace, then reply with its exact content.',
+                }),
+              }
+            ).catch(reject);
+          }, 100);
+        });
+
+        expect(started.length).toBeGreaterThan(0);
+        expect(
+          started.some(
+            (e) =>
+              e.toolName === 'read_file' && e.paramSummary.includes('notes.txt')
+          ),
+        ).toBe(true);
+      },
+      TEST_CONFIG.timeout
+    );
+
+    /** 测试：生成中的会话中途订阅收到带 currentActivity 的 subscribed */
+    it(
+      'should include currentActivity in subscribed while generating',
+      async () => {
+        const workspaceDir = path.join(tempDir, 'workspace');
+        fs.mkdirSync(workspaceDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(workspaceDir, 'notes.txt'),
+          'timeline smoke notes'
+        );
+
+        let late: WebSocket | null = null;
+        const lateSubscribed: Array<{
+          isGenerating?: boolean;
+          currentActivity?: { kind?: string };
+        }> = [];
+
+        await new Promise<void>((resolve, reject) => {
+          ws = new WebSocket(WS_URL);
+          ws.on('open', () => {
+            ws.send(
+              JSON.stringify({ type: 'subscribe', payload: { sessionId } })
+            );
+          });
+          ws.on('message', (data: Buffer) => {
+            const message = JSON.parse(data.toString()) as { type: string };
+            // 首个工具开始后再接入第二个端，订阅落进运行窗口内
+            if (message.type === 'tool_started' && !late) {
+              late = new WebSocket(WS_URL);
+              late.on('open', () => {
+                late?.send(
+                  JSON.stringify({ type: 'subscribe', payload: { sessionId } })
+                );
+              });
+              late.on('message', (d: Buffer) => {
+                const m = JSON.parse(d.toString()) as {
+                  type: string;
+                  isGenerating?: boolean;
+                  currentActivity?: { kind?: string };
+                };
+                if (m.type === 'subscribed') {
+                  lateSubscribed.push({
+                    isGenerating: m.isGenerating,
+                    currentActivity: m.currentActivity,
+                  });
+                  late?.close();
+                }
+              });
+              late.on('error', reject);
+            }
+            if (message.type === 'round_complete') {
+              ws.close();
+              resolve();
+            }
+          });
+          ws.on('error', reject);
+          setTimeout(() => {
+            fetch(
+              `${BASE_URL}/api/agents/${agentId}/sessions/${sessionId}/chat`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  content:
+                    'Use the read_file tool to read notes.txt in your workspace, then reply with its exact content.',
+                }),
+              }
+            ).catch(reject);
+          }, 100);
+        });
+
+        expect(lateSubscribed.length).toBeGreaterThan(0);
+        const sub = lateSubscribed[0]!;
+        expect(sub.isGenerating).toBe(true);
+        expect(sub.currentActivity).toBeDefined();
+        expect(['thinking', 'tool']).toContain(sub.currentActivity?.kind);
+      },
+      TEST_CONFIG.timeout
+    );
+
     /** 测试：step_complete 事件包含 thinking 内容 */
     it(
       'should include thinking content in step_complete events',

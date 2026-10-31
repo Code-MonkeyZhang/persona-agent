@@ -1,7 +1,7 @@
 /**
  * @file src/renderer/components/chat/MessageList.tsx
  * @description 聊天消息列表组件，基于 react-virtuoso 实现虚拟滚动，支持滚动位置缓存与恢复
- * 消息采用 Chatbox 风格气泡布局，用户蓝色右对齐、助手灰色左对齐，带头像
+ * 消息采用 Chatbox 风格气泡布局，用户蓝色右对齐无头像，助手灰色左对齐带头像与角色名
  */
 
 import React, {
@@ -23,6 +23,7 @@ import type { AgentConfig } from '../../types/agent';
 import { cn } from '../../lib/utils';
 import { logger } from '../../lib/logger';
 import { toast } from '../../stores/toastStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { CopyButton } from '../ui/CopyButton';
 import { CollapsedThoughtProcess } from './CollapsedThoughtProcess';
 import { Markdown } from '../common/Markdown';
@@ -45,8 +46,8 @@ interface MessageItemProps {
 
 /**
  * 单条消息渲染组件，Chatbox 风格气泡布局：
- * - 用户消息：蓝色背景右对齐，灰色圆形 "U" 头像
- * - 助手消息：灰色背景左对齐，AgentAvatar 头像，气泡上方展示思考过程
+ * - 用户消息：蓝色背景右对齐，无头像，身份由气泡方向表达
+ * - 助手消息：灰色背景左对齐，AgentAvatar 头像，气泡上方展示角色名与思考过程
  * - 错误消息：红色背景左对齐
  * hover 时显示复制按钮
  */
@@ -55,6 +56,9 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
   const isUser = message.type === 'user';
   const isError = message.type === 'error';
   const isAssistant = message.type === 'assistant';
+  const thoughtProcessVisible = useSettingsStore(
+    (s) => s.thoughtProcessVisible
+  );
 
   // App 来源插话内容带来源前缀，与用户消息同一时间线展示
   const displayContent =
@@ -72,19 +76,9 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
         isUser ? 'flex-row-reverse' : ''
       )}
     >
-      {/* 头像 */}
-      {isUser ? (
-        <div className="h-7 w-7 shrink-0 mt-0.5 rounded-full flex items-center justify-center text-caption bg-gray-100 text-gray-600">
-          U
-        </div>
-      ) : (
-        agent && (
-          <AgentAvatar
-            agent={agent}
-            size="sm"
-            className="shrink-0 mt-0.5 w-7 h-7"
-          />
-        )
+      {/* Agent 侧头像，用户消息不渲染占位头像，身份由气泡方向表达 */}
+      {!isUser && agent && (
+        <AgentAvatar agent={agent} size="sm" className="shrink-0 mt-0.5" />
       )}
 
       {/* 内容区域：min-w-0 允许宽度缩到内容 min-content 以下，长代码行才能在块内横滚 */}
@@ -94,8 +88,15 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
           isUser ? 'flex flex-col items-end' : 'flex flex-col items-start'
         )}
       >
-        {/* 思考过程 */}
-        {isAssistant && hasThoughts && (
+        {/* 角色名：全强度标签与头像权重平衡，数据取实时绑定的 Agent，切换角色后即时跟随 */}
+        {isAssistant && agent && (
+          <span className="text-body font-medium text-foreground mb-1">
+            {agent.name}
+          </span>
+        )}
+
+        {/* 思考过程：入口显隐由设置页开关控制，关掉只是不渲染，消息数据不动 */}
+        {isAssistant && hasThoughts && thoughtProcessVisible && (
           <CollapsedThoughtProcess thoughts={message.thoughts!} />
         )}
 
@@ -138,8 +139,13 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
   );
 };
 
-/** 列表顶部留白，模块级常量保证 Virtuoso components 引用稳定 */
-const ListHeader = () => <div className="h-4" />;
+/**
+ * 列表顶部留白，模块级常量保证 Virtuoso components 引用稳定。
+ * 顶部为 LiveStrip 行档预留，行档高 h-9 加边线 1px 共 37px，加原留白 16px 得 53px，
+ * 与底部输入浮层的 bottomPadding 机制对称，行档高度调整时此常量同步改。
+ */
+const STRIP_TOP_RESERVE = 53;
+const ListHeader = () => <div style={{ height: STRIP_TOP_RESERVE }} />;
 
 interface MessageListProps {
   messages: UIMessage[];

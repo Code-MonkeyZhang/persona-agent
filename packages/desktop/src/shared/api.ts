@@ -142,8 +142,9 @@ export interface WindowAPI {
     getUnreadAgents: () => Promise<string[]>;
     getLauncherPrefs: () => Promise<LauncherSnapshot | null>;
     getCursor: () => Promise<number>;
-    applySnapshot: (snapshot: SyncSnapshot) => Promise<void>;
-    applyChanges: (changes: SessionChange[]) => Promise<void>;
+    /** 写入携带数据来源主机身份，主进程据此拒掉错库写入 */
+    applySnapshot: (snapshot: SyncSnapshot, hostId: string) => Promise<void>;
+    applyChanges: (changes: SessionChange[], hostId: string) => Promise<void>;
     putAgents: (agents: AgentConfig[]) => Promise<void>;
     deleteAgent: (agentId: string) => Promise<void>;
     reset: () => Promise<void>;

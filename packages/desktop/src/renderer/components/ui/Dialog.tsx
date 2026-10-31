@@ -1,7 +1,7 @@
 /**
  * @file src/renderer/components/ui/Dialog.tsx
  * @description radix dialog 的项目内包装，提供居中弹层、遮罩与进出场动画的通用样式
- * 仅导出当前消费方用到的三个符号，后续场景需要再扩
+ * 导出当前消费方用到的符号，后续场景需要再扩
  */
 
 import * as React from 'react';
@@ -37,4 +37,22 @@ DialogContent.displayName = 'DialogContent';
 
 const DialogTitle = DialogPrimitive.Title;
 
-export { Dialog, DialogContent, DialogTitle };
+/** 弹层头部布局件，纵向排布标题与描述，样式对齐 shadcn 惯例 */
+const DialogHeader = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      'flex flex-col space-y-1.5 text-center sm:text-left',
+      className
+    )}
+    {...props}
+  />
+);
+DialogHeader.displayName = 'DialogHeader';
+
+/** 弹层描述文案，radix 原生透传，样式由消费方指定 */
+const DialogDescription = DialogPrimitive.Description;
+
+export { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription };

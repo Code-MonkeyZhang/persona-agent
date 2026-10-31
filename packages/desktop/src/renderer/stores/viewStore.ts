@@ -16,8 +16,14 @@ export const SESSION_SIDEBAR_MAX_PX = 340;
 /** 会话侧边栏默认宽度，单位像素 */
 export const SESSION_SIDEBAR_DEFAULT_PX = 280;
 
-/** 手机预览屏最小宽度，单位为 Group 宽度百分比 */
-export const PHONE_PANEL_MIN_PERCENT = 25;
+/**
+ * 手机预览屏最小宽度，单位像素。
+ * 网格列宽等于面板宽度减 85 除以四，图标固定 56px：
+ * - 340px 时列宽 64px，相邻图标边距约 16px，五字内名字完整放下
+ * - 309px 为图标叠住线，340px 留有 31px 余量
+ * - 下限值同时是收起触发线，拖到下限继续拖越线即收起
+ */
+export const PHONE_PANEL_MIN_PX = 340;
 
 /** 手机预览屏最大宽度，单位为 Group 宽度百分比 */
 export const PHONE_PANEL_MAX_PERCENT = 50;

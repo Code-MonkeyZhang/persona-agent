@@ -207,7 +207,11 @@ interface ListProvidersResponse {
 /**
  * WebSocket 客户端，负责与后端建立实时连接、自动重连和消息分发。
  * 聊天消息通过 HTTP POST 发送，WebSocket 仅用于订阅事件流。
- * 连接建立后自动发送 register 注册设备身份，并以 30 秒心跳保活。
+ * 连接建立后自动发送 register 注册设备身份。
+ * 保活由服务端协议层探测与应用层 keepalive 承担，客户端不发心跳，
+ * 下行新鲜度看门狗只收不发，静默死亡的连接由它揭穿，
+ * 重连有 2 分钟窗口，耗尽进入离线态由慢探测与窗口点亮接管，
+ * 单实例单连接由在途防重与旧 socket 回调摘除保证。
  */
 export class WebSocketClient {
   private ws: WebSocket | null = null;
@@ -215,15 +219,35 @@ export class WebSocketClient {
   private connectionListeners: Set<(status: ConnectionStatus) => void> =
     new Set();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private connectTimer: ReturnType<typeof setTimeout> | null = null;
+  private watchdogTimer: ReturnType<typeof setInterval> | null = null;
+  private offlineProbeTimer: ReturnType<typeof setInterval> | null = null;
   private reconnectAttempts = 0;
-  /** 指数退避的基准与封顶，断线追平依赖不设次数上限的重连 */
+  /** 指数退避的基准与封顶，窗口内断线追平依赖密集重试 */
   private static readonly RECONNECT_BASE_DELAY_MS = 1000;
-  private static readonly RECONNECT_MAX_DELAY_MS = 30_000;
+  private static readonly RECONNECT_MAX_DELAY_MS = 10_000;
+  /** 建立连接的超时，超时视为拨号失败走统一的断开退避路径 */
+  private static readonly CONNECT_TIMEOUT_MS = 15_000;
+  /** 密集重连的期限，耗尽即进入离线态停止空转 */
+  private static readonly RECONNECT_WINDOW_MS = 40_000;
+  /** 连接稳定存活的判定时长，达到才算新断线事件并重置窗口与退避 */
+  private static readonly STABLE_CONNECTION_MS = 10_000;
+  /** 离线态的慢探测节拍，插电常驻下以此保住挂机自愈 */
+  private static readonly OFFLINE_PROBE_INTERVAL_MS = 60_000;
+  /** 看门狗的检查节拍，与服务端保活节拍同量级 */
+  private static readonly WATCHDOG_CHECK_INTERVAL_MS = 5_000;
+  /** 最近一条下行到达时间，看门狗据此判定连接新鲜度 */
+  private lastDownlinkAt = 0;
+  /** 下行断供判定阈值，服务端在 connected 消息声明节拍后按三倍推导，null 表示未武装 */
+  private stallThresholdMs: number | null = null;
+  /** 当前断线事件的窗口起点，连接稳定存活满 10 秒才视为新事件周期 */
+  private reconnectWindowStart = 0;
+  /** 当前连接的打开时刻，关闭时据此判定存活时长 */
+  private openedAt: number | null = null;
+  /** 是否处于离线终态，慢探测期间保持 true 避免状态来回翻 */
+  private offline = false;
   private stopped = false;
   private activeSessionIds: Set<string> = new Set();
-
-  private static readonly HEARTBEAT_INTERVAL_MS = 30_000;
 
   constructor(
     private urlProvider: () => Promise<string>,
@@ -252,24 +276,47 @@ export class WebSocketClient {
   }
 
   /**
-   * 建立 WebSocket 连接，重置重连计数，解除停止标记。
-   * 全新拨号意图对外发 connecting，覆盖开机首连与切换后的重拨。
+   * 建立 WebSocket 连接，重置重连计数与离线态，解除停止标记。
+   * 全新拨号意图对外发 connecting，覆盖开机首连、切换后的重拨与离线态的焕新。
    */
   connect(): void {
     this.stopped = false;
+    this.exitOffline();
     this.reconnectAttempts = 0;
+    this.reconnectWindowStart = 0;
+    this.openedAt = null;
     this.emitStatus('connecting');
     this.doConnect();
   }
 
   private doConnect(): void {
-    this.urlProvider().then((baseUrl) => {
-      const wsUrl = baseUrl.replace(/^http/, 'ws') + '/ws';
-      this.ws = new WebSocket(wsUrl);
+    // 在途拨号防重，已有一条正在建立的连接时直接复用
+    if (this.ws?.readyState === WebSocket.CONNECTING) return;
 
-      this.ws.onopen = () => {
+    this.urlProvider().then((baseUrl) => {
+      // urlProvider 异步期间可能已断开或已有在途拨号，本轮放弃
+      if (this.stopped) return;
+      if (this.ws?.readyState === WebSocket.CONNECTING) return;
+
+      this.detachSocket();
+
+      const ws = new WebSocket(baseUrl.replace(/^http/, 'ws') + '/ws');
+      this.ws = ws;
+
+      // 建立超时兜底，网络半开时 onopen 永不触发，超时经 close 走统一断开路径
+      this.connectTimer = setTimeout(() => {
+        if (this.ws !== ws) return;
+        logger.info('[WebSocket] Connect timeout, closing');
+        ws.close();
+      }, WebSocketClient.CONNECT_TIMEOUT_MS);
+
+      ws.onopen = () => {
+        if (this.ws !== ws) return;
+        this.clearConnectTimer();
         logger.info('[WebSocket] Connected');
-        this.reconnectAttempts = 0;
+        this.openedAt = Date.now();
+        this.exitOffline();
+        this.startWatchdog(ws);
         this.emitStatus('connected');
 
         // 注册设备身份
@@ -287,14 +334,18 @@ export class WebSocketClient {
             payload: { sessionId },
           });
         }
-
-        this.startHeartbeat();
       };
 
-      this.ws.onmessage = (event) => {
+      ws.onmessage = (event) => {
+        if (this.ws !== ws) return;
         try {
           const msg: ServerMessage = JSON.parse(event.data);
-          if (msg.type !== 'pong') {
+          this.lastDownlinkAt = Date.now();
+          if (msg.type === 'connected') {
+            this.armWatchdog(msg.keepaliveIntervalMs);
+          }
+          // 保活消息每 5 秒一条，打进通用接收日志会刷屏
+          if (msg.type !== 'keepalive') {
             logger.info(
               '[WebSocket] ← Received from server:',
               JSON.stringify(msg, null, 2)
@@ -309,27 +360,83 @@ export class WebSocketClient {
         }
       };
 
-      this.ws.onclose = () => {
-        this.stopHeartbeat();
+      ws.onclose = () => {
+        if (this.ws !== ws) return;
+        this.clearConnectTimer();
+        this.stopWatchdog();
         // 主动断开静默，切换连接期间不向界面发断开信号
-        if (!this.stopped) {
-          this.emitStatus('disconnected');
+        // 离线态的慢探测失败不再翻 reconnecting，界面保持未连接
+        if (!this.stopped && !this.offline) {
+          this.emitStatus('reconnecting');
         }
+        this.evaluateStability();
         this.attemptReconnect();
       };
 
-      this.ws.onerror = () => {
+      ws.onerror = () => {
         // Error event provides no useful information, skip logging
       };
     });
   }
 
   /**
-   * 以指数退避策略尝试重新连接，延迟封顶三十秒且不设次数上限。
-   * 断线追平依赖这条不断重连的通道，server 起停周期内连接必须自愈。
+   * 关闭旧 socket 并摘除其全部回调。
+   * 旧连接的事件不再触发任何处理与重连，一个实例名下永远只有一条连接。
+   */
+  private detachSocket(): void {
+    const old = this.ws;
+    if (!old) return;
+    this.ws = null;
+    old.onopen = null;
+    old.onmessage = null;
+    old.onclose = null;
+    old.onerror = null;
+    old.close();
+  }
+
+  private clearConnectTimer(): void {
+    if (this.connectTimer) {
+      clearTimeout(this.connectTimer);
+      this.connectTimer = null;
+    }
+  }
+
+  /**
+   * 依据连接存活时长判定是否为新的断线事件。
+   * 稳定满 10 秒才重置窗口与退避计数，短命连接视为同一事件的失败尝试，
+   * 半死服务端的连断循环因此自然耗尽窗口进入离线态，界面不再无限闪跳。
+   */
+  private evaluateStability(): void {
+    const openedAt = this.openedAt;
+    this.openedAt = null;
+    if (
+      openedAt === null ||
+      Date.now() - openedAt < WebSocketClient.STABLE_CONNECTION_MS
+    ) {
+      return;
+    }
+    logger.info('[WebSocket] Stable connection ended, resetting window');
+    this.reconnectAttempts = 0;
+    this.reconnectWindowStart = 0;
+  }
+
+  /**
+   * 以指数退避在重连窗口内重试，窗口耗尽进入离线态停止密集重试。
+   * 窗口起点只在断线事件的首轮记录，稳定连接断开或拨号失败都不重开窗口。
    */
   private attemptReconnect(): void {
     if (this.stopped) {
+      return;
+    }
+
+    if (!this.reconnectWindowStart) {
+      this.reconnectWindowStart = Date.now();
+    }
+    if (
+      Date.now() - this.reconnectWindowStart >=
+      WebSocketClient.RECONNECT_WINDOW_MS
+    ) {
+      this.enterOffline();
       return;
     }
 
@@ -343,13 +450,79 @@ export class WebSocketClient {
     );
 
     this.reconnectTimer = setTimeout(() => {
-      this.emitStatus('reconnecting');
       this.doConnect();
     }, delay);
   }
 
   /**
-   * 关闭连接并停止重连和心跳。
+   * 进入离线终态，对外只发一次 disconnected，停止密集重连并起慢探测。
+   * 慢探测失败回流的 onclose 走 attemptReconnect 的耗尽分支，离线态保持不翻。
+   */
+  private enterOffline(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.offline) return;
+    this.offline = true;
+    logger.warn('[WebSocket] Reconnect window exhausted, entering offline');
+    this.emitStatus('disconnected');
+    this.offlineProbeTimer = setInterval(() => {
+      if (this.stopped) return;
+      logger.info('[WebSocket] Offline probe dialing');
+      this.reconnectAttempts = 0;
+      this.doConnect();
+    }, WebSocketClient.OFFLINE_PROBE_INTERVAL_MS);
+  }
+
+  /** 离开离线态，清慢探测并复位标记，connect 与连接成功两条路径共用 */
+  private exitOffline(): void {
+    if (this.offlineProbeTimer) {
+      clearInterval(this.offlineProbeTimer);
+      this.offlineProbeTimer = null;
+    }
+    this.offline = false;
+  }
+
+  /**
+   * 依据服务端声明的保活节拍武装看门狗，阈值取节拍三倍。
+   * 连续三条保活全部缺席才判死，单条丢失不会误杀。
+   * 字段缺失说明对面是旧服务端不发保活，看门狗保持关闭。
+   */
+  private armWatchdog(intervalMs: number | undefined): void {
+    this.stallThresholdMs = intervalMs === undefined ? null : intervalMs * 3;
+  }
+
+  /**
+   * 启动下行新鲜度看门狗，只收不发。
+   * 连接健康时保活或业务消息持续刷新到达时间，超阈值无任何下行即判静默死亡，主动掐断走统一重连路径。
+   * 检查被节流时只会晚发现，不会误杀，误报方向从头不存在。
+   */
+  private startWatchdog(ws: WebSocket): void {
+    this.stopWatchdog();
+    this.lastDownlinkAt = Date.now();
+    this.watchdogTimer = setInterval(() => {
+      if (this.ws !== ws) return;
+      const threshold = this.stallThresholdMs;
+      if (threshold === null) return;
+      if (Date.now() - this.lastDownlinkAt > threshold) {
+        logger.warn(
+          `[WebSocket] Downlink stalled over ${threshold}ms, closing to reconnect`
+        );
+        ws.close();
+      }
+    }, WebSocketClient.WATCHDOG_CHECK_INTERVAL_MS);
+  }
+
+  private stopWatchdog(): void {
+    if (this.watchdogTimer) {
+      clearInterval(this.watchdogTimer);
+      this.watchdogTimer = null;
+    }
+  }
+
+  /**
+   * 关闭连接并停止重连，旧 socket 回调先行摘除，迟到的关闭事件全程静默。
    */
   disconnect(): void {
     this.stopped = true;
@@ -357,15 +530,17 @@ export class WebSocketClient {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    this.stopHeartbeat();
-    this.ws?.close();
-    this.ws = null;
+    this.clearConnectTimer();
+    this.stopWatchdog();
+    this.exitOffline();
+    this.detachSocket();
   }
 
   /**
    * 跳过退避等待立即重连，红条点按的入口。
-   * 已停止、已连接或正在拨号时静默返回，退避计数保持不动，
-   * 下一次失败仍按原退避曲线等待。
+   * 已停止、已连接或正在拨号时静默返回。
+   * 窗口内跳过等待且退避计数保持不动，下一次失败仍按原退避曲线等待，
+   * 离线态则焕新窗口与曲线，等同一次全新的 connect。
    */
   reconnectNow(): void {
     if (this.stopped) return;
@@ -380,6 +555,11 @@ export class WebSocketClient {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+    if (this.offline) {
+      logger.info('[WebSocket] Manual reconnect from offline');
+      this.connect();
+      return;
+    }
     logger.info('[WebSocket] Manual reconnect requested');
     this.emitStatus('reconnecting');
     this.doConnect();
@@ -387,16 +567,13 @@ export class WebSocketClient {
 
   /**
    * 通过 WebSocket 发送原始消息，仅在连接打开时生效。
-   * ping 消息因高频不打日志。
    */
   private send(msg: ClientMessage): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      if (msg.type !== 'ping') {
-        logger.info(
-          '[WebSocket] → Sent to server:',
-          JSON.stringify(msg, null, 2)
-        );
-      }
+      logger.info(
+        '[WebSocket] → Sent to server:',
+        JSON.stringify(msg, null, 2)
+      );
       this.ws.send(JSON.stringify(msg));
     }
   }
@@ -425,26 +602,6 @@ export class WebSocketClient {
    */
   viewed(sessionId: string): void {
     this.send({ type: 'viewed', payload: { sessionId } });
-  }
-
-  /**
-   * 启动心跳定时器，周期性发送 ping 防止服务端超时断开。
-   */
-  private startHeartbeat(): void {
-    this.stopHeartbeat();
-    this.heartbeatTimer = setInterval(() => {
-      this.send({ type: 'ping' });
-    }, WebSocketClient.HEARTBEAT_INTERVAL_MS);
-  }
-
-  /**
-   * 停止心跳定时器。
-   */
-  private stopHeartbeat(): void {
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
-    }
   }
 
   /**

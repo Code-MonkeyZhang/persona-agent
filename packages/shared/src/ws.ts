@@ -15,6 +15,8 @@ import type { SessionChange } from './changes.js';
 interface ConnectedMessage {
   type: 'connected';
   clientId: string;
+  /** 服务端保活节拍毫秒数，缺失表示旧服务端不发保活，客户端看门狗据此决定是否武装 */
+  keepaliveIntervalMs?: number;
 }
 
 interface SubscribedMessage {
@@ -22,6 +24,34 @@ interface SubscribedMessage {
   sessionId: string;
   /** 该 session 是否正在生成，前端据此恢复加载状态 */
   isGenerating?: boolean;
+  /** 生成中会话的当前动作，中途接入端据此立即显示工具执行或思考中 */
+  currentActivity?: CurrentActivity;
+}
+
+/** 运行中会话的当前动作，subscribed 携带，thinking 与 tool 两态 */
+export type CurrentActivity =
+  | { kind: 'thinking' }
+  | {
+      kind: 'tool';
+      stepIndex: number;
+      toolName: string;
+      paramSummary: string;
+    };
+
+/**
+ * 工具调用开始事件。
+ * Agent 开始执行单个工具时即时广播，UI 据此显示执行中的工具身份，
+ * 不进步骤聚合，步骤落盘口径不变。
+ */
+interface ToolStartedMessage {
+  type: 'tool_started';
+  sessionId: string;
+  stepIndex: number;
+  toolName: string;
+  /** 入参经掩码与摘要压成的一句参数摘要 */
+  paramSummary: string;
+  /** 子代理工具链路的挂载点，当前无写入方，演进预留 */
+  parent_tool_use_id?: string;
 }
 
 interface WsToolCall {
@@ -45,6 +75,8 @@ export interface StepCompleteMessage {
   content?: string;
   toolCalls?: WsToolCall[];
   toolResults?: WsToolResult[];
+  /** 子代理工具链路的挂载点，当前无写入方，演进预留 */
+  parent_tool_use_id?: string;
 }
 
 /**
@@ -103,6 +135,14 @@ interface SpeakErrorMessage {
 
 interface PongMessage {
   type: 'pong';
+}
+
+/**
+ * 服务端向下行空闲的连接发送的保活心跳。
+ * 协议层探测回复对客户端脚本不可见，看门狗的新鲜度判定只能依赖这条数据帧。
+ */
+interface KeepaliveMessage {
+  type: 'keepalive';
 }
 
 interface PairRequestMessage {
@@ -197,28 +237,41 @@ interface ChangeMessage {
   change: SessionChange;
 }
 
-/** 回合开始的全局广播，registry 登记时发往全部在线端，客户端据此点亮非订阅会话的运行信号 */
+/** 回合开始的全局广播，registry 登记时发往全部在线端，客户端据此点亮非订阅会话的运行信号与 Agent 运行圈 */
 interface RunStartedMessage {
   type: 'run_started';
   sessionId: string;
+  /** 运行会话的归属 Agent，头像运行圈据此起转 */
+  agentId: string;
 }
 
 /** 回合结束的全局广播，registry 注销时发往全部在线端，完成、出错与中止共用此出口 */
 interface RunEndedMessage {
   type: 'run_ended';
   sessionId: string;
+  /** 结束会话的归属 Agent，与 run_started 对称携带 */
+  agentId: string;
+}
+
+/** 运行中会话的带归属条目，Agent 级运行集合的数据源 */
+export interface RunningSessionEntry {
+  sessionId: string;
+  agentId: string;
 }
 
 interface RunsSnapshotMessage {
-  /** 连接建立时的运行中会话全量列表，晚接入与重连端据此补态 */
+  /** 连接建立时的运行中会话全量列表，晚接入与重连端据此补态，保留给旧端读取 */
   type: 'runs_snapshot';
   sessionIds: string[];
+  /** 带归属的同一份全量，新端据此维护 Agent 级运行集合 */
+  runs: RunningSessionEntry[];
 }
 
 export type ServerMessage =
   | ConnectedMessage
   | SubscribedMessage
   | StepCompleteMessage
+  | ToolStartedMessage
   | TurnCompleteMessage
   | RoundCompleteMessage
   | ErrorMessage
@@ -226,6 +279,7 @@ export type ServerMessage =
   | SpeakReadyMessage
   | SpeakErrorMessage
   | PongMessage
+  | KeepaliveMessage
   | PairRequestMessage
   | DeviceOnlineMessage
   | DeviceOfflineMessage

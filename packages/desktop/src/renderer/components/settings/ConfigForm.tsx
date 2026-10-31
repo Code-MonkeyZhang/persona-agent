@@ -1,6 +1,6 @@
 /**
  * @file src/renderer/components/settings/ConfigForm.tsx
- * @description 应用通用配置表单，包括日志开关、首启引导重放入口和存储路径展示
+ * @description 应用通用配置表单，包括日志开关、思考过程入口开关、首启引导重放入口和存储路径展示
  * 使用卡片分组 + Switch 组件 + SettingRow 统一行布局
  */
 
@@ -8,6 +8,7 @@ import React from 'react';
 import { FolderOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useConfigStore } from '../../stores/configStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { useAgentStore } from '../../stores/agentStore';
 import { useViewStore } from '../../stores/viewStore';
 import {
@@ -56,6 +57,12 @@ function PathRow({ label, path }: { label: string; path: string }) {
 export const ConfigForm: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { config, updateField, saveConfig } = useConfigStore();
+  const thoughtProcessVisible = useSettingsStore(
+    (s) => s.thoughtProcessVisible
+  );
+  const setThoughtProcessVisible = useSettingsStore(
+    (s) => s.setThoughtProcessVisible
+  );
   const currentAgent = useAgentStore((s) => s.currentAgent);
   /** 重放引导会向所连 server 写凭据，闸门与首启向导同口径，仅本机连接可用 */
   const isLocalConnection = useConnectionStore(
@@ -123,6 +130,16 @@ export const ConfigForm: React.FC = () => {
               onCheckedChange={(checked) =>
                 handleToggle('enableLogging', checked)
               }
+            />
+          </SettingRow>
+          {/* 思考过程入口开关：关掉只是不渲染入口，消息数据不动 */}
+          <SettingRow
+            label={t('config.thoughtProcess')}
+            desc={t('config.thoughtProcessDesc')}
+          >
+            <Switch
+              checked={thoughtProcessVisible}
+              onCheckedChange={setThoughtProcessVisible}
             />
           </SettingRow>
           <SettingRow

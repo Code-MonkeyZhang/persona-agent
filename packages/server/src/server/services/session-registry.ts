@@ -1,16 +1,25 @@
 /**
  * @fileoverview 运行中会话的 AbortController 注册表。
  *
- * 模块级单例。ChatService 注册 controller，WebSocket 服务
+ * 模块级单例。ChatService 注册 controller 与归属 Agent，WebSocket 服务
  * 收到客户端 abort 消息时查表触发，连接建立时经 list 取
  * 运行全量列表推送快照。
  */
 
-const controllers = new Map<string, AbortController>();
+interface RunningEntry {
+  agentId: string;
+  controller: AbortController;
+}
 
-/** 注册一个正在运行的会话及其控制器 */
-export function register(sessionId: string, controller: AbortController): void {
-  controllers.set(sessionId, controller);
+const controllers = new Map<string, RunningEntry>();
+
+/** 注册一个正在运行的会话，携带归属 Agent 与控制器 */
+export function register(
+  sessionId: string,
+  agentId: string,
+  controller: AbortController
+): void {
+  controllers.set(sessionId, { agentId, controller });
 }
 
 /** 注销会话（生成结束、出错或被取消后调用） */
@@ -23,9 +32,12 @@ export function has(sessionId: string): boolean {
   return controllers.has(sessionId);
 }
 
-/** 运行中的全部会话 ID，连接快照的数据源 */
-export function list(): string[] {
-  return [...controllers.keys()];
+/** 运行全量的带归属条目，连接快照的数据源 */
+export function list(): Array<{ sessionId: string; agentId: string }> {
+  return [...controllers.entries()].map(([sessionId, entry]) => ({
+    sessionId,
+    agentId: entry.agentId,
+  }));
 }
 
 /**
@@ -33,8 +45,8 @@ export function list(): string[] {
  * @returns 命中并触发返回 true，会话不在运行返回 false
  */
 export function abort(sessionId: string): boolean {
-  const controller = controllers.get(sessionId);
-  if (!controller) return false;
-  controller.abort();
+  const entry = controllers.get(sessionId);
+  if (!entry) return false;
+  entry.controller.abort();
   return true;
 }

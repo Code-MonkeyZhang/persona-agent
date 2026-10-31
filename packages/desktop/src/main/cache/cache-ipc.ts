@@ -3,6 +3,8 @@
  *
  * 注册一次不随切换重建，handler 内部经 getter 取当前库实例，
  * 切换窗口期取不到实例时读返回空值写丢弃并落日志。
+ * 同步写入携带数据来源主机身份，与活动库来源不符时丢弃，
+ * 切换微窗口里旧连接的残留推送走这条拒写路径。
  * 读操作同步返回缓存数据，写操作落库后向全部窗口广播 CACHE_CHANGED，
  * 渲染层据此刷新列表与详情。异常以 invoke 拒绝的形式回到渲染层。
  */
@@ -18,6 +20,17 @@ export function registerCacheIpc(cacheGetter: () => CacheDb | null): void {
   /** 写操作在库不可用时丢弃并落日志，切换完成后由追平路径补齐 */
   const dropWrite = (channel: string): void => {
     log.warn(`[cache-ipc] Dropped ${channel}, cache unavailable`);
+  };
+
+  /** 来源身份与活动库不符的同步写入丢弃，防切换微窗口的错库污染 */
+  const dropWrongHost = (
+    channel: string,
+    source: string,
+    active: string
+  ): void => {
+    log.warn(
+      `[cache-ipc] Dropped ${channel}, source ${source} does not match active ${active}`
+    );
   };
 
   ipcMain.handle(
@@ -38,20 +51,31 @@ export function registerCacheIpc(cacheGetter: () => CacheDb | null): void {
     () => cacheGetter()?.getLauncherPrefs() ?? null
   );
   ipcMain.handle(IPC.CACHE_GET_CURSOR, () => cacheGetter()?.getCursor() ?? 0);
-  ipcMain.handle(IPC.CACHE_APPLY_SNAPSHOT, (_event, snapshot: SyncSnapshot) => {
-    const cache = cacheGetter();
-    if (!cache) {
-      dropWrite('applySnapshot');
-      return;
+  ipcMain.handle(
+    IPC.CACHE_APPLY_SNAPSHOT,
+    (_event, snapshot: SyncSnapshot, sourceHostId: string) => {
+      const cache = cacheGetter();
+      if (!cache) {
+        dropWrite('applySnapshot');
+        return;
+      }
+      if (cache.sourceHost !== sourceHostId) {
+        dropWrongHost('applySnapshot', sourceHostId, cache.sourceHost);
+        return;
+      }
+      cache.applySnapshot(snapshot);
     }
-    cache.applySnapshot(snapshot);
-  });
+  );
   ipcMain.handle(
     IPC.CACHE_APPLY_CHANGES,
-    (_event, changes: SessionChange[]) => {
+    (_event, changes: SessionChange[], sourceHostId: string) => {
       const cache = cacheGetter();
       if (!cache) {
         dropWrite('applyChanges');
+        return;
+      }
+      if (cache.sourceHost !== sourceHostId) {
+        dropWrongHost('applyChanges', sourceHostId, cache.sourceHost);
         return;
       }
       cache.applyChanges(changes);

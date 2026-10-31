@@ -10,9 +10,10 @@
  * - 'tools'            → MCP 工具分配视图
  * - 'skills'           → Skill 分配视图
  *
- * currentView 还可切换到全屏视图（替换 SessionSidebar + 内容区）：
+ * currentView 的非 chat 值以覆盖层盖住右侧内容区，基座三栏常驻不卸载：
  * - 'settings'    → 设置页
  * - 'marketplace' → 商城浏览页（罗盘进入，唯一安装入口）
+ * 覆盖层由 overlayViews 注册表驱动，基座被盖住时写入 inert 阻断焦点与读屏。
  *
  * Session 栏折叠状态由 viewStore.sessionSidebarCollapsed 管理，
  * 折叠开关位于 TitleBar，不再需要独立的悬浮按钮。
@@ -27,6 +28,7 @@ import {
 import { motion } from 'framer-motion';
 import { TitleBar } from './components/shell/TitleBar';
 import { Header } from './components/shell/Header';
+import { LiveStrip } from './components/chat/LiveStrip';
 import {
   MessageList,
   type MessageListRef,
@@ -59,7 +61,7 @@ import { useProviderStore } from './stores/providerStore';
 import { useCompanionStore } from './stores/companionStore';
 import {
   PHONE_PANEL_MAX_PERCENT,
-  PHONE_PANEL_MIN_PERCENT,
+  PHONE_PANEL_MIN_PX,
   SESSION_SIDEBAR_MAX_PX,
   SESSION_SIDEBAR_MIN_PERCENT,
   useViewStore,
@@ -77,6 +79,38 @@ import { shouldAutoShowWizard } from './lib/landing';
  * 比 animations.css 里 220ms 的 flex-grow 过渡略长，动画结束后再摘除过渡类。
  */
 const PANEL_COLLAPSE_TRANSITION_MS = 280;
+
+/**
+ * 覆盖层视图注册表：currentView 非 chat 值与整页组件的映射。
+ * 新增顶层视图只需在此登记一行，基座三栏不受影响。
+ */
+const overlayViews = {
+  settings: SettingsPage,
+  marketplace: MarketplaceView,
+} as const;
+
+/**
+ * 视图覆盖层：非 chat 视图在内容区之上的宿主。
+ * 绝对定位盖满内容区，不透明背景隔离底层视觉，挂载时接管焦点。
+ */
+function ViewLayer({ children }: { children: React.ReactNode }) {
+  const layerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    layerRef.current?.focus();
+  }, []);
+
+  return (
+    <div
+      ref={layerRef}
+      tabIndex={-1}
+      data-view-layer
+      className="absolute inset-0 z-30 bg-background outline-none"
+    >
+      {children}
+    </div>
+  );
+}
 
 /**
  * 主聊天界面组件，整合所有子组件并管理核心交互逻辑
@@ -229,6 +263,22 @@ function AppContent() {
     );
     return () => window.clearTimeout(panelAnimationTimerRef.current);
   }, [phonePanelCollapsed, phonePanelRef, syncPanelCollapsed]);
+
+  const OverlayView =
+    currentView === 'chat' ? undefined : overlayViews[currentView];
+  const baseHostRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * 视图覆盖期间给基座宿主写 inert，阻断键盘焦点与读屏进入被盖住的三栏。
+   * React 18 不支持布尔 inert 属性，经 ref 直接写 DOM 属性。
+   */
+  useEffect(() => {
+    const covered = currentView !== 'chat';
+    if (baseHostRef.current) {
+      baseHostRef.current.inert = covered;
+    }
+    logger.info(`[App] view layer: ${currentView}, base covered: ${covered}`);
+  }, [currentView]);
 
   const pendingProviderRef = useRef<string | undefined>();
   const messageListRef = useRef<MessageListRef>(null);
@@ -634,126 +684,133 @@ function AppContent() {
       <TitleBar />
       <div className="flex-1 flex overflow-hidden min-h-0">
         <AgentSidebar />
-        <div className="flex-1 flex min-h-0 min-w-0">
-          {currentView === 'settings' ? (
-            <SettingsPage />
-          ) : currentView === 'marketplace' ? (
-            <MarketplaceView />
-          ) : (
-            <>
-              <Group
-                orientation="horizontal"
-                className={cn(
-                  'flex-1 min-w-0',
-                  panelsAnimating && 'panels-animating'
-                )}
-                onLayoutChanged={handleLayoutChanged}
+        <div className="relative flex-1 flex min-h-0 min-w-0">
+          {/* 基座层：三栏常驻挂载，覆盖期间布局尺寸保持真实值，仅被盖住不卸载 */}
+          <div
+            ref={baseHostRef}
+            className="contents"
+            aria-hidden={OverlayView ? true : undefined}
+          >
+            <Group
+              orientation="horizontal"
+              className={cn(
+                'flex-1 min-w-0',
+                panelsAnimating && 'panels-animating'
+              )}
+              onLayoutChanged={handleLayoutChanged}
+            >
+              <Panel
+                id="session-sidebar"
+                defaultSize={`${sessionSidebarWidth}px`}
+                minSize={`${SESSION_SIDEBAR_MIN_PERCENT}`}
+                maxSize={`${SESSION_SIDEBAR_MAX_PX}px`}
+                groupResizeBehavior="preserve-pixel-size"
+                collapsible
+                onResize={handleSessionPanelResize}
+                panelRef={sessionPanelRef}
               >
-                <Panel
-                  id="session-sidebar"
-                  defaultSize={`${sessionSidebarWidth}px`}
-                  minSize={`${SESSION_SIDEBAR_MIN_PERCENT}`}
-                  maxSize={`${SESSION_SIDEBAR_MAX_PX}px`}
-                  groupResizeBehavior="preserve-pixel-size"
-                  collapsible
-                  onResize={handleSessionPanelResize}
-                  panelRef={sessionPanelRef}
-                >
-                  <SessionSidebar onNewChat={handleNewChat} />
-                </Panel>
-                {!sessionSidebarCollapsed && <ResizeSeparator />}
-                <Panel id="chat" minSize="40">
-                  <div className="h-full overflow-hidden">
-                    {activeNav === 'chat' && (
-                      <div className="h-full flex flex-col">
-                        <Header isLoading={isLoading} />
-                        <div className="flex-1 min-h-0 relative">
-                          {/* 双 pane 横向滑动容器，整屏滑动同一时间只看到一个 pane */}
-                          <div className="absolute inset-0 overflow-hidden">
-                            <motion.div
-                              className="flex h-full w-[200%]"
-                              initial={false}
-                              animate={{ x: companionVisible ? '-50%' : '0%' }}
-                              transition={{ duration: 0.3, ease: 'easeOut' }}
-                            >
-                              {/* Pane 1: 聊天列表 */}
-                              <div className="w-1/2 h-full flex flex-col min-h-0">
-                                <MessageList
-                                  ref={messageListRef}
-                                  key={currentSession?.id ?? 'no-session'}
-                                  messages={messages}
-                                  isLoading={isLoading}
-                                  sessionId={currentSession?.id ?? null}
-                                  hasAgent={!!currentAgent}
-                                  agent={currentAgent}
-                                  bottomPadding={floatingHeight}
-                                />
-                              </div>
-                              {/* Pane 2: 陪伴展示 */}
-                              <div className="w-1/2 h-full">
-                                <CompanionContent
-                                  agentId={currentAgent?.id ?? null}
-                                />
-                              </div>
-                            </motion.div>
-                          </div>
-
-                          {/* 浮层：常驻底部，聊天态与陪伴态共用同一个 InputBox */}
-                          <div className="absolute bottom-0 left-0 right-0 z-20">
-                            {companionVisible && (
-                              <CompanionReplyBubble
-                                agentId={currentAgent?.id ?? null}
-                              />
-                            )}
-                            <div
-                              ref={floatingRef}
-                              className={
-                                companionVisible
-                                  ? ''
-                                  : 'bg-background/80 backdrop-blur-md'
-                              }
-                            >
-                              <InputBox
-                                onSend={handleSend}
-                                onAbort={() => abortGeneration()}
+                <SessionSidebar onNewChat={handleNewChat} />
+              </Panel>
+              {!sessionSidebarCollapsed && <ResizeSeparator />}
+              <Panel id="chat" minSize="40">
+                <div className="h-full overflow-hidden">
+                  {activeNav === 'chat' && (
+                    <div className="h-full flex flex-col">
+                      <Header />
+                      <div className="flex-1 min-h-0 relative">
+                        {/* 双 pane 横向滑动容器，整屏滑动同一时间只看到一个 pane */}
+                        <div className="absolute inset-0 overflow-hidden">
+                          <motion.div
+                            className="flex h-full w-[200%]"
+                            initial={false}
+                            animate={{ x: companionVisible ? '-50%' : '0%' }}
+                            transition={{ duration: 0.3, ease: 'easeOut' }}
+                          >
+                            {/* Pane 1: 聊天列表 */}
+                            <div className="w-1/2 h-full flex flex-col min-h-0">
+                              <MessageList
+                                ref={messageListRef}
+                                key={currentSession?.id ?? 'no-session'}
+                                messages={messages}
                                 isLoading={isLoading}
-                                disabled={!currentAgent}
-                                providers={providers}
-                                currentModelId={currentModelId}
-                                currentProviderId={currentProviderId}
-                                onModelChange={handleModelChange}
-                                onProviderChange={handleProviderChange}
-                                workspacePath={currentWorkspacePath}
-                                onWorkspaceChange={handleWorkspaceChange}
+                                sessionId={currentSession?.id ?? null}
+                                hasAgent={!!currentAgent}
+                                agent={currentAgent}
+                                bottomPadding={floatingHeight}
                               />
                             </div>
+                            {/* Pane 2: 陪伴展示 */}
+                            <div className="w-1/2 h-full">
+                              <CompanionContent
+                                agentId={currentAgent?.id ?? null}
+                              />
+                            </div>
+                          </motion.div>
+                        </div>
+
+                        {/* 顶栏时间线浮层，浮在消息区上方，输入浮层保持更高层级 */}
+                        <LiveStrip />
+
+                        {/* 浮层：常驻底部，聊天态与陪伴态共用同一个 InputBox */}
+                        <div className="absolute bottom-0 left-0 right-0 z-20">
+                          {companionVisible && (
+                            <CompanionReplyBubble
+                              agentId={currentAgent?.id ?? null}
+                            />
+                          )}
+                          <div
+                            ref={floatingRef}
+                            className={
+                              companionVisible
+                                ? ''
+                                : 'bg-background/80 backdrop-blur-md'
+                            }
+                          >
+                            <InputBox
+                              onSend={handleSend}
+                              onAbort={() => abortGeneration()}
+                              isLoading={isLoading}
+                              disabled={!currentAgent}
+                              providers={providers}
+                              currentModelId={currentModelId}
+                              currentProviderId={currentProviderId}
+                              onModelChange={handleModelChange}
+                              onProviderChange={handleProviderChange}
+                              workspacePath={currentWorkspacePath}
+                              onWorkspaceChange={handleWorkspaceChange}
+                            />
                           </div>
                         </div>
                       </div>
-                    )}
-                    {activeNav === 'agent-settings' && (
-                      <AgentEditor
-                        editingAgentId={editingAgentId}
-                        onDelete={handleDeleteAgent}
-                      />
-                    )}
-                    {activeNav === 'tools' && <AgentToolsView />}
-                    {activeNav === 'skills' && <SkillsView />}
-                  </div>
-                </Panel>
-                {!phonePanelCollapsed && <ResizeSeparator />}
-                <Panel
-                  id="phone-panel"
-                  defaultSize={`${phonePanelSize}`}
-                  minSize={`${PHONE_PANEL_MIN_PERCENT}`}
-                  maxSize={`${PHONE_PANEL_MAX_PERCENT}`}
-                  collapsible
-                  panelRef={phonePanelRef}
-                >
-                  <PhonePanel />
-                </Panel>
-              </Group>
-            </>
+                    </div>
+                  )}
+                  {activeNav === 'agent-settings' && (
+                    <AgentEditor
+                      editingAgentId={editingAgentId}
+                      onDelete={handleDeleteAgent}
+                    />
+                  )}
+                  {activeNav === 'tools' && <AgentToolsView />}
+                  {activeNav === 'skills' && <SkillsView />}
+                </div>
+              </Panel>
+              {!phonePanelCollapsed && <ResizeSeparator />}
+              <Panel
+                id="phone-panel"
+                defaultSize={`${phonePanelSize}`}
+                minSize={`${PHONE_PANEL_MIN_PX}px`}
+                maxSize={`${PHONE_PANEL_MAX_PERCENT}`}
+                collapsible
+                panelRef={phonePanelRef}
+              >
+                <PhonePanel />
+              </Panel>
+            </Group>
+          </div>
+          {OverlayView && (
+            <ViewLayer>
+              <OverlayView />
+            </ViewLayer>
           )}
         </div>
       </div>

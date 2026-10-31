@@ -35,6 +35,10 @@ import {
   shutdownWebSocket,
   getOnlineDevices,
   setViewedHandler,
+  decideProbeAction,
+  PROBE_INTERVAL_MS,
+  MAX_MISSED_PONGS,
+  KEEPALIVE_INTERVAL_MS,
 } from '../src/server/websocket-server.js';
 import { getDb, closeDb } from '../src/db/index.js';
 import { SessionStore } from '../src/session/store.js';
@@ -129,6 +133,22 @@ function connectClient(url: string): Promise<TestClient> {
       .catch(reject);
   });
 }
+
+describe('probe decision', () => {
+  it('recent activity skips probing', () => {
+    expect(decideProbeAction(PROBE_INTERVAL_MS - 1, 0)).toBe('skip');
+  });
+
+  it('first silent tick probes instead of closing', () => {
+    expect(decideProbeAction(PROBE_INTERVAL_MS, 0)).toBe('ping');
+  });
+
+  it('terminates when consecutive misses reach tolerance', () => {
+    expect(decideProbeAction(PROBE_INTERVAL_MS, MAX_MISSED_PONGS - 1)).toBe(
+      'terminate'
+    );
+  });
+});
 
 describe('WebSocket Device Identity', () => {
   let httpServer: Server;
@@ -244,19 +264,44 @@ describe('WebSocket Device Identity', () => {
     await client.close();
   });
 
+  it('announces keepalive interval in the connected message', async () => {
+    const client = new TestClient(wsUrl);
+    const msg = await client.waitFor('connected');
+    expect(msg.keepaliveIntervalMs).toBe(KEEPALIVE_INTERVAL_MS);
+    await client.close();
+  });
+
+  it('sends keepalive to an idle connection at the declared cadence', async () => {
+    const client = await connectClient(wsUrl);
+    const start = Date.now();
+    await client.waitFor('keepalive', KEEPALIVE_INTERVAL_MS * 2);
+    await client.waitFor('keepalive', KEEPALIVE_INTERVAL_MS * 2);
+    // 两条保活都在四个节拍内到达，空闲连接的下行不落空
+    expect(Date.now() - start).toBeLessThan(KEEPALIVE_INTERVAL_MS * 4);
+    await client.close();
+  }, 30_000);
+
   it('sends runs snapshot with running sessions on connect', async () => {
-    sessionRegistry.register('chat-snapshot-test', new AbortController());
+    sessionRegistry.register(
+      'chat-snapshot-test',
+      'ws-test-agent',
+      new AbortController()
+    );
     try {
       const client = await connectClient(wsUrl);
       const snap = await client.waitFor('runs_snapshot');
       expect(snap.sessionIds).toContain('chat-snapshot-test');
+      expect(snap.runs).toEqual([
+        { sessionId: 'chat-snapshot-test', agentId: 'ws-test-agent' },
+      ]);
       await client.close();
     } finally {
       sessionRegistry.unregister('chat-snapshot-test');
     }
   });
 
-  it('viewed clears unread flag and broadcasts change to all clients', async () => {    const agentId = 'ws-test-agent';
+  it('viewed clears unread flag and broadcasts change to all clients', async () => {
+    const agentId = 'ws-test-agent';
     const store = new SessionStore(agentId);
     const meta: SessionMeta = {
       id: 'ws-unread-session',
@@ -271,7 +316,10 @@ describe('WebSocket Device Identity', () => {
     const sender = await connectClient(wsUrl);
     const observer = await connectClient(wsUrl);
 
-    sender.send({ type: 'viewed', payload: { sessionId: 'ws-unread-session' } });
+    sender.send({
+      type: 'viewed',
+      payload: { sessionId: 'ws-unread-session' },
+    });
 
     // 上报端与旁观端都应收到 session_updated 变更广播
     const [senderChange, observerChange] = await Promise.all([
@@ -289,9 +337,9 @@ describe('WebSocket Device Identity', () => {
 
     // 库中未读标记已清除
     const row = getDb()
-      .query<{ has_unread: number }>(
-        'SELECT has_unread FROM sessions WHERE id = ?'
-      )
+      .query<{
+        has_unread: number;
+      }>('SELECT has_unread FROM sessions WHERE id = ?')
       .get('ws-unread-session');
     expect(row?.has_unread).toBe(0);
 

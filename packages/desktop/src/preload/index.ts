@@ -194,10 +194,10 @@ const api: WindowAPI = {
     getUnreadAgents: () => ipcRenderer.invoke(IPC.CACHE_GET_UNREAD_AGENTS),
     getLauncherPrefs: () => ipcRenderer.invoke(IPC.CACHE_GET_LAUNCHER_PREFS),
     getCursor: () => ipcRenderer.invoke(IPC.CACHE_GET_CURSOR),
-    applySnapshot: (snapshot) =>
-      ipcRenderer.invoke(IPC.CACHE_APPLY_SNAPSHOT, snapshot),
-    applyChanges: (changes) =>
-      ipcRenderer.invoke(IPC.CACHE_APPLY_CHANGES, changes),
+    applySnapshot: (snapshot, hostId) =>
+      ipcRenderer.invoke(IPC.CACHE_APPLY_SNAPSHOT, snapshot, hostId),
+    applyChanges: (changes, hostId) =>
+      ipcRenderer.invoke(IPC.CACHE_APPLY_CHANGES, changes, hostId),
     putAgents: (agents) => ipcRenderer.invoke(IPC.CACHE_PUT_AGENTS, agents),
     deleteAgent: (agentId) =>
       ipcRenderer.invoke(IPC.CACHE_DELETE_AGENT, agentId),
