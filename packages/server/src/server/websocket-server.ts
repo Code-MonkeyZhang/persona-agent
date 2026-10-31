@@ -95,14 +95,16 @@ export function initWebSocket(server: import('http').Server): WebSocketServer {
       keepaliveIntervalMs: KEEPALIVE_INTERVAL_MS,
     });
     // 连接建立即推运行快照,晚接入与重连端不缺运行态,广播不重放
-    const runningIds = sessionRegistry.list();
+    const runningRuns = sessionRegistry.list();
     sendToClient(client, {
       type: 'runs_snapshot',
-      sessionIds: runningIds,
+      // sessionIds 保留给旧端,新端读带归属的 runs
+      sessionIds: runningRuns.map((run) => run.sessionId),
+      runs: runningRuns,
     });
     Logger.log('WS', 'Runs snapshot sent', {
       clientId,
-      count: runningIds.length,
+      count: runningRuns.length,
     });
 
     ws.on('message', (data: Buffer) => {

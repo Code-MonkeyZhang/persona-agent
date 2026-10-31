@@ -282,11 +282,18 @@ describe('WebSocket Device Identity', () => {
   }, 30_000);
 
   it('sends runs snapshot with running sessions on connect', async () => {
-    sessionRegistry.register('chat-snapshot-test', new AbortController());
+    sessionRegistry.register(
+      'chat-snapshot-test',
+      'ws-test-agent',
+      new AbortController()
+    );
     try {
       const client = await connectClient(wsUrl);
       const snap = await client.waitFor('runs_snapshot');
       expect(snap.sessionIds).toContain('chat-snapshot-test');
+      expect(snap.runs).toEqual([
+        { sessionId: 'chat-snapshot-test', agentId: 'ws-test-agent' },
+      ]);
       await client.close();
     } finally {
       sessionRegistry.unregister('chat-snapshot-test');

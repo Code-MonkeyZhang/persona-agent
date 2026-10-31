@@ -219,10 +219,10 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
   }
 
   const abortController = new AbortController();
-  sessionRegistry.register(sessionId, abortController);
-  Logger.log('CHAT', 'Abort controller registered', { sessionId });
-  // 回合开始的全局广播,未订阅该会话的端据此点亮信号位运行腿
-  broadcastToAll({ type: 'run_started', sessionId });
+  sessionRegistry.register(sessionId, agentId, abortController);
+  Logger.log('CHAT', 'Abort controller registered', { sessionId, agentId });
+  // 回合开始的全局广播,未订阅该会话的端据此点亮信号位运行腿与头像运行圈
+  broadcastToAll({ type: 'run_started', sessionId, agentId });
   Logger.log('CHAT', 'Run started broadcast', { sessionId });
 
   try {
@@ -645,9 +645,9 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     sessionRegistry.unregister(sessionId);
     // 回合结束清除动作登记，成功错误中止共用此出口
     activityRegistry.clearActivity(sessionId);
-    // 回合结束的全局广播,完成、出错与中止共用 finally 出口,客户端据此熄灭运行腿
-    broadcastToAll({ type: 'run_ended', sessionId });
-    Logger.log('CHAT', 'Run ended broadcast', { sessionId });
+    // 回合结束的全局广播,完成、出错与中止共用 finally 出口,客户端据此熄灭运行腿与头像运行圈
+    broadcastToAll({ type: 'run_ended', sessionId, agentId });
+    Logger.log('CHAT', 'Run ended broadcast', { sessionId, agentId });
   }
 }
 
