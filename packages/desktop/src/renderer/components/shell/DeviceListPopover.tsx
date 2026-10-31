@@ -47,8 +47,9 @@ export function DeviceListPopover({
 
   const handleSwitch = (hostId: string, address: string | null) => {
     void switchHost(hostId, address).then((result) => {
-      if (!result?.ok) {
-        toast.error(t('device.toast.switchFailed'));
+      // 切换已点选即落位，核身失败由红条如实呈现，只在目标连地址都没有时提示
+      if (result && !result.ok && result.error === 'unreachable') {
+        toast.error(t('device.toast.unreachable'));
       }
     });
     onClose();

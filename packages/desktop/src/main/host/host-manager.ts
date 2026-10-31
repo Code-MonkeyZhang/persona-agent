@@ -47,8 +47,9 @@ export async function fetchHandshake(
 
 /**
  * 连接事实的唯一来源。
- * 本机连接由 provider 常驻提供，远程连接经握手识别后切换进入。
- * 切换是串行原子操作：开新库关旧库，失败回滚，镜像来源错配整库重建自愈。
+ * 本机连接由 provider 常驻提供，远程连接切换进入。
+ * 切换点选即落位，开新库关旧库记身份广播在前，握手退到落位后核身，
+ * 核身失败只置断连不回滚视图，镜像来源错配整库重建自愈。
  */
 export class HostManager {
   private localConnection: HostConnection = {
@@ -113,8 +114,8 @@ export class HostManager {
 
   /**
    * 切换到目标主机，串行队列里原子执行。
-   * 远程目标先握手核身，身份不符即失败；本机目标直接切回常驻连接。
-   * 成功后关旧库开新库并广播，失败回滚原连接。
+   * 本机目标直接切回常驻连接；远程目标点选即落位，开库记身份广播在前，
+   * 握手退到落位后核身，失败或身份不符只置断连不回滚视图。
    */
   async switchHost(
     hostId: string,
@@ -129,22 +130,26 @@ export class HostManager {
       if (!address) {
         return { ok: false, error: 'unreachable' };
       }
+      // 落位在前，界面立即切到目标主机的镜像，核身结果只回写连接状态
+      await this.applyConnection(
+        { hostId, address, status: 'connecting' },
+        `cache-${hostId}.db`
+      );
+      this.recordSwitch(hostId);
       const handshake = await fetchHandshake(address);
       if (!handshake) {
         log.warn(`[host] Handshake failed for ${address}`);
+        this.setConnectionStatus('disconnected');
         return { ok: false, error: 'handshake_failed' };
       }
       if (handshake.hostId !== hostId) {
         log.warn(
           `[host] Identity mismatch: expect ${hostId} got ${handshake.hostId}`
         );
+        this.setConnectionStatus('disconnected');
         return { ok: false, error: 'identity_mismatch' };
       }
-      await this.applyConnection(
-        { hostId, address, status: 'connected' },
-        `cache-${hostId}.db`
-      );
-      this.recordSwitch(hostId);
+      this.setConnectionStatus('connected');
       return { ok: true };
     };
     const result = this.switchChain.then(run, run);
@@ -233,6 +238,15 @@ export class HostManager {
   closeCache(): void {
     this.cacheDb?.close();
     this.cacheDb = null;
+  }
+
+  /** 落位后的核身回写，只改连接状态并广播，视图与镜像不动 */
+  private setConnectionStatus(status: HostConnection['status']): void {
+    this.currentConnection = { ...this.currentConnection, status };
+    log.info(
+      `[host] ${this.currentConnection.hostId} connection status -> ${status}`
+    );
+    this.emit();
   }
 
   /**
