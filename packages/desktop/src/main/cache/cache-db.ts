@@ -90,6 +90,11 @@ export class CacheDb {
   /** 写操作完成后的通知回调，由 IPC 层挂载 */
   onChanged: (() => void) | null = null;
 
+  /** 镜像来源主机的只读口，写入校验据此拒掉错库写入 */
+  get sourceHost(): string {
+    return this.sourceHostId;
+  }
+
   constructor(
     dbPath: string,
     sourceHostId: string,

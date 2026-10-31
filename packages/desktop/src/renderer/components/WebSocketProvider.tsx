@@ -63,14 +63,22 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     });
     clientRef.current = client;
 
+    /**
+     * 数据来源主机的身份，连接建立时捕获。
+     * 推送与追平的落库都随行这份身份，切换微窗口里旧连接的残留写入据此被主进程拒掉。
+     */
+    let sourceHostId = '';
+
     const engine = new SyncEngine({
       fetchSnapshot: getSyncSnapshot,
       fetchChanges: getSyncChanges,
       getCursor: () => window.api?.cache.getCursor() ?? Promise.resolve(0),
       applySnapshot: (snapshot) =>
-        window.api?.cache.applySnapshot(snapshot) ?? Promise.resolve(),
+        window.api?.cache.applySnapshot(snapshot, sourceHostId) ??
+        Promise.resolve(),
       applyChanges: (changes) =>
-        window.api?.cache.applyChanges(changes) ?? Promise.resolve(),
+        window.api?.cache.applyChanges(changes, sourceHostId) ??
+        Promise.resolve(),
       invalidateMirror: () => window.api?.cache.reset() ?? Promise.resolve(),
       onStateChange: (state) => {
         logger.info('Sync', `catch-up ${state}`);
@@ -97,8 +105,10 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       setConnectionStatus(status);
       // 设备状态点靠这份实时状态感知当前主机的连接与断开
       useConnectionStore.getState().setCurrentWsStatus(status);
-      // 连接建立即追平，重连与首次连接走同一条路
+      // 连接建立即追平，重连与首次连接走同一条路，来源身份随新连接刷新
       if (status === 'connected') {
+        sourceHostId =
+          useConnectionStore.getState().snapshot?.current.hostId ?? '';
         engine.sync();
       }
     });
