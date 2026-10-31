@@ -98,7 +98,11 @@ describe('liveRun 缓冲的事件推进', () => {
   it('run_started 为已加载会话建空时间线', () => {
     const sessionId = 'live-run-started';
     useChatStore.getState().initSessionState(sessionId, []);
-    useChatStore.getState().handleWsMessage({ type: 'run_started', sessionId });
+    useChatStore.getState().handleWsMessage({
+      type: 'run_started',
+      sessionId,
+      agentId: 'test-agent',
+    });
     expect(
       useChatStore.getState().sessionStates.get(sessionId)?.liveRun,
     ).toEqual({ steps: [] });

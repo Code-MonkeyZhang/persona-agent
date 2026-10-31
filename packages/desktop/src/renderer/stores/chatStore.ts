@@ -224,6 +224,13 @@ interface ChatStore {
    * runs_snapshot 整体替换，信号位运行腿与本机 isLoading 取或。
    */
   runningSessions: string[];
+  /**
+   * 运行归属的单一数据源，sessionId 指向 agentId，
+   * runningSessions 与 runningAgents 都从这里推导。
+   */
+  runningOwners: Map<string, string>;
+  /** 运行中 Agent 的全局集合，头像运行圈据此起转停转 */
+  runningAgents: string[];
 
   setCurrentSessionId: (id: string | null) => void;
   initSessionState: (sessionId: string, messages: UIMessage[]) => void;
@@ -237,6 +244,14 @@ interface ChatStore {
   setSyncState: (state: SyncState) => void;
   setAgentId: (id: string | null) => void;
   setWsClient: (client: WebSocketClient | null) => void;
+}
+
+/** 从归属表推导会话与 Agent 两个运行集合，运行族事件的维护只改 owners 一处 */
+function deriveRunning(owners: Map<string, string>) {
+  return {
+    runningSessions: [...owners.keys()],
+    runningAgents: [...new Set(owners.values())],
+  };
 }
 
 export const useChatStore = create<ChatStore>((set, get) => {
@@ -285,6 +300,8 @@ export const useChatStore = create<ChatStore>((set, get) => {
     agentId: null,
     wsClient: null,
     runningSessions: [],
+    runningOwners: new Map(),
+    runningAgents: [],
 
     setConnectionStatus: (status: ConnectionStatus) => {
       set({ connectionStatus: status });
@@ -474,35 +491,43 @@ export const useChatStore = create<ChatStore>((set, get) => {
                 liveRun: { steps: [] },
               });
             }
+            // 幂等登记归属,广播重放或快照竞态不产生重复成员
+            const owners = new Map(state.runningOwners);
+            owners.set(sessionId, msg.agentId);
             return {
-              // 幂等添加,广播重放或快照竞态不产生重复成员
-              runningSessions: state.runningSessions.includes(sessionId)
-                ? state.runningSessions
-                : [...state.runningSessions, sessionId],
+              runningOwners: owners,
+              ...deriveRunning(owners),
               sessionStates: newStates,
             };
           });
           logger.info('[live-strip] Run started, timeline armed', {
             sessionId,
+            agentId: msg.agentId,
           });
           break;
         }
 
         case 'run_ended': {
-          set((state) => ({
-            runningSessions: state.runningSessions.filter(
-              (id) => id !== msg.sessionId
-            ),
-          }));
-          logger.info('Run ended', { sessionId: msg.sessionId });
+          set((state) => {
+            const owners = new Map(state.runningOwners);
+            owners.delete(msg.sessionId);
+            return { runningOwners: owners, ...deriveRunning(owners) };
+          });
+          logger.info('Run ended', {
+            sessionId: msg.sessionId,
+            agentId: msg.agentId,
+          });
           break;
         }
 
         case 'runs_snapshot': {
           // 快照整体替换,晚接入与重连端据此对齐 server 运行全量
-          set({ runningSessions: msg.sessionIds });
+          const owners = new Map(
+            msg.runs.map((run) => [run.sessionId, run.agentId])
+          );
+          set({ runningOwners: owners, ...deriveRunning(owners) });
           logger.info('Runs snapshot received', {
-            count: msg.sessionIds.length,
+            count: msg.runs.length,
           });
           break;
         }

@@ -2,6 +2,7 @@
  * @file src/renderer/components/shell/AgentSidebar.tsx
  * @description 左侧 Agent 列表侧边栏，展示所有 Agent 头像、添加按钮、设备入口、远程访问入口和设置入口。
  * 选中态使用 framer-motion 共享布局动画，切换 Agent 时白色卡片和蓝色竖条弹性滑动。
+ * 名下有会话运行的头像外挂全圈呼吸运行圈，数据来自运行族广播维护的 runningAgents。
  * 两颗连接入口用图标本身的颜色做指示：设备图标跟当前连接且本机恒灰，路由器图标跟本机隧道的四态。
  */
 import React, { useState } from 'react';
@@ -102,6 +103,7 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = () => {
   const tunnelHealth = useTunnelStore((s) => s.health);
   const mobileOnline = useTunnelStore((s) => s.mobileDeviceIds.size > 0);
   const connectionStatus = useChatStore((s) => s.connectionStatus);
+  const runningAgents = useChatStore((s) => s.runningAgents);
   const { remote } = useCurrentDevice();
 
   /**
@@ -148,6 +150,7 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = () => {
       <div className="flex-1 overflow-y-auto py-2">
         {agents.map((agent) => {
           const isSelected = currentAgent?.id === agent.id;
+          const isRunning = runningAgents.includes(agent.id);
           return (
             <div key={agent.id} className="relative">
               <button
@@ -163,6 +166,23 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = () => {
                   />
                 )}
                 <div className="relative z-10 inline-flex">
+                  {/* 运行圈外扩 3pt 绝对定位，全圈呼吸，运行族广播起停 */}
+                  {isRunning && (
+                    <svg
+                      viewBox="0 0 46 46"
+                      className="pointer-events-none absolute -inset-[3px] h-[46px] w-[46px]"
+                      aria-hidden="true"
+                    >
+                      <circle
+                        cx="23"
+                        cy="23"
+                        r="22"
+                        fill="none"
+                        strokeWidth="2"
+                        className="agent-running-ring"
+                      />
+                    </svg>
+                  )}
                   <AgentAvatar agent={agent} size="md" />
                   {unreadAgentIds.includes(agent.id) && (
                     <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-success ring-2 ring-background" />

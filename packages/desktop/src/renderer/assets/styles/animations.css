@@ -130,3 +130,24 @@
 .collapsible-content[data-state='closed'] {
   animation: collapsible-up 200ms ease-out;
 }
+
+/* ============================================
+   Agent 运行圈 — 全圈呼吸
+   整圈实线透明度一起一伏，无弧无底轨，
+   透明度 0.15 到 0.7，周期 1.4s 缓入缓出
+   ============================================ */
+
+.agent-running-ring {
+  stroke: hsl(var(--primary));
+  animation: agent-ring-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes agent-ring-pulse {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
