@@ -10,7 +10,9 @@ import {
   Braces,
   FileText,
   Lightbulb,
+  MessageCircle,
   MessageSquare,
+  MessageSquareDashed,
   TerminalSquare,
   XCircle,
   type LucideIcon,
@@ -25,8 +27,8 @@ import {
 import { CopyButton } from '../ui/CopyButton';
 import { toolIcon } from './LiveStrip';
 
-/** 时间线行的详情载荷，三类行共用一个浮层
- *  工具行带原始入参与输出，用户行与思考行只带全文，failed 标记失败行浮层头部多一块错误区 */
+/** 时间线行的详情载荷，行共用一个浮层
+ *  工具行带原始入参与输出，文字类行只带全文，failed 标记失败行浮层头部多一块错误区 */
 export type RowDetail =
   | {
       kind: 'tool';
@@ -37,7 +39,9 @@ export type RowDetail =
       failed?: boolean;
     }
   | { kind: 'user'; text: string }
-  | { kind: 'think'; text: string };
+  | { kind: 'think'; text: string }
+  | { kind: 'note'; text: string }
+  | { kind: 'reply'; text: string };
 
 /** 安全解析 JSON 字符串，失败返回 null 由调用方走原文渲染 */
 function tryParseJson(raw: string): Record<string, unknown> | null {
@@ -111,8 +115,16 @@ function SectionHeader({
   );
 }
 
+/** 文字类行的徽章查表，行类型到图标与文案键的对应，浮层头部与正文段共用 */
+const TEXT_BADGES = {
+  user: { icon: MessageCircle, labelKey: 'live.userMessage' },
+  think: { icon: Lightbulb, labelKey: 'live.thinkingSection' },
+  note: { icon: MessageSquareDashed, labelKey: 'live.narration' },
+  reply: { icon: MessageSquare, labelKey: 'live.replyMessage' },
+} as const;
+
 /**
- * 时间线行的详情浮层，三类行统一入口，输出按六种形态解析渲染
+ * 时间线行的详情浮层，行统一入口，输出按六种形态解析渲染
  * @param detail 行详情载荷
  * @param open 受控开态
  * @param onOpenChange 开态回调
@@ -168,16 +180,12 @@ export function RowDetailDialog({
     return () => document.removeEventListener('click', onDocClick, true);
   }, [open, onOpenChange]);
 
-  const BadgeIcon = isTool
-    ? toolIcon(detail.tool)
-    : detail.kind === 'user'
-      ? MessageSquare
-      : Lightbulb;
-  const badgeLabel = isTool
-    ? detail.tool
-    : detail.kind === 'user'
-      ? t('live.userMessage')
-      : t('live.thinkingSection');
+  const BadgeIcon =
+    detail.kind === 'tool'
+      ? toolIcon(detail.tool)
+      : TEXT_BADGES[detail.kind].icon;
+  const badgeLabel =
+    detail.kind === 'tool' ? detail.tool : t(TEXT_BADGES[detail.kind].labelKey);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -208,10 +216,10 @@ export function RowDetailDialog({
           )}
         </DialogHeader>
 
-        {detail.kind === 'user' || detail.kind === 'think' ? (
+        {detail.kind !== 'tool' ? (
           <section className="space-y-2">
             <SectionHeader
-              icon={detail.kind === 'user' ? MessageSquare : Lightbulb}
+              icon={BadgeIcon}
               label={t('live.content')}
               copyText={detail.text}
               copyTitle={t('live.copy')}

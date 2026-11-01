@@ -405,6 +405,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
               timestamp: new Date(),
               toolName: tc.function.name,
               toolInput: tc.function.arguments,
+              toolTitle: tc.toolTitle,
+              toolIntent: tc.toolIntent,
               toolResult: tc.toolResult
                 ? {
                     output: tc.toolResult.content,

@@ -38,6 +38,7 @@ import { useChatStore } from '@/stores/chatStore';
 import {
   buildRows,
   idleLabel,
+  stepPhrase,
   type Translate,
 } from '@/components/chat/LiveStrip';
 import type { UIMessage, Thought } from '@/types/chat';
@@ -45,6 +46,7 @@ import type { UIMessage, Thought } from '@/types/chat';
 /** 测试用文案表，插值按 i18n 的 {{name}} 形态替换 */
 const dict: Record<string, string> = {
   'live.thinking': '思考中',
+  'live.read': '正在读取',
   'live.done': '执行了 {{count}} 个步骤',
   'live.doneFail': '执行了 {{count}} 个步骤 · {{fails}} 步失败',
 };
@@ -215,15 +217,41 @@ describe('buildRows 行推导', () => {
     }),
   ];
 
-  it('从消息流摊平三类行且 text 步骤过滤', () => {
+  it('从消息流摊平四类行且 text 步骤过滤，正文落回复内容行', () => {
     const rows = buildRows(messages, null);
-    expect(rows.map((r) => r.kind)).toEqual(['user', 'think', 'tool']);
+    expect(rows.map((r) => r.kind)).toEqual(['user', 'think', 'tool', 'reply']);
     expect(rows[2]).toMatchObject({
       tool: 'bash',
       detail: 'ls -la',
       input: '{"command":"ls -la"}',
       output: 'a b c',
     });
+    expect(rows[3]).toMatchObject({ kind: 'reply', text: '查完了' });
+  });
+
+  it('文字步按后面跟不跟工具定性，跟了出解说行没跟出回复行', () => {
+    const rows = buildRows([], {
+      steps: [
+        { tool: '', detail: '先查日志', startedAt: 1, endedAt: 1, text: true },
+        { tool: 'bash', detail: 'cat build.log', startedAt: 2, endedAt: 2 },
+        { tool: '', detail: '修好了', startedAt: 3, endedAt: 3, text: true },
+      ],
+    });
+    expect(rows.map((r) => r.kind)).toEqual(['note', 'tool', 'reply', 'think']);
+    expect(rows[0]).toMatchObject({ kind: 'note', text: '先查日志' });
+    expect(rows[2]).toMatchObject({ kind: 'reply', text: '修好了' });
+  });
+
+  it('写作期补正在回复标记行，间隙维持思考中行', () => {
+    const replying = buildRows([], { steps: [], replying: true });
+    expect(replying).toEqual([
+      { kind: 'reply', text: '', live: true, synthetic: true },
+    ]);
+
+    const gap = buildRows([], { steps: [] });
+    expect(gap).toEqual([
+      { kind: 'think', text: '', live: true, synthetic: true },
+    ]);
   });
 
   it('失败判定读 isError 与 toolResult 的 isError', () => {
@@ -365,7 +393,7 @@ describe('tool_started 与相位恢复', () => {
     });
   });
 
-  it('subscribed 带 currentActivity 两态恢复', () => {
+  it('subscribed 带 currentActivity 三态恢复', () => {
     const toolId = 'live-restore-tool';
     useChatStore.getState().initSessionState(toolId, []);
     useChatStore.getState().handleWsMessage({
@@ -399,19 +427,103 @@ describe('tool_started 与相位恢复', () => {
     expect(
       useChatStore.getState().sessionStates.get(thinkId)?.liveRun,
     ).toEqual({ steps: [] });
+
+    const replyingId = 'live-restore-replying';
+    useChatStore.getState().initSessionState(replyingId, []);
+    useChatStore.getState().handleWsMessage({
+      type: 'subscribed',
+      sessionId: replyingId,
+      isGenerating: true,
+      currentActivity: { kind: 'replying' },
+    });
+    expect(
+      useChatStore.getState().sessionStates.get(replyingId)?.liveRun,
+    ).toEqual({ steps: [], replying: true });
+  });
+
+  it('content_started 置写作标志，step_complete 落行后复位，空闲时丢弃', () => {
+    const sessionId = 'live-content-started';
+    enterLoading(sessionId);
+    useChatStore.getState().handleWsMessage({
+      type: 'content_started',
+      sessionId,
+      stepIndex: 0,
+    });
+    expect(
+      useChatStore.getState().sessionStates.get(sessionId)?.liveRun,
+    ).toEqual({ steps: [], replying: true });
+
+    broadcastStep(sessionId);
+    expect(
+      useChatStore.getState().sessionStates.get(sessionId)?.liveRun?.replying,
+    ).toBe(false);
+
+    const idleId = 'live-content-idle';
+    useChatStore.getState().initSessionState(idleId, []);
+    useChatStore.getState().handleWsMessage({
+      type: 'content_started',
+      sessionId: idleId,
+      stepIndex: 0,
+    });
+    expect(
+      useChatStore.getState().sessionStates.get(idleId)?.liveRun,
+    ).toBeNull();
+  });
+});
+
+describe('stepPhrase 三级取值', () => {
+  it('模型短标题优先，缺失走查表翻译', () => {
+    expect(
+      stepPhrase(t, {
+        tool: 'read_file',
+        detail: '/a/b/app.ts',
+        toolTitle: '读配置确认端口',
+        startedAt: 0,
+        endedAt: 1,
+      }),
+    ).toBe('读配置确认端口');
+    expect(
+      stepPhrase(t, {
+        tool: 'read_file',
+        detail: '/a/b/app.ts',
+        startedAt: 0,
+        endedAt: 1,
+      }),
+    ).toBe('正在读取 app.ts');
   });
 });
 
 describe('idleLabel 空闲摘要', () => {
-  it('成功轮输出步数，失败轮输出红字整句', () => {
-    const ok = message({
+  it('成功轮优先显示模型意图，未写走步数兜底，失败轮红字整句', () => {
+    const withIntent = message({
+      type: 'assistant',
+      content: '修好了',
+      thoughts: [
+        thought({
+          toolName: 'bash',
+          toolInput: { command: 'cat build.log' },
+          toolIntent: '定位构建失败原因',
+        }),
+        thought({
+          toolName: 'edit_file',
+          toolInput: { path: '/a/config.ts' },
+          toolIntent: '修复 CI 配置',
+        }),
+      ],
+    });
+    expect(idleLabel(t, [withIntent])).toEqual({
+      text: '修复 CI 配置',
+      failed: false,
+    });
+
+    const noIntent = message({
       type: 'assistant',
       thoughts: [
         thought({ toolName: 'bash', toolInput: { command: 'ls' } }),
         thought({ toolName: 'bash', toolInput: { command: 'pwd' } }),
       ],
     });
-    expect(idleLabel(t, [ok])).toEqual({
+    expect(idleLabel(t, [noIntent])).toEqual({
       text: '执行了 2 个步骤',
       failed: false,
     });

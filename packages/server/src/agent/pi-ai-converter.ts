@@ -14,9 +14,64 @@ import type {
   ToolCall as PiAiToolCall,
   JsonObject,
 } from '@earendil-works/pi-ai';
-import { Type, type TSchema } from '@earendil-works/pi-ai';
 import type { Message, ToolCall } from '../schema/index.js';
 import type { Tool } from '../tools/index.js';
+import { isToolNarrationEnabled } from '../config.js';
+
+/** 注入栏位的键名，短标题两到四词，意图一到两句，模型每次调用工具必填 */
+const NARRATION_TITLE_KEY = '_title';
+const NARRATION_INTENT_KEY = '_intent';
+
+/**
+ * 给工具 schema 注入模型自写叙述的两个必填栏位。
+ * 模型调用工具时顺手填写这两栏，agent 层在事件源头剥离，
+ * 工具实现与后续上下文都看不到注入的键。
+ * @param schema 原始 JSON Schema
+ * @returns 补齐注入栏位的新 schema，原对象不改
+ */
+export function injectNarrationFields(
+  schema: Record<string, unknown>
+): Record<string, unknown> {
+  const properties = {
+    ...(schema['properties'] as Record<string, unknown> | undefined),
+    [NARRATION_TITLE_KEY]: {
+      type: 'string',
+      description:
+        'REQUIRED: 用户界面的实时步骤条会直接显示这个短标题，用两到四个中文词说清本次调用在做什么，例如「查滴答清单待办」',
+    },
+    [NARRATION_INTENT_KEY]: {
+      type: 'string',
+      description:
+        'REQUIRED: 用一到两句中文说明本次调用的目的，写给用户看，例如「查看近两周的吃药提醒任务」',
+    },
+  };
+  const required = [
+    ...((schema['required'] as string[] | undefined) ?? []),
+    NARRATION_TITLE_KEY,
+    NARRATION_INTENT_KEY,
+  ];
+  return { ...schema, properties, required };
+}
+
+/**
+ * 从工具参数剥出注入的叙述栏位并挂到 ToolCall 顶层可选字段。
+ * 开关关闭时模型没见过这两栏，参数里无键即原样返回。
+ * @param toolCall 待剥离的内部工具调用
+ */
+export function stripNarrationFields(toolCall: ToolCall): void {
+  const args = toolCall.function.arguments;
+  if (!args) return;
+  if (NARRATION_TITLE_KEY in args) {
+    const title = args[NARRATION_TITLE_KEY];
+    delete args[NARRATION_TITLE_KEY];
+    if (typeof title === 'string' && title) toolCall.toolTitle = title;
+  }
+  if (NARRATION_INTENT_KEY in args) {
+    const intent = args[NARRATION_INTENT_KEY];
+    delete args[NARRATION_INTENT_KEY];
+    if (typeof intent === 'string' && intent) toolCall.toolIntent = intent;
+  }
+}
 
 /**
  * 将内部Message数组转换为pi-ai Message数组。
@@ -126,65 +181,22 @@ function convertMessages(messages: Message[]): PiAiMessage[] {
 
 /**
  * 将内部Tool数组转换为pi-ai Tool数组。
+ * pi-ai 对 parameters 只做原样透传且支持完整 JSON Schema，
+ * 原始 schema 直接随 Context 下发，叙述开关开启时先注入两个必填栏位，
+ * description 与 enum 等关键字全程不丢失，两家请求格式共用同一份 Context。
  *
  * @param tools - 内部Tool实例数组
  * @returns pi-ai格式的工具定义数组
  */
 function convertTools(tools: Tool[]): PiAiTool[] {
+  const narrate = isToolNarrationEnabled();
   return tools.map((tool) => ({
     name: tool.name,
     description: tool.description ?? '',
-    parameters: jsonSchemaToTypeBox(tool.parameters),
+    parameters: narrate
+      ? injectNarrationFields(tool.parameters)
+      : tool.parameters,
   }));
-}
-
-/**
- * 递归将JSON Schema转换为TypeBox Schema。
- *
- * 支持基本类型、数组和对象。
- * 对于无法识别的类型，回退到Type.Any。
- *
- * @param schema - 要转换的JSON Schema对象
- * @returns 等价的TypeBox Schema
- */
-function jsonSchemaToTypeBox(schema: Record<string, unknown>): TSchema {
-  const type = schema['type'] as string | undefined;
-
-  switch (type) {
-    case 'string':
-      return Type.String();
-    case 'number':
-    case 'integer':
-      return Type.Number();
-    case 'boolean':
-      return Type.Boolean();
-    case 'array': {
-      const items = schema['items'] as Record<string, unknown> | undefined;
-      if (items) {
-        return Type.Array(jsonSchemaToTypeBox(items));
-      }
-      return Type.Array(Type.Any());
-    }
-    case 'object': {
-      const properties = schema['properties'] as
-        | Record<string, Record<string, unknown>>
-        | undefined;
-      const required = schema['required'] as string[] | undefined;
-
-      if (!properties) {
-        return Type.Object({});
-      }
-
-      const typeBoxProps: Record<string, TSchema> = {};
-      for (const [key, value] of Object.entries(properties)) {
-        typeBoxProps[key] = jsonSchemaToTypeBox(value);
-      }
-
-      return Type.Object(typeBoxProps, { required: required ?? [] });
-    }
-    default:
-      return Type.Any();
-  }
 }
 
 /**

@@ -12,7 +12,7 @@ import {
   resolveWorkspaceDir,
   persistResolvedWorkspace,
 } from '../../agent/index.js';
-import { getMcpDisplayName } from '../../mcp/index.js';
+import { getMcpDisplayName, getMcpToolLogoUrl } from '../../mcp/index.js';
 import { runCompression } from './compress-service.js';
 import { buildRuntimeContext } from './runtime-context.js';
 import {
@@ -368,6 +368,8 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       stepIndex: number;
       thinking: string;
       content: string;
+      /** 本步是否已广播过 content_started，只服务广播不进落盘与 step_complete 载荷 */
+      contentAnnounced: boolean;
       toolCalls: ToolCall[];
       toolResults: {
         toolCallId: string;
@@ -395,6 +397,8 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
               id: tc.id,
               name: tc.function.name,
               arguments: tc.function.arguments,
+              toolTitle: tc.toolTitle,
+              toolIntent: tc.toolIntent,
             }))
           : undefined,
       toolResults:
@@ -485,6 +489,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
               stepIndex: event.step,
               thinking: '',
               content: '',
+              contentAnnounced: false,
               toolCalls: [],
               toolResults: [],
             };
@@ -500,6 +505,22 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
 
           case 'content':
             if (currentStep) {
+              // 正文首增量到达即广播开始信号并登记回复态，后续增量静默累加，正文仍在步末整段发出
+              if (!currentStep.contentAnnounced) {
+                currentStep.contentAnnounced = true;
+                activityRegistry.setActivity(sessionId, {
+                  kind: 'replying',
+                });
+                broadcastToSession(sessionId, {
+                  type: 'content_started',
+                  sessionId,
+                  stepIndex: currentStep.stepIndex,
+                });
+                Logger.log('CHAT', 'Content started broadcast', {
+                  sessionId,
+                  stepIndex: currentStep.stepIndex,
+                });
+              }
               currentStep.content += event.content;
             }
             break;
@@ -528,11 +549,17 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
               stepIndex: currentStep.stepIndex,
               toolName,
               paramSummary,
+              toolTitle: event.toolCall.toolTitle,
+              toolIntent: event.toolCall.toolIntent,
+              // MCP 工具带所属服务 logo，内置工具 undefined 由客户端回退 Wrench
+              iconUrl: getMcpToolLogoUrl(toolName),
             });
             Logger.log('CHAT', 'Tool started broadcast', {
               sessionId,
               stepIndex: currentStep.stepIndex,
               toolName,
+              toolTitle: event.toolCall.toolTitle,
+              toolIntent: event.toolCall.toolIntent,
             });
             break;
           }

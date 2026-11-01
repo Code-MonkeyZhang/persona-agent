@@ -8,6 +8,8 @@ export {
   listMcpServers,
   getMcpServer,
   getMcpDisplayName,
+  getMcpServerLogoUrl,
+  getMcpToolLogoUrl,
   setAppNotificationHandler,
   getMcpToolsForServers,
   getMcpPromptInfo,

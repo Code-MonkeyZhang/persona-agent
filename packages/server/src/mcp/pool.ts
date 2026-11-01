@@ -8,6 +8,7 @@
 
 import { Logger } from '../util/logger.js';
 import { errorMessage } from '../util/errors.js';
+import * as path from 'node:path';
 import { loadMcpConfig } from './config.js';
 import { connectAllServers, connectOne, type ConnectResult } from './loader.js';
 import {
@@ -18,7 +19,8 @@ import {
 import { MCPServerConnection } from './connection.js';
 import { McpOAuthProvider } from './oauth/provider.js';
 import { startCallbackServer } from './oauth/callback.js';
-import { getOAuthTokensPath } from '../util/paths.js';
+import { getOAuthTokensPath, getMcpServersDir } from '../util/paths.js';
+import { produceLocalLogoUrl } from '../util/local-logo.js';
 import type {
   McpServerEntry,
   McpToolMeta,
@@ -251,6 +253,35 @@ export function getMcpToolsForServers(serverNames: string[]): Tool[] {
   }
 
   return allTools;
+}
+
+/**
+ * 解析一个 MCP server 条目的本地优先 logo 地址。
+ * 本地图标文件命中即产出挂内容哈希的路由地址，缺失回退配置里的远程网址。
+ * @param entry - 目标 server 条目
+ */
+export function getMcpServerLogoUrl(entry: McpServerEntry): string | undefined {
+  return produceLocalLogoUrl(
+    path.join(getMcpServersDir(), entry.name),
+    entry.config,
+    `/api/mcp/${entry.name}/logo`,
+    'MCP',
+    entry.name
+  );
+}
+
+/**
+ * 按工具实名反查所属 MCP server 并解析其 logo 地址。
+ * 内置工具与无图标资产的服务返回 undefined，调用方回退 Wrench 图标。
+ * @param toolName - 工具实名
+ */
+export function getMcpToolLogoUrl(toolName: string): string | undefined {
+  for (const conn of connections.values()) {
+    if (!conn.tools.some((t) => t.name === toolName)) continue;
+    const entry = serverEntries.get(conn.name);
+    return entry ? getMcpServerLogoUrl(entry) : undefined;
+  }
+  return undefined;
 }
 
 /**

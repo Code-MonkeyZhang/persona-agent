@@ -60,6 +60,8 @@ function cycleToThoughts(msg: StepCompleteMessage): Thought[] {
       timestamp: new Date(),
       toolName: tc.name,
       toolInput: tc.arguments,
+      toolTitle: tc.toolTitle,
+      toolIntent: tc.toolIntent,
       toolResult: result
         ? {
             output: result.result,
@@ -77,7 +79,8 @@ function cycleToThoughts(msg: StepCompleteMessage): Thought[] {
  * 本步的思考段与解说文本插到未闭合工具步之前还原先思考后执行的叙述顺序，
  * 未闭合工具步与本次 tool_use 按出现顺序一一配对，agent 串行执行保证顺序一致，
  * 闭合时补全输入输出与失败态，tool_started 漏收的 tool_use 补一条已完成步，
- * 配对不上的未闭合步按孤儿收尾避免呼吸行悬挂，text 步骤由气泡正文承担不进行。
+ * 配对不上的未闭合步按孤儿收尾避免呼吸行悬挂，文字步带 text 标记落行，
+ * 渲染时按后面跟不跟工具分中间解说行与回复内容行，合并即步落行，replying 复位。
  * @param liveRun - 当前实时状态，null 时惰性创建
  * @param thoughts - cycleToThoughts 的产物
  * @returns 合并后的实时状态
@@ -98,6 +101,7 @@ function mergeStepIntoLiveRun(
         detail: th.content,
         startedAt: now,
         endedAt: now,
+        text: th.type === 'text' || undefined,
       });
     }
   }
@@ -114,6 +118,10 @@ function mergeStepIntoLiveRun(
       endedAt: now,
       input: th.toolInput ? JSON.stringify(th.toolInput) : undefined,
       output: th.toolResult?.output,
+      // 闭合时以落盘侧的存档文案为准，tool_started 漏收的步从这里补上取值链第一档
+      toolTitle: th.toolTitle ?? openSteps[i]?.toolTitle,
+      // logo 图址只在 tool_started 事件携带，闭合步沿用活动步的图址
+      iconUrl: openSteps[i]?.iconUrl,
       failed: th.isError || th.toolResult?.isError || undefined,
     };
     if (i < openSteps.length) closed.push(step);
@@ -137,7 +145,8 @@ function mergeStepIntoLiveRun(
   }
   if (!spliced) result.push(...thinkSteps);
   result.push(...missed);
-  return { steps: result };
+  // 步落行后写作相位结束，下一个信号重新点亮
+  return { steps: result, replying: false };
 }
 
 /**
@@ -543,7 +552,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
               if (sessionState && !sessionState.isLoading) {
                 newStates.set(sessionId, {
                   ...withLoadingState(sessionState),
-                  // tool 态当前动作直接开活动工具步，中途接入立即显示执行中身份
+                  // tool 态当前动作直接开活动工具步，replying 态置写作标志，中途接入立即显示对应相位
                   liveRun:
                     activity?.kind === 'tool'
                       ? {
@@ -555,7 +564,10 @@ export const useChatStore = create<ChatStore>((set, get) => {
                             },
                           ],
                         }
-                      : { steps: [] },
+                      : {
+                          steps: [],
+                          replying: activity?.kind === 'replying' || undefined,
+                        },
                 });
               }
               return { sessionStates: newStates };
@@ -655,9 +667,13 @@ export const useChatStore = create<ChatStore>((set, get) => {
                   {
                     tool: msg.toolName,
                     detail: msg.paramSummary,
+                    toolTitle: msg.toolTitle,
+                    iconUrl: msg.iconUrl,
                     startedAt,
                   },
                 ],
+                // 同步内先写正文后接工具时保住写作标志，步落行时统一复位
+                replying: ss.liveRun?.replying,
               },
             });
             return { sessionStates: newStates };
@@ -666,6 +682,35 @@ export const useChatStore = create<ChatStore>((set, get) => {
             sessionId,
             stepIndex: msg.stepIndex,
             toolName: msg.toolName,
+          });
+          break;
+        }
+
+        case 'content_started': {
+          const sessionId = msg.sessionId;
+          const sessionState = get().sessionStates.get(sessionId);
+          // 迟到守卫：回合未在进行中即丢弃，不污染空闲时间线
+          if (!sessionState?.isLoading) {
+            logger.info('Late content_started ignored', { sessionId });
+            break;
+          }
+          set((state) => {
+            const newStates = new Map(state.sessionStates);
+            const ss = newStates.get(sessionId);
+            if (!ss) return {};
+            newStates.set(sessionId, {
+              ...ss,
+              // 只报开始的轻量信号，正文不直播，步末随 step_complete 整段落行
+              liveRun: {
+                steps: ss.liveRun?.steps ?? [],
+                replying: true,
+              },
+            });
+            return { sessionStates: newStates };
+          });
+          logger.info('[live-strip] Content started', {
+            sessionId,
+            stepIndex: msg.stepIndex,
           });
           break;
         }

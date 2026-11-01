@@ -500,6 +500,8 @@ chatDescribe('Chat Module Integration Tests', () => {
           toolName: string;
           paramSummary: string;
           stepIndex: number;
+          toolTitle?: string;
+          toolIntent?: string;
         }> = [];
 
         await new Promise<void>((resolve, reject) => {
@@ -515,12 +517,16 @@ chatDescribe('Chat Module Integration Tests', () => {
               toolName?: string;
               paramSummary?: string;
               stepIndex?: number;
+              toolTitle?: string;
+              toolIntent?: string;
             };
             if (message.type === 'tool_started') {
               started.push({
                 toolName: message.toolName ?? '',
                 paramSummary: message.paramSummary ?? '',
                 stepIndex: message.stepIndex ?? -1,
+                toolTitle: message.toolTitle,
+                toolIntent: message.toolIntent,
               });
             }
             if (message.type === 'round_complete') {
@@ -551,6 +557,8 @@ chatDescribe('Chat Module Integration Tests', () => {
               e.toolName === 'read_file' && e.paramSummary.includes('notes.txt')
           ),
         ).toBe(true);
+        // 注入开关默认开，required 强制模型必写，叙述字段应随广播透出
+        expect(started.some((e) => !!e.toolTitle)).toBe(true);
       },
       TEST_CONFIG.timeout
     );
@@ -630,7 +638,78 @@ chatDescribe('Chat Module Integration Tests', () => {
         const sub = lateSubscribed[0]!;
         expect(sub.isGenerating).toBe(true);
         expect(sub.currentActivity).toBeDefined();
-        expect(['thinking', 'tool']).toContain(sub.currentActivity?.kind);
+        expect(['thinking', 'tool', 'replying']).toContain(
+          sub.currentActivity?.kind
+        );
+      },
+      TEST_CONFIG.timeout
+    );
+
+    /** 测试：纯文字步广播一次 content_started，stepIndex 与带正文的 step_complete 对应 */
+    it(
+      'should broadcast content_started once for the pure text step',
+      async () => {
+        const workspaceDir = path.join(tempDir, 'workspace');
+        fs.mkdirSync(workspaceDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(workspaceDir, 'notes.txt'),
+          'timeline smoke notes'
+        );
+
+        const startedSteps: number[] = [];
+        const contentStepIndexes: number[] = [];
+
+        await new Promise<void>((resolve, reject) => {
+          ws = new WebSocket(WS_URL);
+          ws.on('open', () => {
+            ws.send(
+              JSON.stringify({ type: 'subscribe', payload: { sessionId } })
+            );
+          });
+          ws.on('message', (data: Buffer) => {
+            const message = JSON.parse(data.toString()) as {
+              type: string;
+              stepIndex?: number;
+              content?: string;
+            };
+            if (message.type === 'content_started') {
+              startedSteps.push(message.stepIndex ?? -1);
+            }
+            if (
+              message.type === 'step_complete' &&
+              typeof message.content === 'string' &&
+              message.content.length > 0
+            ) {
+              contentStepIndexes.push(message.stepIndex ?? -1);
+            }
+            if (message.type === 'round_complete') {
+              ws.close();
+              resolve();
+            }
+          });
+          ws.on('error', reject);
+          setTimeout(() => {
+            fetch(
+              `${BASE_URL}/api/agents/${agentId}/sessions/${sessionId}/chat`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  content:
+                    'Use the read_file tool to read notes.txt in your workspace, then reply with its exact content.',
+                }),
+              }
+            ).catch(reject);
+          }, 100);
+        });
+
+        expect(startedSteps.length).toBeGreaterThan(0);
+        // 同一文字步只广播一次
+        expect(new Set(startedSteps).size).toBe(startedSteps.length);
+        // 开始信号的步序落在带正文的步集合内
+        for (const idx of startedSteps) {
+          expect(contentStepIndexes).toContain(idx);
+        }
       },
       TEST_CONFIG.timeout
     );
