@@ -28,7 +28,7 @@ interface SubscribedMessage {
   currentActivity?: CurrentActivity;
 }
 
-/** 运行中会话的当前动作，subscribed 携带，thinking 与 tool 两态 */
+/** 运行中会话的当前动作，subscribed 携带，thinking、tool 与 replying 三态 */
 export type CurrentActivity =
   | { kind: 'thinking' }
   | {
@@ -36,7 +36,8 @@ export type CurrentActivity =
       stepIndex: number;
       toolName: string;
       paramSummary: string;
-    };
+    }
+  | { kind: 'replying' };
 
 /**
  * 工具调用开始事件。
@@ -50,6 +51,11 @@ interface ToolStartedMessage {
   toolName: string;
   /** 入参经掩码与摘要压成的一句参数摘要 */
   paramSummary: string;
+  /** 模型自写的工具叙述，显示层优先显示 */
+  toolTitle?: string;
+  toolIntent?: string;
+  /** MCP 工具所属服务的 logo 地址，内置工具缺省，客户端缺失回退 Wrench */
+  iconUrl?: string;
   /** 子代理工具链路的挂载点，当前无写入方，演进预留 */
   parent_tool_use_id?: string;
 }
@@ -58,6 +64,20 @@ interface WsToolCall {
   id: string;
   name: string;
   arguments: Record<string, unknown>;
+  /** 模型自写的工具叙述，随 toolCalls 项透传，供显示层取值优先读 */
+  toolTitle?: string;
+  toolIntent?: string;
+}
+
+/**
+ * 正文开始信号。
+ * 模型开始产出正文时广播一次，只报开始不带文字，
+ * 正文仍在步末随 step_complete 整段发出，UI 据此切换正在回复相位。
+ */
+interface ContentStartedMessage {
+  type: 'content_started';
+  sessionId: string;
+  stepIndex: number;
 }
 
 interface WsToolResult {
@@ -272,6 +292,7 @@ export type ServerMessage =
   | SubscribedMessage
   | StepCompleteMessage
   | ToolStartedMessage
+  | ContentStartedMessage
   | TurnCompleteMessage
   | RoundCompleteMessage
   | ErrorMessage

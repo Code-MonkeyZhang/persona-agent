@@ -6,7 +6,11 @@
 import type { Message, AgentEvent, ToolCall } from '../schema/index.js';
 import type { AgentRunConfig } from './types.js';
 import type { Tool, ToolResult } from '../tools/index.js';
-import { convertContext, convertPiAiToolCall } from './pi-ai-converter.js';
+import {
+  convertContext,
+  convertPiAiToolCall,
+  stripNarrationFields,
+} from './pi-ai-converter.js';
 import { formatPendingInputForAgent } from './inject.js';
 import { models } from './pi-models.js';
 import { Logger } from '../util/logger.js';
@@ -215,6 +219,8 @@ export class AgentCore {
 
       //执行每一个Tool Call
       for (const toolCall of toolCalls) {
+        // 源头剥离注入的叙述栏位，工具实现与后续上下文都看不到这两键
+        stripNarrationFields(toolCall);
         const toolCallId = toolCall.id;
         const functionName = toolCall.function.name;
         const args = toolCall.function.arguments || {};

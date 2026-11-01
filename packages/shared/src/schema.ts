@@ -44,6 +44,10 @@ export interface ToolCall {
     name: string;
     arguments: Record<string, unknown>;
   };
+  /** 模型自写的本次调用短标题，schema 注入键 _title 在事件源头剥离后挂此 */
+  toolTitle?: string;
+  /** 模型自写的本次调用意图，schema 注入键 _intent 在事件源头剥离后挂此 */
+  toolIntent?: string;
   toolResult?: {
     content: string;
     isError: boolean;

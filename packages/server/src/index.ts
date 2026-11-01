@@ -8,7 +8,7 @@ import { initAllDirsAndFiles, Logger } from './util/index.js';
 import { errorMessage } from './util/errors.js';
 import { getDb } from './db/index.js';
 import { getLogsDir, getConfigPath } from './util/paths.js';
-import { loadConfig } from './config.js';
+import { loadConfig, setToolNarration } from './config.js';
 import {
   backfillDefaultWorkspacePaths,
   seedInitialAgent,
@@ -29,6 +29,11 @@ program
     initAllDirsAndFiles();
     const config = loadConfig(getConfigPath());
     Logger.initialize(getLogsDir(), config.enableLogging);
+    // 工具叙述注入开关装载进运行时，agent 层组装 schema 时免参读取
+    setToolNarration(config.enableToolNarration);
+    Logger.log('CONFIG', 'Tool narration injection loaded', {
+      enabled: config.enableToolNarration,
+    });
     // 启动预热建库，正确性由惰性初始化兜底，早于它的写入会自动建库
     getDb();
     backfillDefaultWorkspacePaths();

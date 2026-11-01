@@ -15,6 +15,7 @@ import * as path from 'node:path';
 import {
   listMcpServers,
   getMcpServer,
+  getMcpServerLogoUrl,
   startOAuthFlow,
   getOAuthStatus,
   reconnectServer,
@@ -23,11 +24,7 @@ import { getMcpServersDir } from '../../util/paths.js';
 import { isSafeSkillName } from '../../marketplace/util.js';
 import { Logger } from '../../util/logger.js';
 import { getFileHash } from '../../util/asset-hash.js';
-import {
-  produceLocalLogoUrl,
-  resolveLocalLogoFile,
-  sendLocalLogo,
-} from '../../util/local-logo.js';
+import { resolveLocalLogoFile, sendLocalLogo } from '../../util/local-logo.js';
 import type { McpConnectionType } from '@persona/shared';
 import type { McpServerEntry } from '../../mcp/index.js';
 import { asyncHandler, getParam, requireParam } from './utils.js';
@@ -53,13 +50,7 @@ export function projectMcpServerEntry(entry: McpServerEntry) {
     displayName: entry.config.displayName ?? entry.name,
     description: entry.config.description,
     author: entry.config.author,
-    logoUrl: produceLocalLogoUrl(
-      path.join(getMcpServersDir(), entry.name),
-      entry.config,
-      `/api/mcp/${entry.name}/logo`,
-      'MCP',
-      entry.name
-    ),
+    logoUrl: getMcpServerLogoUrl(entry),
     status: entry.status,
     toolCount: entry.tools.length,
     tools: entry.tools.map((tool) => ({

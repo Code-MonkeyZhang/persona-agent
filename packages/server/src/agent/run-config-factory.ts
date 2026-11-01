@@ -23,6 +23,7 @@ import {
 } from '../tools/index.js';
 import { ShowPoseTool, GetCurrentPoseTool } from '../tools/pose-tools.js';
 import { findGitBash } from '../util/git-bash-detector.js';
+import { isToolNarrationEnabled } from '../config.js';
 import { MemoryStore } from './memory/memory-store.js';
 import { models } from './pi-models.js';
 import type { AgentConfig, AgentRunConfig } from './types.js';
@@ -50,6 +51,9 @@ import type { SessionManager } from '../session/session-manager.js';
  * Resolve any relative paths in this skill against the above directory.
  *
  * {skillContent1}
+ *
+ * ## Tool Metadata
+ * {narration fields statement, present only when tool narration is enabled}
  * ```
  *
  * @param basePrompt - Base system prompt from agent configuration
@@ -133,6 +137,20 @@ No skill is assigned to you. Any skills found on disk belong to the shared pool 
         prompt += `\n${indented}`;
       }
     }
+  }
+
+  // 叙述注入的第二通道，schema 里的说明对模型只是软提示，flash 级模型可能忽略
+  if (isToolNarrationEnabled()) {
+    prompt += `
+
+## Tool Metadata
+
+调用任何工具时必须同时填写两个额外参数，这两个值会实时显示给用户：
+
+- _title: 两到四个中文词的短标题，说清本次调用在做什么，例如「查滴答清单待办」
+- _intent: 一到两句中文说明本次调用的目的，写给用户看
+
+即使工具本身的参数很简单，这两个栏位也必须填写，不得省略。`;
   }
 
   return prompt;
