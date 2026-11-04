@@ -21,7 +21,11 @@ import {
 } from '../../agent/memory/token-estimate.js';
 import type { Message, ToolCall } from '../../schema/index.js';
 import type { ModelConfig } from '../../agent/types.js';
-import type { PendingInput } from '@persona/shared';
+import {
+  messagePreviewText,
+  type ContentBlock,
+  type PendingInput,
+} from '@persona/shared';
 import { summarizeToolInput } from '@persona/shared';
 import type { ToolResult } from '../../tools/index.js';
 import { Logger } from '../../util/logger.js';
@@ -54,7 +58,8 @@ function truncate(str: string, maxLen: number): string {
 interface ChatRequest {
   agentId: string;
   sessionId: string;
-  content: string;
+  /** 纯文本为字符串，带附件为内容块数组 */
+  content: string | ContentBlock[];
   voiceEnabled?: boolean;
   sessionManager: SessionManager;
   /** 设置时表示本次对话由 App 通知触发，跳过标题生成 */
@@ -95,18 +100,44 @@ function loadMessageIntoAgent(agent: AgentCore, msg: Message): void {
 
 /**
  * 待注入消息的落盘形态：一律存原文，前缀只在进入 Agent 上下文时拼接。
- * - user 插话存原话，与落盘、上下文、界面显示保持同一份文本
+ * - user 插话存原始内容，纯文本或块数组与落盘、上下文、界面显示保持同一份
  * - app 通知存既有 app_notification 角色，与空闲直发路径一致
  */
 function toPersistedMessage(input: PendingInput): Message {
   if (input.source === 'app') {
+    // App 通知恒为纯文本，类型收窄守卫
+    const content = typeof input.content === 'string' ? input.content : '';
     return {
       role: 'app_notification',
       source: input.sourceName ?? input.source,
-      content: input.content,
+      content,
     };
   }
   return { role: 'user', content: input.content };
+}
+
+/**
+ * 消息内容的日志形态。
+ * 块数组记录文本量与图片数与文件数与哈希清单，纯文本记录长度。
+ */
+function describeChatContent(
+  content: string | ContentBlock[]
+): Record<string, unknown> {
+  if (typeof content === 'string') return { textLength: content.length };
+  let textLength = 0;
+  let images = 0;
+  let files = 0;
+  const hashes: string[] = [];
+  for (const block of content) {
+    if (block.type === 'text') {
+      textLength += block.text.length;
+    } else {
+      hashes.push(block.hash);
+      if (block.type === 'image') images += 1;
+      else files += 1;
+    }
+  }
+  return { textLength, images, files, hashes };
 }
 
 /**
@@ -275,19 +306,23 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     if (appSource) {
       // App 通知：机器键在入口换成显示名，Agent 前缀、落盘与广播同用一份
       const sourceName = getMcpDisplayName(appSource);
+      // App 通知恒为纯文本，类型收窄守卫
+      const appContent = typeof content === 'string' ? content : '';
       // Agent 收到带前缀的 user 消息，session 存储 app_notification 原文
-      agent.addUserMessage(formatAppNotificationForAgent(sourceName, content));
+      agent.addUserMessage(
+        formatAppNotificationForAgent(sourceName, appContent)
+      );
       sessionManager.appendMessage(sessionId, {
         role: 'app_notification',
         source: sourceName,
-        content,
+        content: appContent,
       });
       // 广播回合开始信号，客户端据此创建 AI 占位气泡，之后 step_complete 正常填入
       broadcastToSession(sessionId, {
         type: 'app_notification',
         sessionId,
         source: sourceName,
-        content,
+        content: appContent,
       });
       Logger.log('CHAT', 'App notification broadcast', {
         sessionId,
@@ -304,7 +339,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       });
       Logger.log('CHAT', 'User message broadcast', {
         sessionId,
-        contentLength: content.length,
+        ...describeChatContent(content),
       });
     }
     historyLength = agent.messages.length;
@@ -335,31 +370,35 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     }
 
     // Fire-and-forget: auto-generate title base on the first user message
+    // 块数组先经预览提取纯文本，文件块贡献文件名，纯附件消息标题来自文件名
     const isFirstMessage = session.messages.length === 0;
     const isDefaultTitle = session.title === 'New Session';
     if (!appSource && isFirstMessage && isDefaultTitle && !isChatSession) {
-      Logger.log('TITLE', 'Auto-generating title', { sessionId });
-      const { provider: modelProvider, model: modelId } =
-        session.model ?? agentConfig.defaultModel;
-      generateTitle(content, modelProvider, modelId)
-        .then((title) => {
-          if (!title) {
-            return;
-          }
-          Logger.log('TITLE', 'Title generated', { sessionId, title });
-          sessionManager.updateTitle(sessionId, title);
-          broadcastToSession(sessionId, {
-            type: 'title_updated',
-            sessionId,
-            title,
+      const titleSource = messagePreviewText({ role: 'user', content }) ?? '';
+      if (titleSource.trim()) {
+        Logger.log('TITLE', 'Auto-generating title', { sessionId });
+        const { provider: modelProvider, model: modelId } =
+          session.model ?? agentConfig.defaultModel;
+        generateTitle(titleSource, modelProvider, modelId)
+          .then((title) => {
+            if (!title) {
+              return;
+            }
+            Logger.log('TITLE', 'Title generated', { sessionId, title });
+            sessionManager.updateTitle(sessionId, title);
+            broadcastToSession(sessionId, {
+              type: 'title_updated',
+              sessionId,
+              title,
+            });
+          })
+          .catch((err) => {
+            Logger.log('TITLE', 'Generation error', {
+              sessionId,
+              error: (err as Error).message,
+            });
           });
-        })
-        .catch((err) => {
-          Logger.log('TITLE', 'Generation error', {
-            sessionId,
-            error: (err as Error).message,
-          });
-        });
+      }
     }
 
     // 创建一个临时容器, 收集当前step的所有内容 方便广播

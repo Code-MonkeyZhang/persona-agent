@@ -19,6 +19,9 @@ export {
 } from './agent.js';
 export type {
   ContentBlock,
+  TextContent,
+  ImageContent,
+  FileContent,
   SystemMessage,
   UserMessage,
   ToolCall,

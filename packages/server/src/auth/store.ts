@@ -137,6 +137,9 @@ export function listProvidersWithAuth(): ProviderStatus[] {
       models: providerModels.map((m) => m.id),
       hasAuth: hasAuthFlag,
       docUrl: PROVIDER_DOCS[p] ?? '',
+      visionModelIds: providerModels
+        .filter((m) => m.input.includes('image'))
+        .map((m) => m.id),
     };
   });
 }

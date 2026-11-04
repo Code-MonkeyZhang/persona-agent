@@ -4,6 +4,7 @@
  */
 
 import type { Message, AgentEvent, ToolCall } from '../schema/index.js';
+import type { ContentBlock } from '@persona/shared';
 import type { AgentRunConfig } from './types.js';
 import type { Tool, ToolResult } from '../tools/index.js';
 import {
@@ -33,10 +34,9 @@ export class AgentCore {
   /**
    * 向对话历史添加用户消息。
    *
-   * @param content - 用户消息文本
-   * TODO: 如果要支持多模态这个要改
+   * @param content - 纯文本为字符串，带附件为内容块数组
    */
-  addUserMessage(content: string): void {
+  addUserMessage(content: string | ContentBlock[]): void {
     this.messages.push({
       role: 'user',
       content,

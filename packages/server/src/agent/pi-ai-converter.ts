@@ -10,12 +10,85 @@ import type {
   ToolResultMessage,
   Tool as PiAiTool,
   TextContent,
+  ImageContent,
   ThinkingContent,
   ToolCall as PiAiToolCall,
   JsonObject,
 } from '@earendil-works/pi-ai';
-import type { Message, ToolCall } from '../schema/index.js';
+import * as fs from 'node:fs';
+import type {
+  Message,
+  ToolCall,
+  ContentBlock,
+  FileContent,
+} from '../schema/index.js';
 import type { Tool } from '../tools/index.js';
+import { getAttachment } from '../server/services/attachment-store.js';
+import { getAttachmentsDir } from '../util/paths.js';
+import { Logger } from '../util/logger.js';
+
+/**
+ * 字节数的可读格式，句柄投影使用。
+ *
+ * @param bytes - 字节数
+ * @returns 形如 239.8KB 的可读字符串
+ */
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)}KB`;
+  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)}MB`;
+  return `${(bytes / 1024 ** 3).toFixed(1)}GB`;
+}
+
+/**
+ * 文件块的句柄投影文本。
+ * 纯字符串拼接不读盘，ReAct 循环每步重复执行无成本。
+ *
+ * @param block - 文件内容块
+ * @returns 引导模型用 read_file 取内容的英文句柄
+ */
+function formatFileHandle(block: FileContent): string {
+  return [
+    `[Attached file: ${block.name} · ${formatFileSize(block.bytes)}]`,
+    'The user attached this file. It is stored read-only at:',
+    `${getAttachmentsDir()}/${block.hash}`,
+    'Read it with the read_file tool when you need its contents.',
+    'To modify it, first copy it to the workspace.',
+  ].join('\n');
+}
+
+/**
+ * 将单个内容块转换为 pi-ai 的用户内容。
+ *
+ * - 文本块直映射
+ * - 图片块按哈希读附件仓转 base64，仓里的字节即客户端压缩后的最终产物
+ * - 文件块投影为句柄文本，模型经 read_file 按路径读取
+ * - 图片未命中或登记格式非图片时降级为占位文本，不打断整轮
+ *
+ * @param block - 内部内容块
+ * @returns pi-ai 的文本或图片内容
+ */
+function convertContentBlock(block: ContentBlock): TextContent | ImageContent {
+  if (block.type === 'text') {
+    return { type: 'text', text: block.text };
+  }
+  if (block.type === 'image') {
+    const attachment = getAttachment(block.hash);
+    if (!attachment || !attachment.format.startsWith('image/')) {
+      Logger.log(
+        'ATTACHMENT',
+        `Image attachment unavailable, degraded to text: ${block.hash}`
+      );
+      return {
+        type: 'text',
+        text: `[Attachment unavailable: ${block.hash}]`,
+      };
+    }
+    const data = fs.readFileSync(attachment.filePath).toString('base64');
+    return { type: 'image', data, mimeType: attachment.format };
+  }
+  return { type: 'text', text: formatFileHandle(block) };
+}
 import { isToolNarrationEnabled } from '../config.js';
 
 /** 注入栏位的键名，短标题两到四词，意图一到两句，模型每次调用工具必填 */
@@ -77,6 +150,7 @@ export function stripNarrationFields(toolCall: ToolCall): void {
  * 将内部Message数组转换为pi-ai Message数组。
  * 处理用户、助手、错误和工具消息。
  * 错误消息映射为助手消息，占助手槽位以维持角色交替。
+ * 模型无视觉时的图片降级由 SDK 的 transformMessages 承担，此处零降级代码。
  *
  * @param messages - 内部消息对象数组
  * @returns pi-ai格式的消息数组
@@ -91,9 +165,7 @@ function convertMessages(messages: Message[]): PiAiMessage[] {
         content:
           typeof msg.content === 'string'
             ? msg.content
-            : msg.content
-                .filter((b) => b.type === 'text')
-                .map((b) => ({ type: 'text', text: b.text ?? '' })),
+            : msg.content.map(convertContentBlock),
         timestamp: Date.now(),
       };
       result.push(userMsg);

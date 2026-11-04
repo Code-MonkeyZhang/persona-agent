@@ -11,6 +11,37 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import type { Tool, ToolResult } from './base.js';
 import { errorMessage } from '../util/errors.js';
+import { Logger } from '../util/logger.js';
+
+/** 二进制嗅探读取的文件头部字节数 */
+const BINARY_SNIFF_BYTES = 8000;
+
+/**
+ * 判断文件是否不可作为文本读取。
+ *
+ * 头部含零字节或解码出非法 UTF-8 序列即判非文本，
+ * 附件仓的无扩展名文件由这条兜底，模型不再收到乱码。
+ *
+ * @param filePath - 目标文件绝对路径
+ * @returns 不可作为文本读取时为 true
+ */
+async function isBinaryFile(filePath: string): Promise<boolean> {
+  const fd = await fs.open(filePath, 'r');
+  try {
+    const buf = Buffer.alloc(BINARY_SNIFF_BYTES);
+    const { bytesRead } = await fd.read(buf, 0, BINARY_SNIFF_BYTES, 0);
+    const head = buf.subarray(0, bytesRead);
+    if (head.includes(0)) return true;
+    try {
+      new TextDecoder('utf-8', { fatal: true }).decode(head);
+    } catch {
+      return true;
+    }
+    return false;
+  } finally {
+    await fd.close();
+  }
+}
 
 type ReadFileInput = {
   path: string;
@@ -110,6 +141,7 @@ function truncateTextByTokens(text: string, maxTokens: number): string {
  *
  * 输出包含行号，格式为 'LINE_NUMBER|LINE_CONTENT'。
  * 支持通过指定行offset和limit来读取部分内容。
+ * 二进制文件在读取前被嗅探拒绝，返回明确的错误提示。
  */
 export class ReadTool implements Tool<ReadFileInput> {
   public name = 'read_file';
@@ -163,6 +195,15 @@ export class ReadTool implements Tool<ReadFileInput> {
     }
 
     try {
+      if (await isBinaryFile(targetPath)) {
+        Logger.log('READ', `Binary file rejected: ${targetPath}`);
+        return {
+          success: false,
+          content: '',
+          error: 'This file appears to be binary and cannot be read as text.',
+        };
+      }
+
       const raw = await fs.readFile(targetPath, 'utf8');
       const lines = raw.split('\n');
 
