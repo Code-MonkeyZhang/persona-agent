@@ -14,6 +14,7 @@ import {
 } from '../../agent/index.js';
 import { getMcpDisplayName, getMcpToolLogoUrl } from '../../mcp/index.js';
 import { runCompression } from './compress-service.js';
+import { sanitizeHistoryForModel } from './history-sanitizer.js';
 import { buildRuntimeContext } from './runtime-context.js';
 import {
   estimateMessagesTokens,
@@ -80,6 +81,7 @@ interface ChatResponse {
  * 将一条历史消息加载进 Agent 的消息列表。
  *
  * app_notification / context 消息在运行时转成 user 消息发给 LLM，不写回存储。
+ * error 消息已由上游构建期过滤换成净化短语，此处照常占助手槽位。
  */
 function loadMessageIntoAgent(agent: AgentCore, msg: Message): void {
   if (msg.role === 'system') return;
@@ -95,6 +97,32 @@ function loadMessageIntoAgent(agent: AgentCore, msg: Message): void {
     });
   } else {
     agent.messages.push(msg);
+  }
+}
+
+/**
+ * 将存储历史经构建期过滤后推入 Agent。
+ *
+ * 失败回合的错误原文与附件在过滤中换成净化短语与占位文字，
+ * 统计非零时留痕，便于排查毒化历史的愈合情况。
+ */
+function loadSanitizedHistory(
+  agent: AgentCore,
+  messages: Message[],
+  turnEnds: readonly number[],
+  offset: number,
+  sessionId: string
+): void {
+  const { messages: sanitized, stats } = sanitizeHistoryForModel(
+    messages,
+    turnEnds,
+    offset
+  );
+  if (stats.errors > 0 || stats.placeholders > 0 || stats.skipped > 0) {
+    Logger.log('CHAT', 'History sanitized for model', { sessionId, ...stats });
+  }
+  for (const msg of sanitized) {
+    loadMessageIntoAgent(agent, msg);
   }
 }
 
@@ -285,15 +313,24 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
           remaining: messagesToLoad.length,
         });
       }
-      for (const msg of messagesToLoad) {
-        loadMessageIntoAgent(agent, msg);
-      }
+      // 切片偏移等于完整长度减加载长度，同时覆盖压缩起点与头裁两种情况
+      loadSanitizedHistory(
+        agent,
+        messagesToLoad,
+        session.turnEnds ?? [],
+        session.messages.length - messagesToLoad.length,
+        sessionId
+      );
     } else {
       // 普通 Session全量加载原始消息。
       // TODO: 普通Session应该使用滑动窗口等简单机制, 而不是全部加载
-      for (const msg of session.messages) {
-        loadMessageIntoAgent(agent, msg);
-      }
+      loadSanitizedHistory(
+        agent,
+        session.messages,
+        session.turnEnds ?? [],
+        0,
+        sessionId
+      );
     }
 
     // 遗留缓冲消费：上一回合停止后驻留的插话先于本回合新消息进入历史

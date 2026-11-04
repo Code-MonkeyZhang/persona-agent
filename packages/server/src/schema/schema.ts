@@ -10,6 +10,7 @@ export type {
   ImageContent,
   FileContent,
   UserMessage,
+  ErrorMessage,
   ToolCall,
   AssistantMessage,
   Message,
