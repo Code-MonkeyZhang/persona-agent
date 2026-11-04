@@ -2,14 +2,18 @@
  * @file src/renderer/components/companion/CompanionReplyBubble.tsx - 陪伴态回复气泡
  *
  * 展示当前会话最近一条 assistant 消息，渲染在浮层 InputBox 的正上方。
- * 无 assistant 消息时返回 null；assistant 消息内容为空时显示 thinking 占位。
+ * 运行期由时间线同一份 liveRun 驱动，框内一次只显一条动向居中整句替换，
+ * 失败步红字不带圆点，轮末 liveRun 清空落回正文。
+ * 无 assistant 消息且非运行期时返回 null；assistant 消息内容为空时显示 thinking 占位。
  * 气泡内容超过最大高度时内部滚动，上下边缘由遮罩渐隐提示可滚方向。
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useChatStore } from '../../stores/chatStore';
 import { useScrollFade } from '../../hooks/useScrollFade';
+import { logger } from '../../lib/logger';
+import { Dots, liveRunLabel, phaseIcon } from '../chat/LiveStrip';
 import { Markdown } from '../common/Markdown';
 
 interface CompanionReplyBubbleProps {
@@ -33,6 +37,12 @@ export function CompanionReplyBubble({
       ? (s.sessionStates.get(currentSessionId)?.messages ?? [])
       : []
   );
+  // 运行期动向与顶栏时间线同源，liveRun 在位时框内只显当前这一步
+  const liveRun = useChatStore((s) =>
+    currentSessionId
+      ? (s.sessionStates.get(currentSessionId)?.liveRun ?? null)
+      : null
+  );
   const { scrollRef, maskImage } = useScrollFade(COMPANION_FADE_SIZE);
 
   /**
@@ -45,6 +55,44 @@ export function CompanionReplyBubble({
     }
     return null;
   }, [messages]);
+
+  // 每步动向进框时留一条日志，陪伴态反馈缺失时可据此排查数据链路
+  useEffect(() => {
+    if (liveRun) {
+      logger.info(
+        `[CompanionReplyBubble] live动向: ${liveRunLabel(t, liveRun)}`
+      );
+    }
+  }, [liveRun, t]);
+
+  // 运行期动向行优先于上一轮正文，整行居中一次一条，失败步红字不带圆点
+  if (liveRun) {
+    const failed = !!liveRun.steps[liveRun.steps.length - 1]?.failed;
+    const label = liveRunLabel(t, liveRun);
+    const PhaseIcon = phaseIcon(liveRun);
+    return (
+      <motion.div
+        className="px-4 pb-2 shrink-0"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: 'easeOut' }}
+      >
+        <div className="flex h-11 items-center justify-center gap-2 rounded-[24px] bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)] px-4">
+          <PhaseIcon className="w-[13px] h-[13px] text-primary shrink-0" />
+          <span
+            className={`min-w-0 text-caption truncate ${
+              failed
+                ? 'font-semibold text-[#d5392e]'
+                : 'font-medium text-foreground'
+            }`}
+          >
+            {label}
+          </span>
+          {!failed && <Dots />}
+        </div>
+      </motion.div>
+    );
+  }
 
   if (!lastAgentMessage) return null;
 

@@ -726,8 +726,10 @@ function AppContent() {
                             animate={{ x: companionVisible ? '-50%' : '0%' }}
                             transition={{ duration: 0.3, ease: 'easeOut' }}
                           >
-                            {/* Pane 1: 聊天列表 */}
-                            <div className="w-1/2 h-full flex flex-col min-h-0">
+                            {/* Pane 1: 聊天列表，时间线挂进 pane 内随滑动一起退场，陪伴态顶部不再悬条 */}
+                            <div className="relative w-1/2 h-full flex flex-col min-h-0">
+                              {/* 顶栏时间线浮层，浮在聊天 pane 消息区上方不占布局，输入浮层保持更高层级 */}
+                              <LiveStrip />
                               <MessageList
                                 ref={messageListRef}
                                 key={currentSession?.id ?? 'no-session'}
@@ -747,9 +749,6 @@ function AppContent() {
                             </div>
                           </motion.div>
                         </div>
-
-                        {/* 顶栏时间线浮层，浮在消息区上方，输入浮层保持更高层级 */}
-                        <LiveStrip />
 
                         {/* 浮层：常驻底部，聊天态与陪伴态共用同一个 InputBox */}
                         <div className="absolute bottom-0 left-0 right-0 z-20">

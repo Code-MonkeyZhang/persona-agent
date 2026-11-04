@@ -179,8 +179,8 @@ const USER_LABEL_MAX = 24;
 /** messages 选择器的稳定空数组，避免每次快照新建引用触发多余渲染 */
 const EMPTY_MESSAGES: UIMessage[] = [];
 
-/** 运行指示的三颗呼吸圆点，紧跟文字右侧由行 gap 提供间距，主色 4px 单颗 1.2s 相位各差 0.2s */
-function Dots({ className = '' }: { className?: string }) {
+/** 运行指示的三颗呼吸圆点，紧跟文字右侧由行 gap 提供间距，主色 4px 单颗 1.2s 相位各差 0.2s，导出供陪伴气泡动向行复用 */
+export function Dots({ className = '' }: { className?: string }) {
   return (
     <span
       className={`tl-dots shrink-0 pointer-events-none ${className}`}
