@@ -37,6 +37,7 @@ import type {
   SessionChange,
   SyncSnapshot,
   HandshakeInfo,
+  ContentBlock,
 } from '@persona/shared';
 import { logger } from './logger';
 import { getErrorMessage } from './utils';
@@ -916,16 +917,62 @@ export async function updateSession(
 }
 
 /**
+ * 上传单个附件到服务端哈希仓。
+ * FormData 单文件字段，任意类型放行，体积控制已在发送前由压缩完成。
+ * @param file - 待上传的文件或压缩产物 Blob
+ * @param name - 上传声明的文件名，Blob 时由调用方提供
+ * @returns 附件引用，含哈希、格式、字节数与清洗后的文件名
+ */
+export async function uploadAttachment(
+  file: File | Blob,
+  name = 'attachment.bin'
+): Promise<UploadResult> {
+  const baseUrl = await getBaseUrl();
+  const form = new FormData();
+  form.append('file', file, name);
+  const response = await fetch(`${baseUrl}/api/attachments`, {
+    method: 'POST',
+    body: form,
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(
+      data.error || `Failed to upload attachment: ${response.status}`
+    );
+  }
+  return data as UploadResult;
+}
+
+/** 附件上传接口的响应体 */
+export interface UploadResult {
+  hash: string;
+  format: string;
+  size: number;
+  name: string;
+}
+
+/**
+ * 附件读取的协议地址，与头像同款手法。
+ * 哈希承担缓存身份，主进程经 persona-image 协议下载校验落盘后本地命中。
+ * @param hash - 附件内容哈希
+ * @returns persona-image 协议地址
+ */
+export function getAttachmentUrl(hash: string): string {
+  const base = cachedBaseUrl || `http://localhost:${DEFAULT_PORT}`;
+  return toProtocolUrl(hash, `${base}/api/attachments/${hash}`);
+}
+
+/**
  * 通过 HTTP POST 发送聊天消息。调用前应先通过 WebSocket subscribe 订阅会话事件以接收响应。
  * @param agentId - Agent ID
  * @param sessionId - 会话 ID
- * @param content - 消息内容
+ * @param content - 消息内容，纯文本字符串或带附件的内容块数组
  * @returns 发送结果；会话忙时携带 pendingId 表示已进待注入缓冲
  */
 export async function sendChatMessage(
   agentId: string,
   sessionId: string,
-  content: string,
+  content: string | ContentBlock[],
   voiceEnabled?: boolean
 ): Promise<{
   success: boolean;

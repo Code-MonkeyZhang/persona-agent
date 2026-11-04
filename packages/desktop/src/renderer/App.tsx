@@ -55,6 +55,10 @@ import {
 import { ToastContainer } from './components/Toast';
 import { WebSocketProvider } from './components/WebSocketProvider';
 import { useChatStore } from './stores/chatStore';
+import { useChatDrop } from './hooks/useChatDrop';
+import { DropOverlay } from './components/chat/DropOverlay';
+import type { InputBoxRef } from './components/chat/InputBox';
+import type { UIAttachment } from './types/chat';
 import { useSessionStore } from './stores/sessionStore';
 import { useAgentStore } from './stores/agentStore';
 import { useProviderStore } from './stores/providerStore';
@@ -283,6 +287,7 @@ function AppContent() {
   const pendingProviderRef = useRef<string | undefined>();
   const messageListRef = useRef<MessageListRef>(null);
   const floatingRef = useRef<HTMLDivElement>(null);
+  const inputBoxRef = useRef<InputBoxRef>(null);
   const [floatingHeight, setFloatingHeight] = useState(0);
 
   /**
@@ -343,6 +348,18 @@ function AppContent() {
   const sendMessage = useChatStore((s) => s.sendMessage);
   const abortGeneration = useChatStore((s) => s.abortGeneration);
   const setAgentId = useChatStore((s) => s.setAgentId);
+
+  /**
+   * 聊天区文件拖放：捕获面挂消息 pane 与输入浮层两处共用计数器，
+   * 松手经 InputBoxRef 注入与加号选择器同一条 addFiles，
+   * 断连期间切禁止态，dropEffect 为 none，松手不派发
+   */
+  const connBlocked =
+    connectionStatus === 'disconnected' || connectionStatus === 'reconnecting';
+  const { dragOver, bind: bindDrop } = useChatDrop({
+    canAccept: !connBlocked,
+    onDropFiles: (files) => inputBoxRef.current?.addDroppedFiles(files),
+  });
 
   const {
     currentSession,
@@ -659,7 +676,7 @@ function AppContent() {
    * @param content - 用户输入的消息文本
    * @returns Promise<void>
    */
-  const handleSend = async (content: string) => {
+  const handleSend = async (content: string, attachments: UIAttachment[]) => {
     if (!currentAgent) {
       logger.warn('No agent selected');
       return;
@@ -672,11 +689,11 @@ function AppContent() {
       if (newSession) {
         useSessionStore.getState().updateCurrentSession(newSession);
         await applyPendingDraft(currentAgent.id, newSession.id);
-        sendMessage(content, newSession.id);
+        sendMessage(content, attachments, newSession.id);
         return;
       }
     }
-    sendMessage(content);
+    sendMessage(content, attachments);
   };
 
   return (
@@ -727,7 +744,10 @@ function AppContent() {
                             transition={{ duration: 0.3, ease: 'easeOut' }}
                           >
                             {/* Pane 1: 聊天列表，时间线挂进 pane 内随滑动一起退场，陪伴态顶部不再悬条 */}
-                            <div className="relative w-1/2 h-full flex flex-col min-h-0">
+                            <div
+                              className="relative w-1/2 h-full flex flex-col min-h-0"
+                              {...bindDrop()}
+                            >
                               {/* 顶栏时间线浮层，浮在聊天 pane 消息区上方不占布局，输入浮层保持更高层级 */}
                               <LiveStrip />
                               <MessageList
@@ -751,7 +771,10 @@ function AppContent() {
                         </div>
 
                         {/* 浮层：常驻底部，聊天态与陪伴态共用同一个 InputBox */}
-                        <div className="absolute bottom-0 left-0 right-0 z-20">
+                        <div
+                          className="absolute bottom-0 left-0 right-0 z-20"
+                          {...bindDrop()}
+                        >
                           {companionVisible && (
                             <CompanionReplyBubble
                               agentId={currentAgent?.id ?? null}
@@ -766,6 +789,7 @@ function AppContent() {
                             }
                           >
                             <InputBox
+                              ref={inputBoxRef}
                               onSend={handleSend}
                               onAbort={() => abortGeneration()}
                               isLoading={isLoading}
@@ -780,6 +804,9 @@ function AppContent() {
                             />
                           </div>
                         </div>
+
+                        {/* 拖放遮罩铺聊天区，视觉范围与接收范围一致 */}
+                        {dragOver && <DropOverlay blocked={connBlocked} />}
                       </div>
                     </div>
                   )}

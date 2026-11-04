@@ -18,12 +18,20 @@ import {
   type StateSnapshot,
 } from 'react-virtuoso';
 import { useTranslation } from 'react-i18next';
-import type { UIMessage } from '../../types/chat';
+import { Gallery, Item } from 'react-photoswipe-gallery';
+import type { UIMessage, UIAttachment } from '../../types/chat';
 import type { AgentConfig } from '../../types/agent';
 import { cn } from '../../lib/utils';
 import { logger } from '../../lib/logger';
 import { toast } from '../../stores/toastStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { getBaseUrl } from '../../lib/api';
+import {
+  fileExtOf,
+  formatFileSize,
+  getAttachmentPresentation,
+  previewItemProps,
+} from '../../lib/attachments';
 import { CopyButton } from '../ui/CopyButton';
 import { CollapsedThoughtProcess } from './CollapsedThoughtProcess';
 import { Markdown } from '../common/Markdown';
@@ -42,6 +50,134 @@ export interface MessageListRef {
 interface MessageItemProps {
   message: UIMessage;
   agent: AgentConfig | null;
+}
+
+/** 气泡图片网格：单图保原始比例封顶显示，两图及以上为 132 像素方块网格
+ *  点击经 PhotoSwipe 打开大图，多图左右切换滚轮缩放 */
+function MessageImages({ images }: { images: UIAttachment[] }) {
+  if (images.length === 1) {
+    const img = images[0]!;
+    return (
+      <Gallery>
+        <Item {...previewItemProps(img)}>
+          {({ ref, open }) => (
+            <img
+              ref={ref}
+              src={img.url}
+              alt={img.name}
+              draggable={false}
+              onClick={open}
+              className="max-h-60 max-w-xs w-auto h-auto rounded-xl object-cover cursor-zoom-in"
+            />
+          )}
+        </Item>
+      </Gallery>
+    );
+  }
+  return (
+    <Gallery>
+      <div className="flex flex-wrap justify-end gap-1.5 max-w-[279px]">
+        {images.map((img) => (
+          <Item key={img.id} {...previewItemProps(img)}>
+            {({ ref, open }) => (
+              <img
+                ref={ref}
+                src={img.url}
+                alt={img.name}
+                draggable={false}
+                onClick={open}
+                className="w-[132px] h-[132px] rounded-xl object-cover cursor-zoom-in"
+              />
+            )}
+          </Item>
+        ))}
+      </div>
+    </Gallery>
+  );
+}
+
+/** 用户消息文件卡行：图标加文件名加元信息，与草稿区 FileChip 同构保证视觉连续
+ *  点击按哈希从附件仓取字节，下载名取消息块的文件名 */
+function MessageFiles({ files }: { files: UIAttachment[] }) {
+  const { t } = useTranslation();
+
+  const handleDownload = async (file: UIAttachment) => {
+    if (!file.hash) return;
+    try {
+      const baseUrl = await getBaseUrl();
+      const response = await fetch(`${baseUrl}/api/attachments/${file.hash}`);
+      if (!response.ok) throw new Error(`${response.status}`);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      a.click();
+      URL.revokeObjectURL(url);
+      logger.info('File attachment downloaded', {
+        name: file.name,
+        hash: file.hash,
+        bytes: blob.size,
+      });
+    } catch (error) {
+      logger.warn('File attachment download failed', {
+        name: file.name,
+        hash: file.hash,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      toast.error(t('messageList.downloadFailed'));
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap justify-end gap-1.5">
+      {files.map((file) => {
+        const preset = getAttachmentPresentation(file.name);
+        const Icon = preset.icon;
+        return (
+          <button
+            key={file.id}
+            onClick={() => void handleDownload(file)}
+            title={t('messageList.downloadFile')}
+            className="flex items-center gap-2.5 h-12 pl-2 pr-3 rounded-lg border border-border bg-background hover:bg-muted transition-colors text-left text-foreground"
+          >
+            <span
+              className={cn(
+                'w-8 h-8 rounded-md flex items-center justify-center shrink-0',
+                preset.iconClassName
+              )}
+            >
+              <Icon className="w-4 h-4" />
+            </span>
+            <span className="min-w-0 w-40">
+              <span
+                className="block text-caption font-medium truncate"
+                title={file.name}
+              >
+                {file.name}
+              </span>
+              <span className="block text-micro text-muted-foreground">
+                {fileExtOf(file.name)} · {formatFileSize(file.bytes)}
+              </span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** 用户消息附件区：渲染在气泡内部文字下方，图片网格在上、文件卡行在下
+ *  气泡底色承载插话灰态与蓝态，附件层随气泡整体变色无需单独处理 */
+function MessageAttachments({ attachments }: { attachments: UIAttachment[] }) {
+  const images = attachments.filter((a) => a.kind === 'image');
+  const files = attachments.filter((a) => a.kind === 'file');
+  return (
+    <div className="flex flex-col gap-2">
+      {images.length > 0 && <MessageImages images={images} />}
+      {files.length > 0 && <MessageFiles files={files} />}
+    </div>
+  );
 }
 
 /**
@@ -68,6 +204,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
 
   const hasThoughts = message.thoughts && message.thoughts.length > 0;
   const hasContent = displayContent.trim().length > 0;
+  const hasAttachments = isUser && (message.attachments?.length ?? 0) > 0;
 
   return (
     <div
@@ -100,8 +237,9 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
           <CollapsedThoughtProcess thoughts={message.thoughts!} />
         )}
 
-        {/* 气泡：待注入的插话为灰色草稿态，注入时灰转蓝平滑渐变 */}
-        {hasContent && (
+        {/* 气泡：文字与附件同框文字上附件下，纯附件消息框里只有附件不出空框；
+            待注入的插话为灰色草稿态，注入时灰转蓝平滑渐变 */}
+        {(hasContent || hasAttachments) && (
           <div
             className={cn(
               'max-w-full px-4 py-2.5 rounded-2xl transition-colors duration-300',
@@ -113,7 +251,12 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, agent }) => {
               !isUser && !isError && 'bg-secondary text-foreground'
             )}
           >
-            <Markdown content={displayContent} />
+            {hasContent && <Markdown content={displayContent} />}
+            {hasAttachments && (
+              <div className={hasContent ? 'mt-2' : undefined}>
+                <MessageAttachments attachments={message.attachments!} />
+              </div>
+            )}
           </div>
         )}
 

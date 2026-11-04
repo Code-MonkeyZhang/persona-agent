@@ -10,6 +10,26 @@ export type ConnectionStatus =
   | 'reconnecting'
   | 'disconnected';
 
+/** 附件草稿期与发送期的状态机，进消息后不再变化 */
+export type AttachmentStatus = 'ready' | 'uploading' | 'uploaded' | 'error';
+
+/** 输入框与消息气泡共用的附件视图模型 */
+export interface UIAttachment {
+  id: string;
+  kind: 'image' | 'file';
+  /** 草稿期为 objectURL，发送后随消息驻留，历史恢复时为协议地址 */
+  url?: string;
+  name: string;
+  bytes: number;
+  width?: number;
+  height?: number;
+  status: AttachmentStatus;
+  /** 上传落定或历史块携带的内容哈希 */
+  hash?: string;
+  /** 上传响应的 format 或历史块携带的 mimeType */
+  mimeType?: string;
+}
+
 type MessageType = 'user' | 'assistant' | 'error';
 
 /**
@@ -55,6 +75,8 @@ export interface UIMessage {
   timestamp: Date;
   thoughts?: Thought[];
   aborted?: boolean;
+  /** 用户消息携带的附件，仅 user 消息使用 */
+  attachments?: UIAttachment[];
   /** 待注入状态：忙时插话尚未被 Agent 消费 */
   queued?: boolean;
   /** 服务端缓冲条目 id，用于与 pending_input_changed 对账 */

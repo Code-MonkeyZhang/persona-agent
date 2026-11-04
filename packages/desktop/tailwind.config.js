@@ -77,6 +77,15 @@ export default {
         'title-page': ['var(--font-title-page)', { lineHeight: 'var(--text-20-line-height)' }],
         'title-display': ['var(--font-title-display)', { lineHeight: 'var(--text-26-line-height)' }],
       },
+      keyframes: {
+        'drop-in': {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
+      },
+      animation: {
+        'drop-in': 'drop-in 0.16s ease-out',
+      },
     },
   },
   plugins: [require('tailwindcss-animate')],

@@ -8,6 +8,7 @@ import type { SessionMeta, Session } from '../types/session';
 import { createSession, deleteSession, updateSession } from '../lib/api';
 import type { UIMessage, Thought } from '../types/chat';
 import type { Message } from '@persona/shared';
+import { fromContentBlocks } from '../lib/attachments';
 import { logger } from '../lib/logger';
 import { deleteScrollPosition } from './scrollPositionCache';
 
@@ -435,11 +436,16 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         // error 保持结组，错误截断的半截组不与下一轮合并；用户消息从不结组
         if (msg.role === 'error') flushPending();
 
+        // 块数组解析出正文与附件，图片地址走协议命中本地缓存
+        const parsed = fromContentBlocks(msg.content);
         result.push({
           id: messageId(msg, i),
           type: msg.role,
-          content: typeof msg.content === 'string' ? msg.content : '',
+          content: parsed.text,
           timestamp: new Date(),
+          ...(parsed.attachments.length > 0
+            ? { attachments: parsed.attachments }
+            : {}),
         });
       }
     }
