@@ -31,11 +31,11 @@ export function registerImageSchemePrivileges(): void {
  * 挂载协议处理器。
  * 哈希格式与 src 来源不过关直接拒掉，协议不做开放代理，
  * src 只认当前连接的主机地址，连接未就绪时同样拒绝。
- * @param cache - 图片缓存实例
+ * @param getCache - 取当前连接设备对应的图片缓存实例
  * @param getConnectionAddress - 取当前连接地址的函数，src 前缀校验依据
  */
 export function registerImageProtocol(
-  cache: ImageCache,
+  getCache: () => ImageCache,
   getConnectionAddress: () => string | null
 ): void {
   protocol.handle(SCHEME, async (request) => {
@@ -49,7 +49,7 @@ export function registerImageProtocol(
       return new Response('Rejected persona-image request', { status: 400 });
     }
 
-    const image = await cache.resolve(hash, src);
+    const image = await getCache().resolve(hash, src);
     if (!image) {
       return new Response('Image unavailable', { status: 502 });
     }

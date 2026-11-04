@@ -41,4 +41,5 @@ export const IPC = {
   CACHE_PUT_AGENTS: 'cache:put-agents',
   CACHE_DELETE_AGENT: 'cache:delete-agent',
   CACHE_RESET: 'cache:reset',
+  IMAGE_SEED: 'image:seed',
 } as const;

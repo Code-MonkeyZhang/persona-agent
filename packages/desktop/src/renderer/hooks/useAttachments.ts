@@ -2,7 +2,8 @@
  * @file 输入框附件状态
  * 管理草稿区图片与文件的选择、删除、上限与发送期压缩上传
  * 草稿期纯本地零上传，objectURL 做预览，图片与文件按声明的 MIME 分流不做字节校验
- * 压缩与上传都发生在发送动作里，失败单项可重试，重试只重传失败项
+ * 压缩与上传都发生在发送动作里，图片落定后把字节种进图片缓存，失败静默不影响发送
+ * 失败单项可重试，重试只重传失败项
  * 发送时地址所有权移交给消息，clear 不回收，仅从草稿删除时 revokeObjectURL
  */
 import { useCallback, useRef, useState } from 'react';
@@ -24,7 +25,10 @@ interface UseAttachmentsOptions {
   onOversize?: () => void;
 }
 
-/** 单项压缩后上传落定，返回是否成功 */
+/**
+ * 单项压缩后上传落定，返回成功与否的补丁。
+ * 图片落定后把字节经 IPC 种进当前连接设备的图片缓存，发过的图重启后不再回下载。
+ */
 async function settleUpload(
   item: UIAttachment,
   file: File
@@ -61,6 +65,14 @@ async function settleUpload(
       format: uploaded.format,
       size: uploaded.size,
     });
+    if (item.kind === 'image') {
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      const seeded = await window.api?.imageSeed(uploaded.hash, bytes);
+      logger.info('Attachment seeded to image cache', {
+        hash: uploaded.hash,
+        seeded: seeded ?? false,
+      });
+    }
     return {
       status: 'uploaded',
       hash: uploaded.hash,

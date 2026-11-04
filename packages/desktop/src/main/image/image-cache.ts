@@ -3,8 +3,8 @@
  *
  * 已看过的图片以 sha256 十六进制串为文件名落在缓存目录，命中路径
  * 零网络回流。未命中路径经 src 地址下载并校验哈希，通过后以临时
- * 文件加 rename 落盘。模块不依赖 electron，日志与 fetch 经构造注入，
- * vitest 可直测。
+ * 文件加 rename 落盘。发送设备上传落定后经 seed 把字节直接校验落盘。
+ * 模块不依赖 electron，日志与 fetch 经构造注入，vitest 可直测。
  */
 
 import { createHash } from 'node:crypto';
@@ -104,6 +104,41 @@ export class ImageCache {
     return pending;
   }
 
+  /**
+   * 种入一张上传落定的图片，发送设备发过的图不再回下载。
+   * 校验字节与声明的哈希一致后以临时文件加 rename 原子落盘，
+   * 已存在幂等跳过，哈希不符或任何失败返回 false 且不留文件，不影响发送。
+   * @param hash - 上传响应返回的内容哈希，承担缓存键与文件名
+   * @param data - 上传时的图片字节
+   * @returns 是否成功种入，已存在视为成功
+   */
+  seed(hash: string, data: Uint8Array): boolean {
+    if (!HASH_PATTERN.test(hash)) {
+      this.log(`image cache seed rejected invalid hash: ${hash}`);
+      return false;
+    }
+    const finalPath = path.join(this.cacheDir, hash);
+    if (fs.existsSync(finalPath)) {
+      return true;
+    }
+    const actual = createHash('sha256').update(data).digest('hex');
+    if (actual !== hash) {
+      this.log(`image cache seed mismatch for ${hash}, got ${actual}`);
+      return false;
+    }
+    const tmpPath = `${finalPath}.tmp`;
+    try {
+      fs.writeFileSync(tmpPath, data);
+      fs.renameSync(tmpPath, finalPath);
+      this.log(`image cache stored ${hash}, ${data.length} bytes`);
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.log(`image cache seed error for ${hash}: ${message}`);
+      return false;
+    }
+  }
+
   /** 读本地缓存文件，不存在返回 null */
   private readLocal(hash: string): CachedImage | null {
     const filePath = path.join(this.cacheDir, hash);
@@ -143,4 +178,26 @@ export class ImageCache {
       return null;
     }
   }
+}
+
+/**
+ * 清掉历史平铺布局留在缓存根下的哈希命名文件。
+ * 旧布局的文件无法归属到设备，按废弃一次性删除，看时按新布局重新下载，
+ * 新布局按设备分目录，设备名目录不受影响。
+ * @param cacheRoot - 缓存根目录，不存在时静默返回
+ * @returns 清掉的文件数
+ */
+export function pruneLegacyFlatFiles(cacheRoot: string): number {
+  if (!fs.existsSync(cacheRoot)) {
+    return 0;
+  }
+  let removed = 0;
+  for (const name of fs.readdirSync(cacheRoot)) {
+    const filePath = path.join(cacheRoot, name);
+    if (HASH_PATTERN.test(name) && fs.statSync(filePath).isFile()) {
+      fs.rmSync(filePath);
+      removed += 1;
+    }
+  }
+  return removed;
 }

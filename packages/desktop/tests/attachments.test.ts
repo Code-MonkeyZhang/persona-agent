@@ -119,11 +119,15 @@ describe('fromContentBlocks', () => {
 });
 
 describe('useAttachments', () => {
-  /** jsdom 不实现 objectURL，桩掉 */
+  /** jsdom 不实现 objectURL 与图片种入的 IPC，桩掉 */
   beforeAll(() => {
     let seq = 0;
     URL.createObjectURL = vi.fn(() => `blob:mock-${++seq}`);
     URL.revokeObjectURL = vi.fn();
+    window.api = {
+      imageSeed: vi.fn().mockResolvedValue(true),
+      log: vi.fn().mockResolvedValue(undefined),
+    } as unknown as typeof window.api;
   });
 
   beforeEach(() => {
@@ -131,10 +135,11 @@ describe('useAttachments', () => {
     compressMock.mockReset();
   });
 
-  /** 造一个指定类型与大小的文件，size 可脱离真实内容指定 */
+  /** 造一个指定类型与大小的文件，size 可脱离真实内容指定，jsdom 的 File 缺 arrayBuffer 一并补桩 */
   function makeFile(name: string, type: string, size = 10): File {
     const file = new File(['content'], name, { type });
     Object.defineProperty(file, 'size', { value: size });
+    file.arrayBuffer = async () => new ArrayBuffer(size);
     return file;
   }
 
