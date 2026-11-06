@@ -48,7 +48,7 @@ function isCjk(ch: string): boolean {
  * 数组取文本块的 text 与文件块的文件名，图片块跳过；
  * assistant 的 thinking 不计入。
  */
-function messageContentText(msg: Message): string {
+export function messageContentText(msg: Message): string {
   if (typeof msg.content === 'string') return msg.content;
   if (Array.isArray(msg.content)) {
     return msg.content
