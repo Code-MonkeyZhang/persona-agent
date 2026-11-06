@@ -1,7 +1,7 @@
 /**
  * @file src/renderer/components/shell/SessionSidebar.tsx
  * @description 会话列表侧边栏，展示当前 Agent 的常驻聊天入口、任务会话列表及底部资源入口。
- * 信息架构：Header → 聊天入口 → 分隔线 → 工具/技能 → 分隔线 →
+ * 信息架构：Header → 聊天入口 → 分隔线 → 记忆/工具/技能 → 分隔线 →
  * 「会话」标题行 → 平铺会话列表（钉底）。
  * 「会话」标题行右侧提供新对话按钮，走 App 的懒创建链路进入草稿态。
  * 会话列表隐藏滚动条，由 useScrollFade 的边缘渐隐提供滚动位置指示。
@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Wrench,
   Sparkles,
+  BookHeart,
   Plus,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -210,6 +211,14 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
 
         {/* 分隔线 */}
         <div className="mx-1 my-2 border-t border-border" />
+
+        {/* 记忆入口 */}
+        <NavItem
+          icon={BookHeart}
+          label={t('sessionSidebar.memory')}
+          active={activeNav === 'memory'}
+          onClick={() => setActiveNav('memory')}
+        />
 
         {/* 工具入口 */}
         <NavItem

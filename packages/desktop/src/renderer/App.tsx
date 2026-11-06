@@ -40,6 +40,7 @@ import { SettingsPage } from './components/settings/SettingsPage';
 import { AgentEditor } from './components/agent-editor/AgentEditor';
 import { AgentToolsView } from './components/tools/AgentToolsView';
 import { SkillsView } from './components/skills/SkillsView';
+import { MemoryPage } from './components/memory/MemoryPage';
 import { MarketplaceView } from './components/marketplace/MarketplaceView';
 import { CompanionContent } from './components/companion/CompanionContent';
 import { CompanionReplyBubble } from './components/companion/CompanionReplyBubble';
@@ -816,6 +817,7 @@ function AppContent() {
                       onDelete={handleDeleteAgent}
                     />
                   )}
+                  {activeNav === 'memory' && <MemoryPage />}
                   {activeNav === 'tools' && <AgentToolsView />}
                   {activeNav === 'skills' && <SkillsView />}
                 </div>

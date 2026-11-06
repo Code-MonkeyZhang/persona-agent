@@ -38,6 +38,9 @@ import type {
   SyncSnapshot,
   HandshakeInfo,
   ContentBlock,
+  MemoryEntry,
+  MemoryWriteInput,
+  MemoryUpdateInput,
 } from '@persona/shared';
 import { logger } from './logger';
 import { getErrorMessage } from './utils';
@@ -1250,6 +1253,105 @@ export async function deleteAgent(id: string): Promise<boolean> {
 
   const data = await response.json();
   return data.success;
+}
+
+/** 记忆条目列表接口的返回形态 */
+interface MemoryEntriesResponse {
+  entries: MemoryEntry[];
+}
+
+/** 单条记忆条目接口的返回形态 */
+interface MemoryEntryResponse {
+  entry: MemoryEntry;
+}
+
+/**
+ * 拉取指定 agent 的全部记忆条目。
+ * @param agentId - Agent ID
+ * @returns 条目数组，编号升序含停用
+ */
+export async function listAgentMemories(
+  agentId: string
+): Promise<MemoryEntry[]> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/agents/${agentId}/memory`, {
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to list memories: ${response.status}`);
+  }
+  const data: MemoryEntriesResponse = await response.json();
+  return data.entries;
+}
+
+/**
+ * 新增一条记忆条目，用户通道不查重。
+ * @param agentId - Agent ID
+ * @param input - 新增参数
+ * @returns 创建的条目
+ */
+export async function createAgentMemory(
+  agentId: string,
+  input: MemoryWriteInput
+): Promise<MemoryEntry> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/agents/${agentId}/memory`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to create memory: ${response.status}`);
+  }
+  const data: MemoryEntryResponse = await response.json();
+  return data.entry;
+}
+
+/**
+ * 更新一条记忆条目。
+ * @param agentId - Agent ID
+ * @param uid - 条目编号
+ * @param patch - 只传需要修改的字段
+ * @returns 更新后的条目
+ */
+export async function updateAgentMemory(
+  agentId: string,
+  uid: number,
+  patch: MemoryUpdateInput
+): Promise<MemoryEntry> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/agents/${agentId}/memory/${uid}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    }
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to update memory: ${response.status}`);
+  }
+  const data: MemoryEntryResponse = await response.json();
+  return data.entry;
+}
+
+/**
+ * 删除一条记忆条目，遗忘当场生效。
+ * @param agentId - Agent ID
+ * @param uid - 条目编号
+ */
+export async function deleteAgentMemory(
+  agentId: string,
+  uid: number
+): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/agents/${agentId}/memory/${uid}`,
+    { method: 'DELETE' }
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to delete memory: ${response.status}`);
+  }
 }
 
 /**
