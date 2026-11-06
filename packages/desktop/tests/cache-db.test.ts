@@ -106,7 +106,6 @@ describe('CacheDb', () => {
           defaultModel: { provider: 'p', model: 'm' },
           maxSteps: 5,
           compressionThreshold: 50,
-          dreamIntervalMinutes: 120,
           mcpNames: [],
           skillNames: [],
           createdAt: 1,
@@ -211,7 +210,6 @@ describe('CacheDb', () => {
         defaultModel: { provider: 'p', model: 'm' },
         maxSteps: 5,
         compressionThreshold: 50,
-        dreamIntervalMinutes: 120,
         mcpNames: [],
         skillNames: [],
         createdAt: 1,
@@ -276,7 +274,10 @@ describe('CacheDb', () => {
           payload: { appOrder: ['a', null, 'slot:settings'] },
           updatedAt: 11,
         },
-        wallpaper: { payload: { currentId: 'dawn', customs: [] }, updatedAt: 12 },
+        wallpaper: {
+          payload: { currentId: 'dawn', customs: [] },
+          updatedAt: 12,
+        },
       });
     });
 
@@ -311,9 +312,7 @@ describe('CacheDb', () => {
           updatedAt: 44,
         }),
       ]);
-      expect(db.getLauncherPrefs()?.wallpaper?.payload.currentId).toBe(
-        'night'
-      );
+      expect(db.getLauncherPrefs()?.wallpaper?.payload.currentId).toBe('night');
     });
 
     /** 测试不带 launcher 节的新快照清掉旧偏好行 */

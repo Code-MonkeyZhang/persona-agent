@@ -1,6 +1,6 @@
 /**
  * @file src/renderer/components/agent-editor/ChatConfigCard.tsx
- * @description 聊天配置卡片，上下文压缩阈值与做梦间隔
+ * @description 聊天配置卡片，上下文压缩阈值
  */
 
 import React from 'react';
@@ -13,16 +13,12 @@ import { NumberInput } from './NumberInput';
 interface ChatConfigCardProps {
   compressionThreshold: string;
   onCompressionThresholdChange: (value: string) => void;
-  dreamIntervalMinutes: string;
-  onDreamIntervalChange: (value: string) => void;
 }
 
-/** 聊天配置卡片：上下文压缩阈值与做梦间隔编辑 */
+/** 聊天配置卡片：上下文压缩阈值编辑 */
 export const ChatConfigCard: React.FC<ChatConfigCardProps> = ({
   compressionThreshold,
   onCompressionThresholdChange,
-  dreamIntervalMinutes,
-  onDreamIntervalChange,
 }) => {
   const { t } = useTranslation();
 
@@ -38,16 +34,6 @@ export const ChatConfigCard: React.FC<ChatConfigCardProps> = ({
             onChange={onCompressionThresholdChange}
             min={1}
             max={100}
-          />
-        </SettingRow>
-        <SettingRow
-          label={t('agentEditor.dreamInterval')}
-          tooltip={t('agentEditor.dreamIntervalTooltip')}
-        >
-          <NumberInput
-            value={dreamIntervalMinutes}
-            onChange={onDreamIntervalChange}
-            min={1}
           />
         </SettingRow>
       </div>

@@ -36,7 +36,6 @@ import {
   isWebSocketInitialized,
   setViewedHandler,
 } from './websocket-server.js';
-import { startDreamScheduler } from './services/dream-scheduler.js';
 
 import { listAgentConfigs } from '../agent/index.js';
 import { initSkillPool } from '../skill/index.js';
@@ -133,7 +132,6 @@ setViewedHandler((sessionId) => {
   }
   Logger.log('SERVER', `Viewed session not found: ${sessionId}`);
 });
-startDreamScheduler();
 
 app.use('/api/providers', createProviderRouter());
 app.use('/api/auth', createAuthRouter());
