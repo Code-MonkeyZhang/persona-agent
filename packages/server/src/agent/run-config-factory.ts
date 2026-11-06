@@ -22,9 +22,10 @@ import {
   WebFetchTool,
 } from '../tools/index.js';
 import { ShowPoseTool, GetCurrentPoseTool } from '../tools/pose-tools.js';
+import { MemoryTool } from '../tools/memory-tool.js';
 import { findGitBash } from '../util/git-bash-detector.js';
 import { isToolNarrationEnabled } from '../config.js';
-import { MemoryStore } from './memory/memory-store.js';
+import { MemoryStore, buildPinnedSegment } from './memory/memory-store.js';
 import { models } from './pi-models.js';
 import type { AgentConfig, AgentRunConfig } from './types.js';
 import type { Session } from '../session/types.js';
@@ -205,17 +206,13 @@ export function createAgentRunConfig(
     resolvedBashPath
   );
 
-  // 聊天 Session：在系统提示词末尾追加长期记忆与近期未整理的摘要
-  if (session.id.startsWith('chat')) {
-    const memory = new MemoryStore(agentConfig.id);
-    const memoryMd = memory.readMemoryMd();
-    if (memoryMd) {
-      systemPrompt += `\n\n# Memory\n\n${memoryMd}`;
-    }
-    const recentHistory = memory.readRecentHistorySegment();
-    if (recentHistory) {
-      systemPrompt += `\n\n# Recent History\n\n${recentHistory}`;
-    }
+  // 常驻记忆板块：每请求一份缝进 system prompt 尾部，全部会话生效，
+  // 条目增删后下一轮请求生效。空态整块不追加。
+  const pinnedSegment = buildPinnedSegment(
+    new MemoryStore(agentConfig.id).listPinnedEnabled()
+  );
+  if (pinnedSegment) {
+    systemPrompt += `\n\n${pinnedSegment}`;
   }
 
   const mcpTools = agentConfig.mcpNames?.length
@@ -232,6 +229,7 @@ export function createAgentRunConfig(
     new WebFetchTool(),
     new ShowPoseTool(agentConfig.id),
     new GetCurrentPoseTool(sessionManager, session.id),
+    new MemoryTool(agentConfig.id),
     ...mcpTools,
   ];
 

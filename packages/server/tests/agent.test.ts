@@ -179,10 +179,7 @@ describe('Agent Module Integration Tests', () => {
         expect(agent.defaultWorkspacePath).toBe(expected);
 
         const saved = JSON.parse(
-          fs.readFileSync(
-            path.join(agentsDir, agent.id, 'config.json'),
-            'utf8'
-          )
+          fs.readFileSync(path.join(agentsDir, agent.id, 'config.json'), 'utf8')
         ) as AgentConfig;
         expect(saved.defaultWorkspacePath).toBe(expected);
       });
@@ -349,9 +346,10 @@ describe('Agent Module Integration Tests', () => {
         const configPath = path.join(agentsDir, agent.id, 'config.json');
 
         // 手动抹掉字段，模拟预填充上线前的存量数据
-        const raw = JSON.parse(
-          fs.readFileSync(configPath, 'utf8')
-        ) as Record<string, unknown>;
+        const raw = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Record<
+          string,
+          unknown
+        >;
         delete raw['defaultWorkspacePath'];
         fs.writeFileSync(configPath, JSON.stringify(raw, null, 2));
 
@@ -572,6 +570,119 @@ describe('Agent Module Integration Tests', () => {
         const response = await fetch(`${BASE_URL}/api/agents/non-existent`, {
           method: 'DELETE',
         });
+        expect(response.status).toBe(404);
+      });
+    });
+
+    describe('Memory Routes', () => {
+      /** 建一个测试 Agent 并返回 id */
+      async function seedAgent(): Promise<string> {
+        const response = await fetch(`${BASE_URL}/api/agents`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(createTestAgentInput()),
+        });
+        const { agent } = (await response.json()) as { agent: AgentConfig };
+        return agent.id;
+      }
+
+      /** 测试：四接口往返 */
+      it('should create, list, update and delete entries', async () => {
+        const agentId = await seedAgent();
+        const base = `${BASE_URL}/api/agents/${agentId}/memory`;
+
+        const createResponse = await fetch(base, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: '用户养了橘猫', keys: ['橘猫'] }),
+        });
+        expect(createResponse.status).toBe(201);
+        const { entry } = (await createResponse.json()) as {
+          entry: { uid: number; type: string };
+        };
+        expect(entry.uid).toBe(1);
+        expect(entry.type).toBe('triggered');
+
+        const listResponse = await fetch(base);
+        const { entries } = (await listResponse.json()) as {
+          entries: { uid: number }[];
+        };
+        expect(entries).toHaveLength(1);
+
+        const updateResponse = await fetch(`${base}/${entry.uid}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: false }),
+        });
+        expect(updateResponse.status).toBe(200);
+        const { entry: updated } = (await updateResponse.json()) as {
+          entry: { enabled: boolean };
+        };
+        expect(updated.enabled).toBe(false);
+
+        const deleteResponse = await fetch(`${base}/${entry.uid}`, {
+          method: 'DELETE',
+        });
+        expect(deleteResponse.status).toBe(200);
+        const after = (await (await fetch(base)).json()) as {
+          entries: unknown[];
+        };
+        expect(after.entries).toHaveLength(0);
+      });
+
+      /** 测试：用户通道重复 content 不被拦截 */
+      it('should allow duplicate content from user channel', async () => {
+        const agentId = await seedAgent();
+        const base = `${BASE_URL}/api/agents/${agentId}/memory`;
+        const body = JSON.stringify({ content: '同文条目', keys: ['词'] });
+
+        const first = await fetch(base, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+        });
+        const second = await fetch(base, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+        });
+        expect(first.status).toBe(201);
+        expect(second.status).toBe(201);
+      });
+
+      /** 测试：非法 body 被 zod 拒绝返回 400 */
+      it('should reject invalid body with 400', async () => {
+        const agentId = await seedAgent();
+        const response = await fetch(
+          `${BASE_URL}/api/agents/${agentId}/memory`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keys: ['没有正文'] }),
+          }
+        );
+        expect(response.status).toBe(400);
+      });
+
+      /** 测试：PUT 未找到 uid 返回 404 */
+      it('should return 404 for unknown uid on PUT', async () => {
+        const agentId = await seedAgent();
+        const response = await fetch(
+          `${BASE_URL}/api/agents/${agentId}/memory/9`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: '内容' }),
+          }
+        );
+        expect(response.status).toBe(404);
+      });
+
+      /** 测试：不存在的 Agent 返回 404 */
+      it('should return 404 for non-existent agent', async () => {
+        const response = await fetch(
+          `${BASE_URL}/api/agents/non-existent/memory`
+        );
         expect(response.status).toBe(404);
       });
     });

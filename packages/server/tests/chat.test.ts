@@ -21,11 +21,20 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import * as net from 'node:net';
 import { WebSocket } from 'ws';
-import { createAgentRouter, type SessionManagersMap } from '../src/server/routers/agent.js';
+import {
+  createAgentRouter,
+  type SessionManagersMap,
+} from '../src/server/routers/agent.js';
 import { createSessionRouter } from '../src/server/routers/session.js';
 import { createChatRouter } from '../src/server/routers/chat.js';
-import { createProviderRouter, createAuthRouter } from '../src/server/routers/auth.js';
-import { initWebSocket, shutdownWebSocket } from '../src/server/websocket-server.js';
+import {
+  createProviderRouter,
+  createAuthRouter,
+} from '../src/server/routers/auth.js';
+import {
+  initWebSocket,
+  shutdownWebSocket,
+} from '../src/server/websocket-server.js';
 import { closeDb } from '../src/db/index.js';
 import type { AgentConfig, AgentConfigInput } from '../src/agent/index.js';
 import type { Session } from '../src/session/types.js';
@@ -65,10 +74,13 @@ mock.module('../src/util/paths.js', () => ({
   getAgentsDir: () => path.join(agentsDir),
   getAgentDir: (id: string) => path.join(agentsDir, id),
   getAgentConfigPath: (id: string) => path.join(agentsDir, id, 'config.json'),
-  getAgentSystemPromptPath: (id: string) => path.join(agentsDir, id, 'systemPrompt.md'),
+  getAgentSystemPromptPath: (id: string) =>
+    path.join(agentsDir, id, 'systemPrompt.md'),
   getAgentAssetsDir: (id: string) => path.join(agentsDir, id, 'assets'),
-  getAgentAssetsPoseDir: (id: string) => path.join(agentsDir, id, 'assets', 'pose'),
-  getAgentAssetsBackgroundsDir: (id: string) => path.join(agentsDir, id, 'assets', 'backgrounds'),
+  getAgentAssetsPoseDir: (id: string) =>
+    path.join(agentsDir, id, 'assets', 'pose'),
+  getAgentAssetsBackgroundsDir: (id: string) =>
+    path.join(agentsDir, id, 'assets', 'backgrounds'),
   getAgentMemoryDir: (id: string) => path.join(agentsDir, id, 'memory'),
   getWorkspaceDir: () => path.join(tempDir, 'workspace'),
   getAuthPath: () => authPath,
@@ -169,8 +181,14 @@ chatDescribe('Chat Module Integration Tests', () => {
     app.use('/api/providers', createProviderRouter());
     app.use('/api/auth', createAuthRouter());
     app.use('/api/agents', createAgentRouter(sessionManagers));
-    app.use('/api/agents/:agentId/sessions', createSessionRouter(sessionManagers));
-    app.use('/api/agents/:agentId/sessions/:sessionId/chat', createChatRouter(sessionManagers));
+    app.use(
+      '/api/agents/:agentId/sessions',
+      createSessionRouter(sessionManagers)
+    );
+    app.use(
+      '/api/agents/:agentId/sessions/:sessionId/chat',
+      createChatRouter(sessionManagers)
+    );
 
     PORT = await findAvailablePort();
     BASE_URL = `http://localhost:${PORT}`;
@@ -245,7 +263,9 @@ chatDescribe('Chat Module Integration Tests', () => {
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ content: 'My name is Alice. Remember it.' }),
+              body: JSON.stringify({
+                content: 'My name is Alice. Remember it.',
+              }),
             }
           );
 
@@ -270,8 +290,10 @@ chatDescribe('Chat Module Integration Tests', () => {
           const sessionResponse = await fetch(
             `${BASE_URL}/api/agents/${agentId}/sessions/${sessionId}`
           );
-          const { session } = (await sessionResponse.json()) as { session: Session };
-          
+          const { session } = (await sessionResponse.json()) as {
+            session: Session;
+          };
+
           // 检查最后一条 assistant 消息是否包含 Alice
           const lastAssistantMsg = [...session.messages]
             .reverse()
@@ -297,11 +319,59 @@ chatDescribe('Chat Module Integration Tests', () => {
           const sessionResponse = await fetch(
             `${BASE_URL}/api/agents/${agentId}/sessions/${sessionId}`
           );
-          const { session } = (await sessionResponse.json()) as { session: Session };
+          const { session } = (await sessionResponse.json()) as {
+            session: Session;
+          };
 
           expect(session.messages.length).toBeGreaterThan(0);
           expect(session.messages.some((m) => m.role === 'user')).toBe(true);
-          expect(session.messages.some((m) => m.role === 'assistant')).toBe(true);
+          expect(session.messages.some((m) => m.role === 'assistant')).toBe(
+            true
+          );
+        },
+        TEST_CONFIG.timeout
+      );
+
+      /** 测试：触发记忆进临时尾巴，聊天记录不收相关记忆节 */
+      it(
+        'should keep relevant memories out of persisted session',
+        async () => {
+          // 种一条触发条目，本条消息携带其触发词
+          const memoryDir = path.join(agentsDir, agentId, 'memory');
+          fs.mkdirSync(memoryDir, { recursive: true });
+          fs.appendFileSync(
+            path.join(memoryDir, 'memory.jsonl'),
+            JSON.stringify({
+              uid: 1,
+              title: '橘猫',
+              content: '用户养了一只橘猫叫大橘',
+              keys: ['橘猫'],
+              type: 'triggered',
+              enabled: true,
+              createdAt: '2026-10-30T00:00:00.000Z',
+              updatedAt: '2026-10-30T00:00:00.000Z',
+            }) + '\n'
+          );
+
+          await fetch(
+            `${BASE_URL}/api/agents/${agentId}/sessions/${sessionId}/chat`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ content: '我家的橘猫最近总叫' }),
+            }
+          );
+
+          const sessionResponse = await fetch(
+            `${BASE_URL}/api/agents/${agentId}/sessions/${sessionId}`
+          );
+          const { session } = (await sessionResponse.json()) as {
+            session: Session;
+          };
+          const allText = session.messages
+            .map((m) => (typeof m.content === 'string' ? m.content : ''))
+            .join('\n');
+          expect(allText).not.toContain('Relevant memories');
         },
         TEST_CONFIG.timeout
       );
@@ -441,14 +511,19 @@ chatDescribe('Chat Module Integration Tests', () => {
           ws = new WebSocket(WS_URL);
 
           ws.on('open', () => {
-            ws.send(JSON.stringify({
-              type: 'subscribe',
-              payload: { sessionId },
-            }));
+            ws.send(
+              JSON.stringify({
+                type: 'subscribe',
+                payload: { sessionId },
+              })
+            );
           });
 
           ws.on('message', (data: Buffer) => {
-            const message = JSON.parse(data.toString()) as { type: string; sessionId?: string };
+            const message = JSON.parse(data.toString()) as {
+              type: string;
+              sessionId?: string;
+            };
             receivedEvents.push(message.type);
 
             if (message.type === 'round_complete') {
@@ -555,7 +630,7 @@ chatDescribe('Chat Module Integration Tests', () => {
           started.some(
             (e) =>
               e.toolName === 'read_file' && e.paramSummary.includes('notes.txt')
-          ),
+          )
         ).toBe(true);
         // 注入开关默认开，required 强制模型必写，叙述字段应随广播透出
         expect(started.some((e) => !!e.toolTitle)).toBe(true);
@@ -724,10 +799,12 @@ chatDescribe('Chat Module Integration Tests', () => {
           ws = new WebSocket(WS_URL);
 
           ws.on('open', () => {
-            ws.send(JSON.stringify({
-              type: 'subscribe',
-              payload: { sessionId },
-            }));
+            ws.send(
+              JSON.stringify({
+                type: 'subscribe',
+                payload: { sessionId },
+              })
+            );
           });
 
           ws.on('message', (data: Buffer) => {
@@ -775,7 +852,9 @@ chatDescribe('Chat Module Integration Tests', () => {
         const sessionResponse = await fetch(
           `${BASE_URL}/api/agents/${agentId}/sessions/${sessionId}`
         );
-        const { session } = (await sessionResponse.json()) as { session: Session };
+        const { session } = (await sessionResponse.json()) as {
+          session: Session;
+        };
         const assistantMsg = session.messages.find(
           (m) => m.role === 'assistant' && (m as { thinking?: string }).thinking
         );
@@ -799,10 +878,12 @@ chatDescribe('Chat Module Integration Tests', () => {
           ws = new WebSocket(WS_URL);
 
           ws.on('open', () => {
-            ws.send(JSON.stringify({
-              type: 'subscribe',
-              payload: { sessionId },
-            }));
+            ws.send(
+              JSON.stringify({
+                type: 'subscribe',
+                payload: { sessionId },
+              })
+            );
           });
 
           ws.on('message', (data: Buffer) => {
@@ -890,10 +971,12 @@ chatDescribe('Chat Module Integration Tests', () => {
           ws = new WebSocket(WS_URL);
 
           ws.on('open', () => {
-            ws.send(JSON.stringify({
-              type: 'subscribe',
-              payload: { sessionId },
-            }));
+            ws.send(
+              JSON.stringify({
+                type: 'subscribe',
+                payload: { sessionId },
+              })
+            );
 
             ws.on('message', (data: Buffer) => {
               const msg = JSON.parse(data.toString()) as { type: string };
@@ -918,10 +1001,12 @@ chatDescribe('Chat Module Integration Tests', () => {
 
             /** 回合跑到轮末前打断，中止路径提前返回不写标记 */
             setTimeout(() => {
-              ws.send(JSON.stringify({
-                type: 'abort',
-                payload: { sessionId },
-              }));
+              ws.send(
+                JSON.stringify({
+                  type: 'abort',
+                  payload: { sessionId },
+                })
+              );
             }, 800);
           });
         });
@@ -947,61 +1032,65 @@ chatDescribe('Chat Module Integration Tests', () => {
     it(
       'should handle multiple WebSocket clients',
       async () => {
-      const client1Events: string[] = [];
-      const client2Events: string[] = [];
+        const client1Events: string[] = [];
+        const client2Events: string[] = [];
 
-      await new Promise<void>((resolve, reject) => {
-        const ws1 = new WebSocket(WS_URL);
-        const ws2 = new WebSocket(WS_URL);
+        await new Promise<void>((resolve, reject) => {
+          const ws1 = new WebSocket(WS_URL);
+          const ws2 = new WebSocket(WS_URL);
 
-        let completed = 0;
+          let completed = 0;
 
-        const checkComplete = () => {
-          completed++;
-          if (completed === 2) {
-            ws1.close();
-            ws2.close();
-            resolve();
-          }
-        };
-
-        ws1.on('open', () => {
-          ws1.send(JSON.stringify({ type: 'subscribe', payload: { sessionId } }));
-        });
-
-        ws2.on('open', () => {
-          ws2.send(JSON.stringify({ type: 'subscribe', payload: { sessionId } }));
-        });
-
-        ws1.on('message', (data: Buffer) => {
-          const msg = JSON.parse(data.toString()) as { type: string };
-          client1Events.push(msg.type);
-          if (msg.type === 'round_complete') checkComplete();
-        });
-
-        ws2.on('message', (data: Buffer) => {
-          const msg = JSON.parse(data.toString()) as { type: string };
-          client2Events.push(msg.type);
-          if (msg.type === 'round_complete') checkComplete();
-        });
-
-        setTimeout(() => {
-          fetch(
-            `${BASE_URL}/api/agents/${agentId}/sessions/${sessionId}/chat`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ content: 'Hi' }),
+          const checkComplete = () => {
+            completed++;
+            if (completed === 2) {
+              ws1.close();
+              ws2.close();
+              resolve();
             }
-          ).catch(reject);
-        }, 100);
-      });
+          };
 
-      expect(client1Events).toContain('step_complete');
-      expect(client2Events).toContain('step_complete');
-    },
-    TEST_CONFIG.timeout
-  );
+          ws1.on('open', () => {
+            ws1.send(
+              JSON.stringify({ type: 'subscribe', payload: { sessionId } })
+            );
+          });
+
+          ws2.on('open', () => {
+            ws2.send(
+              JSON.stringify({ type: 'subscribe', payload: { sessionId } })
+            );
+          });
+
+          ws1.on('message', (data: Buffer) => {
+            const msg = JSON.parse(data.toString()) as { type: string };
+            client1Events.push(msg.type);
+            if (msg.type === 'round_complete') checkComplete();
+          });
+
+          ws2.on('message', (data: Buffer) => {
+            const msg = JSON.parse(data.toString()) as { type: string };
+            client2Events.push(msg.type);
+            if (msg.type === 'round_complete') checkComplete();
+          });
+
+          setTimeout(() => {
+            fetch(
+              `${BASE_URL}/api/agents/${agentId}/sessions/${sessionId}/chat`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: 'Hi' }),
+              }
+            ).catch(reject);
+          }, 100);
+        });
+
+        expect(client1Events).toContain('step_complete');
+        expect(client2Events).toContain('step_complete');
+      },
+      TEST_CONFIG.timeout
+    );
   });
 
   describe('Session Persistence', () => {
@@ -1048,7 +1137,9 @@ chatDescribe('Chat Module Integration Tests', () => {
         const sessionResponse = await fetch(
           `${BASE_URL}/api/agents/${agentId}/sessions/${sessionId}`
         );
-        const { session } = (await sessionResponse.json()) as { session: Session };
+        const { session } = (await sessionResponse.json()) as {
+          session: Session;
+        };
 
         expect(session.messages.length).toBeGreaterThanOrEqual(4);
 

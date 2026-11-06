@@ -5,7 +5,7 @@
  * - 文件系统：mock paths.js 到临时目录；
  * - LLM：mock llm-single-call.js 的 streamSingleStep，用模块级变量控制返回/抛错。
  *
- * 覆盖：MemoryStore 往返、压缩触发/no-op/批次推进、[RAW] 兜底。
+ * 覆盖：压缩触发/no-op/多批追加/[RAW] 兜底、摘要落 session 新字段。
  * 运行：`bun test ./tests/compress.isolated.ts`。
  */
 
@@ -34,10 +34,13 @@ mock.module('../src/util/paths.js', () => ({
   getAgentsDir: () => path.join(agentsDir),
   getAgentDir: (id: string) => path.join(agentsDir, id),
   getAgentConfigPath: (id: string) => path.join(agentsDir, id, 'config.json'),
-  getAgentSystemPromptPath: (id: string) => path.join(agentsDir, id, 'systemPrompt.md'),
+  getAgentSystemPromptPath: (id: string) =>
+    path.join(agentsDir, id, 'systemPrompt.md'),
   getAgentAssetsDir: (id: string) => path.join(agentsDir, id, 'assets'),
-  getAgentAssetsPoseDir: (id: string) => path.join(agentsDir, id, 'assets', 'pose'),
-  getAgentAssetsBackgroundsDir: (id: string) => path.join(agentsDir, id, 'assets', 'backgrounds'),
+  getAgentAssetsPoseDir: (id: string) =>
+    path.join(agentsDir, id, 'assets', 'pose'),
+  getAgentAssetsBackgroundsDir: (id: string) =>
+    path.join(agentsDir, id, 'assets', 'backgrounds'),
   getAgentMemoryDir: (id: string) => path.join(agentsDir, id, 'memory'),
   getWorkspaceDir: () => path.join(tempDir, 'workspace'),
   getDbPath: () => path.join(tempDir, 'persona.db'),
@@ -46,7 +49,7 @@ mock.module('../src/util/paths.js', () => ({
 mock.module('../src/agent/llm-single-call.js', () => ({
   streamSingleStep: async (
     _userMessage: string,
-    _systemPrompt: string,
+    _systemPrompt: string
   ): Promise<string> => {
     if (mockShouldThrow) throw new Error('mock LLM failure');
     return mockSummary;
@@ -57,14 +60,13 @@ import { SessionStore } from '../src/session/store.js';
 import { SessionManager } from '../src/session/session-manager.js';
 import { createAgentConfig } from '../src/agent/index.js';
 import type { AgentConfigInput } from '../src/agent/index.js';
-import { MemoryStore } from '../src/agent/memory/memory-store.js';
 import { runCompression } from '../src/server/services/compress-service.js';
 import { closeDb } from '../src/db/index.js';
 
 const defaultModel = { provider: 'openai', model: 'gpt-4' };
 
 function createTestAgentInput(
-  overrides: Partial<AgentConfigInput> = {},
+  overrides: Partial<AgentConfigInput> = {}
 ): AgentConfigInput {
   return {
     name: 'Test Agent',
@@ -96,31 +98,10 @@ describe('Compression Integration', () => {
     mockSummary = '[durable] 测试摘要';
   });
 
-  describe('MemoryStore', () => {
-    it('appendHistory / readHistory 往返，getDreamCursor 默认 0', () => {
-      const agent = createAgentConfig(createTestAgentInput());
-      const store = new MemoryStore(agent.id);
-
-      expect(store.getDreamCursor()).toBe(0);
-
-      store.appendHistory({ cursor: 2, timestamp: 1, content: 'A' });
-      store.appendHistory({ cursor: 4, timestamp: 2, content: 'B' });
-
-      const all = store.readHistory(0);
-      expect(all).toHaveLength(2);
-      expect(all[0]?.content).toBe('A');
-      expect(all[1]?.cursor).toBe(4);
-
-      // fromIndex 跳过已整理条目
-      expect(store.readHistory(1)).toHaveLength(1);
-      expect(store.readHistory(1)[0]?.content).toBe('B');
-    });
-  });
-
   describe('runCompression', () => {
     /** 构造一个带聊天 Session 和若干消息的 SessionManager */
     function setupChatWithMessages(
-      messages: Array<{ role: string; content: string }>,
+      messages: Array<{ role: string; content: string }>
     ): { agentId: string; manager: SessionManager } {
       const agent = createAgentConfig(createTestAgentInput());
       const store = new SessionStore(agent.id);
@@ -132,14 +113,13 @@ describe('Compression Integration', () => {
       return { agentId: agent.id, manager };
     }
 
-    it('未超阈值时为 no-op：不写 history、不推进指针', async () => {
+    it('未超阈值时为 no-op：不写摘要、不推进指针', async () => {
       const { agentId, manager } = setupChatWithMessages([
         { role: 'user', content: 'aaaa' },
         { role: 'assistant', content: 'bbbb' },
       ]);
 
       await runCompression({
-        agentId,
         sessionId: manager.chatSessionId(),
         sessionManager: manager,
         threshold: 50,
@@ -150,10 +130,13 @@ describe('Compression Integration', () => {
 
       const session = manager.getSession(manager.chatSessionId());
       expect(session?.summarizedUpTo).toBeUndefined();
-      expect(new MemoryStore(agentId).readHistory(0)).toHaveLength(0);
+      expect(session?.compressionSummaries).toBeUndefined();
+      expect(
+        fs.existsSync(path.join(agentsDir, agentId, 'memory', 'history.jsonl'))
+      ).toBe(false);
     });
 
-    it('超阈值时压缩：写一条 history、推进 summarizedUpTo', async () => {
+    it('超阈值时压缩：摘要进 compressionSummaries、推进 summarizedUpTo', async () => {
       // 4 条消息估算 token 分别为 3/4/3/4，总计 14
       const { agentId, manager } = setupChatWithMessages([
         { role: 'user', content: 'aaaa' },
@@ -163,7 +146,6 @@ describe('Compression Integration', () => {
       ]);
 
       await runCompression({
-        agentId,
         sessionId: manager.chatSessionId(),
         sessionManager: manager,
         threshold: 10, // triggerTokens = 10；14 > 10 触发；excess=4 → 压缩第一批(2条)
@@ -174,11 +156,51 @@ describe('Compression Integration', () => {
 
       const session = manager.getSession(manager.chatSessionId());
       expect(session?.summarizedUpTo).toBe(2);
+      expect(session?.compressionSummaries).toEqual([mockSummary]);
+      // history.jsonl 不再被写入，摘要的落点是 session 自己的字段
+      expect(
+        fs.existsSync(path.join(agentsDir, agentId, 'memory', 'history.jsonl'))
+      ).toBe(false);
+    });
 
-      const entries = new MemoryStore(agentId).readHistory(0);
-      expect(entries).toHaveLength(1);
-      expect(entries[0]?.cursor).toBe(2);
-      expect(entries[0]?.content).toBe(mockSummary);
+    it('多批压缩逐条追加，历史摘要不丢', async () => {
+      mockSummary = '第一批摘要';
+      const { agentId, manager } = setupChatWithMessages([
+        { role: 'user', content: 'aaaa' },
+        { role: 'assistant', content: 'bbbb' },
+        { role: 'user', content: 'cccc' },
+        { role: 'assistant', content: 'dddd' },
+      ]);
+      const opts = {
+        sessionId: manager.chatSessionId(),
+        sessionManager: manager,
+        threshold: 10,
+        contextWindow: 100,
+        provider: 'openai',
+        modelId: 'gpt-4',
+      };
+
+      await runCompression(opts);
+      mockSummary = '第二批摘要';
+      // 追加新消息让剩余未摘要区再次超阈值
+      manager.appendMessage(manager.chatSessionId(), {
+        role: 'user',
+        content: 'eeee',
+      } as never);
+      manager.appendMessage(manager.chatSessionId(), {
+        role: 'assistant',
+        content: 'ffff',
+      } as never);
+      await runCompression(opts);
+
+      const session = manager.getSession(manager.chatSessionId());
+      expect(session?.compressionSummaries).toEqual([
+        '第一批摘要',
+        '第二批摘要',
+      ]);
+      expect(
+        fs.existsSync(path.join(agentsDir, agentId, 'memory', 'history.jsonl'))
+      ).toBe(false);
     });
 
     it('LLM 失败时用 [RAW] 兜底，指针仍推进', async () => {
@@ -191,7 +213,6 @@ describe('Compression Integration', () => {
       ]);
 
       await runCompression({
-        agentId,
         sessionId: manager.chatSessionId(),
         sessionManager: manager,
         threshold: 10,
@@ -202,11 +223,12 @@ describe('Compression Integration', () => {
 
       const session = manager.getSession(manager.chatSessionId());
       expect(session?.summarizedUpTo).toBe(2);
-
-      const entries = new MemoryStore(agentId).readHistory(0);
-      expect(entries).toHaveLength(1);
-      expect(entries[0]?.cursor).toBe(2);
-      expect(entries[0]?.content.startsWith('[RAW]')).toBe(true);
+      expect(session?.compressionSummaries?.[0]?.startsWith('[RAW]')).toBe(
+        true
+      );
+      expect(
+        fs.existsSync(path.join(agentsDir, agentId, 'memory', 'history.jsonl'))
+      ).toBe(false);
     });
   });
 });

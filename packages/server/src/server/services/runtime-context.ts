@@ -1,16 +1,38 @@
 /**
- * @fileoverview 运行时上下文注入：每次请求前组装时间与环境变化文本。
+ * @fileoverview 运行时上下文注入：每次请求前组装时间、环境变化与相关记忆。
  *
  * 设计文档：docs/设计文档/AgentCore/设计/System Prompt/运行时上下文注入.md
- * 输出以 context 角色落盘、以 user 消息进入模型上下文，前端不渲染。
+ * 产出按寿命分流：时间与环境变化落盘、以 context 角色进会话库，前端不渲染；
+ * 相关记忆节临时拼出随请求走，用完即弃不进聊天记录。
  */
 
 import { getMcpPromptInfo } from '../../mcp/index.js';
 import type { Session } from '../../session/types.js';
 import { Logger } from '../../util/logger.js';
+import {
+  MemoryStore,
+  formatEntryLine,
+} from '../../agent/memory/memory-store.js';
+import {
+  buildScanText,
+  matchTriggered,
+} from '../../agent/memory/entry-matcher.js';
 
 /** 时间行刷新阈值：距上次注入不足该值时跳过时间行 */
 const REFRESH_MS = 10 * 60 * 1000;
+
+/** 相关记忆节节头，加重措辞强调这是亲手记录的既成事实 */
+const MEMORY_HEADER =
+  '[system] 长期记忆，均为你此前亲手记录的既成事实，回答相关问题时优先以此为据:';
+
+/** 环境变化节节头，现状无节头，接入记忆节时顺手补齐 */
+const ENV_HEADER = '[system] Environment changes:';
+
+/** buildRuntimeContext 的返回形态：persisted 落盘，ephemeral 随请求走用完即弃 */
+export interface RuntimeContextParts {
+  persisted: string;
+  ephemeral: string;
+}
 
 /** 一个回合的环境快照，用于回合间对比出变化行 */
 interface EnvSnapshot {
@@ -126,19 +148,21 @@ function diffLines(prev: EnvSnapshot, curr: EnvSnapshot): string[] {
 }
 
 /**
- * 组装本次请求的运行时上下文文本。
+ * 组装本次请求的运行时上下文，按寿命分流为落盘与临时两部分。
  *
  * 先取旧快照、立刻写入新快照——首回合旧快照不存在，只记基线，变化行为空。
- * 时间节仅在距上次注入超过阈值或从未注入时出现；
- * 指令行只随时间节出现；两者皆空时返回空串，调用方整条跳过。
+ * 生产的节分两种寿命：时间节与环境变化节落盘走 context 角色，相关记忆节
+ * 每轮独立判定不参与十分钟节流，临时拼出由调用方带进模型请求尾部，
+ * 用完即弃不进聊天记录。任一节非空即发，时间节被节流但记忆节命中时
+ * 只发 ephemeral 部分。指令行只随时间节出现。
  *
  * @param sessionId - Session 唯一标识符，快照表的 key
- * @param session - 当前 Session，提供模型配置与派生时间戳
+ * @param session - 当前 Session，提供模型配置与派生时间戳，触发记忆经其 agentId 取存储
  * @param workspaceDir - 调用方已解析的工作目录
  * @param mcpNames - Agent 配置的 MCP 服务名列表
  * @param skillNames - Agent 配置的技能名列表，变化时产出通知行
  * @param now - 当前时间，测试可注入
- * @returns 注入文本；空串表示本次无需注入
+ * @returns persisted 与 ephemeral 两段文本，空串表示对应寿命无内容
  */
 export function buildRuntimeContext(
   sessionId: string,
@@ -147,7 +171,7 @@ export function buildRuntimeContext(
   mcpNames?: string[],
   skillNames?: string[],
   now: Date = new Date()
-): string {
+): RuntimeContextParts {
   const prev = snapshots.get(sessionId);
   const curr = takeSnapshot(session, workspaceDir, mcpNames, skillNames);
   snapshots.set(sessionId, curr);
@@ -157,9 +181,24 @@ export function buildRuntimeContext(
   const stale =
     prevContextAt === undefined || now.getTime() - prevContextAt >= REFRESH_MS;
 
-  if (!stale && changes.length === 0) {
+  // 相关记忆节：扫描最近两条消息命中触发条目，每轮独立判定
+  const triggered = new MemoryStore(session.agentId).listTriggeredEnabled();
+  const hits = matchTriggered(triggered, buildScanText(session.messages));
+  if (hits.length > 0) {
+    Logger.log('CTX', 'Memory section', {
+      sessionId,
+      hitUids: hits.map((entry) => entry.uid),
+      total: triggered.length,
+    });
+  }
+  const ephemeral =
+    hits.length > 0
+      ? [MEMORY_HEADER, ...hits.map(formatEntryLine)].join('\n')
+      : '';
+
+  if (!stale && changes.length === 0 && hits.length === 0) {
     Logger.log('CTX', 'Skipped', { sessionId, reason: 'within-threshold' });
-    return '';
+    return { persisted: '', ephemeral: '' };
   }
 
   const sections: string[] = [];
@@ -171,7 +210,7 @@ export function buildRuntimeContext(
     sections.push(timeLine);
   }
   if (changes.length > 0) {
-    sections.push(changes.join('\n'));
+    sections.push(`${ENV_HEADER}\n${changes.join('\n')}`);
   }
   if (stale) {
     sections.push(
@@ -183,6 +222,7 @@ export function buildRuntimeContext(
     sessionId,
     hasTimeLine: stale,
     changeCount: changes.length,
+    memoryHits: hits.length,
   });
-  return sections.join('\n\n');
+  return { persisted: sections.join('\n\n'), ephemeral };
 }

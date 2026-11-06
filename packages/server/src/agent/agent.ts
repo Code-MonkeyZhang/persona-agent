@@ -20,6 +20,12 @@ export class AgentCore {
   public runConfig: AgentRunConfig;
   public messages: Message[] = [];
   public tools: Map<string, Tool> = new Map();
+  /**
+   * 临时尾部消息，随每次模型请求拼接在 messages 之后。
+   * 相关记忆节用完即弃：不进消息数组不落盘，ReAct 多步每步都在尾部，
+   * 请求结束无需清理，abort 路径零负担。
+   */
+  public ephemeralTail?: string;
 
   constructor(config: AgentRunConfig) {
     this.runConfig = config;
@@ -129,9 +135,14 @@ export class AgentCore {
       const toolList = Array.from(this.tools.values());
 
       // convert tools & messages to pi-ai format
+      // 临时尾部消息每步都拼在末尾，模型开口前离它最近
+      const tail: Message | undefined = this.ephemeralTail
+        ? { role: 'user', content: this.ephemeralTail }
+        : undefined;
+      const outbound = tail ? [...this.messages, tail] : this.messages;
       const context = convertContext(
         this.runConfig.systemPrompt,
-        this.messages,
+        outbound,
         toolList
       );
 
