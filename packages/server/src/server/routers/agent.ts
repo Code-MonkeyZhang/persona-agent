@@ -9,6 +9,10 @@
  * - POST   /api/agents              - Create agent
  * - PUT    /api/agents/:id          - Update agent
  * - DELETE /api/agents/:id          - Delete agent
+ * - GET    /api/agents/:id/memory           - List memory entries
+ * - POST   /api/agents/:id/memory           - Create memory entry
+ * - PUT    /api/agents/:id/memory/:uid      - Update memory entry
+ * - DELETE /api/agents/:id/memory/:uid      - Delete memory entry
  */
 
 import { Router } from 'express';
@@ -26,6 +30,11 @@ import {
 } from '../../agent/index.js';
 import { SessionStore } from '../../session/store.js';
 import { SessionManager } from '../../session/session-manager.js';
+import { MemoryStore } from '../../agent/memory/memory-store.js';
+import {
+  MemoryUpdateInputSchema,
+  MemoryWriteInputSchema,
+} from '@persona/shared';
 import { Logger } from '../../util/logger.js';
 import { asyncHandler, getParam, requireParam } from './utils.js';
 import { AppError } from '../../util/errors.js';
@@ -156,6 +165,86 @@ export function createAgentRouter(
       }
 
       Logger.log('AGENT', `Deleted agent: ${id}`);
+      res.json({ success: true });
+    })
+  );
+
+  /** GET /api/agents/:id/memory - 记忆条目全量列表，编号升序含停用 */
+  router.get(
+    '/:id/memory',
+    asyncHandler('AGENT', 'Error listing memory entries', (req, res) => {
+      const id = requireParam(getParam(req.params['id']), 'Agent ID');
+      if (!getAgentConfig(id)) throw new AppError(404, 'Agent not found');
+      res.json({ entries: new MemoryStore(id).listEntries() });
+    })
+  );
+
+  /** POST /api/agents/:id/memory - 用户新增，不查重想记重复随他 */
+  router.post(
+    '/:id/memory',
+    asyncHandler('AGENT', 'Error creating memory entry', (req, res) => {
+      const id = requireParam(getParam(req.params['id']), 'Agent ID');
+      if (!getAgentConfig(id)) throw new AppError(404, 'Agent not found');
+      const parsed = MemoryWriteInputSchema.safeParse(req.body);
+      if (!parsed.success)
+        throw new AppError(400, JSON.stringify(parsed.error.issues));
+      const result = new MemoryStore(id).writeEntry(parsed.data, {
+        skipDedup: true,
+      });
+      if (!result.ok)
+        throw new AppError(
+          400,
+          result.kind === 'invalid' ? result.message : ''
+        );
+      Logger.log('AGENT', 'Memory created', {
+        agentId: id,
+        uid: result.entry.uid,
+      });
+      res.status(201).json({ entry: result.entry });
+    })
+  );
+
+  /** PUT /api/agents/:id/memory/:uid - 用户更新，keys 与查重校验同工具通道 */
+  router.put(
+    '/:id/memory/:uid',
+    asyncHandler('AGENT', 'Error updating memory entry', (req, res) => {
+      const id = requireParam(getParam(req.params['id']), 'Agent ID');
+      if (!getAgentConfig(id)) throw new AppError(404, 'Agent not found');
+      const uid = Number(req.params['uid']);
+      if (!Number.isInteger(uid) || uid <= 0)
+        throw new AppError(400, 'uid must be a positive integer');
+      const parsed = MemoryUpdateInputSchema.safeParse(req.body);
+      if (!parsed.success)
+        throw new AppError(400, JSON.stringify(parsed.error.issues));
+      const result = new MemoryStore(id).updateEntry(uid, parsed.data);
+      if (!result.ok) {
+        if (result.kind === 'notFound')
+          throw new AppError(404, 'Memory entry not found');
+        throw new AppError(
+          400,
+          result.kind === 'invalid' ? result.message : 'duplicate content'
+        );
+      }
+      Logger.log('AGENT', 'Memory updated', { agentId: id, uid });
+      res.json({ entry: result.entry });
+    })
+  );
+
+  /** DELETE /api/agents/:id/memory/:uid - 用户删除，遗忘当场生效 */
+  router.delete(
+    '/:id/memory/:uid',
+    asyncHandler('AGENT', 'Error deleting memory entry', (req, res) => {
+      const id = requireParam(getParam(req.params['id']), 'Agent ID');
+      if (!getAgentConfig(id)) throw new AppError(404, 'Agent not found');
+      const uid = Number(req.params['uid']);
+      if (!Number.isInteger(uid) || uid <= 0)
+        throw new AppError(400, 'uid must be a positive integer');
+      const store = new MemoryStore(id);
+      if (!store.listEntries().some((entry) => entry.uid === uid)) {
+        throw new AppError(404, 'Memory entry not found');
+      }
+      store.forgetEntry(uid);
+      Logger.log('AGENT', 'Memory deleted', { agentId: id, uid });
       res.json({ success: true });
     })
   );
