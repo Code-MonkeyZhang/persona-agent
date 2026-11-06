@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { baseName, summarizeToolInput, trunc } from '@persona/shared';
+import { userRowLabel } from '../../lib/attachments';
 import { useChatStore } from '../../stores/chatStore';
 import { RowDetailDialog, type RowDetail } from './RowDetailDialog';
 import type { Thought, UIMessage } from '../../types/chat';
@@ -231,7 +232,10 @@ export function buildRows(
   const rows: TimelineRowData[] = [];
   for (const m of messages) {
     if (m.type === 'user') {
-      rows.push({ kind: 'user', text: m.content });
+      rows.push({
+        kind: 'user',
+        text: userRowLabel(m.content, m.attachments),
+      });
       continue;
     }
     for (const th of m.thoughts ?? []) {
@@ -331,7 +335,10 @@ export function idleLabel(
   }
   const last = messages[messages.length - 1];
   if (last?.type === 'user') {
-    return { text: trunc(last.content, USER_LABEL_MAX), failed: false };
+    return {
+      text: trunc(userRowLabel(last.content, last.attachments), USER_LABEL_MAX),
+      failed: false,
+    };
   }
   return { text: t('live.thinking'), failed: false };
 }

@@ -288,6 +288,38 @@ export function fromContentBlocks(content: string | ContentBlock[]): {
   return { text, attachments };
 }
 
+/** 文件名里的小写扩展名，无扩展名返回空串 */
+function lowerExtOf(fileName: string): string {
+  const dot = fileName.lastIndexOf('.');
+  return dot >= 0 ? fileName.slice(dot + 1).toLowerCase() : '';
+}
+
+/**
+ * 状态条用户行的显示文案。正文与附件占位依次空格拼接，空段自动省略。
+ * 图片占位固定为 Image 加真实后缀，不随会话内外变化；文件占位为原始文件名带后缀。
+ */
+export function userRowLabel(
+  content: string,
+  attachments: UIAttachment[] = []
+): string {
+  const parts: string[] = [];
+  if (content.length > 0) {
+    parts.push(content);
+  }
+  for (const attachment of attachments) {
+    if (attachment.kind !== 'image') {
+      parts.push(attachment.name);
+      continue;
+    }
+    const ext =
+      (attachment.mimeType != null && IMAGE_EXT_BY_MIME[attachment.mimeType]) ||
+      lowerExtOf(attachment.name) ||
+      'png';
+    parts.push(`Image.${ext}`);
+  }
+  return parts.join(' ');
+}
+
 /**
  * 发送前的图片压缩判定。
  *

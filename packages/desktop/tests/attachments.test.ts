@@ -28,6 +28,7 @@ vi.mock('@/lib/attachments', async (importOriginal) => {
 import {
   toContentBlocks,
   fromContentBlocks,
+  userRowLabel,
 } from '@/lib/attachments';
 import { useAttachments } from '@/hooks/useAttachments';
 
@@ -115,6 +116,35 @@ describe('fromContentBlocks', () => {
       name: '报表.pdf',
     });
     expect(attachments[1]?.url).toBeUndefined();
+  });
+});
+
+describe('userRowLabel', () => {
+  it('纯文字消息返回原文', () => {
+    expect(userRowLabel('帮我看下这份清单')).toBe('帮我看下这份清单');
+  });
+
+  it('纯文件消息显示原始文件名', () => {
+    const file = uploadedAttachment({ kind: 'file', name: '需求规格.pdf' });
+    expect(userRowLabel('', [file])).toBe('需求规格.pdf');
+  });
+
+  it('纯图片消息显示 Image 加真实后缀，jpeg 归一为 jpg', () => {
+    const jpeg = uploadedAttachment({ name: '照片.jpeg', mimeType: 'image/jpeg' });
+    expect(userRowLabel('', [jpeg])).toBe('Image.jpg');
+  });
+
+  it('mimeType 缺失时回退文件名的扩展名', () => {
+    const png = uploadedAttachment({ mimeType: undefined });
+    expect(userRowLabel('', [png])).toBe('Image.png');
+  });
+
+  it('文字与附件依次空格拼接，空段省略', () => {
+    const file = uploadedAttachment({ kind: 'file', name: '报价单.xlsx' });
+    const image = uploadedAttachment({ mimeType: 'image/webp' });
+    expect(userRowLabel('帮我核对', [image, file])).toBe(
+      '帮我核对 Image.webp 报价单.xlsx'
+    );
   });
 });
 
