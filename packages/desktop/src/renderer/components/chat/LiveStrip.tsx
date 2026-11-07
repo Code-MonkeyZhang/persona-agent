@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { baseName, summarizeToolInput, trunc } from '@persona/shared';
+import { userRowLabel } from '../../lib/attachments';
 import { useChatStore } from '../../stores/chatStore';
 import { RowDetailDialog, type RowDetail } from './RowDetailDialog';
 import type { Thought, UIMessage } from '../../types/chat';
@@ -179,8 +180,8 @@ const USER_LABEL_MAX = 24;
 /** messages 选择器的稳定空数组，避免每次快照新建引用触发多余渲染 */
 const EMPTY_MESSAGES: UIMessage[] = [];
 
-/** 运行指示的三颗呼吸圆点，紧跟文字右侧由行 gap 提供间距，主色 4px 单颗 1.2s 相位各差 0.2s */
-function Dots({ className = '' }: { className?: string }) {
+/** 运行指示的三颗呼吸圆点，紧跟文字右侧由行 gap 提供间距，主色 4px 单颗 1.2s 相位各差 0.2s，导出供陪伴气泡动向行复用 */
+export function Dots({ className = '' }: { className?: string }) {
   return (
     <span
       className={`tl-dots shrink-0 pointer-events-none ${className}`}
@@ -231,7 +232,10 @@ export function buildRows(
   const rows: TimelineRowData[] = [];
   for (const m of messages) {
     if (m.type === 'user') {
-      rows.push({ kind: 'user', text: m.content });
+      rows.push({
+        kind: 'user',
+        text: userRowLabel(m.content, m.attachments),
+      });
       continue;
     }
     for (const th of m.thoughts ?? []) {
@@ -331,7 +335,10 @@ export function idleLabel(
   }
   const last = messages[messages.length - 1];
   if (last?.type === 'user') {
-    return { text: trunc(last.content, USER_LABEL_MAX), failed: false };
+    return {
+      text: trunc(userRowLabel(last.content, last.attachments), USER_LABEL_MAX),
+      failed: false,
+    };
   }
   return { text: t('live.thinking'), failed: false };
 }

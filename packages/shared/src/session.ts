@@ -58,6 +58,12 @@ export interface Session extends SessionMeta {
    */
   turnEnds?: number[];
   /**
+   * 压缩摘要清单，每批压缩 append 一条，落 sessions 表。
+   * 加载历史时逐条以带信封前缀的 user 消息插在未摘要区之前，
+   * 早期对话的大意由此保留。undefined 表示从未压缩。
+   */
+  compressionSummaries?: string[];
+  /**
    * 最后一条 context 消息的信封时间戳，loadSession 逐行解析派生，不落盘。
    * undefined 表示该会话从未注入过运行时上下文。
    */

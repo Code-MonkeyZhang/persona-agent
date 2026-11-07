@@ -3,18 +3,40 @@
  *
  * Message 联合描述 server↔desktop 之间传递的消息格式。
  * ToolResultMessage 不在此联合中——它是 agent 内部运行状态，不上线，保留在 server。
- * TODO: 如果支持多模态这些都要改
  */
 
-/**
- * 多模态消息的内容块。
- * TODO: 目前支持文本，但可扩展为其他内容类型。
- */
-export interface ContentBlock {
-  type: string;
-  text?: string;
-  [key: string]: unknown;
+/** 纯文本内容块。 */
+export interface TextContent {
+  type: 'text';
+  text: string;
 }
+
+/**
+ * 图片内容块。
+ * 哈希指向附件仓内的最终字节，宽高由客户端在草稿期读取随块携带。
+ */
+export interface ImageContent {
+  type: 'image';
+  hash: string;
+  mimeType: string;
+  width: number;
+  height: number;
+  bytes: number;
+}
+
+/**
+ * 文件内容块。
+ * 只携带定位与展示所需的最小字段，内容不内联。
+ */
+export interface FileContent {
+  type: 'file';
+  hash: string;
+  name: string;
+  bytes: number;
+}
+
+/** 多模态消息的内容块联合。 */
+export type ContentBlock = TextContent | ImageContent | FileContent;
 
 /** 包含 system prompt 的系统消息。 */
 export interface SystemMessage {

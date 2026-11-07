@@ -45,12 +45,17 @@ function isCjk(ch: string): boolean {
  * 提取单条消息的纯文本内容。
  *
  * `content` 可能是字符串或 {@link ContentBlock} 数组，
- * 此处只取文本部分；assistant 的 thinking 不计入。
+ * 数组取文本块的 text 与文件块的文件名，图片块跳过；
+ * assistant 的 thinking 不计入。
  */
-function messageContentText(msg: Message): string {
+export function messageContentText(msg: Message): string {
   if (typeof msg.content === 'string') return msg.content;
   if (Array.isArray(msg.content)) {
-    return msg.content.map((b) => b.text ?? '').join('');
+    return msg.content
+      .map((b) =>
+        b.type === 'text' ? b.text : b.type === 'file' ? b.name : ''
+      )
+      .join('');
   }
   return '';
 }

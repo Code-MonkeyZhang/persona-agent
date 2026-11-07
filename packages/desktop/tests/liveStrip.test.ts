@@ -566,3 +566,38 @@ describe('idleLabel 空闲摘要', () => {
     });
   });
 });
+
+describe('buildRows 的附件占位', () => {
+  it('用户行的文案带上附件占位，图片占 Image.ext 文件占真名', () => {
+    const rows = buildRows(
+      [
+        message({
+          type: 'user',
+          content: '帮我核对',
+          attachments: [
+            {
+              id: 'a1',
+              kind: 'image',
+              name: '照片.jpeg',
+              bytes: 10,
+              status: 'uploaded',
+              mimeType: 'image/jpeg',
+            },
+            {
+              id: 'a2',
+              kind: 'file',
+              name: '需求规格.pdf',
+              bytes: 20,
+              status: 'uploaded',
+            },
+          ],
+        }),
+      ],
+      null
+    );
+    expect(rows[0]).toEqual({
+      kind: 'user',
+      text: '帮我核对 Image.jpg 需求规格.pdf',
+    });
+  });
+});

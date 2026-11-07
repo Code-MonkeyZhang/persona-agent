@@ -5,7 +5,6 @@
 import { Logger } from '../../util/logger.js';
 import { errorMessage } from '../../util/errors.js';
 import { streamSingleStep } from '../../agent/llm-single-call.js';
-import { MemoryStore } from '../../agent/memory/memory-store.js';
 import {
   estimateMessagesTokens,
   estimateMessageTokens,
@@ -22,7 +21,6 @@ const RAW_MAX_CHARS = 2000;
 
 /** runCompression 的入参 */
 interface CompressionOptions {
-  agentId: string;
   sessionId: string;
   sessionManager: SessionManager;
   /** 压缩触发阈值：未摘要 token 超过 contextWindow 的该比例才触发 */
@@ -42,7 +40,7 @@ const inflight = new Set<string>();
  * LLM 失败时用 [RAW] 原文兜底并仍推进指针，原文从不删除，数据绝不丢失。
  */
 export async function runCompression(opts: CompressionOptions): Promise<void> {
-  const { agentId, sessionId, sessionManager, threshold, contextWindow } = opts;
+  const { sessionId, sessionManager, threshold, contextWindow } = opts;
 
   if (inflight.has(sessionId)) {
     Logger.log('COMPRESS', 'Already in progress, skip', { sessionId });
@@ -94,18 +92,17 @@ export async function runCompression(opts: CompressionOptions): Promise<void> {
       content = buildRawFallback(transcript);
     }
 
-    const memoryStore = new MemoryStore(agentId);
-    memoryStore.appendHistory({
-      cursor: newCursor,
-      timestamp: Date.now(),
+    sessionManager.updateCompressionSummaries(sessionId, [
+      ...(session.compressionSummaries ?? []),
       content,
-    });
+    ]);
     sessionManager.updateSummarizedUpTo(sessionId, newCursor);
 
     Logger.log('COMPRESS', 'Compressed', {
       sessionId,
       batchSize: batch.length,
       newCursor,
+      summariesTotal: (session.compressionSummaries ?? []).length + 1,
       contentLength: content.length,
       fallback: content.startsWith(RAW_TAG),
     });

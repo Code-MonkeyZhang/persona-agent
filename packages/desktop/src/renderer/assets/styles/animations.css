@@ -151,3 +151,73 @@
     opacity: 0.7;
   }
 }
+
+/* ============================================
+   语音按钮跳动条 — 宽度过渡展开收回
+   空闲时宽度为零不占位，出声时展开到三根条
+   的自然宽度，宽度透明度与左边距一起过渡，
+   按钮布局不跳，播完平滑收回
+   ============================================ */
+
+.voice-eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+  width: 0;
+  margin-left: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.25s ease,
+    margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.voice-eq-open {
+  width: 13px;
+  margin-left: 6px;
+  opacity: 1;
+}
+
+.voice-eq i {
+  width: 3px;
+  border-radius: 1px;
+  background: currentColor;
+  animation: voice-eq-bounce 0.9s ease-in-out infinite;
+}
+
+.voice-eq i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.voice-eq i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes voice-eq-bounce {
+  0%,
+  100% {
+    height: 4px;
+  }
+  50% {
+    height: 12px;
+  }
+}
+
+/* 语音按钮警示徽点，能力缺失时挂右上角 */
+.voice-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 15px;
+  height: 15px;
+  border-radius: 9999px;
+  background: #f59e0b;
+  border: 2px solid hsl(var(--background));
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 11px;
+  text-align: center;
+}

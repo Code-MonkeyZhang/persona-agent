@@ -19,13 +19,6 @@ export const AgentConfigSchema = z.object({
    * 用 `.default(50)` 使存量 Agent 的 config.json 经 safeParse 自动补默认值。
    */
   compressionThreshold: z.number().int().min(1).max(100).default(50),
-  /**
-   * 记忆整理间隔。
-   *
-   * 距离该 Agent 上一次 Dream 达到该间隔、且有未处理 history 时触发整理。
-   * 用 `.default(120)` 使存量 Agent 的 config.json 经 safeParse 自动补默认值。
-   */
-  dreamIntervalMinutes: z.number().int().min(1).default(120),
   voiceId: z.string().optional(),
   voiceLanguage: z.string().optional(),
   /**
@@ -68,17 +61,16 @@ export type AgentConfigInput = z.infer<typeof AgentConfigInputSchema>;
  * 与 {@link AgentConfigInputSchema} 的区别：
  * 创建要求必填字段齐全，更新允许只传需要修改的字段。
  *
- * 注意：base schema 中 skillNames/mcpNames/compressionThreshold/dreamIntervalMinutes
+ * 注意：base schema 中 skillNames/mcpNames/compressionThreshold
  * 带 .default()。Zod v4 下 .partial() 不会剥离默认值，缺失的字段会被填成默认值
  * （如 []），随后后端 {...existing, ...input} 会用它覆盖现有配置，导致只改提示词
- * 就清空工具/技能。这里对这四个字段重新声明为无默认值的可选，缺失即不在结果中，
+ * 就清空工具/技能。这里对这三个字段重新声明为无默认值的可选，缺失即不在结果中，
  * 后端按部分更新语义保留原值。
  */
 export const AgentConfigUpdateSchema = AgentConfigInputSchema.partial().extend({
   skillNames: z.array(z.string()).optional(),
   mcpNames: z.array(z.string()).optional(),
   compressionThreshold: z.number().int().min(1).max(100).optional(),
-  dreamIntervalMinutes: z.number().int().min(1).optional(),
 });
 
 /** Partial of AgentConfigInput, used for PUT (update) requests. */

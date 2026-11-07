@@ -12,7 +12,7 @@ import { xdgData } from 'xdg-basedir';
 import * as fs from 'fs';
 import { initStore } from './store';
 import { registerCacheIpc } from './cache/cache-ipc';
-import { ImageCache } from './image/image-cache';
+import { ImageCache, pruneLegacyFlatFiles } from './image/image-cache';
 import {
   registerImageSchemePrivileges,
   registerImageProtocol,
@@ -101,16 +101,47 @@ log.info('App starting...');
 // 图片协议的特权声明必须发生在 app ready 之前，放 whenReady 里会静默失效
 registerImageSchemePrivileges();
 
+/** 图片缓存根目录，按连接设备分目录，本机为 local */
+const IMAGE_CACHE_ROOT = join(DATA_DIR, 'image-cache');
+
+/** 各设备的图片缓存实例表，键为 hostId */
+const imageCaches = new Map<string, ImageCache>();
+
+/** 取指定设备的图片缓存实例，目录随实例按需创建 */
+function imageCacheFor(hostId: string): ImageCache {
+  let cache = imageCaches.get(hostId);
+  if (!cache) {
+    cache = new ImageCache(join(IMAGE_CACHE_ROOT, hostId), (message) =>
+      log.info(message)
+    );
+    imageCaches.set(hostId, cache);
+  }
+  return cache;
+}
+
+/** 取当前连接设备的图片缓存实例 */
+function imageCacheForCurrentHost(): ImageCache {
+  return imageCacheFor(hostManager.getSnapshot().current.hostId);
+}
+
 /** 应用主入口 */
 app.whenReady().then(async () => {
   initStore();
 
-  // 图片缓存命中读数据根 image-cache，未命中经当前连接地址下载校验落盘
-  registerImageProtocol(
-    new ImageCache(join(DATA_DIR, 'image-cache'), (message) =>
-      log.info(message)
-    ),
-    () => hostManager.getAddress()
+  // 历史平铺布局的哈希文件无法归属设备，启动时一次性清掉，看时按新布局重建
+  const legacyRemoved = pruneLegacyFlatFiles(IMAGE_CACHE_ROOT);
+  if (legacyRemoved > 0) {
+    log.info(`Pruned ${legacyRemoved} legacy flat image cache files`);
+  }
+
+  // 图片缓存命中读当前连接设备目录，未命中经当前连接地址下载校验落盘
+  registerImageProtocol(imageCacheForCurrentHost, () =>
+    hostManager.getAddress()
+  );
+
+  // IPC：把上传落定的图片字节种进当前连接设备的图片缓存
+  ipcMain.handle(IPC.IMAGE_SEED, (_event, hash: string, data: Uint8Array) =>
+    imageCacheForCurrentHost().seed(hash, data)
   );
 
   process.on('SIGINT', () => {
@@ -153,9 +184,15 @@ app.whenReady().then(async () => {
     hostManager.renameDevice(hostId, name);
   });
 
-  // IPC：删除设备条目并释放本地镜像，本机不可删
+  // IPC：删除设备条目并释放本地镜像与图片缓存目录，本机不可删
   ipcMain.handle(IPC.DEVICE_REMOVE, (_event, hostId: string) => {
-    return hostManager.removeDevice(hostId);
+    const removed = hostManager.removeDevice(hostId);
+    imageCaches.delete(hostId);
+    fs.rmSync(join(IMAGE_CACHE_ROOT, hostId), {
+      recursive: true,
+      force: true,
+    });
+    return removed;
   });
 
   // IPC：发起主机切换，主进程内串行原子执行

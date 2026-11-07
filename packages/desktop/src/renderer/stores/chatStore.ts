@@ -10,9 +10,16 @@ import { create } from 'zustand';
 import type { UIMessage, ConnectionStatus, Thought } from '../types/chat';
 import type { SyncState } from '../lib/sync-engine';
 import type { ServerMessage, StepCompleteMessage } from '@persona/shared';
-import { buildPreviewText, summarizeToolInput } from '@persona/shared';
+import {
+  buildPreviewText,
+  summarizeToolInput,
+  messagePreviewText,
+} from '@persona/shared';
 import type { LiveRunState, LiveStep } from '../components/chat/LiveStrip';
 import { createMessage, sendChatMessage, WebSocketClient } from '../lib/api';
+import { getOrCreateDeviceId } from '../lib/device-id';
+import { toContentBlocks, fromContentBlocks } from '../lib/attachments';
+import type { UIAttachment } from '../types/chat';
 import { toast } from './toastStore';
 import { logger } from '../lib/logger';
 import { getErrorMessage } from '../lib/utils';
@@ -243,7 +250,11 @@ interface ChatStore {
 
   setCurrentSessionId: (id: string | null) => void;
   initSessionState: (sessionId: string, messages: UIMessage[]) => void;
-  sendMessage: (content: string, sessionId?: string) => Promise<void>;
+  sendMessage: (
+    content: string,
+    attachments: UIAttachment[],
+    sessionId?: string
+  ) => Promise<void>;
   abortGeneration: (sessionId?: string) => void;
   subscribeSession: (sessionId: string) => void;
   /** 读缓存重载指定会话的消息，生成中的会话不应调用 */
@@ -346,7 +357,11 @@ export const useChatStore = create<ChatStore>((set, get) => {
       set({ wsClient: client });
     },
 
-    sendMessage: async (content: string, explicitSessionId?: string) => {
+    sendMessage: async (
+      content: string,
+      attachments: UIAttachment[] = [],
+      explicitSessionId?: string
+    ) => {
       const state = get();
       const sessionId = explicitSessionId || state.currentSessionId;
       const agentId = state.agentId;
@@ -356,6 +371,11 @@ export const useChatStore = create<ChatStore>((set, get) => {
         toast.error('No agent or session selected');
         return;
       }
+
+      /** 消息载荷：附件为空保持纯字符串，带附件组装为块数组 */
+      const payload = toContentBlocks(content, attachments);
+      /** 乐观消息携带附件，objectURL 地址所有权随消息移交 */
+      const messageExtra = attachments.length > 0 ? { attachments } : undefined;
 
       if (connectionStatus !== 'connected') {
         set((state) => {
@@ -368,7 +388,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
           newStates.set(sessionId, {
             messages: [
               ...sessionState.messages,
-              createMessage('user', content),
+              createMessage('user', content, messageExtra),
               createMessage(
                 'error',
                 'Cannot connect to server. Please ensure Agent Server is running.'
@@ -383,12 +403,18 @@ export const useChatStore = create<ChatStore>((set, get) => {
         return;
       }
 
+      /** 会话预览文本：块数组取文字与文件名，纯附件消息预览来自文件名 */
+      const previewText =
+        typeof payload === 'string'
+          ? payload
+          : (messagePreviewText({ role: 'user', content: payload }) ?? content);
+
       // 忙时插话：消息进服务端待注入缓冲，灰气泡由 pending_input_changed 广播渲染。
       // 不提前上屏，发送失败也就没有需要回滚的本地状态
       if (get().sessionStates.get(sessionId)?.isLoading) {
         useSessionStore
           .getState()
-          .updateSessionPreview(sessionId, buildPreviewText(content));
+          .updateSessionPreview(sessionId, buildPreviewText(previewText));
         wsClient?.subscribe(sessionId);
 
         try {
@@ -396,13 +422,14 @@ export const useChatStore = create<ChatStore>((set, get) => {
           const result = await sendChatMessage(
             agentId,
             sessionId,
-            content,
+            payload,
             voiceEnabled
           );
           if (result.success) {
             logger.info('Interjection sent while generating', {
               sessionId,
               pendingId: result.pendingId,
+              attachments: attachments.length,
             });
           } else {
             logger.warn('Interjection rejected', {
@@ -427,16 +454,22 @@ export const useChatStore = create<ChatStore>((set, get) => {
         };
         newStates.set(sessionId, {
           ...withLoadingState(sessionState),
-          messages: [...sessionState.messages, createMessage('user', content)],
+          messages: [
+            ...sessionState.messages,
+            createMessage('user', content, messageExtra),
+          ],
         });
         return { sessionStates: newStates };
       });
-      logger.info('Message sent, loading state entered', { sessionId });
+      logger.info('Message sent, loading state entered', {
+        sessionId,
+        attachments: attachments.length,
+      });
 
       // 同步更新会话预览
       useSessionStore
         .getState()
-        .updateSessionPreview(sessionId, buildPreviewText(content));
+        .updateSessionPreview(sessionId, buildPreviewText(previewText));
 
       wsClient?.subscribe(sessionId);
 
@@ -457,17 +490,28 @@ export const useChatStore = create<ChatStore>((set, get) => {
 
       try {
         const voiceEnabled = useVoiceStore.getState().voiceEnabled;
+        useVoiceStore.getState().noteChatSent(voiceEnabled, sessionId);
         const result = await sendChatMessage(
           agentId,
           sessionId,
-          content,
+          payload,
           voiceEnabled
         );
         if (!result.success) {
           rollbackLoading();
+          logger.warn('Chat send rejected', {
+            sessionId,
+            error: result.error,
+          });
+          toast.error(result.error ?? 'Send failed');
         }
-      } catch {
+      } catch (error) {
         rollbackLoading();
+        logger.warn('Chat send failed', {
+          sessionId,
+          error: getErrorMessage(error),
+        });
+        toast.error(getErrorMessage(error));
       }
     },
 
@@ -526,6 +570,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
             sessionId: msg.sessionId,
             agentId: msg.agentId,
           });
+          useVoiceStore.getState().noteRoundEnded(msg.sessionId);
           break;
         }
 
@@ -624,14 +669,19 @@ export const useChatStore = create<ChatStore>((set, get) => {
             );
             const additions = msg.pending
               .filter((p) => !localPendingIds.has(p.id) && p.source !== 'app')
-              .map((p) =>
-                createMessage('user', p.content, {
+              .map((p) => {
+                // 块数组解析出文字与附件，灰气泡同样渲染附件
+                const parsed = fromContentBlocks(p.content);
+                return createMessage('user', parsed.text, {
                   queued: true,
                   pendingId: p.id,
                   source: p.source === 'app' ? ('app' as const) : undefined,
                   sourceName: p.sourceName,
-                })
-              );
+                  ...(parsed.attachments.length > 0
+                    ? { attachments: parsed.attachments }
+                    : {}),
+                });
+              });
             newStates.set(sessionId, {
               ...sessionState,
               messages: [...messages, ...additions],
@@ -860,7 +910,18 @@ export const useChatStore = create<ChatStore>((set, get) => {
         }
 
         case 'speak_ready': {
-          if (msg.sessionId !== get().currentSessionId) break;
+          if (
+            msg.initiatorDeviceId &&
+            msg.initiatorDeviceId !== getOrCreateDeviceId()
+          ) {
+            logger.info('speak_ready ignored: initiated by another device');
+            break;
+          }
+          if (msg.sessionId !== get().currentSessionId) {
+            // 用户已切走会话，等待动画无处落地，收掉避免点亮后悬空
+            useVoiceStore.getState().clearSpeakStage();
+            break;
+          }
           const { voiceEnabled, speak } = useVoiceStore.getState();
           if (voiceEnabled) {
             void speak(
@@ -875,7 +936,14 @@ export const useChatStore = create<ChatStore>((set, get) => {
         }
 
         case 'speak_error': {
-          toast.warning(msg.message);
+          if (
+            msg.initiatorDeviceId &&
+            msg.initiatorDeviceId !== getOrCreateDeviceId()
+          ) {
+            logger.info('speak_error ignored: initiated by another device');
+            break;
+          }
+          useVoiceStore.getState().noteSpeakError(msg.reason);
           break;
         }
 

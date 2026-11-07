@@ -425,22 +425,25 @@ function normalizeContent(content: unknown): string {
 
 /**
  * Normalize an MCP tool input schema into a simplified JSON Schema format.
+ * Local $ref pointers are dereferenced first, so the whitelist below never
+ * strands a reference without its definition table on strict providers.
  * Handles anyOf unwrapping (strips null variants), title-to-description conversion,
  * and preserves type, items, default, enum, required fields.
  */
-function normalizeToolSchema(schema: JsonSchema): JsonSchema {
+export function normalizeToolSchema(schema: JsonSchema): JsonSchema {
   if (!schema || typeof schema !== 'object') {
     return { type: 'object', properties: {} };
   }
 
+  const source = dereferenceToolSchema(schema);
   const normalized: JsonSchema = {
-    type: (schema['type'] as string) || 'object',
+    type: (source['type'] as string) || 'object',
   };
 
-  if (schema['properties'] && isRecord(schema['properties'])) {
+  if (source['properties'] && isRecord(source['properties'])) {
     const normalizedProps: Record<string, unknown> = {};
 
-    for (const [key, value] of Object.entries(schema['properties'])) {
+    for (const [key, value] of Object.entries(source['properties'])) {
       if (!isRecord(value)) continue;
 
       const prop = value;
@@ -487,11 +490,91 @@ function normalizeToolSchema(schema: JsonSchema): JsonSchema {
     normalized['properties'] = normalizedProps;
   }
 
-  if (schema['required'] && Array.isArray(schema['required'])) {
-    normalized['required'] = schema['required'];
+  if (source['required'] && Array.isArray(source['required'])) {
+    normalized['required'] = source['required'];
   }
 
   return normalized;
+}
+
+/** 引用指针认可的前缀，新式 $defs 与旧式 definitions 都收 */
+const REF_PREFIXES = ['#/$defs/', '#/definitions/'];
+
+/**
+ * 取本地引用指针指向的定义名。
+ * 外部 URL 引用不在处理范围，返回 undefined 交由剥离路径。
+ */
+function parseLocalRefName(ref: string): string | undefined {
+  for (const prefix of REF_PREFIXES) {
+    if (ref.startsWith(prefix)) return ref.slice(prefix.length);
+  }
+  return undefined;
+}
+
+/**
+ * 递归展开一个节点里的引用。
+ *
+ * - 引用按指针在定义表取目标，目标先展开再替换当前节点，兄弟字段覆盖其上
+ * - 循环定义由展开路径上的名字栈拦截，引用链绕回自己即停止再入
+ * - 解不开的引用剥掉，发出去的 schema 不留悬空指针
+ *
+ * @param node - 当前节点
+ * @param defs - schema 自带的定义表
+ * @param expanding - 当前展开路径上的定义名栈
+ */
+function dereferenceNode(
+  node: unknown,
+  defs: Record<string, unknown>,
+  expanding: string[]
+): unknown {
+  if (Array.isArray(node)) {
+    return node.map((item) => dereferenceNode(item, defs, expanding));
+  }
+  if (!isRecord(node)) return node;
+  const ref = node['$ref'];
+  if (typeof ref === 'string') {
+    const name = parseLocalRefName(ref);
+    const target = name !== undefined ? defs[name] : undefined;
+    const siblings = { ...node };
+    delete siblings['$ref'];
+    if (name !== undefined && isRecord(target) && !expanding.includes(name)) {
+      const resolved = dereferenceNode(target, defs, [
+        ...expanding,
+        name,
+      ]) as Record<string, unknown>;
+      const merged = dereferenceNode(siblings, defs, expanding) as Record<
+        string,
+        unknown
+      >;
+      return { ...resolved, ...merged };
+    }
+    return dereferenceNode(siblings, defs, expanding);
+  }
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node)) {
+    out[key] = dereferenceNode(value, defs, expanding);
+  }
+  return out;
+}
+
+/**
+ * 展开工具 schema 里的全部本地引用。
+ * 白名单清洗不保留定义区，引用在清洗前就地展开成完整定义，
+ * 展平后的 schema 自包含，不依赖厂商的引用解析能力。
+ *
+ * @param schema - MCP 工具声明的原始参数 schema
+ * @returns 不含任何本地引用的展开版 schema
+ */
+function dereferenceToolSchema(schema: JsonSchema): JsonSchema {
+  const defs: Record<string, unknown> = {};
+  for (const key of ['$defs', 'definitions']) {
+    const table = schema[key];
+    if (isRecord(table)) Object.assign(defs, table);
+  }
+  const rest = { ...schema };
+  delete rest['$defs'];
+  delete rest['definitions'];
+  return dereferenceNode(rest, defs, []) as JsonSchema;
 }
 
 /** Collapse excessive whitespace and newlines in tool descriptions. */

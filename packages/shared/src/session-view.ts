@@ -12,7 +12,7 @@ import { buildPreviewText } from './preview.js';
  * 提取一条消息的纯文本，供预览使用。
  *
  * - 仅认 user / assistant 角色，其余角色（context、system、error、app_notification）返回 undefined
- * - user 的 content 兼容纯字符串与 ContentBlock 数组，数组取各 block 的 text 拼接
+ * - user 的 content 兼容纯字符串与 ContentBlock 数组，数组取文本块的 text 与文件块的文件名，图片块跳过，空白折叠为单空格
  * - assistant 纯工具步（无 content）返回 undefined，追加时不更新预览
  */
 export function messagePreviewText(message: Message): string | undefined {
@@ -20,8 +20,13 @@ export function messagePreviewText(message: Message): string | undefined {
     const content = message.content as UserMessage['content'];
     if (typeof content === 'string') return content;
     return content
-      .map((block) => block.text ?? '')
+      .map((block) => {
+        if (block.type === 'text') return block.text;
+        if (block.type === 'file') return ` ${block.name} `;
+        return '';
+      })
       .join('')
+      .replace(/\s+/g, ' ')
       .trim();
   }
   if (message.role === 'assistant' && message.content) {

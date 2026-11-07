@@ -9,6 +9,7 @@
 export type DeviceType = 'desktop' | 'mobile';
 
 import type { SessionChange } from './changes.js';
+import type { ContentBlock } from './schema.js';
 
 // ── Server → Client 事件 ──
 
@@ -138,9 +139,11 @@ interface SpeakReadyMessage {
   apiKey: string;
   model: string;
   languageBoost?: string;
+  /** 发起本次对话的设备编号，接收端据此跳过非本机的播放，App 通知路径不携带 */
+  initiatorDeviceId?: string;
 }
 
-type SpeakErrorReason =
+export type SpeakErrorReason =
   | 'no_api_key'
   | 'no_voice_id'
   | 'no_content'
@@ -151,6 +154,8 @@ interface SpeakErrorMessage {
   sessionId: string;
   reason: SpeakErrorReason;
   message: string;
+  /** 发起本次对话的设备编号，与 speak_ready 同源，App 通知路径不携带 */
+  initiatorDeviceId?: string;
 }
 
 interface PongMessage {
@@ -211,7 +216,8 @@ interface AppNotificationEvent {
 interface UserMessageEvent {
   type: 'user_message';
   sessionId: string;
-  content: string;
+  /** 纯文本消息为字符串，带附件消息为块数组 */
+  content: string | ContentBlock[];
 }
 
 /**
@@ -235,7 +241,8 @@ export interface PendingInput {
   source: 'user' | 'app';
   /** App 消息的来源显示名，入口处已从机器键解析，如 番茄时钟 */
   sourceName?: string;
-  content: string;
+  /** user 来源携带原始消息，纯文本为字符串，带附件为块数组 */
+  content: string | ContentBlock[];
 }
 
 /**

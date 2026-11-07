@@ -112,6 +112,8 @@ export interface WindowAPI {
   setLoggingEnabled: (enabled: boolean) => Promise<void>;
   openExternal: (url: string) => Promise<void>;
   openPath: (filePath: string) => Promise<string>;
+  /** 把上传落定的图片字节种进当前连接设备的图片缓存 */
+  imageSeed: (hash: string, data: Uint8Array) => Promise<boolean>;
   proxyFetch: (
     url: string,
     options: ProxyFetchOptions

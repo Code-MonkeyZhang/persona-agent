@@ -218,6 +218,19 @@ export class SessionManager {
   }
 
   /**
+   * 更新聊天 Session 的压缩摘要清单。
+   *
+   * 压缩完成后由 compress-service 调用，每批摘要 append 一条；
+   * 加载历史时逐条以带信封前缀的 user 消息插在未摘要区之前。
+   */
+  updateCompressionSummaries(
+    id: string,
+    compressionSummaries: string[]
+  ): Session | null {
+    return this.updateSessionField(id, { compressionSummaries });
+  }
+
+  /**
    * 更新聊天 Session 的压缩进度指针。
    *
    * 压缩完成后由 compress-service 调用，推进 `summarizedUpTo`；

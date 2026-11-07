@@ -19,6 +19,9 @@ export {
 } from './agent.js';
 export type {
   ContentBlock,
+  TextContent,
+  ImageContent,
+  FileContent,
   SystemMessage,
   UserMessage,
   ToolCall,
@@ -31,6 +34,15 @@ export type {
   Message,
 } from './schema.js';
 export type { SessionMeta, Session } from './session.js';
+export {
+  MemoryEntrySchema,
+  MemoryWriteInputSchema,
+  MemoryUpdateInputSchema,
+  type MemoryType,
+  type MemoryEntry,
+  type MemoryWriteInput,
+  type MemoryUpdateInput,
+} from './memory.js';
 export type {
   SnapshotMessage,
   SnapshotSession,

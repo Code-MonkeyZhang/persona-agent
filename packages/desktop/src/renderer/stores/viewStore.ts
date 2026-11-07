@@ -35,7 +35,7 @@ export const PHONE_PANEL_DEFAULT_PERCENT = 38;
 type ViewType = 'chat' | 'settings' | 'marketplace';
 
 /** MainView 内部导航，在 chat 视图下按 activeNav 切换右侧内容区 */
-type MainNav = 'chat' | 'agent-settings' | 'tools' | 'skills';
+type MainNav = 'chat' | 'agent-settings' | 'memory' | 'tools' | 'skills';
 
 /** 设置页左侧导航 tab */
 export type SettingsTab = 'general' | 'providers' | 'voice' | 'mcp' | 'skills';

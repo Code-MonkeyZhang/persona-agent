@@ -108,7 +108,7 @@ describe('忙时插话发送', () => {
       pendingId: 'srv-1',
     });
 
-    await useChatStore.getState().sendMessage('忙时消息', sessionId);
+    await useChatStore.getState().sendMessage('忙时消息', [], sessionId);
 
     // 发送本身不上屏，灰气泡等待广播渲染
     let state = useChatStore.getState().sessionStates.get(sessionId)!;
@@ -143,7 +143,7 @@ describe('忙时插话发送', () => {
 
     vi.mocked(sendChatMessage).mockRejectedValue(new Error('network'));
 
-    await useChatStore.getState().sendMessage('会失败', sessionId);
+    await useChatStore.getState().sendMessage('会失败', [], sessionId);
 
     const state = useChatStore.getState().sessionStates.get(sessionId)!;
     expect(state.messages.filter((m) => m.type === 'user')).toHaveLength(0);

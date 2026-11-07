@@ -81,7 +81,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   const [voiceId, setVoiceId] = useState<string>('');
   const [voiceLanguage, setVoiceLanguage] = useState('default');
   const [compressionThreshold, setCompressionThreshold] = useState('50');
-  const [dreamIntervalMinutes, setDreamIntervalMinutes] = useState('120');
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -107,7 +106,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
       setVoiceId(editingAgent.voiceId || '');
       setVoiceLanguage(editingAgent.voiceLanguage || 'default');
       setCompressionThreshold(String(editingAgent.compressionThreshold ?? 50));
-      setDreamIntervalMinutes(String(editingAgent.dreamIntervalMinutes ?? 120));
       loadPoseImages(editingAgent.id);
       setBgDeleted(false);
       setPendingBgFile(null);
@@ -177,7 +175,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     setVoiceId('');
     setVoiceLanguage('default');
     setCompressionThreshold('50');
-    setDreamIntervalMinutes('120');
     setPoseImages([]);
     setPendingBgFile(null);
     setBgPreviewUrl(undefined);
@@ -302,7 +299,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           systemPrompt,
           maxSteps: parseInt(maxSteps) || 50,
           compressionThreshold: parseInt(compressionThreshold) || 50,
-          dreamIntervalMinutes: parseInt(dreamIntervalMinutes) || 120,
           defaultWorkspacePath: defaultWorkspacePath || '',
           voiceId: voiceId || undefined,
           voiceLanguage: voiceId ? voiceLanguage : undefined,
@@ -318,7 +314,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           skillNames: [],
           maxSteps: parseInt(maxSteps) || 50,
           compressionThreshold: parseInt(compressionThreshold) || 50,
-          dreamIntervalMinutes: parseInt(dreamIntervalMinutes) || 120,
           defaultWorkspacePath: defaultWorkspacePath || '',
           voiceId: voiceId || undefined,
           voiceLanguage: voiceId ? voiceLanguage : undefined,
@@ -406,7 +401,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     skillNames: [],
     defaultWorkspacePath,
     compressionThreshold: parseInt(compressionThreshold) || 50,
-    dreamIntervalMinutes: parseInt(dreamIntervalMinutes) || 120,
     voiceId: voiceId || undefined,
     voiceLanguage: voiceId ? voiceLanguage : undefined,
     createdAt: 0,
@@ -495,8 +489,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
               <ChatConfigCard
                 compressionThreshold={compressionThreshold}
                 onCompressionThresholdChange={setCompressionThreshold}
-                dreamIntervalMinutes={dreamIntervalMinutes}
-                onDreamIntervalChange={setDreamIntervalMinutes}
               />
               <VoiceCard
                 voices={voices}

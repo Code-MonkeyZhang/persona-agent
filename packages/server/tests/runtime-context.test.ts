@@ -1,11 +1,24 @@
 /**
- * @fileoverview 运行时上下文注入单元测试
+ * @fileoverview 运行时上下文注入单元测试。
+ *
+ * Mock 策略：MCP 池状态与记忆存储均用测试替身，fakeTriggered 控制
+ * 触发条目命中，文件系统不参与。
+ * 覆盖：时间与指令行、寿命分流、节流解绑、相关记忆节格式与升序、
+ * 环境变化节头、变化行各形态、时长格式。
  */
 
-import { describe, it, expect, mock } from 'bun:test';
+import { describe, it, expect, mock, beforeAll, afterAll } from 'bun:test';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import { rmTempDir } from './temp-cleanup.js';
+import type { MemoryEntry } from '@persona/shared';
 
 /** MCP 池状态的测试替身：name → status */
 const fakeMcpStatuses: Record<string, string> = {};
+
+/** 记忆存储的测试替身：当前会返回的触发条目 */
+let fakeTriggered: MemoryEntry[] = [];
 
 mock.module('../src/mcp/index.js', () => ({
   getMcpPromptInfo: (serverNames: string[]) =>
@@ -13,6 +26,22 @@ mock.module('../src/mcp/index.js', () => ({
       name,
       status: fakeMcpStatuses[name] ?? 'unknown',
     })),
+}));
+
+mock.module('../src/util/paths.js', () => ({
+  getAgentMemoryDir: (id: string) => path.join(os.tmpdir(), `ctx-test-${id}`),
+}));
+
+mock.module('../src/agent/memory/memory-store.js', () => ({
+  MemoryStore: class {
+    listTriggeredEnabled(): MemoryEntry[] {
+      return fakeTriggered;
+    }
+  },
+  // 行式与真实现同款，格式本身在 memory.isolated 逐字符验证
+  formatEntryLine: (entry: MemoryEntry) =>
+    `- (learned ${entry.createdAt.slice(0, 10)}) ${entry.content}`,
+  buildPinnedSegment: () => '',
 }));
 
 import { buildRuntimeContext } from '../src/server/services/runtime-context.js';
@@ -32,8 +61,36 @@ function createSession(overrides: Partial<Session> = {}): Session {
   };
 }
 
+/** 构造一条触发启用条目 */
+function triggeredEntry(
+  uid: number,
+  keys: string[],
+  content: string
+): MemoryEntry {
+  return {
+    uid,
+    title: `t${uid}`,
+    content,
+    keys,
+    type: 'triggered',
+    enabled: true,
+    createdAt: '2026-10-30T00:00:00.000Z',
+    updatedAt: '2026-10-30T00:00:00.000Z',
+  };
+}
+
 describe('buildRuntimeContext', () => {
-  /** 首次注入：时间行与指令行出现，无变化行 */
+  let tempDir: string;
+
+  beforeAll(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'runtime-ctx-test-'));
+  });
+
+  afterAll(() => {
+    rmTempDir(tempDir);
+  });
+
+  /** 首次注入：时间行与指令行出现在 persisted，无变化行 */
   it('injects time and instruction lines on first call', () => {
     const out = buildRuntimeContext(
       's-first',
@@ -43,10 +100,13 @@ describe('buildRuntimeContext', () => {
       undefined,
       new Date('2026-08-18T10:30:00')
     );
-    expect(out).toContain('[system] 当前时间：2026-08-18 星期二 10:30');
-    expect(out).toContain('以本消息的时间为准');
-    expect(out).not.toContain('状态变化');
-    expect(out).not.toContain('切换为');
+    expect(out.persisted).toContain(
+      '[system] 当前时间：2026-08-18 星期二 10:30'
+    );
+    expect(out.persisted).toContain('以本消息的时间为准');
+    expect(out.persisted).not.toContain('状态变化');
+    expect(out.persisted).not.toContain('切换为');
+    expect(out.ephemeral).toBe('');
   });
 
   /** 有历史消息时给出时长，无历史消息时省略时长行 */
@@ -63,7 +123,7 @@ describe('buildRuntimeContext', () => {
       undefined,
       now
     );
-    expect(out1).toContain('距上一条消息已过去：1天22小时14分');
+    expect(out1.persisted).toContain('距上一条消息已过去：1天22小时14分');
 
     const out2 = buildRuntimeContext(
       's-dur-none',
@@ -73,11 +133,11 @@ describe('buildRuntimeContext', () => {
       undefined,
       now
     );
-    expect(out2).not.toContain('距上一条消息');
+    expect(out2.persisted).not.toContain('距上一条消息');
   });
 
-  /** 阈值内首轮只记基线，返回空串 */
-  it('returns empty string within threshold on first call', () => {
+  /** 阈值内首轮只记基线，两段皆空 */
+  it('returns empty parts within threshold on first call', () => {
     const now = new Date('2026-08-18T10:30:00');
     const out = buildRuntimeContext(
       's-skip',
@@ -87,11 +147,12 @@ describe('buildRuntimeContext', () => {
       undefined,
       now
     );
-    expect(out).toBe('');
+    expect(out.persisted).toBe('');
+    expect(out.ephemeral).toBe('');
   });
 
-  /** 阈值内有基线无变化，次轮仍返回空串 */
-  it('returns empty string when nothing changed within threshold', () => {
+  /** 阈值内有基线无变化无命中，次轮仍两段皆空 */
+  it('returns empty parts when nothing changed within threshold', () => {
     const t0 = new Date('2026-08-18T10:00:00');
     buildRuntimeContext(
       's-base',
@@ -109,11 +170,12 @@ describe('buildRuntimeContext', () => {
       undefined,
       new Date(t0.getTime() + 60_000)
     );
-    expect(out).toBe('');
+    expect(out.persisted).toBe('');
+    expect(out.ephemeral).toBe('');
   });
 
-  /** 阈值内仅模型变化：只出变化行，无时间行与指令行 */
-  it('emits only change line for model change within threshold', () => {
+  /** 阈值内仅模型变化：只出变化行与节头，无时间行与指令行 */
+  it('emits only change section for model change within threshold', () => {
     const t0 = new Date('2026-08-18T10:00:00');
     buildRuntimeContext(
       's-model',
@@ -137,9 +199,10 @@ describe('buildRuntimeContext', () => {
       undefined,
       new Date(t0.getTime() + 60_000)
     );
-    expect(out).toContain('模型已从 openai/a 切换为 openai/b');
-    expect(out).not.toContain('当前时间');
-    expect(out).not.toContain('以本消息的时间为准');
+    expect(out.persisted).toContain('[system] Environment changes:');
+    expect(out.persisted).toContain('模型已从 openai/a 切换为 openai/b');
+    expect(out.persisted).not.toContain('当前时间');
+    expect(out.persisted).not.toContain('以本消息的时间为准');
   });
 
   /** 超阈值且有目录与模型变化：时间行、变化行、指令行合并出现 */
@@ -165,11 +228,11 @@ describe('buildRuntimeContext', () => {
       undefined,
       new Date(t0.getTime() + 20 * 60 * 1000)
     );
-    expect(out).toContain('当前时间');
-    expect(out).toContain('距上一条消息已过去：20分');
-    expect(out).toContain('工作目录已从 /w/a 切换为 /w/b');
-    expect(out).toContain('模型已从 openai/a 切换为 anthropic/b');
-    expect(out).toContain('以本消息的时间为准');
+    expect(out.persisted).toContain('当前时间');
+    expect(out.persisted).toContain('距上一条消息已过去：20分');
+    expect(out.persisted).toContain('工作目录已从 /w/a 切换为 /w/b');
+    expect(out.persisted).toContain('模型已从 openai/a 切换为 anthropic/b');
+    expect(out.persisted).toContain('以本消息的时间为准');
   });
 
   /** MCP 状态变化产出对应变化行 */
@@ -193,7 +256,7 @@ describe('buildRuntimeContext', () => {
       undefined,
       new Date(t0.getTime() + 60_000)
     );
-    expect(out).toContain(
+    expect(out.persisted).toContain(
       'MCP 服务「ticktick」状态变化：connected → disconnected'
     );
   });
@@ -217,9 +280,9 @@ describe('buildRuntimeContext', () => {
       ['b-skill', 'c-skill'],
       new Date(t0.getTime() + 60_000)
     );
-    expect(out).toContain('技能清单已更新：新增 c-skill');
-    expect(out).toContain('技能清单已更新：移除 a-skill');
-    expect(out).not.toContain('当前时间');
+    expect(out.persisted).toContain('技能清单已更新：新增 c-skill');
+    expect(out.persisted).toContain('技能清单已更新：移除 a-skill');
+    expect(out.persisted).not.toContain('当前时间');
   });
 
   /** 技能集合不变仅顺序不同，不产出变化行 */
@@ -241,7 +304,7 @@ describe('buildRuntimeContext', () => {
       ['b-skill', 'a-skill'],
       new Date(t0.getTime() + 60_000)
     );
-    expect(out).toBe('');
+    expect(out.persisted).toBe('');
   });
 
   /** 时长格式覆盖各量级 */
@@ -262,7 +325,92 @@ describe('buildRuntimeContext', () => {
         undefined,
         new Date(now)
       );
-      expect(out).toContain(`距上一条消息已过去：${expected}`);
+      expect(out.persisted).toContain(`距上一条消息已过去：${expected}`);
     });
+  });
+
+  /** 相关记忆节：命中条目进 ephemeral，节头与行式齐备，persisted 为空 */
+  it('puts hit memories into ephemeral section only', () => {
+    fakeTriggered = [
+      triggeredEntry(1, ['橘猫'], '用户养了一只橘猫叫大橘'),
+      triggeredEntry(2, ['上海'], '用户计划十一月搬到上海'),
+    ];
+    const out = buildRuntimeContext(
+      's-mem',
+      createSession({
+        lastContextAt: Date.now() - 60_000,
+        messages: [
+          { role: 'user', content: '我家的橘猫最近总叫' },
+          { role: 'assistant', content: '它可能是想要关注' },
+        ],
+      }),
+      '/w/a',
+      undefined,
+      undefined,
+      new Date()
+    );
+    expect(out.ephemeral).toBe(
+      [
+        '[system] 长期记忆，均为你此前亲手记录的既成事实，回答相关问题时优先以此为据:',
+        '- (learned 2026-10-30) 用户养了一只橘猫叫大橘',
+      ].join('\n')
+    );
+    expect(out.persisted).toBe('');
+    fakeTriggered = [];
+  });
+
+  /** 节流解绑：时间节被节流但记忆命中时 ephemeral 非空 */
+  it('still emits ephemeral when time section is throttled', () => {
+    fakeTriggered = [triggeredEntry(1, ['猫'], '用户养了猫')];
+    const now = new Date('2026-08-18T10:30:00');
+    const out = buildRuntimeContext(
+      's-mem-throttle',
+      createSession({
+        lastContextAt: now.getTime() - 60_000,
+        messages: [{ role: 'user', content: '聊聊猫' }],
+      }),
+      '/w/a',
+      undefined,
+      undefined,
+      now
+    );
+    expect(out.persisted).toBe('');
+    expect(out.ephemeral).toContain('用户养了猫');
+    fakeTriggered = [];
+  });
+
+  /** 未命中时记忆节不出现 */
+  it('omits memory section when nothing hits', () => {
+    fakeTriggered = [triggeredEntry(1, ['橘猫'], '用户养了橘猫')];
+    const now = new Date('2026-08-18T10:30:00');
+    const out = buildRuntimeContext(
+      's-mem-none',
+      createSession({ messages: [{ role: 'user', content: '聊点别的' }] }),
+      '/w/a',
+      undefined,
+      undefined,
+      now
+    );
+    expect(out.ephemeral).toBe('');
+    expect(out.persisted).toContain('当前时间');
+    fakeTriggered = [];
+  });
+
+  /** 两节皆有：persisted 与 ephemeral 分开返回 */
+  it('returns both parts when time section and memory hits coexist', () => {
+    fakeTriggered = [triggeredEntry(1, ['猫'], '用户养了猫')];
+    const out = buildRuntimeContext(
+      's-mem-both',
+      createSession({
+        messages: [{ role: 'user', content: '聊聊猫' }],
+      }),
+      '/w/a',
+      undefined,
+      undefined,
+      new Date('2026-08-18T10:30:00')
+    );
+    expect(out.persisted).toContain('当前时间');
+    expect(out.ephemeral).toContain('[system] 长期记忆');
+    fakeTriggered = [];
   });
 });

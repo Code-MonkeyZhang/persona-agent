@@ -4,7 +4,11 @@
 
 export type {
   ContentBlock,
+  TextContent,
+  ImageContent,
+  FileContent,
   UserMessage,
+  ErrorMessage,
   AssistantMessage,
   ToolCall,
   ToolResultMessage,

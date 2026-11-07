@@ -25,6 +25,7 @@ export interface SessionRow {
   workspace_path: string | null;
   model: string | null;
   summarized_up_to: number | null;
+  compression_summaries: string | null;
   current_pose: string | null;
   turn_ends: string | null;
   last_message_preview: string | null;
@@ -222,18 +223,24 @@ export class SessionStore {
    * 调用方先经 loadSession 确认会话存在，行不存在时静默无操作，
    * 更新成功登记携带完整元信息的 session_updated 事件。
    */
-  rewriteMetaLine(id: string, meta: SessionMeta): void {
+  rewriteMetaLine(
+    id: string,
+    meta: SessionMeta & Pick<Session, 'compressionSummaries'>
+  ): void {
     const db = getDb();
     const event = db.transaction((): SessionChange | null => {
       db.query(
         `UPDATE sessions SET title = ?, workspace_path = ?, model = ?,
-          summarized_up_to = ?, current_pose = ?, has_unread = ?, updated_at = ?
+          summarized_up_to = ?, compression_summaries = ?, current_pose = ?, has_unread = ?, updated_at = ?
          WHERE id = ? AND agent_id = ?`
       ).run(
         meta.title,
         meta.workspacePath ?? null,
         JSON.stringify(meta.model) ?? null,
         meta.summarizedUpTo ?? null,
+        meta.compressionSummaries
+          ? JSON.stringify(meta.compressionSummaries)
+          : null,
         meta.currentPose ?? null,
         meta.hasUnread ? 1 : 0,
         meta.updatedAt,
@@ -323,6 +330,9 @@ export class SessionStore {
       lastMessageAt,
       turnEnds: row.turn_ends
         ? (JSON.parse(row.turn_ends) as number[])
+        : undefined,
+      compressionSummaries: row.compression_summaries
+        ? (JSON.parse(row.compression_summaries) as string[])
         : undefined,
       messages,
     };

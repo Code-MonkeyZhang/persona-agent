@@ -18,13 +18,48 @@ export interface AttachmentMeta {
   hash: string;
   format: string;
   size: number;
+  /** 清洗后的原始文件名，随消息块走，磁盘文件名仍是纯哈希 */
+  name: string;
+}
+
+/** 清洗后的文件名允许保留的最大长度 */
+const MAX_NAME_LENGTH = 120;
+
+/** 清洗后为空时使用的兜底名 */
+const FALLBACK_NAME = 'attachment';
+
+/**
+ * 清洗用户上传的原始文件名。
+ *
+ * - 取 basename 剥离路径，正反斜杠都认
+ * - 剥离控制字符，文件系统非法字符替换为下划线
+ * - 连续空白折叠为单空格，超长截断
+ *
+ * @param originalName - 客户端上传声明的原始文件名
+ * @returns 可安全展示与下载命名的清洗名
+ */
+function sanitizeAttachmentName(originalName: string): string {
+  const base = originalName.split(/[\\/]/).pop() ?? '';
+  const name = base
+    .replace(/\p{Cc}/gu, '')
+    .replace(/[/\\:*?"<>|]/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_NAME_LENGTH);
+  return name.length > 0 ? name : FALLBACK_NAME;
 }
 
 /**
  * 保存一份附件内容。
+ * 收到的字节原样落盘，不检查类型不解析内容。
  * 目标文件已存在则跳过写盘，表行 INSERT OR IGNORE，返回内容身份。
  */
-export function saveAttachment(buffer: Buffer, format: string): AttachmentMeta {
+export function saveAttachment(
+  buffer: Buffer,
+  format: string,
+  originalName: string
+): AttachmentMeta {
+  const name = sanitizeAttachmentName(originalName);
   const hash = createHash('sha256').update(buffer).digest('hex');
   const dir = getAttachmentsDir();
   const filePath = path.join(dir, hash);
@@ -40,9 +75,9 @@ export function saveAttachment(buffer: Buffer, format: string): AttachmentMeta {
     .run(hash, format, buffer.length, Date.now());
   Logger.log(
     'ATTACHMENT',
-    `Saved attachment ${hash} format=${format} size=${buffer.length}${deduplicated ? ' deduplicated' : ''}`
+    `Saved attachment ${hash} format=${format} size=${buffer.length} name=${name}${deduplicated ? ' deduplicated' : ''}`
   );
-  return { hash, format, size: buffer.length };
+  return { hash, format, size: buffer.length, name };
 }
 
 /**

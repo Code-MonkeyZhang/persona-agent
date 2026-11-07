@@ -42,6 +42,10 @@ export function getDb(): Database {
         'ALTER TABLE sessions ADD COLUMN has_unread INTEGER NOT NULL DEFAULT 0'
       );
     }
+    // v4 → v5：sessions 补 compression_summaries 列，压缩摘要的新落点
+    if (currentVersion > 0 && currentVersion < 5) {
+      conn.run('ALTER TABLE sessions ADD COLUMN compression_summaries TEXT');
+    }
     if (currentVersion < SCHEMA_VERSION) {
       conn.run(`PRAGMA user_version = ${SCHEMA_VERSION}`);
     }

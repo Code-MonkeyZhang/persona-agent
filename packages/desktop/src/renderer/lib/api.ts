@@ -37,9 +37,14 @@ import type {
   SessionChange,
   SyncSnapshot,
   HandshakeInfo,
+  ContentBlock,
+  MemoryEntry,
+  MemoryWriteInput,
+  MemoryUpdateInput,
 } from '@persona/shared';
 import { logger } from './logger';
 import { getErrorMessage } from './utils';
+import { getOrCreateDeviceId } from './device-id';
 import type { WallpaperImagePair } from './wallpaper-image';
 
 interface ListAgentsResponse {
@@ -916,16 +921,63 @@ export async function updateSession(
 }
 
 /**
+ * 上传单个附件到服务端哈希仓。
+ * FormData 单文件字段，任意类型放行，体积控制已在发送前由压缩完成。
+ * @param file - 待上传的文件或压缩产物 Blob
+ * @param name - 上传声明的文件名，Blob 时由调用方提供
+ * @returns 附件引用，含哈希、格式、字节数与清洗后的文件名
+ */
+export async function uploadAttachment(
+  file: File | Blob,
+  name = 'attachment.bin'
+): Promise<UploadResult> {
+  const baseUrl = await getBaseUrl();
+  const form = new FormData();
+  form.append('file', file, name);
+  const response = await fetch(`${baseUrl}/api/attachments`, {
+    method: 'POST',
+    body: form,
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(
+      data.error || `Failed to upload attachment: ${response.status}`
+    );
+  }
+  return data as UploadResult;
+}
+
+/** 附件上传接口的响应体 */
+export interface UploadResult {
+  hash: string;
+  format: string;
+  size: number;
+  name: string;
+}
+
+/**
+ * 附件读取的协议地址，与头像同款手法。
+ * 哈希承担缓存身份，主进程经 persona-image 协议下载校验落盘后本地命中。
+ * @param hash - 附件内容哈希
+ * @returns persona-image 协议地址
+ */
+export function getAttachmentUrl(hash: string): string {
+  const base = cachedBaseUrl || `http://localhost:${DEFAULT_PORT}`;
+  return toProtocolUrl(hash, `${base}/api/attachments/${hash}`);
+}
+
+/**
  * 通过 HTTP POST 发送聊天消息。调用前应先通过 WebSocket subscribe 订阅会话事件以接收响应。
+ * 请求体携带本机设备编号，服务端将其写进语音事件，用于多端过滤播放。
  * @param agentId - Agent ID
  * @param sessionId - 会话 ID
- * @param content - 消息内容
+ * @param content - 消息内容，纯文本字符串或带附件的内容块数组
  * @returns 发送结果；会话忙时携带 pendingId 表示已进待注入缓冲
  */
 export async function sendChatMessage(
   agentId: string,
   sessionId: string,
-  content: string,
+  content: string | ContentBlock[],
   voiceEnabled?: boolean
 ): Promise<{
   success: boolean;
@@ -938,7 +990,11 @@ export async function sendChatMessage(
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content, voiceEnabled }),
+      body: JSON.stringify({
+        content,
+        voiceEnabled,
+        deviceId: getOrCreateDeviceId(),
+      }),
     }
   );
 
@@ -1203,6 +1259,105 @@ export async function deleteAgent(id: string): Promise<boolean> {
 
   const data = await response.json();
   return data.success;
+}
+
+/** 记忆条目列表接口的返回形态 */
+interface MemoryEntriesResponse {
+  entries: MemoryEntry[];
+}
+
+/** 单条记忆条目接口的返回形态 */
+interface MemoryEntryResponse {
+  entry: MemoryEntry;
+}
+
+/**
+ * 拉取指定 agent 的全部记忆条目。
+ * @param agentId - Agent ID
+ * @returns 条目数组，编号升序含停用
+ */
+export async function listAgentMemories(
+  agentId: string
+): Promise<MemoryEntry[]> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/agents/${agentId}/memory`, {
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to list memories: ${response.status}`);
+  }
+  const data: MemoryEntriesResponse = await response.json();
+  return data.entries;
+}
+
+/**
+ * 新增一条记忆条目，用户通道不查重。
+ * @param agentId - Agent ID
+ * @param input - 新增参数
+ * @returns 创建的条目
+ */
+export async function createAgentMemory(
+  agentId: string,
+  input: MemoryWriteInput
+): Promise<MemoryEntry> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/agents/${agentId}/memory`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to create memory: ${response.status}`);
+  }
+  const data: MemoryEntryResponse = await response.json();
+  return data.entry;
+}
+
+/**
+ * 更新一条记忆条目。
+ * @param agentId - Agent ID
+ * @param uid - 条目编号
+ * @param patch - 只传需要修改的字段
+ * @returns 更新后的条目
+ */
+export async function updateAgentMemory(
+  agentId: string,
+  uid: number,
+  patch: MemoryUpdateInput
+): Promise<MemoryEntry> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/agents/${agentId}/memory/${uid}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    }
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to update memory: ${response.status}`);
+  }
+  const data: MemoryEntryResponse = await response.json();
+  return data.entry;
+}
+
+/**
+ * 删除一条记忆条目，遗忘当场生效。
+ * @param agentId - Agent ID
+ * @param uid - 条目编号
+ */
+export async function deleteAgentMemory(
+  agentId: string,
+  uid: number
+): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/agents/${agentId}/memory/${uid}`,
+    { method: 'DELETE' }
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to delete memory: ${response.status}`);
+  }
 }
 
 /**

@@ -6,7 +6,11 @@
 
 export type {
   ContentBlock,
+  TextContent,
+  ImageContent,
+  FileContent,
   UserMessage,
+  ErrorMessage,
   ToolCall,
   AssistantMessage,
   Message,
