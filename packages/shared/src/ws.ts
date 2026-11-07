@@ -143,7 +143,7 @@ interface SpeakReadyMessage {
   initiatorDeviceId?: string;
 }
 
-type SpeakErrorReason =
+export type SpeakErrorReason =
   | 'no_api_key'
   | 'no_voice_id'
   | 'no_content'

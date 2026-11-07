@@ -490,6 +490,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
 
       try {
         const voiceEnabled = useVoiceStore.getState().voiceEnabled;
+        useVoiceStore.getState().noteChatSent(voiceEnabled, sessionId);
         const result = await sendChatMessage(
           agentId,
           sessionId,
@@ -569,6 +570,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
             sessionId: msg.sessionId,
             agentId: msg.agentId,
           });
+          useVoiceStore.getState().noteRoundEnded(msg.sessionId);
           break;
         }
 
@@ -915,7 +917,11 @@ export const useChatStore = create<ChatStore>((set, get) => {
             logger.info('speak_ready ignored: initiated by another device');
             break;
           }
-          if (msg.sessionId !== get().currentSessionId) break;
+          if (msg.sessionId !== get().currentSessionId) {
+            // 用户已切走会话，等待动画无处落地，收掉避免点亮后悬空
+            useVoiceStore.getState().clearSpeakStage();
+            break;
+          }
           const { voiceEnabled, speak } = useVoiceStore.getState();
           if (voiceEnabled) {
             void speak(
@@ -937,7 +943,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
             logger.info('speak_error ignored: initiated by another device');
             break;
           }
-          toast.warning(msg.message);
+          useVoiceStore.getState().noteSpeakError(msg.reason);
           break;
         }
 
