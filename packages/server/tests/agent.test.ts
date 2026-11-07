@@ -594,7 +594,11 @@ describe('Agent Module Integration Tests', () => {
         const createResponse = await fetch(base, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: '用户养了橘猫', keys: ['橘猫'] }),
+          body: JSON.stringify({
+            title: '养猫',
+            content: '用户养了橘猫',
+            keys: ['橘猫'],
+          }),
         });
         expect(createResponse.status).toBe(201);
         const { entry } = (await createResponse.json()) as {
@@ -630,11 +634,34 @@ describe('Agent Module Integration Tests', () => {
         expect(after.entries).toHaveLength(0);
       });
 
+      /** 测试：列表编号倒序，新条目在前 */
+      it('should list entries newest first', async () => {
+        const agentId = await seedAgent();
+        const base = `${BASE_URL}/api/agents/${agentId}/memory`;
+        for (const content of ['第一条', '第二条', '第三条']) {
+          const response = await fetch(base, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: content, content, keys: ['词'] }),
+          });
+          expect(response.status).toBe(201);
+        }
+        const listResponse = await fetch(base);
+        const { entries } = (await listResponse.json()) as {
+          entries: { uid: number }[];
+        };
+        expect(entries.map((e) => e.uid)).toEqual([3, 2, 1]);
+      });
+
       /** 测试：用户通道重复 content 不被拦截 */
       it('should allow duplicate content from user channel', async () => {
         const agentId = await seedAgent();
         const base = `${BASE_URL}/api/agents/${agentId}/memory`;
-        const body = JSON.stringify({ content: '同文条目', keys: ['词'] });
+        const body = JSON.stringify({
+          title: '同文条目',
+          content: '同文条目',
+          keys: ['词'],
+        });
 
         const first = await fetch(base, {
           method: 'POST',

@@ -18,7 +18,7 @@ export type MemoryType = 'pinned' | 'triggered';
 export const MemoryEntrySchema = z.object({
   /** 编号，追加式分配取现有最大加一 */
   uid: z.number().int().positive(),
-  /** 标题，缺省截取内容开头 */
+  /** 标题，必填的简短话题标签 */
   title: z.string(),
   /** 正文，一条自含句 */
   content: z.string().min(1),
@@ -37,13 +37,13 @@ export const MemoryEntrySchema = z.object({
 export type MemoryEntry = z.infer<typeof MemoryEntrySchema>;
 
 /**
- * 新增输入。content 必填，keys 缺省空数组，
+ * 新增输入。title 与 content 必填，keys 缺省空数组，
  * type 缺省 triggered，enabled 缺省 true，时间章由服务端盖。
  */
 export const MemoryWriteInputSchema = z.object({
   content: z.string().min(1),
   keys: z.array(z.string()).default([]),
-  title: z.string().optional(),
+  title: z.string().trim().min(1, 'title is required'),
   type: z.enum(['pinned', 'triggered']).default('triggered'),
   enabled: z.boolean().default(true),
 });
@@ -57,7 +57,7 @@ export type MemoryWriteInput = z.infer<typeof MemoryWriteInputSchema>;
  */
 export const MemoryUpdateInputSchema = z
   .object({
-    title: z.string().optional(),
+    title: z.string().trim().min(1, 'title cannot be empty').optional(),
     content: z.string().min(1).optional(),
     keys: z.array(z.string()).optional(),
     type: z.enum(['pinned', 'triggered']).optional(),

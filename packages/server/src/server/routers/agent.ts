@@ -169,13 +169,13 @@ export function createAgentRouter(
     })
   );
 
-  /** GET /api/agents/:id/memory - 记忆条目全量列表，编号升序含停用 */
+  /** GET /api/agents/:id/memory - 记忆条目全量列表，编号倒序含停用，新条目在前 */
   router.get(
     '/:id/memory',
     asyncHandler('AGENT', 'Error listing memory entries', (req, res) => {
       const id = requireParam(getParam(req.params['id']), 'Agent ID');
       if (!getAgentConfig(id)) throw new AppError(404, 'Agent not found');
-      res.json({ entries: new MemoryStore(id).listEntries() });
+      res.json({ entries: new MemoryStore(id).listEntries().reverse() });
     })
   );
 

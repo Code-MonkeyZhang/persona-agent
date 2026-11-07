@@ -77,7 +77,7 @@ export const MEMORY_TOOL_PARAMETERS: JsonSchema = {
     title: {
       type: 'string',
       description:
-        'write and update: short title for lists. Defaults to the start of content',
+        'write and update: required. A short standalone label naming the topic of this entry, in the language of the conversation. Keep it 2 to 10 characters for Chinese or 2 to 6 words for English, a complete word or phrase that reads naturally in a list. Never copy the opening of the content, never cut a sentence in half, and never use emoji or decorative symbols',
     },
     type: {
       type: 'string',
@@ -98,7 +98,7 @@ export const MEMORY_TOOL_PARAMETERS: JsonSchema = {
     query: {
       type: 'string',
       description:
-        'search: keywords matched against content and keys. The query splits into words and any one word matching returns the entry, so pack synonyms of both Chinese and English into one query, like workshop 工作坊 培训. Empty query lists all enabled entries. When keyword searches keep coming back empty, run one with an empty query and scan all entries before you say you do not remember',
+        'search: keywords matched against title, content and keys. The query splits into words and any one word matching returns the entry, so pack synonyms of both Chinese and English into one query, like workshop 工作坊 培训. Empty query lists all enabled entries. When keyword searches keep coming back empty, run one with an empty query and scan all entries before you say you do not remember',
     },
     limit: {
       type: 'number',

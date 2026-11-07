@@ -3,7 +3,7 @@
  *
  * Mock 策略：mock paths.js 到临时目录，走真实文件系统。
  *
- * 覆盖：读写往返、uid 分配、查重、keys 校验、坏行容忍、时间章、
+ * 覆盖：读写往返、uid 分配、查重、keys 与 title 校验、坏行容忍、时间章、
  * 检索、类型过滤、常驻板块文本。
  * 运行：`bun test ./tests/memory.isolated.ts`
  */
@@ -50,6 +50,7 @@ import type { MemoryEntry, MemoryWriteInput } from '@persona/shared';
 /** 构造一条新增输入，字段齐全模拟 zod parse 后的形态 */
 function input(overrides: Partial<MemoryWriteInput> = {}): MemoryWriteInput {
   return {
+    title: '养猫',
     content: '用户养了一只橘猫',
     keys: ['橘猫'],
     type: 'triggered',
@@ -168,6 +169,18 @@ describe('MemoryStore 条目存储', () => {
     expect(patchGood.ok).toBe(true);
   });
 
+  it('title 校验，空标题写入与空标题更新都被拒', () => {
+    const store = new MemoryStore('m7b');
+    const writeBad = store.writeEntry(input({ title: '  ' }));
+    expect(writeBad.ok).toBe(false);
+    expect(writeBad.ok === false && writeBad.kind).toBe('invalid');
+
+    store.writeEntry(input());
+    const patchBad = store.updateEntry(1, { title: '' });
+    expect(patchBad.ok).toBe(false);
+    expect(patchBad.ok === false && patchBad.kind).toBe('invalid');
+  });
+
   it('坏行容忍，残行被跳过其余条目照常工作', () => {
     const store = new MemoryStore('m8');
     store.writeEntry(input({ content: '好行' }));
@@ -195,7 +208,7 @@ describe('MemoryStore 条目存储', () => {
     expect(updated.entry.updatedAt >= updated.entry.createdAt).toBe(true);
   });
 
-  it('search 空 query 列全部启用条目，带 query 匹配 content 与 keys', () => {
+  it('search 空 query 列全部启用条目，带 query 匹配 title、content 与 keys', () => {
     const store = new MemoryStore('m10');
     store.writeEntry(input({ content: '用户养了橘猫', keys: ['橘猫'] }));
     store.writeEntry(input({ content: '用户在上海工作', keys: ['上海'] }));
@@ -209,6 +222,12 @@ describe('MemoryStore 条目存储', () => {
     // 带查询查全量含停用
     expect(store.searchEntries('停用')).toHaveLength(1);
     expect(store.searchEntries('', 1)).toHaveLength(1);
+
+    // '训练' 只出现在标题，命中证明 title 参与检索
+    store.writeEntry(
+      input({ title: '骑行训练', content: '用户每周练两次', keys: ['骑行'] })
+    );
+    expect(store.searchEntries('训练')).toHaveLength(1);
   });
 
   it('search 多词查询按词切分，任一词命中即返回', () => {

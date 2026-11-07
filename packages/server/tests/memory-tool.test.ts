@@ -2,8 +2,9 @@
  * @fileoverview memory 工具壳的测试。
  *
  * Mock 策略：mock paths.js 到临时目录，走真实 MemoryStore 落盘。
- * 覆盖：write 成功与撞重、update 未找到与 keys 校验、forget 回原文、
- * search 空查询与关键词与 limit、参数错误回 success false。
+ * 覆盖：write 成功与撞重、write 缺 title 与空 keys 校验、update 未找到与
+ * 空标题校验、forget 回原文、search 空查询与关键词与 limit、
+ * 参数错误回 success false。
  * 运行：`bun test ./tests/memory-tool.test.ts`
  */
 import {
@@ -60,6 +61,7 @@ describe('MemoryTool', () => {
     const tool = new MemoryTool('t1');
     const result = await tool.execute({
       action: 'write',
+      title: '养猫',
       content: '用户养了一只橘猫叫大橘',
       keys: ['橘猫'],
     });
@@ -73,11 +75,13 @@ describe('MemoryTool', () => {
     const tool = new MemoryTool('t2');
     await tool.execute({
       action: 'write',
+      title: '养猫',
       content: '用户养了一只橘猫叫大橘',
       keys: ['橘猫'],
     });
     const result = await tool.execute({
       action: 'write',
+      title: '养猫',
       content: '用户养了一只橘猫叫大橘',
       keys: ['猫'],
     });
@@ -94,10 +98,22 @@ describe('MemoryTool', () => {
     expect(result.error).toBeTruthy();
   });
 
+  it('write 缺 title 回 success false', async () => {
+    const tool = new MemoryTool('t3b');
+    const result = await tool.execute({
+      action: 'write',
+      content: '用户养了一只橘猫叫大橘',
+      keys: ['橘猫'],
+    });
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('title');
+  });
+
   it('write 空 keys 的 triggered 条目回校验错误', async () => {
     const tool = new MemoryTool('t4');
     const result = await tool.execute({
       action: 'write',
+      title: '哑条目',
       content: '哑条目',
       keys: [],
     });
@@ -109,6 +125,7 @@ describe('MemoryTool', () => {
     const tool = new MemoryTool('t5');
     await tool.execute({
       action: 'write',
+      title: '旧标题',
       content: '旧内容',
       keys: ['旧'],
     });
@@ -132,6 +149,23 @@ describe('MemoryTool', () => {
     expect(result.content).toContain('No entry #9');
   });
 
+  it('update 传空白 title 回 success false', async () => {
+    const tool = new MemoryTool('t6b');
+    await tool.execute({
+      action: 'write',
+      title: '标题',
+      content: '内容',
+      keys: ['词'],
+    });
+    const result = await tool.execute({
+      action: 'update',
+      uid: 1,
+      title: '   ',
+    });
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('title');
+  });
+
   it('update 缺 uid 回 success false', async () => {
     const tool = new MemoryTool('t7');
     const result = await tool.execute({
@@ -146,6 +180,7 @@ describe('MemoryTool', () => {
     const tool = new MemoryTool('t8');
     await tool.execute({
       action: 'write',
+      title: '遗忘测试',
       content: '要遗忘的内容',
       keys: ['遗忘'],
     });
@@ -158,16 +193,19 @@ describe('MemoryTool', () => {
     const tool = new MemoryTool('t9');
     await tool.execute({
       action: 'write',
+      title: '养猫',
       content: '用户养了橘猫',
       keys: ['橘猫'],
     });
     await tool.execute({
       action: 'write',
+      title: '工作城市',
       content: '用户在上海工作',
       keys: ['上海'],
     });
     await tool.execute({
       action: 'write',
+      title: '停用条目',
       content: '停用条目',
       keys: ['停用'],
     });
@@ -194,6 +232,7 @@ describe('MemoryTool', () => {
     for (let i = 1; i <= 5; i++) {
       await tool.execute({
         action: 'write',
+        title: `条目标题${i}`,
         content: `条目${i}`,
         keys: [`词${i}`],
       });
