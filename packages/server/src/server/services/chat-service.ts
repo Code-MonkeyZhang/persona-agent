@@ -77,6 +77,8 @@ interface ChatRequest {
   /** 纯文本为字符串，带附件为内容块数组 */
   content: string | ContentBlock[];
   voiceEnabled?: boolean;
+  /** 发起设备的编号，透传进语音事件，接收端据此跳过非本机的播放，App 通知路径不设置 */
+  initiatorDeviceId?: string;
   sessionManager: SessionManager;
   /** 设置时表示本次对话由 App 通知触发，跳过标题生成 */
   appSource?: string;
@@ -224,6 +226,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
     sessionId,
     content,
     voiceEnabled,
+    initiatorDeviceId,
     sessionManager,
     appSource,
   } = request;
@@ -748,7 +751,8 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
         sessionId,
         session.model ?? agentConfig.defaultModel,
         agentConfig,
-        lastContentText
+        lastContentText,
+        initiatorDeviceId
       ).catch(() => {});
     }
 
@@ -789,7 +793,8 @@ async function handleTtsAsync(
   sessionId: string,
   model: ModelConfig,
   agentConfig: { voiceId?: string; voiceLanguage?: string },
-  lastContentText: string | null
+  lastContentText: string | null,
+  initiatorDeviceId?: string
 ): Promise<void> {
   Logger.log('TTS', 'Starting async pipeline', {
     sessionId,
@@ -806,6 +811,7 @@ async function handleTtsAsync(
     broadcastToSession(sessionId, {
       type: 'speak_error',
       sessionId,
+      initiatorDeviceId,
       reason: 'no_api_key',
       message: '未配置 MiniMax API Key',
     });
@@ -817,6 +823,7 @@ async function handleTtsAsync(
     broadcastToSession(sessionId, {
       type: 'speak_error',
       sessionId,
+      initiatorDeviceId,
       reason: 'no_voice_id',
       message: '未设置语音音色',
     });
@@ -828,6 +835,7 @@ async function handleTtsAsync(
     broadcastToSession(sessionId, {
       type: 'speak_error',
       sessionId,
+      initiatorDeviceId,
       reason: 'no_content',
       message: '无语音内容',
     });
@@ -843,6 +851,7 @@ async function handleTtsAsync(
     broadcastToSession(sessionId, {
       type: 'speak_error',
       sessionId,
+      initiatorDeviceId,
       reason: 'voice_not_found',
       message: '音色不存在或已被删除',
     });
@@ -857,6 +866,7 @@ async function handleTtsAsync(
 
   Logger.log('TTS', 'speak_ready sent', {
     sessionId,
+    initiatorDeviceId,
     speakText,
     speakTextLength: speakText.length,
     voiceId: agentConfig.voiceId,
@@ -867,6 +877,7 @@ async function handleTtsAsync(
   broadcastToSession(sessionId, {
     type: 'speak_ready',
     sessionId,
+    initiatorDeviceId,
     speakText,
     voiceId: agentConfig.voiceId,
     apiKey: ttsConfig.apiKey,

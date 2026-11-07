@@ -44,6 +44,7 @@ import type {
 } from '@persona/shared';
 import { logger } from './logger';
 import { getErrorMessage } from './utils';
+import { getOrCreateDeviceId } from './device-id';
 import type { WallpaperImagePair } from './wallpaper-image';
 
 interface ListAgentsResponse {
@@ -967,6 +968,7 @@ export function getAttachmentUrl(hash: string): string {
 
 /**
  * 通过 HTTP POST 发送聊天消息。调用前应先通过 WebSocket subscribe 订阅会话事件以接收响应。
+ * 请求体携带本机设备编号，服务端将其写进语音事件，用于多端过滤播放。
  * @param agentId - Agent ID
  * @param sessionId - 会话 ID
  * @param content - 消息内容，纯文本字符串或带附件的内容块数组
@@ -988,7 +990,11 @@ export async function sendChatMessage(
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content, voiceEnabled }),
+      body: JSON.stringify({
+        content,
+        voiceEnabled,
+        deviceId: getOrCreateDeviceId(),
+      }),
     }
   );
 

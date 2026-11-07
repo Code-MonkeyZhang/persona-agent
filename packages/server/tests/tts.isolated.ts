@@ -478,6 +478,7 @@ describe('TTS Integration Tests', () => {
                 body: JSON.stringify({
                   content: '你好',
                   voiceEnabled: true,
+                  deviceId: 'device-desktop-test',
                 }),
               },
             ).catch(reject);
@@ -492,6 +493,7 @@ describe('TTS Integration Tests', () => {
         expect(speakReady!.voiceId).toBe('male-qn-qingse');
         expect(speakReady!.apiKey).toBe('sk-test-tts-key');
         expect(speakReady!.model).toBe('speech-2.8-hd');
+        expect(speakReady!.initiatorDeviceId).toBe('device-desktop-test');
 
         const completeIdx = receivedEvents.findIndex(
           (e) => e.type === 'round_complete',
@@ -588,6 +590,7 @@ describe('TTS Integration Tests', () => {
               body: JSON.stringify({
                 content: '你好',
                 voiceEnabled: true,
+                deviceId: 'device-desktop-test',
               }),
             },
           ).catch(reject);
@@ -599,6 +602,7 @@ describe('TTS Integration Tests', () => {
       );
       expect(speakError).toBeDefined();
       expect(speakError!.reason).toBe('no_api_key');
+      expect(speakError!.initiatorDeviceId).toBe('device-desktop-test');
     });
 
     it('should broadcast speak_error when voiceId not found (lazy forget)', async () => {

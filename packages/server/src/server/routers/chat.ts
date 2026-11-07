@@ -109,11 +109,14 @@ export function createChatRouter(sessionManagers: SessionManagersMap): Router {
         'Session ID'
       );
 
-      const { content, voiceEnabled } = req.body as {
+      const { content, voiceEnabled, deviceId } = req.body as {
         content?: unknown;
         voiceEnabled?: unknown;
+        deviceId?: unknown;
       };
       const validContent = validateChatContent(content);
+      const initiatorDeviceId =
+        typeof deviceId === 'string' && deviceId.trim() ? deviceId : undefined;
 
       const sessionManager = sessionManagers.get(agentId);
       if (!sessionManager) {
@@ -128,6 +131,7 @@ export function createChatRouter(sessionManagers: SessionManagersMap): Router {
         sessionId,
         content: validContent,
         voiceEnabled: voiceEnabled === true,
+        initiatorDeviceId,
         sessionManager,
       });
 

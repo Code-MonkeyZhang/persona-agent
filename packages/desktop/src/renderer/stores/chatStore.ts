@@ -17,6 +17,7 @@ import {
 } from '@persona/shared';
 import type { LiveRunState, LiveStep } from '../components/chat/LiveStrip';
 import { createMessage, sendChatMessage, WebSocketClient } from '../lib/api';
+import { getOrCreateDeviceId } from '../lib/device-id';
 import { toContentBlocks, fromContentBlocks } from '../lib/attachments';
 import type { UIAttachment } from '../types/chat';
 import { toast } from './toastStore';
@@ -907,6 +908,13 @@ export const useChatStore = create<ChatStore>((set, get) => {
         }
 
         case 'speak_ready': {
+          if (
+            msg.initiatorDeviceId &&
+            msg.initiatorDeviceId !== getOrCreateDeviceId()
+          ) {
+            logger.info('speak_ready ignored: initiated by another device');
+            break;
+          }
           if (msg.sessionId !== get().currentSessionId) break;
           const { voiceEnabled, speak } = useVoiceStore.getState();
           if (voiceEnabled) {
@@ -922,6 +930,13 @@ export const useChatStore = create<ChatStore>((set, get) => {
         }
 
         case 'speak_error': {
+          if (
+            msg.initiatorDeviceId &&
+            msg.initiatorDeviceId !== getOrCreateDeviceId()
+          ) {
+            logger.info('speak_error ignored: initiated by another device');
+            break;
+          }
           toast.warning(msg.message);
           break;
         }
