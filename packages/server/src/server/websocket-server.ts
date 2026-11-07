@@ -39,6 +39,11 @@ export const PROBE_INTERVAL_MS = 17_500;
 export const MAX_MISSED_PONGS = 2;
 /** 应用层保活节拍，与探测节拍解耦，空闲连接每轮收到一条 keepalive 数据帧 */
 export const KEEPALIVE_INTERVAL_MS = 5_000;
+/**
+ * 保活判定的容差余量，抵消定时器在慢机器上的相位抖动。
+ * 无余量时某一跳落在间隔边缘会整跳空过，实际节拍被拉长到两个周期。
+ */
+const KEEPALIVE_SLACK_MS = 500;
 
 const clients = new Map<string, WebSocketClient>();
 let wss: WebSocketServer | null = null;
@@ -377,7 +382,10 @@ function startKeepalive(): void {
   keepaliveTimer = setInterval(() => {
     const now = Date.now();
     for (const client of clients.values()) {
-      if (now - client.lastSentAt >= KEEPALIVE_INTERVAL_MS) {
+      if (
+        now - client.lastSentAt >=
+        KEEPALIVE_INTERVAL_MS - KEEPALIVE_SLACK_MS
+      ) {
         sendToClient(client, { type: 'keepalive' });
       }
     }
