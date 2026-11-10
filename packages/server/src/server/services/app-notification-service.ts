@@ -7,6 +7,7 @@
 
 import type { SessionManager } from '../../session/session-manager.js';
 import { getAgentConfig } from '../../agent/index.js';
+import { effectiveToolNames } from '../../tools/tool-ids.js';
 import { processChat } from './chat-service.js';
 import { Logger } from '../../util/logger.js';
 
@@ -59,7 +60,7 @@ export async function processAppNotification(
     return;
   }
 
-  if (!agentConfig.mcpNames?.includes(serverName)) {
+  if (!effectiveToolNames(agentConfig).includes(serverName)) {
     Logger.log(
       'MCP-APP',
       `Agent '${agentId}' does not use App '${serverName}'`

@@ -48,17 +48,24 @@ function allocatePort(): Promise<number> {
   });
 }
 
+/** 单服务的池侧回调集合，通知、断连与清单变化各一个挂点 */
+export interface ConnectHandlers {
+  onAppNotification?: (params: Record<string, unknown>) => void;
+  onClosed?: () => void;
+  onToolListChanged?: () => void;
+}
+
 /**
  * Connect to a single MCP server and return its connection result.
  * For remote servers (URL-based), creates an OAuth provider for authentication.
  * For Agent App servers, allocates an HTTP port and passes it via APP_PORT env.
  *
- * @param onAppNotification - Agent App 通知回调，收到 notifications/app 时调用
+ * @param handlers - 池侧回调，按服务绑定后透传给连接对象
  */
 export async function connectOne(
   name: string,
   config: McpServerConfig,
-  onAppNotification?: (params: Record<string, unknown>) => void
+  handlers?: ConnectHandlers
 ): Promise<ConnectResult> {
   const connectionType = determineConnectionType(config);
 
@@ -94,7 +101,9 @@ export async function connectOne(
     connectTimeoutSec: config.connect_timeout,
     executeTimeoutSec: config.execute_timeout,
     authProvider,
-    onAppNotification,
+    onAppNotification: handlers?.onAppNotification,
+    onClosed: handlers?.onClosed,
+    onToolListChanged: handlers?.onToolListChanged,
   });
 
   try {
@@ -144,29 +153,18 @@ export async function connectOne(
  * Connect to all configured MCP servers in parallel.
  *
  * @param serverConfigs - Map of server name -> config
- * @param onAppNotification - Agent App 通知回调，按 server name 绑定后透传给 connectOne
+ * @param handlersFor - 按服务名取回调集合，装载与运行时新增共用
  * @returns Array of connection results
  */
 export async function connectAllServers(
   serverConfigs: Map<string, McpServerConfig>,
-  onAppNotification?: (
-    params: Record<string, unknown>,
-    serverName: string
-  ) => void
+  handlersFor: (name: string) => ConnectHandlers | undefined
 ): Promise<ConnectResult[]> {
   Logger.log('MCP', `Connecting to ${serverConfigs.size} MCP servers...`);
 
   const entries = Array.from(serverConfigs.entries());
   const results = await Promise.all(
-    entries.map(([name, config]) =>
-      connectOne(
-        name,
-        config,
-        onAppNotification
-          ? (params) => onAppNotification(params, name)
-          : undefined
-      )
-    )
+    entries.map(([name, config]) => connectOne(name, config, handlersFor(name)))
   );
 
   const connectedCount = results.filter((r) => r.connection).length;

@@ -126,7 +126,6 @@ function createTestAgentInput(
     systemPrompt: 'You are a helpful assistant. Keep responses brief.',
     defaultModel: { provider: TEST_CONFIG.provider, model: TEST_CONFIG.model },
     maxSteps: 3,
-    mcpNames: [],
     skillNames: [],
     ...overrides,
   };
@@ -618,7 +617,7 @@ chatDescribe('Chat Module Integration Tests', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   content:
-                    'Use the read_file tool to read notes.txt in your workspace, then reply with its exact content.',
+                    'Use the built_in_files__read_file tool to read notes.txt in your workspace, then reply with its exact content.',
                 }),
               }
             ).catch(reject);
@@ -629,7 +628,7 @@ chatDescribe('Chat Module Integration Tests', () => {
         expect(
           started.some(
             (e) =>
-              e.toolName === 'read_file' && e.paramSummary.includes('notes.txt')
+              e.toolName === 'built_in_files__read_file' && e.paramSummary.includes('notes.txt')
           )
         ).toBe(true);
         // 注入开关默认开，required 强制模型必写，叙述字段应随广播透出
@@ -702,7 +701,7 @@ chatDescribe('Chat Module Integration Tests', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   content:
-                    'Use the read_file tool to read notes.txt in your workspace, then reply with its exact content.',
+                    'Use the built_in_files__read_file tool to read notes.txt in your workspace, then reply with its exact content.',
                 }),
               }
             ).catch(reject);
@@ -771,7 +770,7 @@ chatDescribe('Chat Module Integration Tests', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   content:
-                    'Use the read_file tool to read notes.txt in your workspace, then reply with its exact content.',
+                    'Use the built_in_files__read_file tool to read notes.txt in your workspace, then reply with its exact content.',
                 }),
               }
             ).catch(reject);

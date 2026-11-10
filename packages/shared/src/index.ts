@@ -82,13 +82,22 @@ export type {
   McpToolInfo,
   McpConnectionType,
   McpOAuthStatus,
+  ToolEntryKind,
+  ToolFunctionInfo,
+  ToolEntryInfo,
 } from './mcp.js';
 export type { SkillInfo, SkillDetail } from './skill.js';
 export {
   baseName,
   trunc,
   maskSensitive,
+  shortToolName,
   summarizeToolInput,
+  stepPhrase,
+  BUILTIN_TOOLSET_IDS,
+  POSE_TOOLSET_ID,
+  type NarrationTranslate,
+  type NarrationStep,
 } from './tool-summary.js';
 export type { TtsModel, ClonedVoice, VoiceOption, TtsConfig } from './tts.js';
 export {

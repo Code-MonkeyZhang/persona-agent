@@ -303,7 +303,7 @@ describe('addServer', () => {
     ).rejects.toThrow(/already exists/);
   });
 
-  it('sets status to disconnected when connection fails', async () => {
+  it('sets status to failed when connection fails', async () => {
     mockConnectResult = { tools: [], error: 'Connection refused' };
 
     await addServer('fail', {
@@ -313,7 +313,7 @@ describe('addServer', () => {
     });
 
     const entry = getMcpServer('fail');
-    expect(entry?.status).toBe('disconnected');
+    expect(entry?.status).toBe('failed');
     expect(entry?.error).toBe('Connection refused');
   });
 
@@ -363,7 +363,7 @@ describe('reconnectServer', () => {
   it('restores a failed server to connected', async () => {
     mockConnectResult = { tools: [], error: 'Connection refused' };
     await addServer('flaky', { type: 'stdio', command: 'echo', args: [] });
-    expect(getMcpServer('flaky')?.status).toBe('disconnected');
+    expect(getMcpServer('flaky')?.status).toBe('failed');
 
     mockConnectResult = {
       connection: { name: '', tools: [], disconnect: async () => {} },

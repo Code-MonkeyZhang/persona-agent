@@ -10,6 +10,8 @@
 import { EventEmitter } from 'node:events';
 import type { Database } from 'bun:sqlite';
 import type { ChangeKind, SessionChange } from '@persona/shared';
+import { getDb } from '../db/index.js';
+import { Logger } from '../util/logger.js';
 
 /** 变更事件分发器，进程内单例。 */
 export const sessionChangeEmitter = new EventEmitter();
@@ -42,4 +44,34 @@ export function insertChangeRow(
     data,
     createdAt,
   };
+}
+
+/** tools_invalidated 广播的防抖定时器 */
+let invalidateTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** 防抖窗，注册与状态迁移的短时密集变化合成一次广播 */
+const INVALIDATE_DEBOUNCE_MS = 300;
+
+/**
+ * 广播一次 tools_invalidated 事件。
+ *
+ * 事件体为空，客户端收到后整份重拉工具注册表。
+ * 注册表条目变化与工具分配落盘共用这条出口，
+ * 定时器不阻塞进程退出。
+ */
+export function emitToolsInvalidated(): void {
+  if (invalidateTimer) return;
+  invalidateTimer = setTimeout(() => {
+    invalidateTimer = null;
+    try {
+      const event = insertChangeRow(getDb(), 'tools_invalidated', null, {});
+      emitSessionChange(event);
+    } catch (error) {
+      Logger.log(
+        'ERROR',
+        `Failed to emit tools_invalidated: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }, INVALIDATE_DEBOUNCE_MS);
+  invalidateTimer.unref?.();
 }

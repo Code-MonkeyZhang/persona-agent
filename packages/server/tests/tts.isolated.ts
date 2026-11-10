@@ -130,7 +130,6 @@ function createTestAgentInput(
     systemPrompt: 'You are a helpful assistant.',
     defaultModel,
     maxSteps: 10,
-    mcpNames: [],
     skillNames: [],
     ...overrides,
   };

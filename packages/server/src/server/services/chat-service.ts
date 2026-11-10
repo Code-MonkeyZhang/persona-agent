@@ -29,6 +29,11 @@ import {
 } from '@persona/shared';
 import { summarizeToolInput } from '@persona/shared';
 import type { ToolResult } from '../../tools/index.js';
+import {
+  POSE_TOOLSET_ID,
+  effectiveToolNames,
+  toFullName,
+} from '../../tools/index.js';
 import { Logger } from '../../util/logger.js';
 import { broadcastToSession, broadcastToAll } from '../websocket-server.js';
 import * as sessionRegistry from './session-registry.js';
@@ -418,7 +423,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
       sessionId,
       session,
       workspaceDir,
-      agentConfig.mcpNames,
+      effectiveToolNames(agentConfig),
       agentConfig.skillNames
     );
     if (runtimeContext.persisted) {
@@ -503,6 +508,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
               arguments: tc.function.arguments,
               toolTitle: tc.toolTitle,
               toolIntent: tc.toolIntent,
+              iconUrl: tc.iconUrl,
             }))
           : undefined,
       toolResults:
@@ -546,7 +552,11 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
         });
 
         // show_pose 校验通过时，将 pose 持久化到 session 元数据
-        if (tr.toolName === 'show_pose' && tr.success && toolCall) {
+        if (
+          tr.toolName === toFullName(POSE_TOOLSET_ID, 'show_pose') &&
+          tr.success &&
+          toolCall
+        ) {
           const pose = toolCall.function.arguments['pose'] as
             | string
             | undefined;
@@ -641,6 +651,8 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
             const toolName = event.toolCall.function.name;
             const args = event.toolCall.function.arguments || {};
             const paramSummary = summarizeToolInput(toolName, args);
+            // 图址解析一次挂上调用对象，广播、step_complete 与落盘共用同一引用
+            event.toolCall.iconUrl = getMcpToolLogoUrl(toolName);
             activityRegistry.setActivity(sessionId, {
               kind: 'tool',
               stepIndex: currentStep.stepIndex,
@@ -656,7 +668,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
               toolTitle: event.toolCall.toolTitle,
               toolIntent: event.toolCall.toolIntent,
               // MCP 工具带所属服务 logo，内置工具 undefined 由客户端回退 Wrench
-              iconUrl: getMcpToolLogoUrl(toolName),
+              iconUrl: event.toolCall.iconUrl,
             });
             Logger.log('CHAT', 'Tool started broadcast', {
               sessionId,
@@ -664,6 +676,7 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
               toolName,
               toolTitle: event.toolCall.toolTitle,
               toolIntent: event.toolCall.toolIntent,
+              iconUrl: event.toolCall.iconUrl,
             });
             break;
           }

@@ -10,6 +10,7 @@ export {
   updateAgentConfig,
   deleteAgentConfig,
   backfillDefaultWorkspacePaths,
+  migrateLegacyToolNames,
 } from './agent-config-store.js';
 export { withAvatarHash, listAgentsWithHashes } from './agent-list.js';
 export {

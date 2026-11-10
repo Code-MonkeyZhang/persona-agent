@@ -68,6 +68,8 @@ interface WsToolCall {
   /** 模型自写的工具叙述，随 toolCalls 项透传，供显示层取值优先读 */
   toolTitle?: string;
   toolIntent?: string;
+  /** MCP 工具所属服务的 logo 图址，随 toolCalls 项透传，历史行复用 */
+  iconUrl?: string;
 }
 
 /**

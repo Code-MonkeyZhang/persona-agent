@@ -284,11 +284,11 @@ describe('Agent Module Integration Tests', () => {
        * 测试：更新未提供工具/技能分配时保留原值。
        * 回归：Zod v4 下 .partial() 会给带默认值的字段填默认值 []，导致只改提示词就清空工具/技能。
        */
-      it('should preserve skillNames/mcpNames when update omits them', () => {
+      it('should preserve skillNames/toolNames when update omits them', () => {
         const created = createAgentConfig(
           createTestAgentInput({
             skillNames: ['skill-a', 'skill-b'],
-            mcpNames: ['mcp-x'],
+            toolNames: ['built_in_terminal'],
           })
         );
 
@@ -299,7 +299,7 @@ describe('Agent Module Integration Tests', () => {
         const updated = updateAgentConfig(created.id, parsed.data);
 
         expect(updated.skillNames).toEqual(['skill-a', 'skill-b']);
-        expect(updated.mcpNames).toEqual(['mcp-x']);
+        expect(updated.toolNames).toEqual(['built_in_terminal']);
       });
 
       /** 测试：更新传空串时工作空间重置为默认路径 */

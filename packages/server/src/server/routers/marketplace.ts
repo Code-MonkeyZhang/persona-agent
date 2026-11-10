@@ -200,7 +200,7 @@ export function createMarketplaceRouter(
       res.json({
         success: true,
         name,
-        status: server?.status ?? 'disconnected',
+        status: server?.status ?? 'failed',
         error: server?.error,
       });
     })

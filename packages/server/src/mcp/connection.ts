@@ -11,7 +11,12 @@ import { Logger } from '../util/logger.js';
 import { errorMessage } from '../util/errors.js';
 import { APP_NAME, APP_VERSION } from '../util/app.js';
 import type { Tool, ToolInput, ToolResult, JsonSchema } from '../tools/base.js';
-import type { ConnectionType, McpClient, McpServerConfig } from './types.js';
+import type {
+  ConnectionType,
+  McpClient,
+  McpServerConfig,
+  McpToolDefinition,
+} from './types.js';
 import type { McpOAuthProvider } from './oauth/provider.js';
 
 //TODO: 这个是写死的配置, 以后要考虑放到前端的服务器设置里面给用户自行配置
@@ -23,23 +28,29 @@ const DEFAULT_TIMEOUTS = {
 /**
  * Adapts a remote MCP tool into the local {@link Tool} interface.
  * Handles execution timeout and error/result normalization.
+ *
+ * name carries the entry-prefixed full name the model sees,
+ * remoteName keeps the bare name the server expects in callTool.
  */
 export class MCPTool implements Tool {
   public name: string;
   public description: string;
   public parameters: JsonSchema;
 
+  /** 远端短名，callTool 与清单元数据共用，对外暴露只读 */
+  public readonly remoteName: string;
   private session: McpClient;
   private executeTimeoutMs: number;
-
   constructor(options: {
     name: string;
+    remoteName: string;
     description: string;
     parameters: JsonSchema;
     session: McpClient;
     executeTimeoutSec: number;
   }) {
     this.name = options.name;
+    this.remoteName = options.remoteName;
     this.description = options.description;
     this.parameters = options.parameters;
     this.session = options.session;
@@ -56,7 +67,7 @@ export class MCPTool implements Tool {
     try {
       const result = await withTimeout(
         this.session.callTool({
-          name: this.name,
+          name: this.remoteName,
           arguments: params,
         }),
         this.executeTimeoutMs,
@@ -110,6 +121,12 @@ export class MCPServerConnection {
     | null = null;
   private authProvider?: McpOAuthProvider;
   private onAppNotification?: (params: Record<string, unknown>) => void;
+  /** 传输意外断开的回调，主动断开不触发 */
+  private onClosed?: () => void;
+  /** 服务端通知工具清单变化的回调 */
+  private onToolListChanged?: () => void;
+  /** 主动断开标志，区分意外断开与正常收尾 */
+  private intentionallyClosed = false;
 
   constructor(options: {
     name: string;
@@ -124,6 +141,8 @@ export class MCPServerConnection {
     executeTimeoutSec?: number;
     authProvider?: McpOAuthProvider;
     onAppNotification?: (params: Record<string, unknown>) => void;
+    onClosed?: () => void;
+    onToolListChanged?: () => void;
   }) {
     this.name = options.name;
     this.connectionType = options.connectionType;
@@ -137,6 +156,8 @@ export class MCPServerConnection {
     this.executeTimeoutSec = options.executeTimeoutSec;
     this.authProvider = options.authProvider;
     this.onAppNotification = options.onAppNotification;
+    this.onClosed = options.onClosed;
+    this.onToolListChanged = options.onToolListChanged;
   }
 
   private getConnectTimeoutSec(): number {
@@ -197,19 +218,23 @@ export class MCPServerConnection {
     error?: string;
   }> {
     const connectTimeoutMs = this.getConnectTimeoutSec() * 1000;
+    this.intentionallyClosed = false;
     const transport = this.createTransport();
     const client = new Client({
       name: APP_NAME,
       version: APP_VERSION,
     });
 
-    // Agent App 通知：注册 fallback handler 过滤 notifications/app
-    if (this.onAppNotification) {
-      client.fallbackNotificationHandler = async (notification) => {
-        if (notification.method !== 'notifications/app') return;
+    // 通知分发：Agent App 的 notifications/app 与工具清单变化共用 fallback 挂点
+    client.fallbackNotificationHandler = async (notification) => {
+      if (notification.method === 'notifications/app') {
         this.onAppNotification?.(notification.params ?? {});
-      };
-    }
+        return;
+      }
+      if (notification.method === 'notifications/tools/list_changed') {
+        this.onToolListChanged?.();
+      }
+    };
 
     const session = client as unknown as McpClient;
 
@@ -226,25 +251,14 @@ export class MCPServerConnection {
       this.session = session;
       this.transport = transport;
       this.instructions = session.getInstructions?.();
+      this.rebuildTools(toolsList.tools ?? []);
 
-      const executeTimeout = this.getExecuteTimeoutSec();
-      for (const tool of toolsList.tools ?? []) {
-        const rawParameters = tool.inputSchema ?? tool.input_schema ?? {};
-        const normalizedParameters = normalizeToolSchema(rawParameters);
-        const normalizedDescription = normalizeToolDescription(
-          tool.description ?? ''
-        );
-
-        this.tools.push(
-          new MCPTool({
-            name: tool.name,
-            description: normalizedDescription,
-            parameters: normalizedParameters,
-            session,
-            executeTimeoutSec: executeTimeout,
-          })
-        );
-      }
+      // 意外断开的感知点，stdio 子进程退出与 http 传输关闭都落这里
+      transport.onclose = () => {
+        if (!this.intentionallyClosed) {
+          this.onClosed?.();
+        }
+      };
 
       Logger.log(
         'MCP',
@@ -288,8 +302,44 @@ export class MCPServerConnection {
     }
   }
 
+  /**
+   * 把一次 listTools 的结果包装成本地工具实例数组。
+   * 对外 name 用 服务名__功能名 的全名，rawName 留短名给 callTool。
+   * 首次连接与清单刷新共用。
+   */
+  private rebuildTools(definitions: McpToolDefinition[]): void {
+    const executeTimeout = this.getExecuteTimeoutSec();
+    this.tools = definitions.map((tool) => {
+      const rawParameters = tool.inputSchema ?? tool.input_schema ?? {};
+      return new MCPTool({
+        name: `${this.name}__${tool.name}`,
+        remoteName: tool.name,
+        description: normalizeToolDescription(tool.description ?? ''),
+        parameters: normalizeToolSchema(rawParameters),
+        session: this.session!,
+        executeTimeoutSec: executeTimeout,
+      });
+    });
+  }
+
+  /**
+   * 全量重拉工具清单并重建本地实例。
+   * 会话进行中调用是安全的，刷新只换实例数组不碰连接本身。
+   *
+   * @throws 连接已断开时抛 Error，调用方据状态跳过
+   */
+  async refreshTools(): Promise<MCPTool[]> {
+    if (!this.session) {
+      throw new Error(`Server '${this.name}' is not connected`);
+    }
+    const toolsList = await this.session.listTools();
+    this.rebuildTools(toolsList.tools ?? []);
+    return this.tools;
+  }
+
   /** Close the session and transport, releasing all resources. */
   async disconnect(): Promise<void> {
+    this.intentionallyClosed = true;
     const session = this.session;
     const transport = this.transport;
     this.session = null;

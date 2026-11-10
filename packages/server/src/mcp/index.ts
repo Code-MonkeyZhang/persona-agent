@@ -11,7 +11,7 @@ export {
   getMcpServerLogoUrl,
   getMcpToolLogoUrl,
   setAppNotificationHandler,
-  getMcpToolsForServers,
+  getMcpToolsForServer,
   getMcpPromptInfo,
   startOAuthFlow,
   getOAuthStatus,

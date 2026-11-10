@@ -70,6 +70,8 @@ export interface ToolCall {
   toolTitle?: string;
   /** 模型自写的本次调用意图，schema 注入键 _intent 在事件源头剥离后挂此 */
   toolIntent?: string;
+  /** MCP 工具所属服务的 logo 图址，事件源头解析后随调用落盘，历史回放复用 */
+  iconUrl?: string;
   toolResult?: {
     content: string;
     isError: boolean;

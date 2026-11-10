@@ -77,7 +77,6 @@ export async function installAgentFromMarketplace(
     delete raw['voiceId'];
     delete raw['marketplaceSource'];
     raw['skillNames'] = [];
-    raw['mcpNames'] = [];
 
     // 写入商城来源标识, 格式 owner/repo/folder, 供已安装判定使用
     raw['marketplaceSource'] = `${REPO_OWNER}/${REPO_NAME}/${name}`;

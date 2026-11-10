@@ -11,6 +11,7 @@ import { getLogsDir, getConfigPath } from './util/paths.js';
 import { loadConfig, setToolNarration } from './config.js';
 import {
   backfillDefaultWorkspacePaths,
+  migrateLegacyToolNames,
   seedInitialAgent,
 } from './agent/index.js';
 import { APP_NAME, APP_VERSION } from './util/app.js';
@@ -37,6 +38,7 @@ program
     // 启动预热建库，正确性由惰性初始化兜底，早于它的写入会自动建库
     getDb();
     backfillDefaultWorkspacePaths();
+    migrateLegacyToolNames();
     seedInitialAgent();
 
     // 动态 import 保证 seed 先于 http-server 模块体的 initSessionManagers()

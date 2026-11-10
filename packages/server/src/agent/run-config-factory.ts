@@ -7,24 +7,19 @@
 import { getAuth } from '../auth/index.js';
 import { getSkills } from '../skill/index.js';
 import type { Skill } from '../skill/index.js';
+import { getMcpToolsForServer } from '../mcp/index.js';
 import {
-  getMcpToolsForServers,
-  getMcpPromptInfo,
-  getMcpServer,
-} from '../mcp/index.js';
-import {
-  ReadTool,
-  WriteTool,
-  EditTool,
-  BashTool,
-  BashOutputTool,
-  BashKillTool,
-  WebFetchTool,
+  BUILTIN_TOOLSETS,
+  POSE_TOOLSET_ID,
+  effectiveToolNames,
+  hasPoseAssets,
+  type BuiltinToolDeps,
 } from '../tools/index.js';
-import { ShowPoseTool, GetCurrentPoseTool } from '../tools/pose-tools.js';
-import { MemoryTool } from '../tools/memory-tool.js';
+import { toolRegistry } from '../tools/index.js';
+import type { Tool } from '../tools/index.js';
 import { findGitBash } from '../util/git-bash-detector.js';
 import { isToolNarrationEnabled } from '../config.js';
+import { Logger } from '../util/logger.js';
 import { MemoryStore, buildPinnedSegment } from './memory/memory-store.js';
 import { models } from './pi-models.js';
 import type { AgentConfig, AgentRunConfig } from './types.js';
@@ -32,7 +27,7 @@ import type { Session } from '../session/types.js';
 import type { SessionManager } from '../session/session-manager.js';
 
 /**
- * Build a system prompt with environment context, skills, and MCP server info.
+ * Build a system prompt with environment context and skills.
  *
  * Output format:
  * ```
@@ -57,12 +52,14 @@ import type { SessionManager } from '../session/session-manager.js';
  * {narration fields statement, present only when tool narration is enabled}
  * ```
  *
+ * 外部服务的清单与状态不在本函数注入，由 runtime-context 的首份清单
+ * 与变化通知走动态通道承担。
+ *
  * @param basePrompt - Base system prompt from agent configuration
  * @param workspaceDir - Current working directory path
  * @param provider - LLM provider name (e.g. 'openai', 'anthropic')
  * @param modelId - Model identifier string
  * @param skills - Available skills array, optional
- * @param mcpNames - MCP server names for status display, optional
  * @returns Complete system prompt with environment context and skills
  */
 function buildSystemPrompt(
@@ -71,7 +68,6 @@ function buildSystemPrompt(
   provider: string,
   modelId: string,
   skills?: Skill[],
-  mcpNames?: string[],
   bashPath?: string | null
 ): string {
   const platform = process.platform;
@@ -120,24 +116,6 @@ ${skill.content}`;
 ## Available Skills
 
 No skill is assigned to you. Any skills found on disk belong to the shared pool and are not yours, so do not claim, list, or use them.`;
-  }
-
-  if (mcpNames && mcpNames.length > 0) {
-    const mcpInfo = getMcpPromptInfo(mcpNames);
-    prompt += `
-
-## MCP Servers`;
-
-    for (const { name, status, instructions } of mcpInfo) {
-      prompt += `\n- ${name}: ${status}`;
-      if (instructions) {
-        const indented = instructions
-          .split('\n')
-          .map((line) => `  ${line}`)
-          .join('\n');
-        prompt += `\n${indented}`;
-      }
-    }
   }
 
   // 叙述注入的第二通道，schema 里的说明对模型只是软提示，flash 级模型可能忽略
@@ -196,13 +174,15 @@ export function createAgentRunConfig(
     ? getSkills(agentConfig.skillNames)
     : [];
 
+  // 分配派生与装配共用 effectiveToolNames 结果，注入与工具页展示同源
+  const assignment = new Set(effectiveToolNames(agentConfig));
+
   let systemPrompt = buildSystemPrompt(
     agentConfig.systemPrompt,
     workspaceDir,
     provider,
     modelId,
     skills,
-    agentConfig.mcpNames,
     resolvedBashPath
   );
 
@@ -215,34 +195,44 @@ export function createAgentRunConfig(
     systemPrompt += `\n\n${pinnedSegment}`;
   }
 
-  const mcpTools = agentConfig.mcpNames?.length
-    ? getMcpToolsForServers(agentConfig.mcpNames)
-    : [];
+  const builtinDeps: BuiltinToolDeps = {
+    workspaceDir,
+    bashPath: resolvedBashPath ?? undefined,
+    agentId: agentConfig.id,
+    sessionId: session.id,
+    sessionManager,
+  };
 
-  const tools = [
-    new ReadTool(workspaceDir),
-    new WriteTool(workspaceDir),
-    new EditTool(workspaceDir),
-    new BashTool(resolvedBashPath ?? undefined),
-    new BashOutputTool(),
-    new BashKillTool(),
-    new WebFetchTool(),
-    new ShowPoseTool(agentConfig.id),
-    new GetCurrentPoseTool(sessionManager, session.id),
-    new MemoryTool(agentConfig.id),
-    ...mcpTools,
-  ];
-
-  // 收集 Agent App 工具名，供 executeTool 注入 agentId/sessionId
+  // 装配主链：注册表快照按注册顺序出表，分配记录过滤条目，
+  // 内置按定义构造执行体，外部从连接取，顺序稳定保护服务商缓存
+  const tools: Tool[] = [];
   const agentAppToolNames = new Set<string>();
-  for (const serverName of agentConfig.mcpNames ?? []) {
-    const entry = getMcpServer(serverName);
-    if (entry?.agentApp) {
-      for (const tool of entry.tools) {
+  for (const entry of toolRegistry.snapshot()) {
+    if (!assignment.has(entry.id)) continue;
+    // 立绘条目按 Agent 资产现算可见性，无资产整组不注入
+    if (entry.id === POSE_TOOLSET_ID && !hasPoseAssets(agentConfig.id)) {
+      continue;
+    }
+    if (entry.kind === 'builtin') {
+      const definition = BUILTIN_TOOLSETS.find((def) => def.id === entry.id);
+      if (definition) {
+        tools.push(...definition.create(builtinDeps));
+      }
+      continue;
+    }
+    const remoteTools = getMcpToolsForServer(entry.id);
+    tools.push(...remoteTools);
+    if (entry.kind === 'app') {
+      for (const tool of remoteTools) {
         agentAppToolNames.add(tool.name);
       }
     }
   }
+
+  Logger.log(
+    'TOOLS',
+    `Assembled ${tools.length} functions for agent '${agentConfig.id}' from ${assignment.size} assigned entries`
+  );
 
   return {
     agentName: agentConfig.name,
