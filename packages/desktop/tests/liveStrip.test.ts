@@ -28,6 +28,7 @@ vi.mock('@/lib/api', () => ({
   createAgent: vi.fn(),
   updateAgent: vi.fn(),
   deleteAgent: vi.fn(),
+  resolveTimelineIconUrl: (iconUrl: string | undefined) => iconUrl,
   listSessions: vi.fn(),
   createSession: vi.fn(),
   deleteSession: vi.fn(),
@@ -35,10 +36,10 @@ vi.mock('@/lib/api', () => ({
 }));
 
 import { useChatStore } from '@/stores/chatStore';
+import { stepPhrase } from '@persona/shared';
 import {
   buildRows,
   idleLabel,
-  stepPhrase,
   type Translate,
 } from '@/components/chat/LiveStrip';
 import type { UIMessage, Thought } from '@/types/chat';

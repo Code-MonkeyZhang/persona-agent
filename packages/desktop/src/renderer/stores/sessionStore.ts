@@ -5,7 +5,12 @@
 
 import { create } from 'zustand';
 import type { SessionMeta, Session } from '../types/session';
-import { createSession, deleteSession, updateSession } from '../lib/api';
+import {
+  createSession,
+  deleteSession,
+  updateSession,
+  resolveTimelineIconUrl,
+} from '../lib/api';
 import type { UIMessage, Thought } from '../types/chat';
 import type { Message } from '@persona/shared';
 import { fromContentBlocks } from '../lib/attachments';
@@ -408,6 +413,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
               toolInput: tc.function.arguments,
               toolTitle: tc.toolTitle,
               toolIntent: tc.toolIntent,
+              iconUrl: resolveTimelineIconUrl(tc.iconUrl),
               toolResult: tc.toolResult
                 ? {
                     output: tc.toolResult.content,

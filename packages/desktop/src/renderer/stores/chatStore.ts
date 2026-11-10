@@ -16,7 +16,12 @@ import {
   messagePreviewText,
 } from '@persona/shared';
 import type { LiveRunState, LiveStep } from '../components/chat/LiveStrip';
-import { createMessage, sendChatMessage, WebSocketClient } from '../lib/api';
+import {
+  createMessage,
+  sendChatMessage,
+  WebSocketClient,
+  resolveTimelineIconUrl,
+} from '../lib/api';
 import { getOrCreateDeviceId } from '../lib/device-id';
 import { toContentBlocks, fromContentBlocks } from '../lib/attachments';
 import type { UIAttachment } from '../types/chat';
@@ -69,6 +74,7 @@ function cycleToThoughts(msg: StepCompleteMessage): Thought[] {
       toolInput: tc.arguments,
       toolTitle: tc.toolTitle,
       toolIntent: tc.toolIntent,
+      iconUrl: resolveTimelineIconUrl(tc.iconUrl),
       toolResult: result
         ? {
             output: result.result,
@@ -127,8 +133,8 @@ function mergeStepIntoLiveRun(
       output: th.toolResult?.output,
       // 闭合时以落盘侧的存档文案为准，tool_started 漏收的步从这里补上取值链第一档
       toolTitle: th.toolTitle ?? openSteps[i]?.toolTitle,
-      // logo 图址只在 tool_started 事件携带，闭合步沿用活动步的图址
-      iconUrl: openSteps[i]?.iconUrl,
+      // 图址已随步骤落盘，闭合步优先读落盘侧，活动步的图址兜底
+      iconUrl: th.iconUrl ?? openSteps[i]?.iconUrl,
       failed: th.isError || th.toolResult?.isError || undefined,
     };
     if (i < openSteps.length) closed.push(step);
@@ -718,7 +724,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
                     tool: msg.toolName,
                     detail: msg.paramSummary,
                     toolTitle: msg.toolTitle,
-                    iconUrl: msg.iconUrl,
+                    iconUrl: resolveTimelineIconUrl(msg.iconUrl),
                     startedAt,
                   },
                 ],
@@ -732,6 +738,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
             sessionId,
             stepIndex: msg.stepIndex,
             toolName: msg.toolName,
+            iconUrl: msg.iconUrl,
           });
           break;
         }

@@ -27,7 +27,12 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { baseName, summarizeToolInput, trunc } from '@persona/shared';
+import {
+  shortToolName,
+  stepPhrase,
+  summarizeToolInput,
+  trunc,
+} from '@persona/shared';
 import { userRowLabel } from '../../lib/attachments';
 import { useChatStore } from '../../stores/chatStore';
 import { RowDetailDialog, type RowDetail } from './RowDetailDialog';
@@ -74,55 +79,11 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
 
 /**
  * 取工具步的身份图标，行前置位任何时候都是身份图标，成功失败不抢图标位
- * MCP 工具的身份由 iconUrl 图址承担，这里只兜无图址的展示位
+ * 全名先剥条目前缀再查表，MCP 工具的身份由 iconUrl 图址承担，这里只兜无图址的展示位
  * @param tool 工具实名
  */
 export function toolIcon(tool: string): LucideIcon {
-  return TOOL_ICONS[tool] ?? Wrench;
-}
-
-/**
- * 单个步骤的自然语言动向句，三级取值链，模型自写短标题优先，
- * 查表翻译次之，未登记的第三方工具回退 正在执行 加工具名
- * @param t 文案函数
- * @param step 待叙述的步骤
- */
-export function stepPhrase(t: (key: string) => string, step: LiveStep): string {
-  if (step.toolTitle) return step.toolTitle;
-  switch (step.tool) {
-    case '':
-      return t('live.thinking');
-    case 'read_file':
-      return step.detail
-        ? `${t('live.read')} ${baseName(step.detail)}`
-        : t('live.readFallback');
-    case 'write_file':
-      return step.detail
-        ? `${t('live.write')} ${baseName(step.detail)}`
-        : t('live.writeFallback');
-    case 'edit_file':
-      return step.detail
-        ? `${t('live.edit')} ${baseName(step.detail)}`
-        : t('live.editFallback');
-    case 'bash':
-      return step.detail
-        ? `${t('live.bash')} ${trunc(step.detail, 24)}`
-        : t('live.bashFallback');
-    case 'bash_output':
-      return t('live.bashOutput');
-    case 'bash_kill':
-      return t('live.bashKill');
-    case 'web_fetch':
-      return step.detail
-        ? `${t('live.webfetch')} ${step.detail}`
-        : t('live.webfetchFallback');
-    case 'show_pose':
-      return t('live.showPose');
-    case 'get_current_pose':
-      return t('live.getPose');
-    default:
-      return `${t('live.executing')} ${step.tool}`;
-  }
+  return TOOL_ICONS[shortToolName(tool)] ?? Wrench;
 }
 
 /**
@@ -245,6 +206,7 @@ export function buildRows(
           tool: th.toolName ?? '',
           detail: summarizeToolInput(th.toolName ?? '', th.toolInput),
           toolTitle: th.toolTitle,
+          iconUrl: th.iconUrl,
           failed: th.isError || th.toolResult?.isError || undefined,
           input: th.toolInput ? JSON.stringify(th.toolInput) : undefined,
           output: th.toolResult?.output,
