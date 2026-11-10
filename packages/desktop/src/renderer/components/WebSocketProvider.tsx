@@ -14,6 +14,7 @@ import { SyncEngine } from '../lib/sync-engine';
 import { useChatStore } from '../stores/chatStore';
 import { useSessionStore } from '../stores/sessionStore';
 import { useAgentStore } from '../stores/agentStore';
+import { useMcpStore } from '../stores/mcpStore';
 import { useTunnelStore } from '../stores/tunnelStore';
 import { useConnectionStore } from '../stores/connectionStore';
 import { useLauncherPrefsStore } from '../stores/launcherPrefsStore';
@@ -95,6 +96,12 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       // 事件体不带增量数据，整份重拉角色清单
       if (msg.change.kind === 'agents_invalidated') {
         void useAgentStore.getState().loadAgents();
+      }
+      // 注册表条目变化同样整份重拉，用最近一次加载的 agentId 保住分配标记
+      if (msg.change.kind === 'tools_invalidated') {
+        void useMcpStore
+          .getState()
+          .loadTools(useMcpStore.getState().lastAgentId);
       }
     });
 

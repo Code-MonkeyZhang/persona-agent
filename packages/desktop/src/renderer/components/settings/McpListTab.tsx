@@ -18,7 +18,7 @@ import {
   EmptyHint,
 } from '../common/SidePanel';
 import { McpDetailPanel } from '../mcp/McpDetailPanel';
-import { McpRow } from '../tools/toolRows';
+import { ExternalToolRow } from '../tools/toolRows';
 import { useValidatedSelection } from '../../hooks/useValidatedSelection';
 
 export const McpListTab: React.FC = () => {
@@ -76,9 +76,12 @@ export const McpListTab: React.FC = () => {
               <EmptyHint text={t('mcpPool.empty')} />
             ) : (
               entries.map((server) => (
-                <McpRow
+                <ExternalToolRow
                   key={server.name}
-                  server={server}
+                  name={server.displayName}
+                  status={server.status}
+                  logoUrl={server.logoUrl}
+                  app={server.agentApp === true}
                   selected={selection === server.name}
                   onClick={() => handleSelect(server.name)}
                 />

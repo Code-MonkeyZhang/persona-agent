@@ -3,12 +3,14 @@
  * 文案按预览文案口径节的双语映射表，工具实名用本体内置工具的 snake_case 名
  */
 import { describe, expect, it } from 'vitest';
+import { phraseForThought, type LiveStep } from '@/components/chat/LiveStrip';
 import {
-  phraseForThought,
+  BUILTIN_TOOLSET_IDS,
+  maskSensitive,
   stepPhrase,
-  type LiveStep,
-} from '@/components/chat/LiveStrip';
-import { maskSensitive, summarizeToolInput } from '@persona/shared';
+  summarizeToolInput,
+} from '@persona/shared';
+import { BUILTIN_ICONS } from '@/components/tools/toolRows';
 import type { Thought } from '@/types/chat';
 
 /** 测试用的中文文案表，键与 i18n 的 live 组一致 */
@@ -52,13 +54,13 @@ const thought = (partial: Partial<Thought>): Thought => ({
 describe('stepPhrase 动向句映射', () => {
   it('文件工具取 basename 拼对象', () => {
     expect(stepPhrase(t, step('read_file', '/a/b/chat.ts'))).toBe(
-      '正在读取 chat.ts',
+      '正在读取 chat.ts'
     );
     expect(stepPhrase(t, step('edit_file', 'src/app.ts'))).toBe(
-      '正在编辑 app.ts',
+      '正在编辑 app.ts'
     );
     expect(stepPhrase(t, step('write_file', 'config.json'))).toBe(
-      '正在写入 config.json',
+      '正在写入 config.json'
     );
   });
 
@@ -72,9 +74,7 @@ describe('stepPhrase 动向句映射', () => {
 
   it('Bash 命令按文档截断 24', () => {
     const cmd = 'npm run build --mode production --verbose';
-    expect(stepPhrase(t, step('bash', cmd))).toBe(
-      `运行 ${cmd.slice(0, 23)}…`,
-    );
+    expect(stepPhrase(t, step('bash', cmd))).toBe(`运行 ${cmd.slice(0, 23)}…`);
   });
 
   it('表情与后台命令族是固定句式', () => {
@@ -84,9 +84,19 @@ describe('stepPhrase 动向句映射', () => {
     expect(stepPhrase(t, step('bash_kill', 'bash_1'))).toBe('终止后台命令');
   });
 
-  it('未登记的第三方工具统一正在执行加工具名', () => {
-    expect(stepPhrase(t, step('mcp__weather__lookup', ''))).toBe(
-      '正在执行 mcp__weather__lookup',
+  it('未登记的第三方工具统一正在执行加短名', () => {
+    expect(stepPhrase(t, step('weather__lookup', ''))).toBe('正在执行 lookup');
+  });
+
+  it('全名先剥条目前缀再查表', () => {
+    expect(
+      stepPhrase(t, step('built_in_files__read_file', '/a/b/app.ts'))
+    ).toBe('正在读取 app.ts');
+    expect(
+      stepPhrase(t, step('built_in_terminal__bash_output', 'bash_1'))
+    ).toBe('查看后台输出');
+    expect(stepPhrase(t, step('built_in_pose__show_pose', 'happy'))).toBe(
+      '切换表情'
     );
   });
 });
@@ -96,27 +106,27 @@ describe('phraseForThought 适配器', () => {
     expect(
       phraseForThought(
         t,
-        thought({ toolName: 'read_file', toolInput: { path: '/a/b/app.ts' } }),
-      ),
+        thought({ toolName: 'read_file', toolInput: { path: '/a/b/app.ts' } })
+      )
     ).toBe('正在读取 app.ts');
   });
 
   it('思考行与错误行原样返回正文', () => {
     expect(
-      phraseForThought(t, thought({ type: 'thinking', content: '先查日志' })),
+      phraseForThought(t, thought({ type: 'thinking', content: '先查日志' }))
     ).toBe('先查日志');
   });
 });
 
 describe('summarizeToolInput 参数摘要', () => {
   it('按工具实名取关键参数', () => {
-    expect(
-      summarizeToolInput('read_file', { path: '/a/b/app.ts' }),
-    ).toBe('/a/b/app.ts');
-    expect(summarizeToolInput('bash', { command: 'ls -la' })).toBe('ls -la');
-    expect(summarizeToolInput('web_fetch', { url: 'https://www.example.com/a' })).toBe(
-      'example.com',
+    expect(summarizeToolInput('read_file', { path: '/a/b/app.ts' })).toBe(
+      '/a/b/app.ts'
     );
+    expect(summarizeToolInput('bash', { command: 'ls -la' })).toBe('ls -la');
+    expect(
+      summarizeToolInput('web_fetch', { url: 'https://www.example.com/a' })
+    ).toBe('example.com');
   });
 
   it('缺参与空对象返回空串', () => {
@@ -136,23 +146,31 @@ describe('summarizeToolInput 参数摘要', () => {
 describe('maskSensitive 凭据掩码', () => {
   it('值形态整段替换', () => {
     expect(maskSensitive('key sk-abcdefgh12345678 end')).toBe(
-      'key ******** end',
+      'key ******** end'
     );
     expect(maskSensitive('Authorization: Bearer abcdefghijkl789')).toContain(
-      '********',
+      '********'
     );
   });
 
   it('键值对形态保留键只换值', () => {
     expect(maskSensitive('"api_key": "deadbeef1234"')).toBe(
-      '"api_key": "********"',
+      '"api_key": "********"'
     );
     expect(maskSensitive('password=hunter2alpha')).toBe('password=********');
   });
 
   it('Bash 命令里的密钥先掩码再进摘要', () => {
     expect(
-      summarizeToolInput('bash', { command: 'curl -H sk-abcdefgh12345678' }),
+      summarizeToolInput('bash', { command: 'curl -H sk-abcdefgh12345678' })
     ).toBe('curl -H ********');
+  });
+});
+
+describe('内置图标表覆盖', () => {
+  it('键集与 shared 的内置条目 id 完全一致，改名漏改当场拦截', () => {
+    expect(Object.keys(BUILTIN_ICONS).sort()).toEqual(
+      [...BUILTIN_TOOLSET_IDS].sort()
+    );
   });
 });

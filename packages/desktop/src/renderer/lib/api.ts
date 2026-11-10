@@ -20,6 +20,7 @@ import type {
   McpToolInfo,
   McpConnectionType,
   McpOAuthStatus,
+  ToolEntryInfo,
   ProviderStatus,
   SkillInfo,
   SkillDetail,
@@ -145,6 +146,7 @@ export type {
   McpServerInfo,
   McpToolInfo,
   McpConnectionType,
+  ToolEntryInfo,
   ProviderStatus,
   SkillInfo,
   SkillDetail,
@@ -1381,6 +1383,20 @@ function withAbsoluteLogoUrl<T extends { logoUrl?: string }>(
 }
 
 /**
+ * 解析时间线工具行图址为可直接显示的地址。
+ * 相对路由地址补当前主机并转协议地址走本地缓存，远程回退网址原样返回。
+ * 同步读缓存的连接地址，ws 消息分发不能引入异步，冷缓存回退 localhost 与未连接态一致。
+ * @param iconUrl 事件或落盘步骤携带的图址
+ */
+export function resolveTimelineIconUrl(
+  iconUrl: string | undefined
+): string | undefined {
+  if (!iconUrl) return undefined;
+  const base = cachedBaseUrl || `http://localhost:${DEFAULT_PORT}`;
+  return withAbsoluteLogoUrl({ logoUrl: iconUrl }, base).logoUrl;
+}
+
+/**
  * 获取已连接的 MCP 服务器列表。
  * 图标地址经相对路径补全，已装商品走本机服务，断网也能显示。
  * @returns MCP 服务器数组
@@ -1398,6 +1414,71 @@ export async function listMcpServers(): Promise<McpServerInfo[]> {
 
   const data: ListMcpsResponse = await response.json();
   return data.servers.map((server) => withAbsoluteLogoUrl(server, baseUrl));
+}
+
+/** GET /api/tools 的响应体 */
+interface ListToolsResponse {
+  tools: ToolEntryInfo[];
+}
+
+/**
+ * 拉取工具注册表条目，带 agentId 时每条附分配标记并做立绘可见性过滤。
+ * lang 随请求携带，服务端按它挑中英文案，图标地址补全逻辑与 MCP 服务清单一致。
+ * @param agentId - 当前 Agent 的 id，工具页必带
+ * @param lang - 客户端界面语言，服务端按它现挑显示文案
+ */
+export async function listTools(
+  agentId?: string,
+  lang?: string
+): Promise<ToolEntryInfo[]> {
+  const baseUrl = await getBaseUrl();
+  const params = new URLSearchParams();
+  if (agentId) params.set('agentId', agentId);
+  if (lang) params.set('lang', lang);
+  const query = params.size > 0 ? `?${params.toString()}` : '';
+  const response = await fetch(`${baseUrl}/api/tools${query}`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to list tools: ${response.status}`);
+  }
+
+  const data: ListToolsResponse = await response.json();
+  return data.tools.map((entry) => ({
+    ...entry,
+    logoUrl: entry.logoUrl
+      ? withAbsoluteLogoUrl({ logoUrl: entry.logoUrl }, baseUrl).logoUrl
+      : undefined,
+  }));
+}
+
+/**
+ * 写一条工具分配记录，开关与挂载解绑共用。
+ * @param agentId - Agent 的 id
+ * @param entryId - 注册表条目 id
+ * @param assigned - true 加条目 false 去条目
+ */
+export async function assignTool(
+  agentId: string,
+  entryId: string,
+  assigned: boolean
+): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(`${baseUrl}/api/tools/assignment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agentId, entryId, assigned }),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      (data as { error?: string }).error ||
+        `Failed to assign tool: ${response.status}`
+    );
+  }
 }
 
 /**

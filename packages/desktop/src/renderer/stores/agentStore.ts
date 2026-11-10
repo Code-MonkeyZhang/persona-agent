@@ -17,10 +17,14 @@ import {
   deleteAgent,
 } from '../lib/api';
 import { logger } from '../lib/logger';
+import { LoadGuard } from '../lib/loadGuard';
 import { toast } from './toastStore';
 import i18n from '../i18n';
 
 const LAST_AGENT_KEY = 'last-agent-id';
+
+/** loadAgents 的响应次序护栏，过期响应整段丢弃 */
+const agentsGuard = new LoadGuard();
 interface AgentStore {
   agents: AgentConfig[];
   currentAgent: AgentConfig | null;
@@ -44,10 +48,6 @@ interface AgentStore {
   removeAvatarPreview: (id: string) => void;
   assignSkill: (agentId: string, skillName: string) => Promise<void>;
   unassignSkill: (agentId: string, skillName: string) => Promise<void>;
-  /** 给 Agent 追加一个 MCP 服务，已分配过则跳过，失败时 toast 提示 */
-  assignMcp: (agentId: string, mcpName: string) => Promise<void>;
-  /** 从 Agent 移除一个 MCP 服务，未分配则跳过，失败时 toast 提示 */
-  unassignMcp: (agentId: string, mcpName: string) => Promise<void>;
   updateAgentSkillNames: (
     agentId: string,
     skillNames: string[]
@@ -63,9 +63,14 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
   loadAgents: async () => {
     // 未读聚合只读镜像库，与角色列表互不依赖，随加载顺带刷新让冷启动即可见
     void get().refreshUnread();
+    const ticket = agentsGuard.begin();
     try {
       logger.info('[AgentStore] loadAgents started');
       const agents = await listAgents();
+      if (!agentsGuard.isCurrent(ticket)) {
+        logger.info('[AgentStore] Dropped a stale loadAgents response');
+        return;
+      }
       logger.info(
         `[AgentStore] listAgents returned ${agents.length} agents:`,
         JSON.stringify(
@@ -94,6 +99,9 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
         logger.warn('[AgentStore] No agents found from server');
       }
     } catch (error) {
+      if (!agentsGuard.isCurrent(ticket)) {
+        return;
+      }
       logger.error(
         '[AgentStore] loadAgents failed:',
         error instanceof Error ? error.stack : error
@@ -219,38 +227,6 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     const { agentAvatarPreviews } = get();
     const { [id]: _, ...rest } = agentAvatarPreviews;
     set({ agentAvatarPreviews: rest });
-  },
-
-  /** 给 Agent 追加一个 MCP 服务，已分配过则跳过，失败时 toast 提示 */
-  assignMcp: async (agentId, mcpName) => {
-    const agent = get().agents.find((a) => a.id === agentId);
-    if (!agent || agent.mcpNames.includes(mcpName)) return;
-    try {
-      await get().updateAgentById(agentId, {
-        mcpNames: [...agent.mcpNames, mcpName],
-      });
-      logger.info(`[AgentStore] Assigned MCP ${mcpName} to agent ${agentId}`);
-    } catch (err) {
-      logger.error(`[AgentStore] Failed to assign MCP ${mcpName}:`, err);
-      toast.error(i18n.t('tools.assignFailed'));
-    }
-  },
-
-  /** 从 Agent 移除一个 MCP 服务，未分配则跳过，失败时 toast 提示 */
-  unassignMcp: async (agentId, mcpName) => {
-    const agent = get().agents.find((a) => a.id === agentId);
-    if (!agent || !agent.mcpNames.includes(mcpName)) return;
-    try {
-      await get().updateAgentById(agentId, {
-        mcpNames: agent.mcpNames.filter((n) => n !== mcpName),
-      });
-      logger.info(
-        `[AgentStore] Unassigned MCP ${mcpName} from agent ${agentId}`
-      );
-    } catch (err) {
-      logger.error(`[AgentStore] Failed to unassign MCP ${mcpName}:`, err);
-      toast.error(i18n.t('tools.assignFailed'));
-    }
   },
 
   /** 仅更新 Agent 的 Skill 分配 */

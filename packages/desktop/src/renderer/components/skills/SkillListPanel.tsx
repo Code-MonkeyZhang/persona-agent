@@ -98,7 +98,7 @@ export function SkillListPanel({
         onOpenChange={(o) => setGroupsOpen((g) => ({ ...g, assigned: o }))}
       >
         {assignedSkills.length === 0 ? (
-          <EmptyHint text={t('skills.emptyAssigned')} />
+          <EmptyHint text={t('skills.emptyAssigned')} className="pl-8" />
         ) : (
           assignedSkills.map((skill) => (
             <SkillRow
@@ -119,7 +119,7 @@ export function SkillListPanel({
         onOpenChange={(o) => setGroupsOpen((g) => ({ ...g, pool: o }))}
       >
         {poolSkills.length === 0 ? (
-          <EmptyHint text={t('skills.emptyLibrary')} />
+          <EmptyHint text={t('skills.emptyLibrary')} className="pl-8" />
         ) : (
           poolSkills.map((skill) => (
             <SkillRow

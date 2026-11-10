@@ -18,7 +18,7 @@ import {
 } from '../common/DetailSection';
 import { IntroHead } from '../common/IntroHead';
 import { UninstallButton } from '../common/UninstallButton';
-import { McpLogo } from '../tools/toolRows';
+import { ExternalLogo } from '../tools/toolRows';
 import { mcpStatusMeta } from '../tools/mcpStatus';
 import { ScrollArea } from '../ui/ScrollArea';
 import { StatusDot } from '../ui/StatusDot';
@@ -54,11 +54,15 @@ function previewOf(text: string | undefined): string {
 const STATUS_ACTION_CLASS =
   'ml-2 inline-flex h-6 items-center gap-1 rounded-lg border border-border bg-white px-2 text-caption text-muted-foreground transition-colors hover:border-muted-foreground hover:text-foreground disabled:opacity-50';
 
-/** 工具表格，描述列按字数截断悬停看全文，作为白底卡的直接内容 */
+/** 工具表格，固定布局两列按比例分宽同步收缩，功能名连字符处折行放不下时任意断开，描述列按字数截断悬停看全文 */
 export function ToolTable({ tools }: { tools: McpToolInfo[] }) {
   const { t } = useTranslation();
   return (
-    <table className="w-full text-left">
+    <table className="w-full table-fixed text-left">
+      <colgroup>
+        <col className="w-2/5" />
+        <col />
+      </colgroup>
       <thead>
         <tr className="border-b border-border bg-muted/50">
           <th className="px-4 py-2 text-micro font-medium text-muted-foreground">
@@ -75,11 +79,11 @@ export function ToolTable({ tools }: { tools: McpToolInfo[] }) {
             key={tool.name}
             className="border-b border-border last:border-b-0"
           >
-            <td className="whitespace-nowrap px-4 py-2.5 align-top font-mono text-caption text-foreground">
+            <td className="break-words px-4 py-2.5 align-top font-mono text-caption text-foreground">
               {tool.name}
             </td>
             <td
-              className="min-w-0 px-4 py-2.5 align-top text-caption text-muted-foreground"
+              className="px-4 py-2.5 align-top text-caption text-muted-foreground"
               title={tool.description}
             >
               {previewOf(tool.description)}
@@ -113,7 +117,7 @@ export function McpDetailPanel({
   const { t } = useTranslation();
   const { remote } = useCurrentDevice();
 
-  const meta = mcpStatusMeta(server);
+  const meta = mcpStatusMeta(server.status);
   const toolsHint = sectionHintKey(
     server.status,
     'mcpPool.toolsNeedsAuth',
@@ -131,8 +135,9 @@ export function McpDetailPanel({
         {/* 介绍段，图标、名字、简介与作者 */}
         <IntroHead
           icon={
-            <McpLogo
-              server={server}
+            <ExternalLogo
+              logoUrl={server.logoUrl}
+              app={server.agentApp === true}
               boxClass="h-11 w-11 border border-border bg-white"
               imgClass="h-9 w-9 object-contain"
             />
@@ -177,22 +182,20 @@ export function McpDetailPanel({
                         : t('mcpPool.connect')}
                     </button>
                   )}
-                  {server.status === 'disconnected' &&
-                    server.error &&
-                    onRetry && (
-                      <button
-                        onClick={onRetry}
-                        disabled={retrying}
-                        className={STATUS_ACTION_CLASS}
-                      >
-                        {retrying ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <RotateCw className="h-3 w-3" />
-                        )}
-                        {retrying ? t('mcpPool.retrying') : t('mcpPool.retry')}
-                      </button>
-                    )}
+                  {server.status === 'failed' && onRetry && (
+                    <button
+                      onClick={onRetry}
+                      disabled={retrying}
+                      className={STATUS_ACTION_CLASS}
+                    >
+                      {retrying ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <RotateCw className="h-3 w-3" />
+                      )}
+                      {retrying ? t('mcpPool.retrying') : t('mcpPool.retry')}
+                    </button>
+                  )}
                 </span>
                 {server.error && (
                   <span className="pl-3 text-caption text-red-500">
