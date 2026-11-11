@@ -187,6 +187,7 @@ const POSE_INSTRUCTIONS = `## 能力说明
 
 - show_pose 按表情名切换立绘，表情名来自该 Agent 的立绘资产清单
 - get_current_pose 查询当前正在显示的表情
+- 表情切换是对话的点缀，请优先用文字回复用户，情绪没有变化时不要调用
 
 ## 安全边界
 
@@ -200,6 +201,7 @@ Switches and queries the expression shown on the companion avatar, so mood chang
 
 - show_pose switches the avatar expression by name, and names come from the agent's pose asset list
 - get_current_pose queries which expression is showing now
+- Expression changes are a garnish; reply with text first and skip the tool when the mood is unchanged
 
 ## Safety
 
@@ -342,7 +344,7 @@ export const BUILTIN_TOOLSETS: ToolsetDefinition[] = [
     ],
     create: (deps) =>
       prefixed(POSE_TOOLSET_ID, [
-        new ShowPoseTool(deps.agentId),
+        new ShowPoseTool(deps.agentId, deps.sessionManager, deps.sessionId),
         new GetCurrentPoseTool(deps.sessionManager, deps.sessionId),
       ]),
   },

@@ -2,7 +2,7 @@
  * @fileoverview AI 陪伴形象的立绘表情管理工具。
  *
  * 提供两个工具供 Agent 在对话中自主切换和查询表情：
- * - ShowPoseTool: 将立绘切换到指定表情（仅校验，不写状态）
+ * - ShowPoseTool: 将立绘切换到指定表情（校验加幂等短路，不写状态）
  * - GetCurrentPoseTool: 从 session 查询当前正在显示的表情
  *
  * pose 的持久化由 chat-service 在 show_pose 成功后写入会话库的 sessions 行，
@@ -43,7 +43,8 @@ function getAvailablePoses(agentId: string): string[] {
  *
  * 初始化时读取该 Agent 目录下的所有表情文件，将名称列表写入 description，
  * 使 LLM 在工具列表中即可看到可用的表情选项。
- * 执行时校验请求的表情是否存在，校验通过返回成功；持久化由 chat-service 负责。
+ * 执行时校验请求的表情是否存在，并与 session 当前表情做幂等短路；
+ * 持久化由 chat-service 负责。
  */
 export class ShowPoseTool implements Tool<ShowPoseInput> {
   public name = 'show_pose';
@@ -63,23 +64,32 @@ export class ShowPoseTool implements Tool<ShowPoseInput> {
    * 创建 ShowPoseTool 实例。
    *
    * @param agentId - 关联的 Agent 唯一标识，用于读取可用表情列表
+   * @param sessionManager - Session 管理器，用于读取当前表情做幂等短路
+   * @param sessionId - 当前 Session 标识
    */
-  constructor(private agentId: string) {
+  constructor(
+    private agentId: string,
+    private sessionManager: SessionManager,
+    private sessionId: string
+  ) {
     const poses = getAvailablePoses(agentId);
     const poseList = poses.length > 0 ? poses.join('、') : '（无可用表情）';
     this.description =
-      `你每时每刻都要根据当前对话内容的情绪和语境, 调用此工具来切换表情。\n` +
+      `根据对话的情绪切换陪伴立绘的表情。\n` +
+      `只在情绪发生变化时调用一次，当前表情已符合情绪时无需调用。\n` +
       `当前可用的表情：${poseList}`;
   }
 
   /**
-   * 执行表情校验。
+   * 执行表情校验与幂等短路。
    *
-   * 校验指定表情是否在可用列表中，通过则返回成功，
-   * 否则返回包含可用列表的错误信息。
+   * 校验指定表情是否在可用列表中，再与 session 的 currentPose 对比。
+   * 请求表情与当前一致时不执行切换，直接返回幂等确认，
+   * 避免模型在重复切换里空转；不一致时返回带终止引导的成功确认，
+   * 持久化由 chat-service 负责。
    *
    * @param params - 包含目标表情名称的参数对象
-   * @returns 操作结果，成功时 content 为切换确认信息
+   * @returns 操作结果，成功时 content 为切换确认或幂等确认
    */
   async execute(params: ShowPoseInput): Promise<ToolResult> {
     const available = getAvailablePoses(this.agentId);
@@ -100,9 +110,19 @@ export class ShowPoseTool implements Tool<ShowPoseInput> {
       };
     }
 
+    const session = this.sessionManager.getSession(this.sessionId);
+    const current = session?.currentPose ?? 'default';
+
+    if (params.pose === current) {
+      return {
+        success: true,
+        content: `当前表情已经是「${params.pose}」，无需重复切换。`,
+      };
+    }
+
     return {
       success: true,
-      content: `已切换表情为：${params.pose}`,
+      content: `已切换表情为：${params.pose}。表情已生效，无需重复切换，请继续用文字回复用户。`,
     };
   }
 }
