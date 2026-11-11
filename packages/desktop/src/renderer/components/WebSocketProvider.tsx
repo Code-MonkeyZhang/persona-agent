@@ -99,9 +99,12 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       }
       // 注册表条目变化同样整份重拉，用最近一次加载的 agentId 保住分配标记
       if (msg.change.kind === 'tools_invalidated') {
-        void useMcpStore
-          .getState()
-          .loadTools(useMcpStore.getState().lastAgentId);
+        const mcp = useMcpStore.getState();
+        void mcp.loadTools(mcp.lastAgentId);
+        // 设置页 MCP 列表消费的 servers 通道一并刷新，未加载过时跳过避免白拉
+        if (mcp.servers !== null) {
+          void mcp.load();
+        }
       }
     });
 
