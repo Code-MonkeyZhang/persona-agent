@@ -179,25 +179,3 @@ export class ImageCache {
     }
   }
 }
-
-/**
- * 清掉历史平铺布局留在缓存根下的哈希命名文件。
- * 旧布局的文件无法归属到设备，按废弃一次性删除，看时按新布局重新下载，
- * 新布局按设备分目录，设备名目录不受影响。
- * @param cacheRoot - 缓存根目录，不存在时静默返回
- * @returns 清掉的文件数
- */
-export function pruneLegacyFlatFiles(cacheRoot: string): number {
-  if (!fs.existsSync(cacheRoot)) {
-    return 0;
-  }
-  let removed = 0;
-  for (const name of fs.readdirSync(cacheRoot)) {
-    const filePath = path.join(cacheRoot, name);
-    if (HASH_PATTERN.test(name) && fs.statSync(filePath).isFile()) {
-      fs.rmSync(filePath);
-      removed += 1;
-    }
-  }
-  return removed;
-}

@@ -39,13 +39,15 @@ function snapStates(
 function entry(
   hostId: string,
   name: string | null,
-  address: string | null = null
+  address: string | null = null,
+  local = false
 ): DeviceEntry {
   return {
     hostId,
     name,
     address,
     lastConnectedAt: null,
+    local,
   };
 }
 
@@ -55,17 +57,31 @@ describe('currentDeviceOf', () => {
     expect(currentDeviceOf([], null)).toEqual({ entry: null, remote: false });
   });
 
-  /** 本机连接归位为 local 条目 */
-  it('should resolve local connection back to the local entry', () => {
-    const devices = [entry('local', '我的电脑'), entry('h-remote', null)];
+  /** 本机连接命中 local 标记条目 */
+  it('should resolve the local connection to the flagged local entry', () => {
+    const devices = [
+      entry('h-local', '我的电脑', null, true),
+      entry('h-remote', null),
+    ];
     const result = currentDeviceOf(devices, snap('h-local', 'h-local'));
     expect(result.remote).toBe(false);
-    expect(result.entry?.hostId).toBe('local');
+    expect(result.entry?.hostId).toBe('h-local');
+  });
+
+  /** 本机身份未知时视为本机且无条目 */
+  it('should treat an unknown local identity as local without an entry', () => {
+    expect(currentDeviceOf([], snap('', ''))).toEqual({
+      entry: null,
+      remote: false,
+    });
   });
 
   /** 远程连接解析到对应条目并立起 remote 标志 */
   it('should resolve remote connection to its entry and flag remote', () => {
-    const devices = [entry('local', null), entry('h-remote', '办公室主机')];
+    const devices = [
+      entry('h-local', null, null, true),
+      entry('h-remote', '办公室主机'),
+    ];
     const result = currentDeviceOf(devices, snap('h-remote', 'h-local'));
     expect(result.remote).toBe(true);
     expect(result.entry?.name).toBe('办公室主机');
@@ -82,8 +98,8 @@ describe('currentDeviceOf', () => {
 
 describe('deviceStatus', () => {
   /** 本机条目跟随本机服务进程状态，不再写死在线 */
-  it('should follow the local server state for the local entry', () => {
-    const local = entry('local', null);
+  it('should follow the local server state for the flagged local entry', () => {
+    const local = entry('h-local', null, null, true);
     expect(
       deviceStatus(local, snapStates('connected', 'connected'), {}, null)
     ).toBe('online');
@@ -97,7 +113,9 @@ describe('deviceStatus', () => {
 
   /** 快照未就绪时本机也算不知道 */
   it('should treat the local entry as unknown before the snapshot arrives', () => {
-    expect(deviceStatus(entry('local', null), null, {}, null)).toBe('unknown');
+    expect(deviceStatus(entry('h-local', null, null, true), null, {}, null)).toBe(
+      'unknown'
+    );
   });
 
   /** 当前主机跟随实时通道，中途断开立刻转红，重连中保持黄闪 */

@@ -123,7 +123,10 @@ const api: WindowAPI = {
    * 把上传落定的图片字节种进当前连接设备的图片缓存。
    * 主进程校验字节哈希后落盘，失败静默返回 false 不影响发送。
    */
-  imageSeed: (hash, data) => ipcRenderer.invoke(IPC.IMAGE_SEED, hash, data),
+  attachmentSeed: (hash, data) =>
+    ipcRenderer.invoke(IPC.ATTACHMENT_SEED, hash, data),
+  attachmentOpen: (hash, name) =>
+    ipcRenderer.invoke(IPC.ATTACHMENT_OPEN, hash, name),
 
   /** 窗口控制方法集合，每个方法通过 IPC 转发到主进程执行。 */
   windowControls: {

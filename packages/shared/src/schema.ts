@@ -13,7 +13,8 @@ export interface TextContent {
 
 /**
  * 图片内容块。
- * 哈希指向附件仓内的最终字节，宽高由客户端在草稿期读取随块携带。
+ * 哈希指向附件仓内的最终字节，宽高由客户端在草稿期读取随块携带，
+ * name 是原始文件名随消息持久保存，历史消息可能缺失。
  */
 export interface ImageContent {
   type: 'image';
@@ -22,6 +23,7 @@ export interface ImageContent {
   width: number;
   height: number;
   bytes: number;
+  name?: string;
 }
 
 /**

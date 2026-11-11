@@ -22,11 +22,13 @@
  * │       └── SKILL.md
  * ├── mcp/
  * │   ├── mcp.json
- * │   └── servers/
+ * │   ├── servers/
+ * │   └── run/               # Runtime pid ledger, kept apart from config
  * ├── attachments/
  * ├── wallpapers/
  * ├── runtimes/
  * ├── workspace/
+ * ├── cache/                 # Desktop-owned per-device mirror and attachment caches
  * └── logs/
  */
 
@@ -46,6 +48,7 @@ export const getAgentsDir = () => path.join(APP_DIR, 'agents');
 export const getSkillsDir = () => path.join(APP_DIR, 'skills');
 export const getMcpDir = () => path.join(APP_DIR, 'mcp');
 export const getMcpServersDir = () => path.join(getMcpDir(), 'servers');
+export const getMcpRunDir = () => path.join(getMcpDir(), 'run');
 export const getRuntimesDir = () => path.join(APP_DIR, 'runtimes');
 export const getWorkspaceDir = () => path.join(APP_DIR, 'workspace');
 export const getLogsDir = () => path.join(APP_DIR, 'logs');

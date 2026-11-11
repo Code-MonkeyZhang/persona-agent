@@ -68,12 +68,9 @@ export type SwitchErrorCode =
 /** switchHost 的结果 */
 export type SwitchResult = { ok: true } | { ok: false; error: SwitchErrorCode };
 
-/** 设备清单里的本机固定标识 */
-export const LOCAL_DEVICE_ID = 'local';
-
 /** 设备清单条目，主进程 devices.json 的单条形状 */
 export interface DeviceEntry {
-  /** 本机固定为 local，远程主机为握手返回的 hostId */
+  /** 握手返回的真实主机号，本机条目在内置服务器握手后就位 */
   hostId: string;
   /** 本地标签，建档时取握手自称名作初始值，此后归用户所有 */
   name: string | null;
@@ -81,6 +78,8 @@ export interface DeviceEntry {
   address: string | null;
   /** 最近一次成功连接的时间戳，毫秒 */
   lastConnectedAt: number | null;
+  /** 本机内置服务器条目标记，界面据此区分本机行并拒绝删除 */
+  local: boolean;
 }
 
 /**
@@ -112,8 +111,13 @@ export interface WindowAPI {
   setLoggingEnabled: (enabled: boolean) => Promise<void>;
   openExternal: (url: string) => Promise<void>;
   openPath: (filePath: string) => Promise<string>;
-  /** 把上传落定的图片字节种进当前连接设备的图片缓存 */
-  imageSeed: (hash: string, data: Uint8Array) => Promise<boolean>;
+  /** 把上传落定的附件字节种进当前连接设备的附件缓存 */
+  attachmentSeed: (hash: string, data: Uint8Array) => Promise<boolean>;
+  /** 按哈希经附件缓存打开文件，命中本地直开，未命中下载校验落盘后开 */
+  attachmentOpen: (
+    hash: string,
+    name: string
+  ) => Promise<{ ok: boolean; error?: string }>;
   proxyFetch: (
     url: string,
     options: ProxyFetchOptions

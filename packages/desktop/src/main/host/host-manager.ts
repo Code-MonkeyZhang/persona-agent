@@ -6,7 +6,6 @@
 import log from 'electron-log';
 import { join } from 'path';
 import * as fs from 'fs';
-import { LOCAL_DEVICE_ID } from '@shared/api';
 import type {
   ConnectionSnapshot,
   DeviceEntry,
@@ -15,17 +14,15 @@ import type {
 } from '@shared/api';
 import type { HandshakeInfo } from '@persona/shared';
 import { CacheDb } from '../cache/cache-db';
+import {
+  deviceCacheDir,
+  mirrorPathFor,
+  migrateLegacyMirrors,
+  migrateLegacyPartitions,
+  foldPseudoLocalDir,
+} from '../cache/cache-layout';
 import { LocalHostProvider } from './local-host-provider';
 import { DeviceRegistry } from './device-registry';
-
-/** 本机主机的兜底标识，握手失败时代替真实身份 */
-export const LOCAL_HOST_ID = 'local';
-
-/** 本机镜像文件名，每主机一个库文件，本机固定此名 */
-const LOCAL_CACHE_FILE = 'cache-local.db';
-
-/** 旧版镜像文件名，启动时检测到即一次性迁移 */
-const LEGACY_CACHE_FILE = 'desktop-cache.db';
 
 /**
  * 取目标地址的握手信息。
@@ -53,7 +50,7 @@ export async function fetchHandshake(
  */
 export class HostManager {
   private localConnection: HostConnection = {
-    hostId: LOCAL_HOST_ID,
+    hostId: '',
     address: null,
     status: 'connecting',
   };
@@ -77,18 +74,18 @@ export class HostManager {
       (message) => log.info(message)
     );
     this.broadcastCacheChanged = broadcastCacheChanged;
-    this.migrateLegacyCacheDb();
   }
 
   /**
    * 建立本机连接，应用启动时调用一次。
    * provider 负责拉起进程并等待就绪，随后握手取真实主机身份，
-   * 本机镜像库随连接打开，结果广播给订阅方。
+   * 握手失败退回清单里本机条目上次的主机号，彻底未知则不开镜像。
+   * 身份就位后先收敛存储布局再落位条目开镜像库，结果广播给订阅方。
    */
   async ensureLocal(): Promise<void> {
     log.info('[host] Establishing local connection');
     const address = await this.localProvider.start();
-    let hostId = LOCAL_HOST_ID;
+    let hostId = '';
     if (address) {
       const handshake = await fetchHandshake(address);
       if (handshake) {
@@ -97,17 +94,33 @@ export class HostManager {
           `[host] Local handshake hostName=${handshake.hostName} version=${handshake.version}`
         );
       } else {
-        log.warn('[host] Local handshake failed, fallback to local id');
+        log.warn(
+          '[host] Local handshake failed, falling back to the registered identity'
+        );
       }
     }
-    this.localConnection = address
-      ? { hostId, address, status: 'connected' }
-      : { hostId: LOCAL_HOST_ID, address: null, status: 'disconnected' };
+    if (!hostId) {
+      hostId =
+        this.deviceRegistry.load().devices.find((d) => d.local)?.hostId ?? '';
+    }
+    this.localConnection = {
+      hostId,
+      address,
+      status: address ? 'connected' : 'disconnected',
+    };
     this.currentConnection = this.localConnection;
-    this.cacheDb = this.openCache(this.localConnection, LOCAL_CACHE_FILE);
-    this.recordSwitch(LOCAL_DEVICE_ID);
+    if (hostId) {
+      this.settleLocalStorage(hostId);
+      this.cacheDb = this.openCache(
+        this.localConnection,
+        mirrorPathFor(this.dataDir, hostId)
+      );
+    } else {
+      log.warn('[host] Local identity unknown, mirror stays closed');
+    }
+    this.recordSwitch(hostId);
     log.info(
-      `[host] Local connection is ${this.localConnection.status}, hostId=${this.localConnection.hostId}`
+      `[host] Local connection is ${this.localConnection.status}, hostId=${hostId || 'unknown'}`
     );
     this.emit();
   }
@@ -122,8 +135,14 @@ export class HostManager {
     address: string | null
   ): Promise<SwitchResult> {
     const run = async (): Promise<SwitchResult> => {
-      if (hostId === LOCAL_DEVICE_ID) {
-        await this.applyConnection(this.localConnection, LOCAL_CACHE_FILE);
+      if (hostId === this.localConnection.hostId) {
+        if (!hostId) {
+          return { ok: false, error: 'unreachable' };
+        }
+        await this.applyConnection(
+          this.localConnection,
+          mirrorPathFor(this.dataDir, this.localConnection.hostId)
+        );
         this.recordSwitch(hostId);
         return { ok: true };
       }
@@ -133,7 +152,7 @@ export class HostManager {
       // 落位在前，界面立即切到目标主机的镜像，核身结果只回写连接状态
       await this.applyConnection(
         { hostId, address, status: 'connecting' },
-        `cache-${hostId}.db`
+        mirrorPathFor(this.dataDir, hostId)
       );
       this.recordSwitch(hostId);
       const handshake = await fetchHandshake(address);
@@ -190,6 +209,7 @@ export class HostManager {
         name: hostName,
         address,
         lastConnectedAt: null,
+        local: false,
       });
       log.info(
         `[host] Device ${hostId} registered at ${address} as "${hostName}"`
@@ -207,23 +227,41 @@ export class HostManager {
     this.deviceRegistry.save(data);
   }
 
-  /** 删除条目并释放该主机的本地镜像文件族，本机不可删 */
+  /** 删除条目并释放该设备的整个缓存目录，镜像库与附件分区一并消失，本机不可删 */
   removeDevice(hostId: string): boolean {
-    if (hostId === LOCAL_DEVICE_ID) {
+    if (hostId === this.localConnection.hostId) {
       log.warn('[host] Refused to remove the local device');
       return false;
     }
     const data = this.deviceRegistry.load();
     data.devices = data.devices.filter((d) => d.hostId !== hostId);
     this.deviceRegistry.save(data);
-    for (const suffix of ['', '-wal', '-shm']) {
-      const file = join(this.dataDir, `cache-${hostId}.db${suffix}`);
-      if (fs.existsSync(file)) {
-        fs.rmSync(file);
-      }
-    }
-    log.info(`[host] Device ${hostId} removed with its mirror`);
+    fs.rmSync(deviceCacheDir(this.dataDir, hostId), {
+      recursive: true,
+      force: true,
+    });
+    log.info(`[host] Device ${hostId} removed with its cache directory`);
     return true;
+  }
+
+  /**
+   * 统一存储布局的一次性收敛，本机身份就位后、开镜像库前调用。
+   * 旧布局的镜像文件与图片分区迁进真实主机号目录，local 别名的伪设备目录并入，
+   * 本机条目随身份落位，身份变化时旧主机号的设备目录连同缓存清理。
+   */
+  private settleLocalStorage(hostId: string): void {
+    const logMigration = (message: string): void => log.info(message);
+    migrateLegacyMirrors(this.dataDir, hostId, logMigration);
+    migrateLegacyPartitions(this.dataDir, logMigration);
+    foldPseudoLocalDir(this.dataDir, hostId, logMigration);
+    const replaced = this.deviceRegistry.setLocalEntry(hostId);
+    if (replaced) {
+      fs.rmSync(deviceCacheDir(this.dataDir, replaced), {
+        recursive: true,
+        force: true,
+      });
+      log.warn(`[host] Local identity changed, removed cache of ${replaced}`);
+    }
   }
 
   /** 订阅连接变更，返回退订函数 */
@@ -286,16 +324,14 @@ export class HostManager {
    * 来源错配说明库文件来自另一台主机或主机换了身份，整库作废重建，
    * 游标归零后同步器走快照自愈。
    */
-  private openCache(connection: HostConnection, cacheFile: string): CacheDb {
-    const db = new CacheDb(
-      join(this.dataDir, cacheFile),
-      connection.hostId,
-      (message) => log.info(message)
+  private openCache(connection: HostConnection, mirrorPath: string): CacheDb {
+    const db = new CacheDb(mirrorPath, connection.hostId, (message) =>
+      log.info(message)
     );
     db.onChanged = this.broadcastCacheChanged;
     if (db.getSourceHostId() !== connection.hostId) {
       log.warn(
-        `[host] Mirror source mismatch on ${cacheFile}, rebuilding for ${connection.hostId}`
+        `[host] Mirror source mismatch on ${mirrorPath}, rebuilding for ${connection.hostId}`
       );
       db.reset();
     }
@@ -311,26 +347,6 @@ export class HostManager {
       entry.lastConnectedAt = Date.now();
     }
     this.deviceRegistry.save(data);
-  }
-
-  /**
-   * 旧镜像文件一次性迁移为 cache-local.db。
-   * WAL 与 shm 伴生文件随主文件一起改名，未落盘的 WAL 内容不丢。
-   * 伴生先改主文件后改，主文件的存在性就是迁移完成标记，中断后重跑幂等。
-   */
-  private migrateLegacyCacheDb(): void {
-    const legacy = join(this.dataDir, LEGACY_CACHE_FILE);
-    const target = join(this.dataDir, LOCAL_CACHE_FILE);
-    if (fs.existsSync(legacy) && !fs.existsSync(target)) {
-      for (const suffix of ['-shm', '-wal']) {
-        const from = `${legacy}${suffix}`;
-        if (fs.existsSync(from)) {
-          fs.renameSync(from, `${target}${suffix}`);
-        }
-      }
-      fs.renameSync(legacy, target);
-      log.info(`[host] Migrated ${LEGACY_CACHE_FILE} to ${LOCAL_CACHE_FILE}`);
-    }
   }
 
   private emit(): void {

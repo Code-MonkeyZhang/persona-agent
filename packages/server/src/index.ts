@@ -4,7 +4,11 @@
 
 import { Command } from 'commander';
 import type { Server } from 'node:http';
-import { initAllDirsAndFiles, Logger } from './util/index.js';
+import {
+  initAllDirsAndFiles,
+  pruneMcpLeftovers,
+  Logger,
+} from './util/index.js';
 import { errorMessage } from './util/errors.js';
 import { getDb } from './db/index.js';
 import { getLogsDir, getConfigPath } from './util/paths.js';
@@ -30,6 +34,8 @@ program
     initAllDirsAndFiles();
     const config = loadConfig(getConfigPath());
     Logger.initialize(getLogsDir(), config.enableLogging);
+    // mcp 目录的手工残留清理在日志就绪后跑，动作留痕
+    pruneMcpLeftovers();
     // 工具叙述注入开关装载进运行时，agent 层组装 schema 时免参读取
     setToolNarration(config.enableToolNarration);
     Logger.log('CONFIG', 'Tool narration injection loaded', {

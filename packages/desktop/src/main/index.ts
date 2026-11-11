@@ -12,7 +12,8 @@ import { xdgData } from 'xdg-basedir';
 import * as fs from 'fs';
 import { initStore } from './store';
 import { registerCacheIpc } from './cache/cache-ipc';
-import { ImageCache, pruneLegacyFlatFiles } from './image/image-cache';
+import { ImageCache } from './image/image-cache';
+import { attachmentsDirFor } from './cache/cache-layout';
 import {
   registerImageSchemePrivileges,
   registerImageProtocol,
@@ -101,17 +102,14 @@ log.info('App starting...');
 // 图片协议的特权声明必须发生在 app ready 之前，放 whenReady 里会静默失效
 registerImageSchemePrivileges();
 
-/** 图片缓存根目录，按连接设备分目录，本机为 local */
-const IMAGE_CACHE_ROOT = join(DATA_DIR, 'image-cache');
-
-/** 各设备的图片缓存实例表，键为 hostId */
+/** 各设备的附件缓存实例表，键为 hostId */
 const imageCaches = new Map<string, ImageCache>();
 
-/** 取指定设备的图片缓存实例，目录随实例按需创建 */
+/** 取指定设备的附件缓存实例，分区目录随实例按需创建 */
 function imageCacheFor(hostId: string): ImageCache {
   let cache = imageCaches.get(hostId);
   if (!cache) {
-    cache = new ImageCache(join(IMAGE_CACHE_ROOT, hostId), (message) =>
+    cache = new ImageCache(attachmentsDirFor(DATA_DIR, hostId), (message) =>
       log.info(message)
     );
     imageCaches.set(hostId, cache);
@@ -119,29 +117,61 @@ function imageCacheFor(hostId: string): ImageCache {
   return cache;
 }
 
-/** 取当前连接设备的图片缓存实例 */
-function imageCacheForCurrentHost(): ImageCache {
-  return imageCacheFor(hostManager.getSnapshot().current.hostId);
+/** 取当前连接设备的附件缓存实例，本机身份未就位时返回 null */
+function imageCacheForCurrentHost(): ImageCache | null {
+  const hostId = hostManager.getSnapshot().current.hostId;
+  return hostId ? imageCacheFor(hostId) : null;
 }
 
 /** 应用主入口 */
 app.whenReady().then(async () => {
   initStore();
 
-  // 历史平铺布局的哈希文件无法归属设备，启动时一次性清掉，看时按新布局重建
-  const legacyRemoved = pruneLegacyFlatFiles(IMAGE_CACHE_ROOT);
-  if (legacyRemoved > 0) {
-    log.info(`Pruned ${legacyRemoved} legacy flat image cache files`);
-  }
-
-  // 图片缓存命中读当前连接设备目录，未命中经当前连接地址下载校验落盘
+  // 附件缓存命中读当前连接设备目录，未命中经当前连接地址下载校验落盘
   registerImageProtocol(imageCacheForCurrentHost, () =>
     hostManager.getAddress()
   );
 
-  // IPC：把上传落定的图片字节种进当前连接设备的图片缓存
-  ipcMain.handle(IPC.IMAGE_SEED, (_event, hash: string, data: Uint8Array) =>
-    imageCacheForCurrentHost().seed(hash, data)
+  // IPC：把上传落定的附件字节种进当前连接设备的附件缓存
+  ipcMain.handle(
+    IPC.ATTACHMENT_SEED,
+    (_event, hash: string, data: Uint8Array) =>
+      imageCacheForCurrentHost()?.seed(hash, data) ?? false
+  );
+
+  // IPC：按哈希经附件缓存打开文件，命中本地直开，未命中下载校验落盘后开
+  ipcMain.handle(
+    IPC.ATTACHMENT_OPEN,
+    async (
+      _event,
+      hash: string,
+      name: string
+    ): Promise<{ ok: boolean; error?: string }> => {
+      const cache = imageCacheForCurrentHost();
+      if (!cache) {
+        log.warn(`[attachment] open rejected, identity unknown, name=${name}`);
+        return { ok: false, error: 'identity_unknown' };
+      }
+      const source = `${hostManager.getAddress() ?? ''}/api/attachments/${hash}`;
+      const cached = await cache.resolve(hash, source);
+      if (!cached) {
+        log.warn(`[attachment] open failed, name=${name} hash=${hash}`);
+        return { ok: false, error: 'resolve_failed' };
+      }
+      const dot = name.lastIndexOf('.');
+      const ext = dot >= 0 ? name.slice(dot) : '';
+      const openDir = join(app.getPath('temp'), 'persona-attachments');
+      fs.mkdirSync(openDir, { recursive: true });
+      const filePath = join(openDir, `${hash}${ext}`);
+      fs.writeFileSync(filePath, cached.data);
+      const error = shell.openPath(filePath);
+      if (error) {
+        log.error(`[attachment] shell open failed, name=${name}: ${error}`);
+        return { ok: false, error };
+      }
+      log.info(`[attachment] opened ${name} via attachment cache`);
+      return { ok: true };
+    }
   );
 
   process.on('SIGINT', () => {
@@ -184,15 +214,10 @@ app.whenReady().then(async () => {
     hostManager.renameDevice(hostId, name);
   });
 
-  // IPC：删除设备条目并释放本地镜像与图片缓存目录，本机不可删
+  // IPC：删除设备条目并释放该设备目录，镜像库与附件分区随目录一并消失
   ipcMain.handle(IPC.DEVICE_REMOVE, (_event, hostId: string) => {
-    const removed = hostManager.removeDevice(hostId);
     imageCaches.delete(hostId);
-    fs.rmSync(join(IMAGE_CACHE_ROOT, hostId), {
-      recursive: true,
-      force: true,
-    });
-    return removed;
+    return hostManager.removeDevice(hostId);
   });
 
   // IPC：发起主机切换，主进程内串行原子执行
@@ -296,7 +321,7 @@ app.whenReady().then(async () => {
     return result;
   });
 
-  // 启动编排：先建立本机连接，镜像库与设备清单随连接在 HostManager 内就位
+  // 启动编排：先建立本机连接，存储布局收敛与镜像库开合都在 HostManager 内完成
   await hostManager.ensureLocal();
 
   // 缓存 IPC 注册一次不随切换重建，handler 经 getter 取当前库

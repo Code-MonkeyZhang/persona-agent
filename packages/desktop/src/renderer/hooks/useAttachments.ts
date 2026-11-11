@@ -27,7 +27,7 @@ interface UseAttachmentsOptions {
 
 /**
  * 单项压缩后上传落定，返回成功与否的补丁。
- * 图片落定后把字节经 IPC 种进当前连接设备的图片缓存，发过的图重启后不再回下载。
+ * 附件落定后把字节经 IPC 种进当前连接设备的附件缓存，发过的附件重启后不再回下载。
  */
 async function settleUpload(
   item: UIAttachment,
@@ -65,14 +65,13 @@ async function settleUpload(
       format: uploaded.format,
       size: uploaded.size,
     });
-    if (item.kind === 'image') {
-      const bytes = new Uint8Array(await blob.arrayBuffer());
-      const seeded = await window.api?.imageSeed(uploaded.hash, bytes);
-      logger.info('Attachment seeded to image cache', {
-        hash: uploaded.hash,
-        seeded: seeded ?? false,
-      });
-    }
+    // 附件不分图片与文件，上传落定一律种进当前设备的缓存，发过的重启后离线可开
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const seeded = await window.api?.attachmentSeed(uploaded.hash, bytes);
+    logger.info('Attachment seeded to cache', {
+      hash: uploaded.hash,
+      seeded: seeded ?? false,
+    });
     return {
       status: 'uploaded',
       hash: uploaded.hash,

@@ -69,6 +69,7 @@ describe('toContentBlocks', () => {
         width: 10,
         height: 10,
         bytes: 100,
+        name: 'photo.png',
       },
       { type: 'file', hash: 'f'.repeat(64), name: '报表.zip', bytes: 5 },
     ]);
@@ -110,12 +111,40 @@ describe('fromContentBlocks', () => {
       kind: 'image',
       url: `persona-image://${'a'.repeat(64)}?src=x`,
       status: 'uploaded',
+      name: 'image.png',
     });
     expect(attachments[1]).toMatchObject({
       kind: 'file',
       name: '报表.pdf',
     });
     expect(attachments[1]?.url).toBeUndefined();
+  });
+
+  /** 测试图片块携带原始文件名时直接采用，历史块缺失时回退合成名 */
+  it('keeps the original image name and falls back for legacy blocks', () => {
+    const { attachments } = fromContentBlocks([
+      {
+        type: 'image',
+        hash: 'a'.repeat(64),
+        mimeType: 'image/jpeg',
+        width: 8,
+        height: 6,
+        bytes: 20,
+        name: '合照.jpeg',
+      },
+    ]);
+    expect(attachments[0]?.name).toBe('合照.jpeg');
+    const legacy = fromContentBlocks([
+      {
+        type: 'image',
+        hash: 'a'.repeat(64),
+        mimeType: 'image/jpeg',
+        width: 8,
+        height: 6,
+        bytes: 20,
+      },
+    ]);
+    expect(legacy.attachments[0]?.name).toBe('image.jpg');
   });
 });
 
@@ -155,7 +184,7 @@ describe('useAttachments', () => {
     URL.createObjectURL = vi.fn(() => `blob:mock-${++seq}`);
     URL.revokeObjectURL = vi.fn();
     window.api = {
-      imageSeed: vi.fn().mockResolvedValue(true),
+      attachmentSeed: vi.fn().mockResolvedValue(true),
       log: vi.fn().mockResolvedValue(undefined),
     } as unknown as typeof window.api;
   });

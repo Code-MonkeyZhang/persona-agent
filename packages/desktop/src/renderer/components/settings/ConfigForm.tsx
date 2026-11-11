@@ -14,9 +14,7 @@ import { useViewStore } from '../../stores/viewStore';
 import {
   useConnectionStore,
   useCurrentDevice,
-  currentDeviceKey,
 } from '../../stores/connectionStore';
-import { LOCAL_DEVICE_ID } from '@shared/api';
 import { Switch } from '../ui/Switch';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -66,7 +64,7 @@ export const ConfigForm: React.FC = () => {
   const currentAgent = useAgentStore((s) => s.currentAgent);
   /** 重放引导会向所连 server 写凭据，闸门与首启向导同口径，仅本机连接可用 */
   const isLocalConnection = useConnectionStore(
-    (s) => !!s.snapshot && currentDeviceKey(s.snapshot) === LOCAL_DEVICE_ID
+    (s) => !!s.snapshot && s.snapshot.current.hostId === s.snapshot.local.hostId
   );
   /** 卡头归属标记走当前设备解析，快照未就绪视为本机，不亮标记 */
   const { remote } = useCurrentDevice();

@@ -10,7 +10,6 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
 import {
-  LOCAL_DEVICE_ID,
   type ConnectionSnapshot,
   type DeviceEntry,
   type SwitchResult,
@@ -104,7 +103,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     const { devices, probes } = get();
     const entry = devices.find((d) => d.hostId === hostId);
     // 本机跟随服务进程状态，没有地址的条目无从探测
-    if (!entry || entry.hostId === LOCAL_DEVICE_ID || !entry.address) return;
+    if (!entry || entry.local || !entry.address) return;
     let reachable = false;
     try {
       const info = await fetchHandshake(entry.address, PROBE_TIMEOUT_MS);
@@ -166,10 +165,8 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         logger.warn(
           `[Connection] Switch to ${hostId} failed: ${result?.ok === false ? result.error : 'ipc unavailable'}`
         );
-        // 失败后马上补查这一台，状态点红绿立见分晓
-        if (hostId !== LOCAL_DEVICE_ID) {
-          void get().probeDevice(hostId);
-        }
+        // 失败后马上补查这一台，状态点红绿立见分晓，本机与无地址条目在探测内部跳过
+        void get().probeDevice(hostId);
       }
       return result;
     } finally {
@@ -243,21 +240,18 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     await refreshDevices(set);
     // 改的是当前连着的设备时，用新地址重连一次
     const snapshot = get().snapshot;
-    if (
-      snapshot &&
-      (snapshot.current.hostId === hostId ||
-        currentDeviceKey(snapshot) === hostId)
-    ) {
+    if (snapshot && snapshot.current.hostId === hostId) {
       await get().switchHost(hostId, clean);
     }
   },
 
   removeDevice: async (hostId) => {
-    if (hostId === LOCAL_DEVICE_ID) return false;
-    // 删除当前连着的主机前先切回本机，应用不停在已删除的数据上
     const snapshot = get().snapshot;
-    if (snapshot && currentDeviceKey(snapshot) === hostId) {
-      const back = await get().switchHost(LOCAL_DEVICE_ID, null);
+    const localHostId = snapshot?.local.hostId ?? '';
+    if (localHostId && hostId === localHostId) return false;
+    // 删除当前连着的主机前先切回本机，应用不停在已删除的数据上
+    if (snapshot && snapshot.current.hostId === hostId) {
+      const back = await get().switchHost(localHostId, null);
       if (!back?.ok) return false;
     }
     const ok = (await window.api?.removeDevice(hostId)) ?? false;
@@ -280,13 +274,6 @@ async function refreshDevices(
   }
 }
 
-/** 当前设备在清单里的标识，本机连接归位为 local */
-export function currentDeviceKey(snapshot: ConnectionSnapshot): string {
-  return snapshot.current.hostId === snapshot.local.hostId
-    ? LOCAL_DEVICE_ID
-    : snapshot.current.hostId;
-}
-
 /** 显示名顺序：本地标签优先，hostId 前几位兜底 */
 export function deviceDisplayName(entry: DeviceEntry): string {
   return entry.name ?? entry.hostId.slice(0, 8);
@@ -306,17 +293,14 @@ export function deviceStatus(
   probes: Record<string, boolean>,
   currentWsStatus: WsLinkStatus | null
 ): DeviceDotStatus {
-  if (entry.hostId === LOCAL_DEVICE_ID) {
+  if (entry.local) {
     const local = snapshot?.local.status;
     if (local === 'connected') return 'online';
     if (local === 'connecting') return 'connecting';
     if (local === 'disconnected') return 'offline';
     return 'unknown';
   }
-  const isCurrent =
-    !!snapshot &&
-    (entry.hostId === snapshot.current.hostId ||
-      entry.hostId === currentDeviceKey(snapshot));
+  const isCurrent = !!snapshot && entry.hostId === snapshot.current.hostId;
   if (isCurrent) {
     const link = currentWsStatus ?? snapshot.current.status;
     if (link === 'connected') return 'online';
@@ -335,16 +319,16 @@ export interface CurrentDevice {
   remote: boolean;
 }
 
-/** 从清单与快照解析当前设备，本机连接归位为 local，快照未就绪视为本机 */
+/** 从清单与快照解析当前设备，快照未就绪视为本机 */
 export function currentDeviceOf(
   devices: DeviceEntry[],
   snapshot: ConnectionSnapshot | null
 ): CurrentDevice {
   if (!snapshot) return { entry: null, remote: false };
-  const key = currentDeviceKey(snapshot);
+  const key = snapshot.current.hostId;
   return {
     entry: devices.find((d) => d.hostId === key) ?? null,
-    remote: key !== LOCAL_DEVICE_ID,
+    remote: key !== snapshot.local.hostId,
   };
 }
 

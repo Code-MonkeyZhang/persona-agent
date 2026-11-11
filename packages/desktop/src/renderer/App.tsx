@@ -72,8 +72,7 @@ import {
   useViewStore,
 } from './stores/viewStore';
 import { useTunnelStore } from './stores/tunnelStore';
-import { useConnectionStore, currentDeviceKey } from './stores/connectionStore';
-import { LOCAL_DEVICE_ID } from '@shared/api';
+import { useConnectionStore } from './stores/connectionStore';
 import { logger } from './lib/logger';
 import { cn } from './lib/utils';
 import { getSeedStatus, markSeedOnboarded } from './lib/api';
@@ -424,7 +423,8 @@ function AppContent() {
       !agentsLoaded
     )
       return;
-    const isLocal = currentDeviceKey(connectionSnapshot) === LOCAL_DEVICE_ID;
+    const isLocal =
+      connectionSnapshot.current.hostId === connectionSnapshot.local.hostId;
     // 迁移桥接只对本机 server 做：补写 onboarded 成功即删旧标记，失败保留下次再试
     if (localStorage.getItem('landing-completed')) {
       if (isLocal) {

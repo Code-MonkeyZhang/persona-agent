@@ -25,7 +25,6 @@ import { cn } from '../../lib/utils';
 import { logger } from '../../lib/logger';
 import { toast } from '../../stores/toastStore';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { getBaseUrl } from '../../lib/api';
 import {
   fileExtOf,
   formatFileSize,
@@ -97,33 +96,18 @@ function MessageImages({ images }: { images: UIAttachment[] }) {
 }
 
 /** 用户消息文件卡行：图标加文件名加元信息，与草稿区 FileChip 同构保证视觉连续
- *  点击按哈希从附件仓取字节，下载名取消息块的文件名 */
+ *  点击按哈希经主进程附件缓存打开，系统默认应用接手 */
 function MessageFiles({ files }: { files: UIAttachment[] }) {
   const { t } = useTranslation();
 
-  const handleDownload = async (file: UIAttachment) => {
+  const handleOpen = async (file: UIAttachment) => {
     if (!file.hash) return;
-    try {
-      const baseUrl = await getBaseUrl();
-      const response = await fetch(`${baseUrl}/api/attachments/${file.hash}`);
-      if (!response.ok) throw new Error(`${response.status}`);
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = file.name;
-      a.click();
-      URL.revokeObjectURL(url);
-      logger.info('File attachment downloaded', {
+    const result = await window.api?.attachmentOpen(file.hash, file.name);
+    if (result && !result.ok) {
+      logger.warn('File attachment open failed', {
         name: file.name,
         hash: file.hash,
-        bytes: blob.size,
-      });
-    } catch (error) {
-      logger.warn('File attachment download failed', {
-        name: file.name,
-        hash: file.hash,
-        error: error instanceof Error ? error.message : String(error),
+        error: result.error,
       });
       toast.error(t('messageList.downloadFailed'));
     }
@@ -137,7 +121,7 @@ function MessageFiles({ files }: { files: UIAttachment[] }) {
         return (
           <button
             key={file.id}
-            onClick={() => void handleDownload(file)}
+            onClick={() => void handleOpen(file)}
             title={t('messageList.downloadFile')}
             className="flex items-center gap-2.5 h-12 pl-2 pr-3 rounded-lg border border-border bg-background hover:bg-muted transition-colors text-left text-foreground"
           >

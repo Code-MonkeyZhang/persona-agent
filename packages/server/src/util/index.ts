@@ -1,2 +1,2 @@
 export { Logger } from './logger.js';
-export { initAllDirsAndFiles } from './init.js';
+export { initAllDirsAndFiles, pruneMcpLeftovers } from './init.js';
