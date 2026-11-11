@@ -16,6 +16,9 @@ extraResources:
     to: "bin/persona-agent-server"
   - from: "../server/dist/persona-agent-server.exe"
     to: "bin/persona-agent-server.exe"
+  # 托盘图标源文件，运行时从应用主图标缩放出 16 与 32 两个尺寸
+  - from: "build/icon-mac.png"
+    to: "tray-icon.png"
   - from: "../server/bin/cloudflared"
     to: "bin/cloudflared"
     filter:

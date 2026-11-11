@@ -1,6 +1,6 @@
 /**
  * @file main/index.ts
- * @description Electron 主进程入口文件 - 负责应用生命周期管理、窗口创建和 IPC 通信
+ * @description Electron 主进程入口文件 - 负责应用生命周期管理、单实例锁、窗口创建、托盘驻留和 IPC 通信
  */
 
 import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
@@ -11,6 +11,8 @@ import log from 'electron-log';
 import { xdgData } from 'xdg-basedir';
 import * as fs from 'fs';
 import { initStore } from './store';
+import { shouldHideOnClose } from './close-behavior';
+import { TrayController } from './tray';
 import { registerCacheIpc } from './cache/cache-ipc';
 import { ImageCache } from './image/image-cache';
 import { attachmentsDirFor } from './cache/cache-layout';
@@ -26,379 +28,451 @@ import { setupUpdater } from './updater';
 
 const isMac = process.platform === 'darwin';
 
-// 日志配置。dev 与正式版统一写入用户数据目录 logs/desktop.log，与 server
-// 的 agent-server.log 同目录，每次启动清空，路径规则与 server 侧 util/paths.ts 一致
-if (!xdgData) {
-  throw new Error('Unable to determine XDG data directory');
-}
-const DATA_DIR = join(xdgData, 'persona-agent');
-const LOGS_DIR = join(DATA_DIR, 'logs');
-const LOG_FILE = join(LOGS_DIR, 'desktop.log');
-
-/** 本机服务端的提供方式，HostManager 通过它拿到本机那条连接 */
-const localProvider = new LocalHostProvider();
-
-/** 镜像库数据变化时通知全部窗口 */
-function broadcastCacheChanged(): void {
-  for (const win of BrowserWindow.getAllWindows()) {
-    win.webContents.send(IPC.CACHE_CHANGED);
-  }
-}
-
-/** 连接事实的唯一来源，渲染层与镜像层只认它给出的连接 */
-const hostManager = new HostManager(
-  localProvider,
-  DATA_DIR,
-  broadcastCacheChanged
-);
-
-// 连接变更广播给全部窗口，渲染层据此换地址重连重追平
-hostManager.subscribe((snapshot) => {
-  for (const win of BrowserWindow.getAllWindows()) {
-    win.webContents.send(IPC.CONNECTION_CHANGED, snapshot);
-  }
-});
-
-/**
- * 从 server 的 config.yaml 读取日志开关
- * 文件由 server 侧 yaml.stringify 写出，行格式固定，按行匹配即可
- */
-function readEnableLogging(): boolean {
-  try {
-    const content = fs.readFileSync(
-      join(DATA_DIR, 'config', 'config.yaml'),
-      'utf-8'
-    );
-    const match = content.match(/^enableLogging:\s*(true|false)\s*$/m);
-    return match?.[1] === 'true';
-  } catch {
-    return false;
-  }
+// 单实例锁：锁不到说明已有实例在跑，本实例直接退出不初始化任何资源
+if (!app.requestSingleInstanceLock()) {
+  log.info('[tray] duplicate launch detected, quitting this instance');
+  app.quit();
+} else {
+  bootstrapApp();
 }
 
 /**
- * 切换文件日志开关，开启时确保日志目录存在
- * @param enabled - 是否写入日志文件
+ * 应用主入口，单实例锁通过后才执行
+ * 日志、图片协议、服务端编排与窗口托盘的全部初始化都在这里完成
  */
-function setFileLogging(enabled: boolean): void {
-  if (enabled) {
-    fs.mkdirSync(LOGS_DIR, { recursive: true });
+function bootstrapApp(): void {
+  // 日志配置。dev 与正式版统一写入用户数据目录 logs/desktop.log，与 server
+  // 的 agent-server.log 同目录，每次启动清空，路径规则与 server 侧 util/paths.ts 一致
+  if (!xdgData) {
+    throw new Error('Unable to determine XDG data directory');
   }
-  log.transports.file.level = enabled ? 'info' : false;
-}
+  const DATA_DIR = join(xdgData, 'persona-agent');
+  const LOGS_DIR = join(DATA_DIR, 'logs');
+  const LOG_FILE = join(LOGS_DIR, 'desktop.log');
 
-if (fs.existsSync(LOG_FILE)) {
-  fs.unlinkSync(LOG_FILE);
-}
-log.transports.file.resolvePath = () => LOG_FILE;
-setFileLogging(readEnableLogging());
-if (is.dev) {
-  log.transports.console.level = false;
-}
+  /** 本机服务端的提供方式，HostManager 通过它拿到本机那条连接 */
+  const localProvider = new LocalHostProvider();
 
-log.info(`[log] desktop.log at ${LOG_FILE}`);
-log.info('App starting...');
+  /** 镜像库数据变化时通知全部窗口 */
+  function broadcastCacheChanged(): void {
+    for (const win of BrowserWindow.getAllWindows()) {
+      win.webContents.send(IPC.CACHE_CHANGED);
+    }
+  }
 
-// 图片协议的特权声明必须发生在 app ready 之前，放 whenReady 里会静默失效
-registerImageSchemePrivileges();
+  /** 连接事实的唯一来源，渲染层与镜像层只认它给出的连接 */
+  const hostManager = new HostManager(
+    localProvider,
+    DATA_DIR,
+    broadcastCacheChanged
+  );
 
-/** 各设备的附件缓存实例表，键为 hostId */
-const imageCaches = new Map<string, ImageCache>();
+  // 连接变更广播给全部窗口，渲染层据此换地址重连重追平
+  hostManager.subscribe((snapshot) => {
+    for (const win of BrowserWindow.getAllWindows()) {
+      win.webContents.send(IPC.CONNECTION_CHANGED, snapshot);
+    }
+  });
 
-/** 取指定设备的附件缓存实例，分区目录随实例按需创建 */
-function imageCacheFor(hostId: string): ImageCache {
-  let cache = imageCaches.get(hostId);
-  if (!cache) {
-    cache = new ImageCache(attachmentsDirFor(DATA_DIR, hostId), (message) =>
-      log.info(message)
+  /**
+   * 从 server 的 config.yaml 读取日志开关
+   * 文件由 server 侧 yaml.stringify 写出，行格式固定，按行匹配即可
+   */
+  function readEnableLogging(): boolean {
+    try {
+      const content = fs.readFileSync(
+        join(DATA_DIR, 'config', 'config.yaml'),
+        'utf-8'
+      );
+      const match = content.match(/^enableLogging:\s*(true|false)\s*$/m);
+      return match?.[1] === 'true';
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * 切换文件日志开关，开启时确保日志目录存在
+   * @param enabled - 是否写入日志文件
+   */
+  function setFileLogging(enabled: boolean): void {
+    if (enabled) {
+      fs.mkdirSync(LOGS_DIR, { recursive: true });
+    }
+    log.transports.file.level = enabled ? 'info' : false;
+  }
+
+  if (fs.existsSync(LOG_FILE)) {
+    fs.unlinkSync(LOG_FILE);
+  }
+  log.transports.file.resolvePath = () => LOG_FILE;
+  setFileLogging(readEnableLogging());
+  if (is.dev) {
+    log.transports.console.level = false;
+  }
+
+  log.info(`[log] desktop.log at ${LOG_FILE}`);
+  log.info('App starting...');
+
+  // 图片协议的特权声明必须发生在 app ready 之前，放 whenReady 里会静默失效
+  registerImageSchemePrivileges();
+
+  /** 各设备的附件缓存实例表，键为 hostId */
+  const imageCaches = new Map<string, ImageCache>();
+
+  /** 取指定设备的附件缓存实例，分区目录随实例按需创建 */
+  function imageCacheFor(hostId: string): ImageCache {
+    let cache = imageCaches.get(hostId);
+    if (!cache) {
+      cache = new ImageCache(attachmentsDirFor(DATA_DIR, hostId), (message) =>
+        log.info(message)
+      );
+      imageCaches.set(hostId, cache);
+    }
+    return cache;
+  }
+
+  /** 取当前连接设备的附件缓存实例，本机身份未就位时返回 null */
+  function imageCacheForCurrentHost(): ImageCache | null {
+    const hostId = hostManager.getSnapshot().current.hostId;
+    return hostId ? imageCacheFor(hostId) : null;
+  }
+
+  /** 托盘控制器：closeToTray 设置由 electron-store 持有，窗口获取与创建经依赖注入 */
+  const trayController = new TrayController({
+    store: initStore(),
+    getMainWindow: () => BrowserWindow.getAllWindows()[0] ?? null,
+    createMainWindow: () => createWindow(),
+  });
+
+  // 再次启动应用时唤回驻留窗口；启动未完成时窗口还没建，忽略即可由首窗接管
+  app.on('second-instance', () => {
+    if (BrowserWindow.getAllWindows().length > 0) {
+      trayController.showMainWindow();
+    }
+  });
+
+  /** 应用主入口 */
+  app.whenReady().then(async () => {
+    // 附件缓存命中读当前连接设备目录，未命中经当前连接地址下载校验落盘
+    registerImageProtocol(imageCacheForCurrentHost, () =>
+      hostManager.getAddress()
     );
-    imageCaches.set(hostId, cache);
-  }
-  return cache;
-}
 
-/** 取当前连接设备的附件缓存实例，本机身份未就位时返回 null */
-function imageCacheForCurrentHost(): ImageCache | null {
-  const hostId = hostManager.getSnapshot().current.hostId;
-  return hostId ? imageCacheFor(hostId) : null;
-}
+    // IPC：把上传落定的附件字节种进当前连接设备的附件缓存
+    ipcMain.handle(
+      IPC.ATTACHMENT_SEED,
+      (_event, hash: string, data: Uint8Array) =>
+        imageCacheForCurrentHost()?.seed(hash, data) ?? false
+    );
 
-/** 应用主入口 */
-app.whenReady().then(async () => {
-  initStore();
-
-  // 附件缓存命中读当前连接设备目录，未命中经当前连接地址下载校验落盘
-  registerImageProtocol(imageCacheForCurrentHost, () =>
-    hostManager.getAddress()
-  );
-
-  // IPC：把上传落定的附件字节种进当前连接设备的附件缓存
-  ipcMain.handle(
-    IPC.ATTACHMENT_SEED,
-    (_event, hash: string, data: Uint8Array) =>
-      imageCacheForCurrentHost()?.seed(hash, data) ?? false
-  );
-
-  // IPC：按哈希经附件缓存打开文件，命中本地直开，未命中下载校验落盘后开
-  ipcMain.handle(
-    IPC.ATTACHMENT_OPEN,
-    async (
-      _event,
-      hash: string,
-      name: string
-    ): Promise<{ ok: boolean; error?: string }> => {
-      const cache = imageCacheForCurrentHost();
-      if (!cache) {
-        log.warn(`[attachment] open rejected, identity unknown, name=${name}`);
-        return { ok: false, error: 'identity_unknown' };
+    // IPC：按哈希经附件缓存打开文件，命中本地直开，未命中下载校验落盘后开
+    ipcMain.handle(
+      IPC.ATTACHMENT_OPEN,
+      async (
+        _event,
+        hash: string,
+        name: string
+      ): Promise<{ ok: boolean; error?: string }> => {
+        const cache = imageCacheForCurrentHost();
+        if (!cache) {
+          log.warn(
+            `[attachment] open rejected, identity unknown, name=${name}`
+          );
+          return { ok: false, error: 'identity_unknown' };
+        }
+        const source = `${hostManager.getAddress() ?? ''}/api/attachments/${hash}`;
+        const cached = await cache.resolve(hash, source);
+        if (!cached) {
+          log.warn(`[attachment] open failed, name=${name} hash=${hash}`);
+          return { ok: false, error: 'resolve_failed' };
+        }
+        const dot = name.lastIndexOf('.');
+        const ext = dot >= 0 ? name.slice(dot) : '';
+        const openDir = join(app.getPath('temp'), 'persona-attachments');
+        fs.mkdirSync(openDir, { recursive: true });
+        const filePath = join(openDir, `${hash}${ext}`);
+        fs.writeFileSync(filePath, cached.data);
+        const error = shell.openPath(filePath);
+        if (error) {
+          log.error(`[attachment] shell open failed, name=${name}: ${error}`);
+          return { ok: false, error };
+        }
+        log.info(`[attachment] opened ${name} via attachment cache`);
+        return { ok: true };
       }
-      const source = `${hostManager.getAddress() ?? ''}/api/attachments/${hash}`;
-      const cached = await cache.resolve(hash, source);
-      if (!cached) {
-        log.warn(`[attachment] open failed, name=${name} hash=${hash}`);
-        return { ok: false, error: 'resolve_failed' };
+    );
+
+    process.on('SIGINT', () => {
+      localProvider.kill();
+      app.quit();
+    });
+
+    process.on('SIGTERM', () => {
+      localProvider.kill();
+      app.quit();
+    });
+
+    electronApp.setAppUserModelId('com.persona.desktop');
+
+    // 监听窗口创建事件，自动优化窗口快捷键
+    app.on('browser-window-created', (_, window) => {
+      optimizer.watchWindowShortcuts(window);
+    });
+
+    // IPC：查询连接事实，current 是当前连接，local 是本机常驻连接
+    ipcMain.handle(IPC.GET_CONNECTION, () => {
+      return hostManager.getSnapshot();
+    });
+
+    // IPC：查询设备清单，主进程 devices.json 的只读镜像
+    ipcMain.handle(IPC.GET_DEVICES, () => {
+      return hostManager.getDevices();
+    });
+
+    // IPC：条目落位，新建连接识别完成后调用
+    ipcMain.handle(
+      IPC.DEVICE_UPSERT,
+      (
+        _event,
+        entry: { hostId: string; hostName: string; address: string }
+      ) => {
+        hostManager.upsertDevice(entry.hostId, entry.hostName, entry.address);
       }
-      const dot = name.lastIndexOf('.');
-      const ext = dot >= 0 ? name.slice(dot) : '';
-      const openDir = join(app.getPath('temp'), 'persona-attachments');
-      fs.mkdirSync(openDir, { recursive: true });
-      const filePath = join(openDir, `${hash}${ext}`);
-      fs.writeFileSync(filePath, cached.data);
-      const error = shell.openPath(filePath);
-      if (error) {
-        log.error(`[attachment] shell open failed, name=${name}: ${error}`);
-        return { ok: false, error };
+    );
+
+    // IPC：设备改名，只动本机显示
+    ipcMain.handle(
+      IPC.DEVICE_RENAME,
+      (_event, hostId: string, name: string) => {
+        hostManager.renameDevice(hostId, name);
       }
-      log.info(`[attachment] opened ${name} via attachment cache`);
-      return { ok: true };
+    );
+
+    // IPC：删除设备条目并释放该设备目录，镜像库与附件分区随目录一并消失
+    ipcMain.handle(IPC.DEVICE_REMOVE, (_event, hostId: string) => {
+      imageCaches.delete(hostId);
+      return hostManager.removeDevice(hostId);
+    });
+
+    // IPC：发起主机切换，主进程内串行原子执行
+    ipcMain.handle(
+      IPC.SWITCH_HOST,
+      (_event, target: { hostId: string; address: string | null }) => {
+        return hostManager.switchHost(target.hostId, target.address);
+      }
+    );
+
+    // IPC：打开文件夹选择对话框
+    ipcMain.handle(
+      IPC.SELECT_FOLDER,
+      async (_event, options?: SelectFolderOptions) => {
+        log.info('IPC: select-folder received', options);
+        const result = await dialog.showOpenDialog({
+          title: options?.title || '选择文件夹',
+          defaultPath: options?.defaultPath,
+          properties: ['openDirectory', 'createDirectory'],
+        });
+
+        if (result.canceled || result.filePaths.length === 0) {
+          return null;
+        }
+
+        return result.filePaths[0];
+      }
+    );
+
+    // IPC：窗口控制操作
+    ipcMain.handle(IPC.WINDOW_MINIMIZE, () =>
+      BrowserWindow.getFocusedWindow()?.minimize()
+    );
+    ipcMain.handle(IPC.WINDOW_MAXIMIZE, () =>
+      BrowserWindow.getFocusedWindow()?.maximize()
+    );
+    ipcMain.handle(IPC.WINDOW_UNMAXIMIZE, () =>
+      BrowserWindow.getFocusedWindow()?.unmaximize()
+    );
+    ipcMain.handle(IPC.WINDOW_CLOSE, () =>
+      BrowserWindow.getFocusedWindow()?.close()
+    );
+    ipcMain.handle(
+      IPC.WINDOW_IS_MAXIMIZED,
+      () => BrowserWindow.getFocusedWindow()?.isMaximized() ?? false
+    );
+
+    // IPC：将渲染进程日志转发到主进程日志
+    ipcMain.handle(IPC.LOG, (_event, level: string, ...args: unknown[]) => {
+      const logFn = log[level as keyof typeof log];
+      if (typeof logFn === 'function') {
+        logFn('[Renderer]', ...args);
+      }
+    });
+
+    // IPC：运行时切换文件日志开关，与设置页的 enableLogging 联动
+    ipcMain.handle(IPC.SET_LOGGING_ENABLED, (_event, enabled: boolean) => {
+      setFileLogging(enabled);
+    });
+
+    // IPC：关闭驻留开关读写，事实由主进程 electron-store 持有，渲染层只经此通道
+    ipcMain.handle(IPC.GET_CLOSE_TO_TRAY, () =>
+      trayController.getCloseToTray()
+    );
+    ipcMain.handle(IPC.SET_CLOSE_TO_TRAY, (_event, enabled: boolean) => {
+      trayController.setCloseToTray(enabled);
+    });
+
+    // IPC：代理 HTTP 请求，绕过渲染进程的 CORS 限制
+    // 主进程运行在 Node.js 环境，可直接使用全局 fetch，不受浏览器 CORS 策略约束
+    ipcMain.handle(
+      IPC.PROXY_FETCH,
+      async (_event, url: string, options: ProxyFetchOptions) => {
+        log.info(`[proxyFetch] ${options.method} ${url}`);
+        try {
+          const response = await fetch(url, {
+            method: options.method,
+            headers: options.headers,
+            body: options.body,
+          });
+          const headers: Record<string, string> = {};
+          response.headers.forEach((value, key) => {
+            headers[key] = value;
+          });
+          const body = await response.arrayBuffer();
+          log.info(
+            `[proxyFetch] Response: status=${response.status}, bodySize=${body.byteLength}`
+          );
+          return { ok: response.ok, status: response.status, headers, body };
+        } catch (err) {
+          log.error(`[proxyFetch] Network error for ${url}:`, err);
+          throw err;
+        }
+      }
+    );
+
+    // IPC：使用系统默认浏览器打开指定 URL
+    ipcMain.handle(IPC.OPEN_EXTERNAL, (_event, url: string) => {
+      return shell.openExternal(url);
+    });
+
+    ipcMain.handle(IPC.OPEN_PATH, async (_event, filePath: string) => {
+      const resolved = filePath.replace(/^~/, homedir());
+      log.info('[openPath] input:', filePath, 'resolved:', resolved);
+      const result = await shell.openPath(resolved);
+      if (result) {
+        log.error('[openPath] failed:', result);
+      }
+      return result;
+    });
+
+    // 启动编排：先建立本机连接，存储布局收敛与镜像库开合都在 HostManager 内完成
+    await hostManager.ensureLocal();
+
+    // 缓存 IPC 注册一次不随切换重建，handler 经 getter 取当前库
+    registerCacheIpc(() => hostManager.getCacheDb());
+
+    const mainWindow = createWindow();
+
+    // 安装更新前经 provider 优雅停止本机服务端进程
+    setupUpdater(mainWindow, () => localProvider.stop());
+
+    trayController.setupTray();
+
+    // macOS 设计惯例：点 Dock 图标在无窗口时重开窗口；closeToTray 驻留时窗口隐藏但存在，走唤回
+    app.on('activate', function () {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+      else trayController.showMainWindow();
+    });
+  });
+
+  // macOS 设计惯例：关闭app所有窗口后，应用仍在 Dock 栏存活，用户点击 Dock 图标可以重新打开窗口。对于其他平台关闭是退出应用。
+  // closeToTray 开启时关闭被拦截成隐藏，本事件不会触发；开关关闭或非 mac 与 win 平台时维持原语义。
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      app.quit();
     }
-  );
+  });
 
-  process.on('SIGINT', () => {
+  app.on('before-quit', () => {
+    // 置退出标志后所有 close 事件放行真关闭，托盘退出、快捷键退出与自动更新安装都经此覆盖
+    trayController.markQuitting();
+    hostManager.closeCache();
     localProvider.kill();
-    app.quit();
   });
 
-  process.on('SIGTERM', () => {
-    localProvider.kill();
-    app.quit();
-  });
+  /**
+   * 创建主应用窗口
+   * 初始化 BrowserWindow、加载渲染进程内容、配置 WebPreferences
+   */
+  function createWindow(): BrowserWindow {
+    const mainWindow = new BrowserWindow({
+      width: 1200,
+      height: 800,
+      minWidth: 620,
+      minHeight: 600,
+      show: false,
+      autoHideMenuBar: true,
+      ...(isMac
+        ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 8, y: 12 } }
+        : { frame: false }),
+      webPreferences: {
+        preload: join(__dirname, '../preload/index.cjs'),
+        sandbox: false,
+        nodeIntegration: false,
+        contextIsolation: true,
+        webviewTag: true,
+      },
+    });
 
-  electronApp.setAppUserModelId('com.persona.desktop');
+    mainWindow.on('maximize', () => {
+      mainWindow.webContents.send(IPC.WINDOW_MAXIMIZED_CHANGED, true);
+    });
 
-  // 监听窗口创建事件，自动优化窗口快捷键
-  app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window);
-  });
+    mainWindow.on('unmaximize', () => {
+      mainWindow.webContents.send(IPC.WINDOW_MAXIMIZED_CHANGED, false);
+    });
 
-  // IPC：查询连接事实，current 是当前连接，local 是本机常驻连接
-  ipcMain.handle(IPC.GET_CONNECTION, () => {
-    return hostManager.getSnapshot();
-  });
+    // 窗口准备好显示时触发，此时内部资源已加载完成
+    mainWindow.on('ready-to-show', () => {
+      mainWindow.show();
+    });
 
-  // IPC：查询设备清单，主进程 devices.json 的只读镜像
-  ipcMain.handle(IPC.GET_DEVICES, () => {
-    return hostManager.getDevices();
-  });
-
-  // IPC：条目落位，新建连接识别完成后调用
-  ipcMain.handle(
-    IPC.DEVICE_UPSERT,
-    (_event, entry: { hostId: string; hostName: string; address: string }) => {
-      hostManager.upsertDevice(entry.hostId, entry.hostName, entry.address);
-    }
-  );
-
-  // IPC：设备改名，只动本机显示
-  ipcMain.handle(IPC.DEVICE_RENAME, (_event, hostId: string, name: string) => {
-    hostManager.renameDevice(hostId, name);
-  });
-
-  // IPC：删除设备条目并释放该设备目录，镜像库与附件分区随目录一并消失
-  ipcMain.handle(IPC.DEVICE_REMOVE, (_event, hostId: string) => {
-    imageCaches.delete(hostId);
-    return hostManager.removeDevice(hostId);
-  });
-
-  // IPC：发起主机切换，主进程内串行原子执行
-  ipcMain.handle(
-    IPC.SWITCH_HOST,
-    (_event, target: { hostId: string; address: string | null }) => {
-      return hostManager.switchHost(target.hostId, target.address);
-    }
-  );
-
-  // IPC：打开文件夹选择对话框
-  ipcMain.handle(
-    IPC.SELECT_FOLDER,
-    async (_event, options?: SelectFolderOptions) => {
-      log.info('IPC: select-folder received', options);
-      const result = await dialog.showOpenDialog({
-        title: options?.title || '选择文件夹',
-        defaultPath: options?.defaultPath,
-        properties: ['openDirectory', 'createDirectory'],
+    // 关闭驻留：决策通过后拦截关闭转为隐藏，退出流程、开关关闭、linux 与 mac 全屏放行原语义
+    mainWindow.on('close', (event) => {
+      const hide = shouldHideOnClose({
+        platform: process.platform,
+        quitting: trayController.isQuitting(),
+        closeToTrayEnabled: trayController.getCloseToTray(),
+        isFullScreen: mainWindow.isFullScreen(),
       });
+      if (!hide) return;
+      event.preventDefault();
+      trayController.hideToTray(mainWindow);
+    });
 
-      if (result.canceled || result.filePaths.length === 0) {
-        return null;
-      }
-
-      return result.filePaths[0];
+    if (process.platform === 'win32') {
+      // 隐藏副作用兜底：Alt-Tab 等旁路恢复不经过托盘点击，透明度与任务栏条目在此复原
+      const restoreAppearance = (): void => {
+        mainWindow.setOpacity(1);
+        mainWindow.setSkipTaskbar(false);
+      };
+      mainWindow.on('show', restoreAppearance);
+      mainWindow.on('restore', restoreAppearance);
     }
-  );
 
-  // IPC：窗口控制操作
-  ipcMain.handle(IPC.WINDOW_MINIMIZE, () =>
-    BrowserWindow.getFocusedWindow()?.minimize()
-  );
-  ipcMain.handle(IPC.WINDOW_MAXIMIZE, () =>
-    BrowserWindow.getFocusedWindow()?.maximize()
-  );
-  ipcMain.handle(IPC.WINDOW_UNMAXIMIZE, () =>
-    BrowserWindow.getFocusedWindow()?.unmaximize()
-  );
-  ipcMain.handle(IPC.WINDOW_CLOSE, () =>
-    BrowserWindow.getFocusedWindow()?.close()
-  );
-  ipcMain.handle(
-    IPC.WINDOW_IS_MAXIMIZED,
-    () => BrowserWindow.getFocusedWindow()?.isMaximized() ?? false
-  );
+    // 处理窗口内打开新链接的行为，调用系统默认浏览器打开
+    mainWindow.webContents.setWindowOpenHandler((details) => {
+      shell.openExternal(details.url);
+      return { action: 'deny' };
+    });
 
-  // IPC：将渲染进程日志转发到主进程日志
-  ipcMain.handle(IPC.LOG, (_event, level: string, ...args: unknown[]) => {
-    const logFn = log[level as keyof typeof log];
-    if (typeof logFn === 'function') {
-      logFn('[Renderer]', ...args);
+    // 根据环境决定加载页面
+    // 开发环境加载 dev server URL，生产环境加载打包后的静态文件
+    if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+      mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
+    } else {
+      mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
     }
-  });
 
-  // IPC：运行时切换文件日志开关，与设置页的 enableLogging 联动
-  ipcMain.handle(IPC.SET_LOGGING_ENABLED, (_event, enabled: boolean) => {
-    setFileLogging(enabled);
-  });
-
-  // IPC：代理 HTTP 请求，绕过渲染进程的 CORS 限制
-  // 主进程运行在 Node.js 环境，可直接使用全局 fetch，不受浏览器 CORS 策略约束
-  ipcMain.handle(
-    IPC.PROXY_FETCH,
-    async (_event, url: string, options: ProxyFetchOptions) => {
-      log.info(`[proxyFetch] ${options.method} ${url}`);
-      try {
-        const response = await fetch(url, {
-          method: options.method,
-          headers: options.headers,
-          body: options.body,
-        });
-        const headers: Record<string, string> = {};
-        response.headers.forEach((value, key) => {
-          headers[key] = value;
-        });
-        const body = await response.arrayBuffer();
-        log.info(
-          `[proxyFetch] Response: status=${response.status}, bodySize=${body.byteLength}`
-        );
-        return { ok: response.ok, status: response.status, headers, body };
-      } catch (err) {
-        log.error(`[proxyFetch] Network error for ${url}:`, err);
-        throw err;
-      }
-    }
-  );
-
-  // IPC：使用系统默认浏览器打开指定 URL
-  ipcMain.handle(IPC.OPEN_EXTERNAL, (_event, url: string) => {
-    return shell.openExternal(url);
-  });
-
-  ipcMain.handle(IPC.OPEN_PATH, async (_event, filePath: string) => {
-    const resolved = filePath.replace(/^~/, homedir());
-    log.info('[openPath] input:', filePath, 'resolved:', resolved);
-    const result = await shell.openPath(resolved);
-    if (result) {
-      log.error('[openPath] failed:', result);
-    }
-    return result;
-  });
-
-  // 启动编排：先建立本机连接，存储布局收敛与镜像库开合都在 HostManager 内完成
-  await hostManager.ensureLocal();
-
-  // 缓存 IPC 注册一次不随切换重建，handler 经 getter 取当前库
-  registerCacheIpc(() => hostManager.getCacheDb());
-
-  const mainWindow = createWindow();
-
-  // 安装更新前经 provider 优雅停止本机服务端进程
-  setupUpdater(mainWindow, () => localProvider.stop());
-
-  app.on('activate', function () {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
-});
-
-// macOS 设计惯例：关闭app所有窗口后，应用仍在 Dock 栏存活，用户点击 Dock 图标可以重新打开窗口。对于其他平台关闭是退出应用。
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
+    return mainWindow;
   }
-});
-
-app.on('before-quit', () => {
-  hostManager.closeCache();
-  localProvider.kill();
-});
-
-/**
- * 创建主应用窗口
- * 初始化 BrowserWindow、加载渲染进程内容、配置 WebPreferences
- */
-function createWindow(): BrowserWindow {
-  const mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 620,
-    minHeight: 600,
-    show: false,
-    autoHideMenuBar: true,
-    ...(isMac
-      ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 8, y: 12 } }
-      : { frame: false }),
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.cjs'),
-      sandbox: false,
-      nodeIntegration: false,
-      contextIsolation: true,
-      webviewTag: true,
-    },
-  });
-
-  mainWindow.on('maximize', () => {
-    mainWindow.webContents.send(IPC.WINDOW_MAXIMIZED_CHANGED, true);
-  });
-
-  mainWindow.on('unmaximize', () => {
-    mainWindow.webContents.send(IPC.WINDOW_MAXIMIZED_CHANGED, false);
-  });
-
-  // 窗口准备好显示时触发，此时内部资源已加载完成
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.show();
-  });
-
-  // 处理窗口内打开新链接的行为，调用系统默认浏览器打开
-  mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url);
-    return { action: 'deny' };
-  });
-
-  // 根据环境决定加载页面
-  // 开发环境加载 dev server URL，生产环境加载打包后的静态文件
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
-  } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
-  }
-
-  return mainWindow;
 }

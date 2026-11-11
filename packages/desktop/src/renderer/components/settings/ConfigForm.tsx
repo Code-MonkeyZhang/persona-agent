@@ -4,7 +4,7 @@
  * 使用卡片分组 + Switch 组件 + SettingRow 统一行布局
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { FolderOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useConfigStore } from '../../stores/configStore';
@@ -62,6 +62,11 @@ export const ConfigForm: React.FC = () => {
     (s) => s.setThoughtProcessVisible
   );
   const currentAgent = useAgentStore((s) => s.currentAgent);
+  /** 关闭驻留开关，事实在主进程 electron-store，此处只持展示镜像 */
+  const [closeToTray, setCloseToTray] = useState(true);
+  useEffect(() => {
+    window.api?.getCloseToTray().then(setCloseToTray);
+  }, []);
   /** 重放引导会向所连 server 写凭据，闸门与首启向导同口径，仅本机连接可用 */
   const isLocalConnection = useConnectionStore(
     (s) => !!s.snapshot && s.snapshot.current.hostId === s.snapshot.local.hostId
@@ -82,6 +87,19 @@ export const ConfigForm: React.FC = () => {
       await window.api?.setLoggingEnabled(value);
     } catch {
       updateField(field, prev);
+    }
+  };
+
+  /**
+   * 切换关闭驻留开关并即时持久化到主进程，失败时回滚展示值
+   */
+  const handleToggleCloseToTray = async (value: boolean) => {
+    const prev = closeToTray;
+    setCloseToTray(value);
+    try {
+      await window.api?.setCloseToTray(value);
+    } catch {
+      setCloseToTray(prev);
     }
   };
 
@@ -138,6 +156,16 @@ export const ConfigForm: React.FC = () => {
             <Switch
               checked={thoughtProcessVisible}
               onCheckedChange={setThoughtProcessVisible}
+            />
+          </SettingRow>
+          {/* 关闭驻留开关：开启时点关闭只是隐藏到托盘，服务端与会话后台继续 */}
+          <SettingRow
+            label={t('config.closeToTray')}
+            desc={t('config.closeToTrayDesc')}
+          >
+            <Switch
+              checked={closeToTray}
+              onCheckedChange={handleToggleCloseToTray}
             />
           </SettingRow>
           <SettingRow
