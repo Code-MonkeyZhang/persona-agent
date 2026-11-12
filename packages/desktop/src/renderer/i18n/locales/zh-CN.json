@@ -117,6 +117,8 @@
   "config.enableLoggingDesc": "将运行日志记录到本地文件",
   "config.thoughtProcess": "思考过程",
   "config.thoughtProcessDesc": "在消息中显示「查看思考过程」入口",
+  "config.closeToTray": "关闭窗口时隐藏到托盘",
+  "config.closeToTrayDesc": "关闭后驻留系统托盘，会话在后台继续运行",
   "config.replayLanding": "重看首启引导",
   "config.replayLandingDesc": "以当前使用的 Agent 为对象重走引导向导",
   "config.replayLandingEmptyDesc": "需要先创建 Agent 才能重放引导",

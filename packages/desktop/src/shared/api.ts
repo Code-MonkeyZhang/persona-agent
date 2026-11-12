@@ -109,6 +109,10 @@ export interface WindowAPI {
   log: (level: string, ...args: unknown[]) => Promise<void>;
   /** 运行时切换主进程文件日志开关，与 enableLogging 配置联动 */
   setLoggingEnabled: (enabled: boolean) => Promise<void>;
+  /** 查询关闭驻留开关，事实由主进程 electron-store 持有 */
+  getCloseToTray: () => Promise<boolean>;
+  /** 更新关闭驻留开关，主进程同步更新内存缓存 */
+  setCloseToTray: (enabled: boolean) => Promise<void>;
   openExternal: (url: string) => Promise<void>;
   openPath: (filePath: string) => Promise<string>;
   /** 把上传落定的附件字节种进当前连接设备的附件缓存 */

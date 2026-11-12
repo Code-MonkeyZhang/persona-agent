@@ -103,6 +103,20 @@ const api: WindowAPI = {
     ipcRenderer.invoke(IPC.SET_LOGGING_ENABLED, enabled),
 
   /**
+   * 查询关闭驻留开关，设置事实在主进程 electron-store。
+   * @returns 开关当前值，默认开启
+   */
+  getCloseToTray: () =>
+    ipcRenderer.invoke(IPC.GET_CLOSE_TO_TRAY) as Promise<boolean>,
+
+  /**
+   * 更新关闭驻留开关，主进程持久化并同步内存缓存。
+   * @param enabled - 是否在关闭窗口时隐藏到托盘
+   */
+  setCloseToTray: (enabled) =>
+    ipcRenderer.invoke(IPC.SET_CLOSE_TO_TRAY, enabled),
+
+  /**
    * 通过主进程代理发起 HTTP 请求，绕过渲染进程的 CORS 限制
    * @param url - 请求目标 URL
    * @param options - 请求参数

@@ -20,6 +20,8 @@ export const IPC = {
   WINDOW_MAXIMIZED_CHANGED: 'window:maximized-changed',
   LOG: 'log',
   SET_LOGGING_ENABLED: 'set-logging-enabled',
+  GET_CLOSE_TO_TRAY: 'get-close-to-tray',
+  SET_CLOSE_TO_TRAY: 'set-close-to-tray',
   PROXY_FETCH: 'proxy-fetch',
   OPEN_EXTERNAL: 'open-external',
   OPEN_PATH: 'open-path',

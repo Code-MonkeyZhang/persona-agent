@@ -117,6 +117,8 @@
   "config.enableLoggingDesc": "Record runtime logs to local files",
   "config.thoughtProcess": "Thought Process",
   "config.thoughtProcessDesc": "Show the view thought process entry on messages",
+  "config.closeToTray": "Hide to Tray on Close",
+  "config.closeToTrayDesc": "Keep the app in the system tray with sessions running in the background",
   "config.replayLanding": "Replay Onboarding",
   "config.replayLandingDesc": "Reopen the onboarding wizard for the current agent",
   "config.replayLandingEmptyDesc": "Create an agent before replaying the wizard",
