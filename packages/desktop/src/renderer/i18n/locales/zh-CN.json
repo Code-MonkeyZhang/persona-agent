@@ -353,7 +353,6 @@
   "companion.noAppearance": "该 Agent 还未配置陪伴形象",
   "companion.uploadPoseHint": "请在 Agent 编辑器的「形象」栏中上传立绘图片",
   "companion.poseLoadError": "立绘加载失败",
-  "companion.thinking": "思考中...",
   "server.remoteAccess": "远程访问",
   "server.remoteAccessTitle": "远程访问",
   "server.deviceManageTitle": "设备管理",
