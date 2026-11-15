@@ -864,7 +864,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
           }
 
           // 组装整轮气泡追加到末尾，追加天然形成聊天顺序，插话灰气泡排在整轮之上
-          // 时间线步骤随组装迁入消息流，liveRun 清空避免同批步骤重复出现
+          // 时间线步骤随组装迁入消息流，liveRun 换空时间线保持运动态跨过轮次间隙
           set((state) => {
             const newStates = new Map(state.sessionStates);
             const ss = newStates.get(sessionId);
@@ -874,7 +874,11 @@ export const useChatStore = create<ChatStore>((set, get) => {
                 messages: [...ss.messages, ...bubble],
                 pendingThoughts: [],
                 pendingContent: '',
-                liveRun: null,
+                // 回合未结束蓝条不停，写作标志保住续轮事件先到时已置位的竞态
+                liveRun: {
+                  steps: [],
+                  replying: ss.liveRun?.replying || undefined,
+                },
               });
             }
             return { sessionStates: newStates };

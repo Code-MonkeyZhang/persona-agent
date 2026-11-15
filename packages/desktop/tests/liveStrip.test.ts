@@ -141,7 +141,7 @@ describe('liveRun 缓冲的事件推进', () => {
     expect(steps[1]?.failed).toBeUndefined();
   });
 
-  it('turn_complete 组装气泡并清空时间线', () => {
+  it('turn_complete 组装气泡并换空时间线续跑', () => {
     const sessionId = 'live-turn';
     enterLoading(sessionId);
     broadcastStep(sessionId);
@@ -150,9 +150,27 @@ describe('liveRun 缓冲的事件推进', () => {
       sessionId,
     });
     const state = useChatStore.getState().sessionStates.get(sessionId);
-    expect(state?.liveRun).toBeNull();
+    expect(state?.liveRun).toEqual({ steps: [] });
     expect(state?.messages.at(-1)?.type).toBe('assistant');
     expect(state?.messages.at(-1)?.thoughts).toHaveLength(2);
+  });
+
+  it('turn_complete 轮间保住续轮事件先到的写作标志', () => {
+    const sessionId = 'live-turn-race';
+    enterLoading(sessionId);
+    broadcastStep(sessionId);
+    useChatStore.getState().handleWsMessage({
+      type: 'content_started',
+      sessionId,
+      stepIndex: 1,
+    });
+    useChatStore.getState().handleWsMessage({
+      type: 'turn_complete',
+      sessionId,
+    });
+    expect(
+      useChatStore.getState().sessionStates.get(sessionId)?.liveRun,
+    ).toEqual({ steps: [], replying: true });
   });
 
   it('round_complete 与 error 与 aborted 轮末统一清空时间线', () => {
@@ -176,7 +194,7 @@ describe('liveRun 缓冲的事件推进', () => {
     }
   });
 
-  it('插话续跑在 turn_complete 清空后由下一条 step_complete 重建时间线', () => {
+  it('插话续跑在 turn_complete 轮间由下一条 step_complete 接续时间线', () => {
     const sessionId = 'live-continue';
     enterLoading(sessionId);
     broadcastStep(sessionId);
@@ -186,7 +204,7 @@ describe('liveRun 缓冲的事件推进', () => {
     });
     expect(
       useChatStore.getState().sessionStates.get(sessionId)?.liveRun,
-    ).toBeNull();
+    ).toEqual({ steps: [] });
     useChatStore.getState().handleWsMessage({
       type: 'step_complete',
       sessionId,

@@ -55,13 +55,19 @@ export default {
         pop: 'var(--shadow-pop)',
       },
       keyframes: {
+        // 光带扫动只允许动 transform，动 left 会把动画拉回主线程每帧排版
         'hair-sweep': {
-          from: { left: '-40%' },
-          to: { left: '100%' },
+          from: { transform: 'translateX(-100%)' },
+          to: { transform: 'translateX(250%)' },
+        },
+        'drop-in': {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
         },
       },
       animation: {
         'hair-sweep': 'hair-sweep 1.4s ease-in-out infinite',
+        'drop-in': 'drop-in 0.16s ease-out',
       },
       fontFamily: {
         sans: ['var(--font-family-sans)'],
@@ -76,15 +82,6 @@ export default {
         'title-section': ['var(--font-title-section)', { lineHeight: 'var(--text-16-line-height)' }],
         'title-page': ['var(--font-title-page)', { lineHeight: 'var(--text-20-line-height)' }],
         'title-display': ['var(--font-title-display)', { lineHeight: 'var(--text-26-line-height)' }],
-      },
-      keyframes: {
-        'drop-in': {
-          from: { opacity: '0' },
-          to: { opacity: '1' },
-        },
-      },
-      animation: {
-        'drop-in': 'drop-in 0.16s ease-out',
       },
     },
   },
