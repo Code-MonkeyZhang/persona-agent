@@ -45,14 +45,14 @@ function formatFileSize(bytes: number): string {
  * 纯字符串拼接不读盘，ReAct 循环每步重复执行无成本。
  *
  * @param block - 文件内容块
- * @returns 引导模型用 read_file 取内容的英文句柄
+ * @returns 引导模型用 built_in_files__read_file 取内容的英文句柄
  */
 function formatFileHandle(block: FileContent): string {
   return [
     `[Attached file: ${block.name} · ${formatFileSize(block.bytes)}]`,
     'The user attached this file. It is stored read-only at:',
     `${getAttachmentsDir()}/${block.hash}`,
-    'Read it with the read_file tool when you need its contents.',
+    'Read it with the built_in_files__read_file tool when you need its contents.',
     'To modify it, first copy it to the workspace.',
   ].join('\n');
 }
@@ -62,7 +62,7 @@ function formatFileHandle(block: FileContent): string {
  *
  * - 文本块直映射
  * - 图片块按哈希读附件仓转 base64，仓里的字节即客户端压缩后的最终产物
- * - 文件块投影为句柄文本，模型经 read_file 按路径读取
+ * - 文件块投影为句柄文本，模型经 built_in_files__read_file 按路径读取
  * - 图片未命中或登记格式非图片时降级为占位文本，不打断整轮
  *
  * @param block - 内部内容块

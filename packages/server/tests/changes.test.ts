@@ -158,7 +158,6 @@ async function createTestAgent(): Promise<string> {
       systemPrompt: 'You are a helpful assistant.',
       defaultModel: { provider: 'openai', model: 'gpt-4' },
       maxSteps: 10,
-      mcpNames: [],
       skillNames: [],
     }),
   });

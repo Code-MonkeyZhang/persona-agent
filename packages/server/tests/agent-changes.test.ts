@@ -150,7 +150,6 @@ async function createTestAgent(): Promise<string> {
       systemPrompt: 'You are a helpful assistant.',
       defaultModel: { provider: 'openai', model: 'gpt-4' },
       maxSteps: 10,
-      mcpNames: [],
       skillNames: [],
     }),
   });
@@ -195,15 +194,15 @@ describe('Agent Change Stream Tests', () => {
     getDb().run('DELETE FROM changes');
   });
 
-  /** 创建 Agent 后 WS 推来 agents_invalidated，事件体不带载荷 */
+  /** 创建 Agent 后 WS 推来 agents_invalidated，事件体带该 Agent 的主语 */
   it('should push agents_invalidated on create', async () => {
     const client = await connectWs(WS_URL);
-    await createTestAgent();
+    const agentId = await createTestAgent();
 
     const msg = (await client.waitFor('change')) as { change: SessionChange };
     expect(msg.change.kind).toBe('agents_invalidated');
     expect(msg.change.sessionId).toBeNull();
-    expect(msg.change.data).toEqual({});
+    expect(msg.change.data).toEqual({ agentId });
     expect(msg.change.seq).toBeGreaterThan(0);
     await client.close();
 

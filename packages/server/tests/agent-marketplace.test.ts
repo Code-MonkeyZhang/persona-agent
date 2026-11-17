@@ -230,7 +230,7 @@ describe('installAgentFromMarketplace', () => {
     );
   });
 
-  it('clears skillNames and mcpNames even if config.json provides them', async () => {
+  it('clears skillNames and strips retired mcpNames from package config', async () => {
     mockConfigContent = {
       ...validConfig(),
       skillNames: ['some-skill'],
@@ -240,7 +240,7 @@ describe('installAgentFromMarketplace', () => {
     const agent = await installAgentFromMarketplace(makeEntry('with-skills'));
 
     expect(agent.skillNames).toEqual([]);
-    expect(agent.mcpNames).toEqual([]);
+    expect('mcpNames' in agent).toBe(false);
   });
 
   it('cleans up temp directory after success', async () => {

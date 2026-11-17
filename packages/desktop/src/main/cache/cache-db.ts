@@ -247,6 +247,7 @@ export class CacheDb {
     for (const messageRow of messageRows) {
       const message = JSON.parse(messageRow.data) as Message;
       message.seq = messageRow.seq;
+      message.createdAt = messageRow.created_at;
       messages.push(message);
       if (messageRow.role === 'context') {
         lastContextAt = messageRow.created_at;

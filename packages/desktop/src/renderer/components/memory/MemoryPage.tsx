@@ -8,7 +8,7 @@
  * 新增走草稿表单，保存才落库，取消即丢弃不留残行。
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { BookHeart, Plus, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
 import { Button } from '../ui/Button';
@@ -118,9 +118,12 @@ export function MemoryPage() {
       <div className="shrink-0 border-b border-border px-6 pt-5 pb-4">
         <div className="mx-auto flex max-w-3xl flex-col gap-3">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="text-title-page font-semibold text-foreground">
-              {t('memory.title')}
-            </h2>
+            <div className="flex items-center gap-2">
+              <BookHeart className="w-5 h-5 text-foreground" />
+              <h2 className="text-title-page font-semibold text-foreground">
+                {t('memory.title')}
+              </h2>
+            </div>
             <Button size="sm" onClick={() => setDraftOpen(true)}>
               <Plus className="w-4 h-4 mr-1" />
               {t('memory.add')}

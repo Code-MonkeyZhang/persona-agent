@@ -91,10 +91,20 @@ export function SidePanelShell({
   );
 }
 
-/** 空状态提示行 */
-export function EmptyHint({ text }: { text: string }) {
+/** 空状态提示行，className 供消费侧按所在容器微调对齐 */
+export function EmptyHint({
+  text,
+  className,
+}: {
+  text: string;
+  className?: string;
+}) {
   return (
-    <div className="px-1 py-3 text-caption text-muted-foreground">{text}</div>
+    <div
+      className={cn('px-1 py-3 text-caption text-muted-foreground', className)}
+    >
+      {text}
+    </div>
   );
 }
 

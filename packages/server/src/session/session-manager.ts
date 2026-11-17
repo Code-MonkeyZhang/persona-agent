@@ -5,11 +5,15 @@
 import { randomUUID } from 'node:crypto';
 import { SessionStore } from './store.js';
 import type { Session, SessionMeta, CreateSessionOptions } from './types.js';
+import type { CompressionRecord, UsageState } from '@persona/shared';
 import type { AgentConfig, ModelConfig } from '../agent/types.js';
 import type { Message } from '../schema/index.js';
 import { getAgentConfig } from '../agent/agent-config-store.js';
 import { Logger } from '../util/logger.js';
 import { mixTurnEnds } from '@persona/shared';
+
+/** 压缩记录条数上限，超出丢最老 */
+const MAX_COMPRESSION_RECORDS = 50;
 
 /**
  * Generate a human-readable session ID using local time + short UUID.
@@ -233,11 +237,64 @@ export class SessionManager {
   /**
    * 更新聊天 Session 的压缩进度指针。
    *
-   * 压缩完成后由 compress-service 调用，推进 `summarizedUpTo`；
-   * 仅重写 JSONL 首行元数据，消息行不受影响。
+   * 压缩完成后由 compress-service 调用，推进 `summarizedUpTo`。
    */
   updateSummarizedUpTo(id: string, summarizedUpTo: number): Session | null {
     return this.updateSessionField(id, { summarizedUpTo });
+  }
+
+  /**
+   * 更新会话占用底数。
+   *
+   * 报数落账与压缩净调整由 usage-service 调用，每次整份覆盖。
+   */
+  updateUsageState(id: string, usageState: UsageState): Session | null {
+    return this.updateSessionField(id, { usageState });
+  }
+
+  /**
+   * 按 id 更新或追加一条压缩记录。
+   *
+   * 新 complete 落地时抽掉其他记录的 summary，当前摘要只存最新一份；
+   * 条数上限五十，超出丢最老。
+   */
+  upsertCompressionRecord(
+    id: string,
+    record: CompressionRecord
+  ): Session | null {
+    const session = this.store.loadSession(id);
+    if (!session) return null;
+    const records = [...(session.compressionLog ?? [])];
+    const index = records.findIndex((r) => r.id === record.id);
+    if (index >= 0) {
+      records[index] = record;
+    } else {
+      records.push(record);
+    }
+    if (record.state === 'complete') {
+      for (const other of records) {
+        if (other !== record) delete other.summary;
+      }
+    }
+    const trimmed =
+      records.length > MAX_COMPRESSION_RECORDS
+        ? records.slice(-MAX_COMPRESSION_RECORDS)
+        : records;
+    return this.updateSessionField(id, { compressionLog: trimmed });
+  }
+
+  /** 读压缩记录，供注入与快照用，无记录返回空数组 */
+  getCompressionRecords(id: string): CompressionRecord[] {
+    return this.getSession(id)?.compressionLog ?? [];
+  }
+
+  /**
+   * 会话已持久化消息条数，轻量 COUNT 查询。
+   *
+   * 供占用锚点换算等只需要数量的场景，避免全量加载消息。
+   */
+  getMessageCount(id: string): number {
+    return this.store.countMessages(id);
   }
 
   /**

@@ -266,7 +266,7 @@ export function fromContentBlocks(content: string | ContentBlock[]): {
         id: `blk-${block.hash}-${attachments.length}`,
         kind: 'image',
         url: getAttachmentUrl(block.hash),
-        name: `image.${ext}`,
+        name: block.name ?? `image.${ext}`,
         bytes: block.bytes,
         width: block.width,
         height: block.height,
@@ -401,6 +401,7 @@ export function toContentBlocks(
         width: attachment.width ?? 0,
         height: attachment.height ?? 0,
         bytes: attachment.bytes,
+        name: attachment.name,
       });
     } else {
       blocks.push({

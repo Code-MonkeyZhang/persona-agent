@@ -13,12 +13,10 @@ import { toast } from '../../stores/toastStore';
 import {
   useConnectionStore,
   useDeviceProbing,
-  currentDeviceKey,
   deviceDisplayName,
   deviceStatus,
   type DeviceDotStatus,
 } from '../../stores/connectionStore';
-import { LOCAL_DEVICE_ID } from '@shared/api';
 
 /** 状态点配色，设备清单浮层与设备管理页共用 */
 export const deviceStatusDot: Record<DeviceDotStatus, string> = {
@@ -41,7 +39,7 @@ export function DeviceListPopover({
   const probes = useConnectionStore((s) => s.probes);
   const currentWsStatus = useConnectionStore((s) => s.currentWsStatus);
   const switchHost = useConnectionStore((s) => s.switchHost);
-  const currentKey = snapshot ? currentDeviceKey(snapshot) : LOCAL_DEVICE_ID;
+  const currentKey = snapshot?.current.hostId ?? '';
 
   useDeviceProbing();
 
@@ -93,9 +91,7 @@ export function DeviceListPopover({
                     selected ? 'text-foreground font-medium' : 'text-foreground'
                   )}
                 >
-                  {device.hostId === LOCAL_DEVICE_ID
-                    ? t('device.local')
-                    : deviceDisplayName(device)}
+                  {device.local ? t('device.local') : deviceDisplayName(device)}
                 </span>
               </button>
             );

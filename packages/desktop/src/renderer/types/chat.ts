@@ -63,6 +63,8 @@ export interface Thought {
   toolTitle?: string;
   /** 模型自写的本次调用意图，轮末收起行优先显示 */
   toolIntent?: string;
+  /** MCP 工具所属服务的 logo 图址，随落盘步骤回放，历史行复用 */
+  iconUrl?: string;
   toolResult?: ToolResult;
   duration?: number;
   isError?: boolean;

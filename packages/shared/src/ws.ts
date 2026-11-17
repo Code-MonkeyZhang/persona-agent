@@ -10,6 +10,7 @@ export type DeviceType = 'desktop' | 'mobile';
 
 import type { SessionChange } from './changes.js';
 import type { ContentBlock } from './schema.js';
+import type { BreakdownShares } from './session.js';
 
 // ── Server → Client 事件 ──
 
@@ -68,6 +69,8 @@ interface WsToolCall {
   /** 模型自写的工具叙述，随 toolCalls 项透传，供显示层取值优先读 */
   toolTitle?: string;
   toolIntent?: string;
+  /** MCP 工具所属服务的 logo 图址，随 toolCalls 项透传，历史行复用 */
+  iconUrl?: string;
 }
 
 /**
@@ -294,6 +297,49 @@ interface RunsSnapshotMessage {
   runs: RunningSessionEntry[];
 }
 
+/**
+ * 占用快照推送。
+ * 模型报数落账后、压缩落定后、配置变化的刷新与报数缺席的补位各推一次，
+ * 订阅回执后补推一次当前值，
+ * 数字随事件到客户端，前端零计算。source 区分快照跟着哪类事件到达。
+ */
+interface ContextUsageEvent {
+  type: 'context_usage';
+  sessionId: string;
+  used: number;
+  window: number;
+  shares: BreakdownShares | null;
+  /** model 表示快照跟一次模型报数，compression 表示跟一次压缩落定，estimate 表示跟刷新或补位的估算轨推送 */
+  source: 'model' | 'compression' | 'estimate';
+}
+
+/** 压缩开始事件，attempt 递增重试时重发喂重试序号 */
+interface CompressionStartedEvent {
+  type: 'compression_started';
+  sessionId: string;
+  recordId: string;
+  attempt: number;
+  before: number | null;
+}
+
+/** 压缩落定事件，携带压缩前后的占用分子 */
+interface CompressionCompleteEvent {
+  type: 'compression_complete';
+  sessionId: string;
+  recordId: string;
+  before: number | null;
+  after: number | null;
+  trigger: 'auto' | 'manual';
+}
+
+/** 压缩终态失败事件，原因码区分无料、服务商、摘要不合格与中断 */
+interface CompressionFailedEvent {
+  type: 'compression_failed';
+  sessionId: string;
+  recordId: string;
+  reason: 'no_material' | 'provider' | 'bad_summary' | 'interrupted';
+}
+
 export type ServerMessage =
   | ConnectedMessage
   | SubscribedMessage
@@ -319,6 +365,10 @@ export type ServerMessage =
   | RunStartedMessage
   | RunEndedMessage
   | RunsSnapshotMessage
+  | ContextUsageEvent
+  | CompressionStartedEvent
+  | CompressionCompleteEvent
+  | CompressionFailedEvent
   | ChangeMessage;
 
 // ── Client → Server 消息 ──

@@ -1,7 +1,7 @@
 /**
  * @fileoverview Agent App 子进程编号的清账记录。
  *
- * server 拉起 stdio 子进程时把编号写进 mcp 目录下的记录文件，
+ * server 拉起 stdio 子进程时把编号写进 mcp/run 目录下的记录文件，
  * 整池收尾成功后除名，没除掉的留给下次启动时回收。
  * 回收前先核对目标进程的命令行带有当时的 App 目录，
  * 编号被系统复用给无关进程时不会误伤。
@@ -10,7 +10,7 @@ import { execFile } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Logger } from '../util/logger.js';
-import { getMcpDir } from '../util/paths.js';
+import { getMcpRunDir } from '../util/paths.js';
 import type { McpServerConfig } from './types.js';
 
 interface AppPidEntry {
@@ -19,9 +19,9 @@ interface AppPidEntry {
   dir: string;
 }
 
-/** 记录文件路径，与 mcp.json 同目录 */
+/** 记录文件路径，与配置分开住在 run 目录 */
 export function getAppPidLedgerPath(): string {
-  return path.join(getMcpDir(), 'app-pids.json');
+  return path.join(getMcpRunDir(), 'app-pids.json');
 }
 
 /** 读出全部记录，文件缺失或内容损坏时返回空数组 */
@@ -41,7 +41,7 @@ export function readAppPidEntries(): AppPidEntry[] {
 }
 
 function writeAppPidEntries(entries: AppPidEntry[]): void {
-  fs.mkdirSync(getMcpDir(), { recursive: true });
+  fs.mkdirSync(getMcpRunDir(), { recursive: true });
   fs.writeFileSync(getAppPidLedgerPath(), JSON.stringify(entries, null, 2));
 }
 

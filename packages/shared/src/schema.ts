@@ -13,7 +13,8 @@ export interface TextContent {
 
 /**
  * 图片内容块。
- * 哈希指向附件仓内的最终字节，宽高由客户端在草稿期读取随块携带。
+ * 哈希指向附件仓内的最终字节，宽高由客户端在草稿期读取随块携带，
+ * name 是原始文件名随消息持久保存，历史消息可能缺失。
  */
 export interface ImageContent {
   type: 'image';
@@ -22,6 +23,7 @@ export interface ImageContent {
   width: number;
   height: number;
   bytes: number;
+  name?: string;
 }
 
 /**
@@ -70,6 +72,8 @@ export interface ToolCall {
   toolTitle?: string;
   /** 模型自写的本次调用意图，schema 注入键 _intent 在事件源头剥离后挂此 */
   toolIntent?: string;
+  /** MCP 工具所属服务的 logo 图址，事件源头解析后随调用落盘，历史回放复用 */
+  iconUrl?: string;
   toolResult?: {
     content: string;
     isError: boolean;
@@ -124,6 +128,8 @@ export interface ContextMessage {
  * 消息联合。
  * 交叉上的可选 seq 是服务端消息行号，详情与快照路径携带，
  * 客户端以它做缓存去重的基准。
+ * 可选 createdAt 是消息行的落库时间毫秒值，缓存读取路径盖章，
+ * 时间线压缩行据此把压缩记录按发生时刻插进消息序列。
  */
 export type Message = (
   | SystemMessage
@@ -132,4 +138,4 @@ export type Message = (
   | ErrorMessage
   | AppNotificationMessage
   | ContextMessage
-) & { seq?: number };
+) & { seq?: number; createdAt?: number };

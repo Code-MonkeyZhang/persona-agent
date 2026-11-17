@@ -17,7 +17,6 @@ import {
   type ConnectError,
 } from '../../stores/connectionStore';
 import { deviceStatusDot } from './DeviceListPopover';
-import { LOCAL_DEVICE_ID } from '@shared/api';
 
 interface DeviceManageModalProps {
   isOpen: boolean;
@@ -181,7 +180,7 @@ function DeviceSection() {
         {devices.map((device) => {
           const editingThis =
             editing?.hostId === device.hostId ? editing.field : null;
-          const isLocal = device.hostId === LOCAL_DEVICE_ID;
+          const isLocal = device.local;
           return (
             <div key={device.hostId} className="px-4 py-3 space-y-1.5">
               <div className="flex items-center gap-3">

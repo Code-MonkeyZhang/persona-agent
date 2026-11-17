@@ -20,6 +20,8 @@ export const IPC = {
   WINDOW_MAXIMIZED_CHANGED: 'window:maximized-changed',
   LOG: 'log',
   SET_LOGGING_ENABLED: 'set-logging-enabled',
+  GET_CLOSE_TO_TRAY: 'get-close-to-tray',
+  SET_CLOSE_TO_TRAY: 'set-close-to-tray',
   PROXY_FETCH: 'proxy-fetch',
   OPEN_EXTERNAL: 'open-external',
   OPEN_PATH: 'open-path',
@@ -41,5 +43,6 @@ export const IPC = {
   CACHE_PUT_AGENTS: 'cache:put-agents',
   CACHE_DELETE_AGENT: 'cache:delete-agent',
   CACHE_RESET: 'cache:reset',
-  IMAGE_SEED: 'image:seed',
+  ATTACHMENT_SEED: 'attachment:seed',
+  ATTACHMENT_OPEN: 'attachment:open',
 } as const;

@@ -1,9 +1,9 @@
 /** MCP server connection status */
 export type McpServerStatus =
-  | 'disconnected'
   | 'connecting'
   | 'connected'
-  | 'needs_auth';
+  | 'needs_auth'
+  | 'failed';
 
 /** Agent App 支持的端类型，用于客户端列表筛选 */
 export type SupportedUI = 'desktop' | 'mobile';
@@ -51,4 +51,34 @@ export interface McpOAuthStatus {
   status: McpServerStatus;
   oauthUrl?: string;
   error?: string;
+}
+
+/** 工具注册表条目的来源标记 */
+export type ToolEntryKind = 'builtin' | 'mcp' | 'app';
+
+/** 注册表功能清单项，name 是模型侧全名，shortName 供界面显示 */
+export interface ToolFunctionInfo {
+  name: string;
+  shortName: string;
+  description?: string;
+}
+
+/**
+ * 工具注册表条目，GET /api/tools 的投影。
+ * 内置、MCP、App 三类来源统一形状，assigned 仅在带 agentId 查询时给出。
+ */
+export interface ToolEntryInfo {
+  id: string;
+  kind: ToolEntryKind;
+  name: string;
+  description?: string;
+  status: McpServerStatus;
+  functions: ToolFunctionInfo[];
+  url?: string;
+  logoUrl?: string;
+  instructions?: string;
+  author?: string;
+  error?: string;
+  oauthUrl?: string;
+  assigned?: boolean;
 }

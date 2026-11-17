@@ -28,6 +28,7 @@ vi.mock('@/lib/api', () => ({
   createAgent: vi.fn(),
   updateAgent: vi.fn(),
   deleteAgent: vi.fn(),
+  resolveTimelineIconUrl: (iconUrl: string | undefined) => iconUrl,
   listSessions: vi.fn(),
   createSession: vi.fn(),
   deleteSession: vi.fn(),
@@ -35,10 +36,11 @@ vi.mock('@/lib/api', () => ({
 }));
 
 import { useChatStore } from '@/stores/chatStore';
+import { stepPhrase } from '@persona/shared';
+import type { CompressionRecord } from '@persona/shared';
 import {
   buildRows,
   idleLabel,
-  stepPhrase,
   type Translate,
 } from '@/components/chat/LiveStrip';
 import type { UIMessage, Thought } from '@/types/chat';
@@ -49,6 +51,8 @@ const dict: Record<string, string> = {
   'live.read': '正在读取',
   'live.done': '执行了 {{count}} 个步骤',
   'live.doneFail': '执行了 {{count}} 个步骤 · {{fails}} 步失败',
+  'live.roundFail': '本轮失败',
+  'live.replied': '已回复',
 };
 const t: Translate = (key, opts) =>
   Object.entries(opts ?? {}).reduce(
@@ -140,7 +144,7 @@ describe('liveRun 缓冲的事件推进', () => {
     expect(steps[1]?.failed).toBeUndefined();
   });
 
-  it('turn_complete 组装气泡并清空时间线', () => {
+  it('turn_complete 组装气泡并换空时间线续跑', () => {
     const sessionId = 'live-turn';
     enterLoading(sessionId);
     broadcastStep(sessionId);
@@ -149,9 +153,27 @@ describe('liveRun 缓冲的事件推进', () => {
       sessionId,
     });
     const state = useChatStore.getState().sessionStates.get(sessionId);
-    expect(state?.liveRun).toBeNull();
+    expect(state?.liveRun).toEqual({ steps: [] });
     expect(state?.messages.at(-1)?.type).toBe('assistant');
     expect(state?.messages.at(-1)?.thoughts).toHaveLength(2);
+  });
+
+  it('turn_complete 轮间保住续轮事件先到的写作标志', () => {
+    const sessionId = 'live-turn-race';
+    enterLoading(sessionId);
+    broadcastStep(sessionId);
+    useChatStore.getState().handleWsMessage({
+      type: 'content_started',
+      sessionId,
+      stepIndex: 1,
+    });
+    useChatStore.getState().handleWsMessage({
+      type: 'turn_complete',
+      sessionId,
+    });
+    expect(
+      useChatStore.getState().sessionStates.get(sessionId)?.liveRun,
+    ).toEqual({ steps: [], replying: true });
   });
 
   it('round_complete 与 error 与 aborted 轮末统一清空时间线', () => {
@@ -175,7 +197,7 @@ describe('liveRun 缓冲的事件推进', () => {
     }
   });
 
-  it('插话续跑在 turn_complete 清空后由下一条 step_complete 重建时间线', () => {
+  it('插话续跑在 turn_complete 轮间由下一条 step_complete 接续时间线', () => {
     const sessionId = 'live-continue';
     enterLoading(sessionId);
     broadcastStep(sessionId);
@@ -185,7 +207,7 @@ describe('liveRun 缓冲的事件推进', () => {
     });
     expect(
       useChatStore.getState().sessionStates.get(sessionId)?.liveRun,
-    ).toBeNull();
+    ).toEqual({ steps: [] });
     useChatStore.getState().handleWsMessage({
       type: 'step_complete',
       sessionId,
@@ -545,13 +567,29 @@ describe('idleLabel 空闲摘要', () => {
     });
   });
 
-  it('回退不到工具步数时取最后一条用户消息截断', () => {
+  it('用户消息原文不上单行，回退链落已回复', () => {
     const long = 'a'.repeat(40);
     expect(idleLabel(t, [message({ type: 'user', content: long })])).toEqual({
-      text: `${'a'.repeat(23)}…`,
+      text: '已回复',
       failed: false,
     });
-    expect(idleLabel(t, [])).toEqual({ text: '思考中', failed: false });
+    expect(idleLabel(t, [])).toEqual({ text: '已回复', failed: false });
+  });
+
+  it('零工具步的轮显示已回复不穿透到更早轮', () => {
+    const pureText = message({
+      type: 'assistant',
+      content: '直接回答了',
+      thoughts: [thought({ type: 'text', content: '先想了想' })],
+    });
+    const earlier = message({
+      type: 'assistant',
+      thoughts: [thought({ toolName: 'bash', toolInput: { command: 'ls' } })],
+    });
+    expect(idleLabel(t, [earlier, pureText])).toEqual({
+      text: '已回复',
+      failed: false,
+    });
   });
 
   it('只认最后一条带工具步的 assistant 消息', () => {
@@ -599,5 +637,120 @@ describe('buildRows 的附件占位', () => {
       kind: 'user',
       text: '帮我核对 Image.jpg 需求规格.pdf',
     });
+  });
+});
+
+describe('buildRows 的压缩行插入', () => {
+  /** 便捷构造一条压缩记录 */
+  const record = (
+    partial: Partial<CompressionRecord> & { id: string; at: number }
+  ): CompressionRecord => ({
+    state: 'complete',
+    trigger: 'manual',
+    attempt: 1,
+    before: 1000,
+    after: 200,
+    ...partial,
+  });
+
+  it('历史记录按落库时刻插进消息序列，晚于全部消息的接在尾部', () => {
+    const messages = [
+      message({ type: 'user', content: '早', timestamp: new Date(1000) }),
+      message({ type: 'user', content: '晚', timestamp: new Date(3000) }),
+    ];
+    const rows = buildRows(messages, null, [
+      record({ id: 'r0', at: 500 }),
+      record({ id: 'r1', at: 2000 }),
+      record({ id: 'r2', at: 9000 }),
+    ]);
+    expect(rows.map((r) => r.kind)).toEqual([
+      'compress',
+      'user',
+      'compress',
+      'user',
+      'compress',
+    ]);
+  });
+
+  it('运行中记录固定在尾，meta 已带同 id 记录时运行态不再合成', () => {
+    const running = record({
+      id: 'r-run',
+      at: 100,
+      state: 'running',
+      before: null,
+      after: null,
+    });
+    const runtime = {
+      recordId: 'r-run',
+      phase: 'running' as const,
+      attempt: 1,
+      lastLanded: null,
+      failReason: null,
+      failedAt: null,
+    };
+    const rows = buildRows([], null, [running], runtime);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ kind: 'compress' });
+
+    // meta 未带到记录时由运行态合成一行补位
+    const synthetic = buildRows([], null, [], {
+      ...runtime,
+      recordId: 'r-syn',
+    });
+    expect(synthetic).toHaveLength(1);
+    expect(synthetic[0]).toMatchObject({
+      kind: 'compress',
+      record: { id: 'r-syn', state: 'running' },
+    });
+  });
+
+  it('运行态空闲时不追加压缩行', () => {
+    const rows = buildRows([], null, [], {
+      recordId: 'r-idle',
+      phase: 'idle',
+      attempt: 1,
+      lastLanded: null,
+      failReason: null,
+      failedAt: null,
+    });
+    expect(rows).toEqual([]);
+  });
+});
+
+describe('idleLabel 感知失败轮', () => {
+  it('尾部 error 消息且无失败工具步时本轮失败红字', () => {
+    const clean = message({
+      type: 'assistant',
+      content: '',
+      thoughts: [
+        thought({
+          toolName: 'bash',
+          toolInput: { command: 'ls' },
+        }),
+      ],
+    });
+    expect(idleLabel(t, [clean, message({ type: 'error', content: 'boom' })]))
+      .toEqual({ text: '本轮失败', failed: true });
+  });
+
+  it('有失败工具步的轮仍走既有步骤统计句式', () => {
+    const withFail = message({
+      type: 'assistant',
+      content: '',
+      thoughts: [
+        thought({
+          toolName: 'bash',
+          toolInput: { command: 'boom' },
+          toolResult: { output: 'Error', isError: true },
+        }),
+      ],
+    });
+    expect(idleLabel(t, [withFail, message({ type: 'error', content: 'x' })]))
+      .toEqual({ text: '执行了 1 个步骤 · 1 步失败', failed: true });
+  });
+
+  it('零输出失败轮回退链上仍优先本轮失败', () => {
+    expect(idleLabel(t, [message({ type: 'user', content: '你好' }), message({ type: 'error', content: 'boom' })]))
+      .toEqual({ text: '本轮失败', failed: true });
   });
 });

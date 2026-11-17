@@ -26,8 +26,6 @@ import { Logger } from '../../util/logger.js';
 const ENTRIES_FILE = 'memory.jsonl';
 /** 编号计数器文件，删除条目不释放编号，防止旧编号指向后来的新条目 */
 const NEXT_UID_FILE = '.next_uid';
-/** 标题缺省时截取内容开头的字符数，与界面编辑行为同口径 */
-const TITLE_SLICE_CHARS = 12;
 
 /**
  * 常驻板块标题行，英文引导语告诉模型这些是跨会话的持久事实。
@@ -119,6 +117,13 @@ export class MemoryStore {
         return { ok: false, kind: 'duplicate', entry: duplicate };
       }
     }
+    const title = input.title.trim();
+    if (!title) {
+      Logger.log('MEMORY', 'Write rejected as title missing', {
+        agentId: this.agentId,
+      });
+      return { ok: false, kind: 'invalid', message: 'title is required' };
+    }
     const keys = input.keys.map((k) => k.trim()).filter(Boolean);
     const invalid = validateKeys(input.type, keys);
     if (invalid) return { ok: false, kind: 'invalid', message: invalid };
@@ -127,7 +132,7 @@ export class MemoryStore {
     const now = new Date().toISOString();
     const entry: MemoryEntry = {
       uid: this.allocateUid(entries),
-      title: input.title?.trim() || content.slice(0, TITLE_SLICE_CHARS),
+      title,
       content,
       keys,
       type: input.type,
@@ -168,6 +173,13 @@ export class MemoryStore {
       Object.entries(patch).filter(([, value]) => value !== undefined)
     ) as Partial<MemoryEntry>;
     const next: MemoryEntry = { ...entries[index]!, ...clean };
+    if (clean.title !== undefined && !clean.title.trim()) {
+      Logger.log('MEMORY', 'Update rejected as title empty', {
+        agentId: this.agentId,
+        uid,
+      });
+      return { ok: false, kind: 'invalid', message: 'title cannot be empty' };
+    }
     if (clean.content !== undefined) next.content = next['content'].trim();
     if (clean.keys !== undefined)
       next.keys = next['keys'].map((k) => k.trim()).filter(Boolean);
@@ -215,7 +227,7 @@ export class MemoryStore {
   }
 
   /**
-   * 关键词查，查询串按空白切词，任一词在 content 或 keys 命中即返回。
+   * 关键词查，查询串按空白切词，任一词在 title、content 或 keys 命中即返回。
    *
    * 大小写不敏感，空查询列全部启用条目，带查询查全量含停用，
    * 供模型在 update 与 forget 前找回 uid。整串当连续子串匹配的旧
@@ -229,10 +241,10 @@ export class MemoryStore {
     const matched =
       keywords.length > 0
         ? pool.filter((entry) => {
-            const content = entry.content.toLowerCase();
+            const haystack = `${entry.title} ${entry.content}`.toLowerCase();
             return keywords.some(
               (word) =>
-                content.includes(word) ||
+                haystack.includes(word) ||
                 entry.keys.some((key) => key.toLowerCase().includes(word))
             );
           })

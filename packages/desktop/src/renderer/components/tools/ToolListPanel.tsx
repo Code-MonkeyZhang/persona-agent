@@ -1,84 +1,107 @@
 /**
  * @file src/renderer/components/tools/ToolListPanel.tsx
- * @description 工具页左栏，上为已分配工具，下为未分配工具
- * 内置工具常驻已分配组，挂载与解绑即点即生效，卡片在两个分区之间移动，归属即位置
+ * @description 工具页左栏，上为内置工具组，中为已分配工具，下为未分配工具
+ * 内置组常驻不参与分配，每行一枚开关，关闭置灰留在组内；
+ * 外部工具加减号即时生效，分配写注册表条目 id，三类来源同一套写法
  */
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { McpServerInfo } from '../../lib/api';
-import { useAgentStore } from '../../stores/agentStore';
+import type { ToolEntryInfo } from '../../lib/api';
+import { useMcpStore } from '../../stores/mcpStore';
 import { logger } from '../../lib/logger';
 import { AssignButton, UnassignButton } from '../common/AssignButtons';
 import { SidePanelShell, EmptyHint } from '../common/SidePanel';
 import { CollapsibleGroup } from '../common/CollapsibleGroup';
-import { BUILT_IN_TOOLS, type ToolSelection } from './builtInTools';
-import { BuiltinToolRow, McpRow, nodeProps } from './toolRows';
+import { Switch } from '../ui/Switch';
+import { BuiltinToolRow, ExternalToolRow, nodeProps } from './toolRows';
+import type { ToolSelection } from './toolRows';
 
 interface ToolListPanelProps {
   agentId: string;
-  servers: McpServerInfo[];
+  entries: ToolEntryInfo[];
   selection: ToolSelection | null;
   onSelect: (sel: ToolSelection) => void;
 }
 
 export function ToolListPanel({
   agentId,
-  servers,
+  entries,
   selection,
   onSelect,
 }: ToolListPanelProps) {
   const { t } = useTranslation();
-  const agent = useAgentStore((s) => s.agents.find((a) => a.id === agentId));
-  const assignMcp = useAgentStore((s) => s.assignMcp);
-  const unassignMcp = useAgentStore((s) => s.unassignMcp);
+  const setAssignment = useMcpStore((s) => s.setAssignment);
+  const assigning = useMcpStore((s) => s.assigning);
 
-  const [groupsOpen, setGroupsOpen] = useState({ assigned: true, pool: true });
+  const [groupsOpen, setGroupsOpen] = useState({
+    builtin: true,
+    assigned: true,
+    pool: true,
+  });
 
-  if (!agent) return null;
+  const builtinItems = entries.filter((e) => e.kind === 'builtin');
+  const externalItems = entries.filter((e) => e.kind !== 'builtin');
+  const assignedItems = externalItems.filter((e) => e.assigned === true);
+  const poolItems = externalItems.filter((e) => e.assigned !== true);
 
-  const assignedItems = servers.filter((s) => agent.mcpNames.includes(s.name));
-  const poolItems = servers.filter((s) => !agent.mcpNames.includes(s.name));
-
-  const assign = (name: string) => {
-    logger.info('[Tools] 分配 MCP', { mcp: name, agent: agentId });
-    void assignMcp(agentId, name);
-  };
-  const unassign = (name: string) => {
-    logger.info('[Tools] 取消分配 MCP', { mcp: name, agent: agentId });
-    void unassignMcp(agentId, name);
+  const write = (entry: ToolEntryInfo, assigned: boolean) => {
+    logger.info('[Tools] 分配写入', {
+      entry: entry.id,
+      agent: agentId,
+      assigned,
+    });
+    void setAssignment(agentId, entry.id, assigned);
   };
 
   return (
     <SidePanelShell width="w-[260px]" contentClassName="pt-2">
-      {/* 已分配工具分组，内置工具与挂载的 MCP 同住，计数合并 */}
+      {/* 内置工具组，常驻置顶，每行一枚开关 */}
+      <CollapsibleGroup
+        label={t('tools.builtinGroup')}
+        count={builtinItems.length}
+        open={groupsOpen.builtin}
+        onOpenChange={(o) => setGroupsOpen((g) => ({ ...g, builtin: o }))}
+      >
+        {builtinItems.map((entry) => (
+          <BuiltinToolRow
+            key={entry.id}
+            entry={entry}
+            {...nodeProps(selection, onSelect, { id: entry.id })}
+            switchSlot={
+              <Switch
+                checked={entry.assigned !== false}
+                onCheckedChange={(on) => write(entry, on)}
+                disabled={assigning.has(entry.id)}
+                aria-label={entry.name}
+              />
+            }
+          />
+        ))}
+      </CollapsibleGroup>
+
+      {/* 已分配工具分组，挂载的外部工具减号解绑 */}
       <CollapsibleGroup
         label={t('tools.assigned')}
-        count={BUILT_IN_TOOLS.length + assignedItems.length}
+        count={assignedItems.length}
         open={groupsOpen.assigned}
         onOpenChange={(o) => setGroupsOpen((g) => ({ ...g, assigned: o }))}
       >
-        {BUILT_IN_TOOLS.map((tool) => (
-          <BuiltinToolRow
-            key={tool.id}
-            tool={tool}
-            {...nodeProps(selection, onSelect, {
-              kind: 'builtin',
-              id: tool.id,
-            })}
-          />
-        ))}
-        {assignedItems.map((server) => (
-          <McpRow
-            key={server.name}
-            server={server}
-            {...nodeProps(selection, onSelect, {
-              kind: 'mcp',
-              id: server.name,
-            })}
-            action={<UnassignButton onClick={() => unassign(server.name)} />}
-          />
-        ))}
+        {assignedItems.length === 0 ? (
+          <EmptyHint text={t('tools.emptyAssigned')} className="pl-8" />
+        ) : (
+          assignedItems.map((entry) => (
+            <ExternalToolRow
+              key={entry.id}
+              name={entry.name}
+              status={entry.status}
+              logoUrl={entry.logoUrl}
+              app={entry.kind === 'app'}
+              {...nodeProps(selection, onSelect, { id: entry.id })}
+              action={<UnassignButton onClick={() => write(entry, false)} />}
+            />
+          ))
+        )}
       </CollapsibleGroup>
 
       {/* 未分配工具分组，未挂载的服务加号挂给当前 Agent */}
@@ -89,17 +112,17 @@ export function ToolListPanel({
         onOpenChange={(o) => setGroupsOpen((g) => ({ ...g, pool: o }))}
       >
         {poolItems.length === 0 ? (
-          <EmptyHint text={t('tools.emptyPool')} />
+          <EmptyHint text={t('tools.emptyPool')} className="pl-8" />
         ) : (
-          poolItems.map((server) => (
-            <McpRow
-              key={server.name}
-              server={server}
-              {...nodeProps(selection, onSelect, {
-                kind: 'mcp',
-                id: server.name,
-              })}
-              action={<AssignButton onClick={() => assign(server.name)} />}
+          poolItems.map((entry) => (
+            <ExternalToolRow
+              key={entry.id}
+              name={entry.name}
+              status={entry.status}
+              logoUrl={entry.logoUrl}
+              app={entry.kind === 'app'}
+              {...nodeProps(selection, onSelect, { id: entry.id })}
+              action={<AssignButton onClick={() => write(entry, true)} />}
             />
           ))
         )}

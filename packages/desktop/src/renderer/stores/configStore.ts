@@ -1,6 +1,6 @@
 /**
  * @file stores/configStore.ts
- * @description 全局应用配置状态管理，负责从后端加载、保存及就地修改 Agent 运行配置
+ * @description 全局应用配置状态管理，负责从后端加载、保存及就地修改服务端 config.yaml 的镜像
  */
 
 import { create } from 'zustand';
@@ -8,33 +8,24 @@ import { getConfig, updateConfig } from '../lib/api';
 import { logger } from '../lib/logger';
 import { getErrorMessage } from '../lib/utils';
 
-interface RetryConfig {
-  enabled: boolean;
-  maxRetries: number;
+/** 压缩偏好，全局一份所有会话共用，两端设置页改的是同一份 */
+export interface CompressionPrefs {
+  autoCompress: boolean;
+  threshold: number;
 }
 
-interface MCPConfig {
-  connectTimeout: number;
-  executeTimeout: number;
-}
-
-interface ToolsConfig {
-  skillsDir: string;
-  mcpConfigPath: string;
-  mcp: MCPConfig;
-}
-
+/** 服务端 config.yaml 的形状，GET 与 PUT /api/config 的载荷 */
 export interface AppConfig {
-  apiKey: string;
-  apiBase: string;
-  model: string;
-  provider: 'anthropic' | 'openai';
   enableLogging: boolean;
-  retry: RetryConfig;
-  maxSteps: number;
-  systemPromptPath: string;
-  tools: ToolsConfig;
+  enableToolNarration: boolean;
+  compression: CompressionPrefs;
 }
+
+/** 老服务端缺 compression 节时的回落值，与服务端默认一致 */
+const DEFAULT_COMPRESSION: CompressionPrefs = {
+  autoCompress: true,
+  threshold: 100,
+};
 
 interface ConfigState {
   config: AppConfig | null;
@@ -55,13 +46,19 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
   error: null,
 
   /**
-   * 从后端拉取完整的 Agent 配置并写入本地状态
+   * 从后端拉取完整的配置并写入本地状态，缺失节回落默认值
    */
   loadConfig: async () => {
     set({ loading: true, error: null });
     try {
-      const config = await getConfig();
-      set({ config, loading: false });
+      const raw = await getConfig();
+      set({
+        config: {
+          ...raw,
+          compression: raw.compression ?? DEFAULT_COMPRESSION,
+        },
+        loading: false,
+      });
     } catch (error) {
       logger.error('[ConfigStore] Failed to load config:', error);
       set({

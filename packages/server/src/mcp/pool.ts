@@ -8,9 +8,15 @@
 
 import { Logger } from '../util/logger.js';
 import { errorMessage } from '../util/errors.js';
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { loadMcpConfig } from './config.js';
-import { connectAllServers, connectOne, type ConnectResult } from './loader.js';
+import {
+  connectAllServers,
+  connectOne,
+  type ConnectHandlers,
+  type ConnectResult,
+} from './loader.js';
 import {
   recordAppPid,
   removeAppPids,
@@ -19,8 +25,19 @@ import {
 import { MCPServerConnection } from './connection.js';
 import { McpOAuthProvider } from './oauth/provider.js';
 import { startCallbackServer } from './oauth/callback.js';
-import { getOAuthTokensPath, getMcpServersDir } from '../util/paths.js';
+import {
+  getOAuthTokensPath,
+  getMcpServersDir,
+  getMcpConfigPath,
+} from '../util/paths.js';
 import { produceLocalLogoUrl } from '../util/local-logo.js';
+import { emitToolsInvalidated } from '../session/changes.js';
+import {
+  toolRegistry,
+  toFullName,
+  splitFullName,
+  type RegistryEntry,
+} from '../tools/index.js';
 import type {
   McpServerEntry,
   McpToolMeta,
@@ -30,6 +47,11 @@ import type {
 import type { Tool } from '../tools/base.js';
 
 const OAUTH_TIMEOUT_MS = 5 * 60 * 1000;
+
+/** 清单变化通知的防抖窗，短时多次合成一次对账 */
+const RECONCILE_DEBOUNCE_MS = 800;
+/** 配置文件变更的防抖窗，写文件的中间态不触发重载 */
+const CONFIG_RELOAD_DEBOUNCE_MS = 1000;
 
 const serverEntries: Map<string, McpServerEntry> = new Map();
 const connections: Map<
@@ -48,6 +70,70 @@ let appNotificationHandler:
 const pendingOAuth: Map<string, { status: string; error?: string }> = new Map();
 
 let initialized = false;
+
+/** 注册表变更订阅的退订句柄，整池收尾时释放 */
+let registryUnsubscribe: (() => void) | null = null;
+/** 配置文件监听句柄，整池收尾时关闭 */
+let configWatcher: fs.FSWatcher | null = null;
+/** 配置重载的防抖定时器 */
+let configReloadTimer: ReturnType<typeof setTimeout> | null = null;
+/** 每个服务的清单对账防抖定时器，键为服务名 */
+const listChangedTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+/**
+ * 把池内条目单向投影成注册表条目。
+ *
+ * 注册表是消费侧唯一事实源，pool 是唯一写入方，连接资产仍留在池内。
+ * 同名注册冲突按定论处理，条目落失败态带说明，不阻断其余条目。
+ */
+function syncRegistryEntry(name: string): void {
+  const entry = serverEntries.get(name);
+  if (!entry) {
+    toolRegistry.unregister(name);
+    return;
+  }
+
+  const projected: RegistryEntry = {
+    id: entry.name,
+    kind: entry.agentApp ? 'app' : 'mcp',
+    name: entry.config.displayName ?? entry.name,
+    description: entry.config.description,
+    status: entry.status,
+    functions: entry.tools.map((tool) => ({
+      name: toFullName(entry.name, tool.name),
+      shortName: tool.name,
+      description: tool.description,
+    })),
+    meta: {
+      url: entry.config.url,
+      logoUrl: getMcpServerLogoUrl(entry),
+      instructions: entry.instructions,
+      author: entry.config.author,
+      error: entry.error,
+      oauthUrl: entry.oauthUrl,
+    },
+  };
+
+  const existing = toolRegistry.get(projected.id);
+  if (existing) {
+    if (existing.kind === projected.kind) {
+      toolRegistry.update(projected.id, projected);
+      return;
+    }
+    // 跨来源撞 id 时后来者整服务落失败，注册表保留既有条目不被覆盖
+    entry.status = 'failed';
+    entry.error = `Tool entry id '${entry.name}' already registered as kind '${existing.kind}'`;
+    Logger.log('ERROR', `Tool entry '${entry.name}' skipped: ${entry.error}`);
+    return;
+  }
+  try {
+    toolRegistry.register(projected);
+  } catch (error) {
+    entry.status = 'failed';
+    entry.error = `Duplicate tool entry id '${entry.name}': ${error instanceof Error ? error.message : String(error)}`;
+    Logger.log('ERROR', `Tool entry '${entry.name}' skipped: ${entry.error}`);
+  }
+}
 
 /**
  * 从 config 创建 connecting 状态的 entry，投影 agentApp / supportedUI 字段。
@@ -95,16 +181,30 @@ function applyConnectResult(name: string, result: ConnectResult): void {
 
   if (result.connection) {
     entry.status = 'connected';
-    entry.tools = result.tools;
+    entry.tools = result.tools ?? [];
     entry.error = undefined;
   } else if (result.needsAuth) {
     entry.status = 'needs_auth';
     entry.oauthUrl = result.oauthUrl;
     entry.error = undefined;
   } else {
-    entry.status = 'disconnected';
+    entry.status = 'failed';
     entry.error = result.error ?? 'Unknown error';
   }
+
+  syncRegistryEntry(name);
+}
+
+/**
+ * 取一个服务的池侧回调集合，装载、运行时新增与重连共用。
+ * 断连落失败态，清单变化进防抖对账，App 通知经全局回调转发。
+ */
+function handlersFor(name: string): ConnectHandlers {
+  return {
+    onAppNotification: (params) => appNotificationHandler?.(params, name),
+    onClosed: () => handleServerClosed(name),
+    onToolListChanged: () => scheduleReconcile(name),
+  };
 }
 
 /**
@@ -115,12 +215,7 @@ async function connectAndApply(
   name: string,
   config: McpServerConfig
 ): Promise<ConnectResult> {
-  const handler = appNotificationHandler;
-  const result = await connectOne(
-    name,
-    config,
-    handler ? (params) => handler(params, name) : undefined
-  );
+  const result = await connectOne(name, config, handlersFor(name));
 
   applyConnectResult(name, result);
 
@@ -141,6 +236,128 @@ async function connectAndApply(
 }
 
 /**
+ * 意外断开落到失败态并广播，不自动重连，恢复统一走手动重载。
+ * 主动断开不进这里，见 MCPServerConnection 的 intentionallyClosed 标志。
+ */
+function handleServerClosed(name: string): void {
+  const entry = serverEntries.get(name);
+  if (!entry || entry.status !== 'connected') return;
+
+  connections.delete(name);
+  serverConnections.delete(name);
+  entry.status = 'failed';
+  entry.error = 'Connection closed unexpectedly';
+
+  syncRegistryEntry(name);
+  Logger.log('MCP', `Server '${name}' closed unexpectedly, marked failed`);
+}
+
+/**
+ * 清单变化通知进防抖，短时多次合成一次对账。
+ */
+function scheduleReconcile(name: string): void {
+  if (listChangedTimers.has(name)) return;
+  const timer = setTimeout(() => {
+    listChangedTimers.delete(name);
+    void reconcileTools(name);
+  }, RECONCILE_DEBOUNCE_MS);
+  timer.unref?.();
+  listChangedTimers.set(name, timer);
+}
+
+/**
+ * 对账一个服务的功能清单，全量重拉逐项对比后回注。
+ *
+ * 刷新只换实例数组不碰连接本身，会话中途换表不打断对话，
+ * 装配每条消息取快照，下一轮自然生效。
+ */
+async function reconcileTools(name: string): Promise<void> {
+  const entry = serverEntries.get(name);
+  const serverConn = serverConnections.get(name);
+  if (!entry || !serverConn || entry.status !== 'connected') return;
+
+  try {
+    const tools = await serverConn.refreshTools();
+    const before = new Set(entry.tools.map((tool) => tool.name));
+    const after = tools.map((tool) => tool.name);
+    const added = after.filter((fn) => !before.has(fn));
+    const removed = [...before].filter((fn) => !after.includes(fn));
+
+    entry.tools = buildToolMetaList(name, serverConn);
+    connections.set(name, {
+      name,
+      tools,
+      disconnect: () => serverConn.disconnect(),
+    });
+
+    syncRegistryEntry(name);
+    Logger.log(
+      'MCP',
+      `Reconciled tools for '${name}': ${after.length} functions, +${added.length} -${removed.length}`
+    );
+  } catch (error: unknown) {
+    // TODO: (reconcile-degradation) A failed or premature reconcile silently keeps the old tool list by accepted design ruling, so verify staleness stays acceptable before touching this path.
+    Logger.log(
+      'MCP',
+      `Tool reconcile failed for '${name}': ${errorMessage(error)}`
+    );
+  }
+}
+
+/**
+ * 监听 mcp.json，防抖后重跑装载并 diff 出三路分派。
+ *
+ * 新增条目注册并连接，删除条目注销断开，配置变化的重连一次。
+ * diff 无变化不动作，商城安装卸载的双写口触发的监听天然幂等。
+ */
+function watchMcpConfig(): void {
+  try {
+    configWatcher = fs.watch(getMcpConfigPath(), { persistent: false }, () => {
+      if (configReloadTimer) return;
+      configReloadTimer = setTimeout(() => {
+        configReloadTimer = null;
+        void reloadMcpConfigDiff();
+      }, CONFIG_RELOAD_DEBOUNCE_MS);
+      configReloadTimer.unref?.();
+    });
+    configWatcher.unref?.();
+  } catch {
+    // 配置文件不存在时监听跳过，文件将来创建时由下一次启动接管
+    Logger.log('MCP', 'No mcp.json to watch, config reload disabled');
+  }
+}
+
+/** 重跑装载并 diff 出三路分派，动作记日志，无变化静默 */
+async function reloadMcpConfigDiff(): Promise<void> {
+  const configs = loadMcpConfig();
+  const existingNames = new Set(serverEntries.keys());
+  const actions: string[] = [];
+
+  for (const name of existingNames) {
+    if (!configs.has(name)) {
+      await removeServer(name);
+      actions.push(`removed:${name}`);
+    }
+  }
+  for (const [name, config] of configs) {
+    if (!existingNames.has(name)) {
+      await addServer(name, config);
+      actions.push(`added:${name}`);
+      continue;
+    }
+    const current = serverEntries.get(name)?.config;
+    if (JSON.stringify(current) !== JSON.stringify(config)) {
+      await reconnectServer(name).catch(() => {});
+      actions.push(`reconnected:${name}`);
+    }
+  }
+
+  if (actions.length > 0) {
+    Logger.log('MCP', `Config reloaded: ${actions.join(', ')}`);
+  }
+}
+
+/**
  * Initialize the MCP connection pool.
  * Reads config, then connects to all servers in parallel.
  * Safe to call multiple times - subsequent calls are no-ops.
@@ -151,20 +368,23 @@ export async function initMcpPool(): Promise<void> {
   // 上一场漏下的 App 子进程先按清账记录回收，再拉新的
   await sweepStaleAppPids();
 
+  // 注册表变化统一广播，订阅一次随池生命周期常驻
+  registryUnsubscribe = toolRegistry.subscribe(() => emitToolsInvalidated());
+
   const serverConfigs = loadMcpConfig();
   if (serverConfigs.size === 0) {
     Logger.log('MCP', 'No MCP servers to connect');
+    watchMcpConfig();
+    initialized = true;
     return;
   }
 
   for (const [name, config] of serverConfigs) {
     serverEntries.set(name, createConnectingEntry(name, config));
+    syncRegistryEntry(name);
   }
 
-  const results = await connectAllServers(
-    serverConfigs,
-    appNotificationHandler ?? undefined
-  );
+  const results = await connectAllServers(serverConfigs, handlersFor);
 
   for (const result of results) {
     applyConnectResult(result.name, result);
@@ -176,6 +396,7 @@ export async function initMcpPool(): Promise<void> {
     }
   }
 
+  watchMcpConfig();
   initialized = true;
 }
 
@@ -222,37 +443,27 @@ export function setAppNotificationHandler(
 }
 
 /**
- * Get all tools from the specified MCP servers.
- * Only returns tools from servers that are currently connected.
- * Disconnected or unknown servers are skipped.
+ * Get the Tool instances of one connected MCP server.
+ * Unknown or not-connected servers return an empty array with a log line,
+ * callers treat the missing tools as skipped entries.
  *
- * @param serverNames - List of MCP server names
- * @returns Array of Tool instances from connected servers
+ * @param name - MCP server name
+ * @returns Tool instances of the server, empty when unavailable
  */
-export function getMcpToolsForServers(serverNames: string[]): Tool[] {
-  const allTools: Tool[] = [];
-
-  for (const name of serverNames) {
-    const entry = serverEntries.get(name);
-    if (!entry || entry.status !== 'connected') {
-      if (entry) {
-        Logger.log(
-          'MCP',
-          `Server '${name}' is ${entry.status}, skipping its tools`
-        );
-      } else {
-        Logger.log('MCP', `Server '${name}' not found, skipping`);
-      }
-      continue;
-    }
-
-    const connection = connections.get(name);
-    if (connection) {
-      allTools.push(...connection.tools);
-    }
+export function getMcpToolsForServer(name: string): Tool[] {
+  const entry = serverEntries.get(name);
+  if (!entry) {
+    Logger.log('MCP', `Server '${name}' not found, skipping its tools`);
+    return [];
   }
-
-  return allTools;
+  if (entry.status !== 'connected') {
+    Logger.log(
+      'MCP',
+      `Server '${name}' is ${entry.status}, skipping its tools`
+    );
+    return [];
+  }
+  return connections.get(name)?.tools ?? [];
 }
 
 /**
@@ -271,17 +482,16 @@ export function getMcpServerLogoUrl(entry: McpServerEntry): string | undefined {
 }
 
 /**
- * 按工具实名反查所属 MCP server 并解析其 logo 地址。
+ * 按工具全名反查所属 MCP server 并解析其 logo 地址。
+ * 全名前缀即服务名，与拼接侧的 toFullName 成对，直接查服务表一步命中。
  * 内置工具与无图标资产的服务返回 undefined，调用方回退 Wrench 图标。
- * @param toolName - 工具实名
+ * @param toolName - 工具全名
  */
 export function getMcpToolLogoUrl(toolName: string): string | undefined {
-  for (const conn of connections.values()) {
-    if (!conn.tools.some((t) => t.name === toolName)) continue;
-    const entry = serverEntries.get(conn.name);
-    return entry ? getMcpServerLogoUrl(entry) : undefined;
-  }
-  return undefined;
+  const entryId = splitFullName(toolName)?.entryId;
+  if (!entryId) return undefined;
+  const entry = serverEntries.get(entryId);
+  return entry ? getMcpServerLogoUrl(entry) : undefined;
 }
 
 /**
@@ -331,7 +541,7 @@ export async function startOAuthFlow(name: string): Promise<{
   if (!entry) {
     throw new Error(`MCP server '${name}' not found`);
   }
-  if (entry.status !== 'needs_auth' && entry.status !== 'disconnected') {
+  if (entry.status !== 'needs_auth' && entry.status !== 'failed') {
     throw new Error(
       `Server '${name}' is '${entry.status}', cannot start OAuth`
     );
@@ -343,6 +553,7 @@ export async function startOAuthFlow(name: string): Promise<{
   pendingOAuth.set(name, { status: 'starting' });
   entry.status = 'connecting';
   entry.error = undefined;
+  syncRegistryEntry(name);
 
   Logger.log('MCP-OAuth', `Starting OAuth flow for '${name}'`);
 
@@ -362,6 +573,8 @@ export async function startOAuthFlow(name: string): Promise<{
     connectTimeoutSec: entry.config.connect_timeout,
     executeTimeoutSec: entry.config.execute_timeout,
     authProvider: provider,
+    onClosed: handlersFor(name).onClosed,
+    onToolListChanged: handlersFor(name).onToolListChanged,
   });
   serverConnections.set(name, serverConn);
 
@@ -382,6 +595,7 @@ export async function startOAuthFlow(name: string): Promise<{
       entry.status = 'connected';
       entry.tools = tools;
       entry.instructions = serverConn.instructions?.trim() || undefined;
+      syncRegistryEntry(name);
       return { authorizationUrl: '' };
     }
 
@@ -400,8 +614,9 @@ export async function startOAuthFlow(name: string): Promise<{
     const message = errorMessage(error);
     callback.close();
     pendingOAuth.delete(name);
-    entry.status = 'disconnected';
+    entry.status = 'failed';
     entry.error = message;
+    syncRegistryEntry(name);
     throw error;
   }
 }
@@ -452,6 +667,7 @@ async function handleOAuthCallback(
     entry.error = undefined;
     entry.oauthUrl = undefined;
     entry.instructions = serverConn.instructions?.trim() || undefined;
+    syncRegistryEntry(name);
 
     pendingOAuth.set(name, { status: 'done' });
     Logger.log(
@@ -463,6 +679,7 @@ async function handleOAuthCallback(
     Logger.log('ERROR', `OAuth flow failed for '${name}': ${message}`);
     entry.status = 'needs_auth';
     entry.error = `OAuth failed: ${message}`;
+    syncRegistryEntry(name);
     pendingOAuth.set(name, { status: 'failed', error: message });
   } finally {
     callback.close();
@@ -475,8 +692,8 @@ function buildToolMetaList(
   serverConn: MCPServerConnection
 ): McpToolMeta[] {
   return serverConn.tools.map((tool) => ({
-    id: `mcp:${name}:${tool.name}`,
-    name: tool.name,
+    id: `mcp:${name}:${tool.remoteName}`,
+    name: tool.remoteName,
     description: tool.description,
   }));
 }
@@ -508,7 +725,7 @@ export function getOAuthStatus(name: string): {
  * 运行时添加一个 MCP 服务器并连接，商城安装后调用。
  *
  * 注册 entry，status=connecting，connectOne 连接，按结果更新状态。
- * 连接结果可能是 connected / needs_auth / disconnected——都不抛异常，
+ * 连接结果可能是 connected / needs_auth / failed——都不抛异常，
  * 由调用方根据返回后 getMcpServer(name) 的 status 决定怎么提示用户。
  *
  * @param name server 名字
@@ -526,6 +743,7 @@ export async function addServer(
   Logger.log('MCP', `Adding server '${name}' to pool at runtime`);
 
   serverEntries.set(name, createConnectingEntry(name, config));
+  syncRegistryEntry(name);
 
   await connectAndApply(name, config);
 }
@@ -546,6 +764,7 @@ export async function removeServer(name: string): Promise<void> {
   pendingOAuth.delete(name);
   appPorts.delete(name);
   serverEntries.delete(name);
+  toolRegistry.unregister(name);
   removeAppPids([name]);
 
   Logger.log('MCP', `Server '${name}' removed from pool`);
@@ -581,6 +800,7 @@ export async function reconnectServer(name: string): Promise<void> {
     appPorts.delete(name);
     entry.status = 'connecting';
     entry.error = undefined;
+    syncRegistryEntry(name);
 
     await connectAndApply(name, entry.config);
   })().finally(() => {
@@ -653,6 +873,25 @@ export async function shutdownMcpPool(): Promise<void> {
   appPorts.clear();
   pendingOAuth.clear();
   reconnecting.clear();
+
+  // 注册表条目随池收尾注销，内置条目归 server 生命周期不在此列
+  for (const name of names) {
+    toolRegistry.unregister(name);
+  }
+
+  // 监听与订阅一并释放，定时器清空，池回到未初始化形态
+  configWatcher?.close();
+  configWatcher = null;
+  if (configReloadTimer) {
+    clearTimeout(configReloadTimer);
+    configReloadTimer = null;
+  }
+  for (const timer of listChangedTimers.values()) {
+    clearTimeout(timer);
+  }
+  listChangedTimers.clear();
+  registryUnsubscribe?.();
+  registryUnsubscribe = null;
   initialized = false;
 
   Logger.log(

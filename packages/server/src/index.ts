@@ -4,15 +4,21 @@
 
 import { Command } from 'commander';
 import type { Server } from 'node:http';
-import { initAllDirsAndFiles, Logger } from './util/index.js';
+import {
+  initAllDirsAndFiles,
+  pruneMcpLeftovers,
+  Logger,
+} from './util/index.js';
 import { errorMessage } from './util/errors.js';
 import { getDb } from './db/index.js';
 import { getLogsDir, getConfigPath } from './util/paths.js';
 import { loadConfig, setToolNarration } from './config.js';
 import {
   backfillDefaultWorkspacePaths,
+  migrateLegacyToolNames,
   seedInitialAgent,
 } from './agent/index.js';
+import { recoverInterruptedCompressions } from './server/services/compress-service.js';
 import { APP_NAME, APP_VERSION } from './util/app.js';
 
 const program = new Command();
@@ -29,6 +35,8 @@ program
     initAllDirsAndFiles();
     const config = loadConfig(getConfigPath());
     Logger.initialize(getLogsDir(), config.enableLogging);
+    // mcp 目录的手工残留清理在日志就绪后跑，动作留痕
+    pruneMcpLeftovers();
     // 工具叙述注入开关装载进运行时，agent 层组装 schema 时免参读取
     setToolNarration(config.enableToolNarration);
     Logger.log('CONFIG', 'Tool narration injection loaded', {
@@ -37,7 +45,10 @@ program
     // 启动预热建库，正确性由惰性初始化兜底，早于它的写入会自动建库
     getDb();
     backfillDefaultWorkspacePaths();
+    migrateLegacyToolNames();
     seedInitialAgent();
+    // 崩溃收尾：悬挂的 running 压缩记录改标 interrupted，此时尚无客户端连接
+    recoverInterruptedCompressions();
 
     // 动态 import 保证 seed 先于 http-server 模块体的 initSessionManagers()
     const { startServer, httpServer } = await import('./server/index.js');

@@ -11,14 +11,12 @@ export const AgentConfigSchema = z.object({
   maxSteps: z.number().int().positive(),
   defaultWorkspacePath: z.string().optional(),
   skillNames: z.array(z.string()).default([]),
-  mcpNames: z.array(z.string()).default([]),
   /**
-   * 上下文压缩阈值。
-   *
-   * 聊天 Session 中，未摘要消息的估算 token 超过模型上下文窗口的该比例时触发压缩。
-   * 用 `.default(50)` 使存量 Agent 的 config.json 经 safeParse 自动补默认值。
+   * 工具分配记录，条目 id 数组，内置、MCP、App 三类来源共用。
+   * 缺失时按来源定默认，内置默认全分配，mcp 与 app 默认未分配。
+   * 不带 default，避免 zod v4 下 partial 更新把缺失字段填成空数组清掉分配。
    */
-  compressionThreshold: z.number().int().min(1).max(100).default(50),
+  toolNames: z.array(z.string()).optional(),
   voiceId: z.string().optional(),
   voiceLanguage: z.string().optional(),
   /**
@@ -61,16 +59,14 @@ export type AgentConfigInput = z.infer<typeof AgentConfigInputSchema>;
  * 与 {@link AgentConfigInputSchema} 的区别：
  * 创建要求必填字段齐全，更新允许只传需要修改的字段。
  *
- * 注意：base schema 中 skillNames/mcpNames/compressionThreshold
- * 带 .default()。Zod v4 下 .partial() 不会剥离默认值，缺失的字段会被填成默认值
- * （如 []），随后后端 {...existing, ...input} 会用它覆盖现有配置，导致只改提示词
- * 就清空工具/技能。这里对这三个字段重新声明为无默认值的可选，缺失即不在结果中，
+ * 注意：base schema 中 skillNames 带 .default()。Zod v4 下 .partial()
+ * 不会剥离默认值，缺失的字段会被填成默认值（如 []），随后后端
+ * {...existing, ...input} 会用它覆盖现有配置，导致只改提示词就清空技能。
+ * 这里对 skillNames 重新声明为无默认值的可选，缺失即不在结果中，
  * 后端按部分更新语义保留原值。
  */
 export const AgentConfigUpdateSchema = AgentConfigInputSchema.partial().extend({
   skillNames: z.array(z.string()).optional(),
-  mcpNames: z.array(z.string()).optional(),
-  compressionThreshold: z.number().int().min(1).max(100).optional(),
 });
 
 /** Partial of AgentConfigInput, used for PUT (update) requests. */

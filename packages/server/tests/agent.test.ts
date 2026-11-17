@@ -284,11 +284,11 @@ describe('Agent Module Integration Tests', () => {
        * 测试：更新未提供工具/技能分配时保留原值。
        * 回归：Zod v4 下 .partial() 会给带默认值的字段填默认值 []，导致只改提示词就清空工具/技能。
        */
-      it('should preserve skillNames/mcpNames when update omits them', () => {
+      it('should preserve skillNames/toolNames when update omits them', () => {
         const created = createAgentConfig(
           createTestAgentInput({
             skillNames: ['skill-a', 'skill-b'],
-            mcpNames: ['mcp-x'],
+            toolNames: ['built_in_terminal'],
           })
         );
 
@@ -299,7 +299,7 @@ describe('Agent Module Integration Tests', () => {
         const updated = updateAgentConfig(created.id, parsed.data);
 
         expect(updated.skillNames).toEqual(['skill-a', 'skill-b']);
-        expect(updated.mcpNames).toEqual(['mcp-x']);
+        expect(updated.toolNames).toEqual(['built_in_terminal']);
       });
 
       /** 测试：更新传空串时工作空间重置为默认路径 */
@@ -594,7 +594,11 @@ describe('Agent Module Integration Tests', () => {
         const createResponse = await fetch(base, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: '用户养了橘猫', keys: ['橘猫'] }),
+          body: JSON.stringify({
+            title: '养猫',
+            content: '用户养了橘猫',
+            keys: ['橘猫'],
+          }),
         });
         expect(createResponse.status).toBe(201);
         const { entry } = (await createResponse.json()) as {
@@ -630,11 +634,34 @@ describe('Agent Module Integration Tests', () => {
         expect(after.entries).toHaveLength(0);
       });
 
+      /** 测试：列表编号倒序，新条目在前 */
+      it('should list entries newest first', async () => {
+        const agentId = await seedAgent();
+        const base = `${BASE_URL}/api/agents/${agentId}/memory`;
+        for (const content of ['第一条', '第二条', '第三条']) {
+          const response = await fetch(base, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: content, content, keys: ['词'] }),
+          });
+          expect(response.status).toBe(201);
+        }
+        const listResponse = await fetch(base);
+        const { entries } = (await listResponse.json()) as {
+          entries: { uid: number }[];
+        };
+        expect(entries.map((e) => e.uid)).toEqual([3, 2, 1]);
+      });
+
       /** 测试：用户通道重复 content 不被拦截 */
       it('should allow duplicate content from user channel', async () => {
         const agentId = await seedAgent();
         const base = `${BASE_URL}/api/agents/${agentId}/memory`;
-        const body = JSON.stringify({ content: '同文条目', keys: ['词'] });
+        const body = JSON.stringify({
+          title: '同文条目',
+          content: '同文条目',
+          keys: ['词'],
+        });
 
         const first = await fetch(base, {
           method: 'POST',

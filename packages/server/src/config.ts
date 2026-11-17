@@ -7,15 +7,25 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import * as yaml from 'yaml';
 
+/** 压缩偏好，全局一份所有会话共用，两端设置页改的是同一份 */
+export interface CompressionPrefs {
+  /** 自动压缩总开关，关闭后超限报错原样显示，只剩手动通道 */
+  autoCompress: boolean;
+  /** 占用到达该百分比触发自动压缩，钳制 1 到 100 */
+  threshold: number;
+}
+
 export interface AppConfig {
   enableLogging: boolean;
   /** 工具叙述注入开关，开启时给发往模型的工具 schema 注入 _title 与 _intent 必填栏位 */
   enableToolNarration: boolean;
+  compression: CompressionPrefs;
 }
 
 const DEFAULT_CONFIG: AppConfig = {
   enableLogging: false,
   enableToolNarration: true,
+  compression: { autoCompress: true, threshold: 100 },
 };
 
 /** 工具叙述注入的运行时开关，启动时从 config 装载，供 agent 层免参读取 */
@@ -38,6 +48,7 @@ export function getDefaultConfigYaml(): string {
 
 /**
  * Load configuration from file.
+ * 老配置缺 compression 节或节内缺键时回落默认值。
  * @param configPath - Path to config.yaml file
  * @returns Parsed configuration object
  */
@@ -48,6 +59,13 @@ export function loadConfig(configPath: string): AppConfig {
     enableLogging: parsed.enableLogging ?? DEFAULT_CONFIG.enableLogging,
     enableToolNarration:
       parsed.enableToolNarration ?? DEFAULT_CONFIG.enableToolNarration,
+    compression: {
+      autoCompress:
+        parsed.compression?.autoCompress ??
+        DEFAULT_CONFIG.compression.autoCompress,
+      threshold:
+        parsed.compression?.threshold ?? DEFAULT_CONFIG.compression.threshold,
+    },
   };
 }
 

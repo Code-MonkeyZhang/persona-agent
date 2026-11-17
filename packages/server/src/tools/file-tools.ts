@@ -249,7 +249,7 @@ export class WriteTool implements Tool<WriteFileInput> {
   public name = 'write_file';
   public description =
     'Write content to a file. Will overwrite existing files completely. ' +
-    'For existing files, you should read the file first using read_file.';
+    'For existing files, you should read the file first using built_in_files__read_file.';
   public parameters = {
     type: 'object',
     properties: {

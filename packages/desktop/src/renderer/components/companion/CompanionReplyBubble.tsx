@@ -1,10 +1,11 @@
 /**
  * @file src/renderer/components/companion/CompanionReplyBubble.tsx - 陪伴态回复气泡
  *
- * 展示当前会话最近一条 assistant 消息，渲染在浮层 InputBox 的正上方。
+ * 展示当前会话最近一条正文非空的 assistant 消息，渲染在浮层 InputBox 的正上方。
  * 运行期由时间线同一份 liveRun 驱动，框内一次只显一条动向居中整句替换，
  * 失败步红字不带圆点，轮末 liveRun 清空落回正文。
- * 无 assistant 消息且非运行期时返回 null；assistant 消息内容为空时显示 thinking 占位。
+ * 空闲期倒序回退到最近一条正文非空的 assistant 消息，空正文的纯工具轮与中止轮被跳过。
+ * 整个会话无非空回复且非运行期时返回 null，立绘与输入框直接相邻。
  * 气泡内容超过最大高度时内部滚动，上下边缘由遮罩渐隐提示可滚方向。
  */
 import { useEffect, useMemo } from 'react';
@@ -15,6 +16,7 @@ import { useScrollFade } from '../../hooks/useScrollFade';
 import { logger } from '../../lib/logger';
 import { Dots, liveRunLabel, phaseIcon } from '../chat/LiveStrip';
 import { Markdown } from '../common/Markdown';
+import type { UIMessage } from '../../types/chat';
 
 interface CompanionReplyBubbleProps {
   agentId: string | null;
@@ -24,7 +26,22 @@ interface CompanionReplyBubbleProps {
 const COMPANION_FADE_SIZE = 24;
 
 /**
- * 陪伴态回复气泡，从全局消息流倒序查找最后一条 assistant 消息并展示
+ * 倒序查找最近一条正文非空的 assistant 消息。
+ * 纯工具轮与无半截正文的中止轮落盘的 assistant 消息正文为空串，查找时跳过，
+ * 整个消息流没有非空回复时返回 null。
+ */
+export function lastRepliedMessage(messages: UIMessage[]): UIMessage | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (message.type === 'assistant' && message.content.trim().length > 0) {
+      return message;
+    }
+  }
+  return null;
+}
+
+/**
+ * 陪伴态回复气泡，从全局消息流倒序查找最近一条正文非空的 assistant 消息并展示
  * @param _agentId - 当前 Agent ID，当前未使用，预留扩展接口
  */
 export function CompanionReplyBubble({
@@ -46,15 +63,13 @@ export function CompanionReplyBubble({
   const { scrollRef, maskImage } = useScrollFade(COMPANION_FADE_SIZE);
 
   /**
-   * 从全局聊天消息流中倒序查找最后一条 assistant 类型的消息，
-   * 用于在气泡中展示。messages 变化时自动重新计算。
+   * 从全局聊天消息流中倒序查找最近一条正文非空的 assistant 消息，
+   * 空正文的纯工具轮与中止轮被跳过。messages 变化时自动重新计算。
    */
-  const lastAgentMessage = useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].type === 'assistant') return messages[i];
-    }
-    return null;
-  }, [messages]);
+  const lastAgentMessage = useMemo(
+    () => lastRepliedMessage(messages),
+    [messages]
+  );
 
   // 每步动向进框时留一条日志，陪伴态反馈缺失时可据此排查数据链路
   useEffect(() => {
@@ -64,6 +79,13 @@ export function CompanionReplyBubble({
       );
     }
   }, [liveRun, t]);
+
+  // 空闲回退目标变化时留一条日志，轮末气泡未回退时可据此排查查找链路
+  useEffect(() => {
+    if (lastAgentMessage) {
+      logger.info(`[CompanionReplyBubble] idle回退: ${lastAgentMessage.id}`);
+    }
+  }, [lastAgentMessage]);
 
   // 运行期动向行优先于上一轮正文，整行居中一次一条，失败步红字不带圆点
   if (liveRun) {
@@ -104,21 +126,15 @@ export function CompanionReplyBubble({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: 'easeOut' }}
     >
-      {lastAgentMessage.content.trim().length > 0 ? (
-        <div className="relative overflow-hidden rounded-[24px] bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
-          <div
-            ref={scrollRef}
-            style={{ maskImage, WebkitMaskImage: maskImage }}
-            className="scroll-hidden px-4 pt-7 pb-7 max-h-[160px] overflow-y-auto text-content text-foreground leading-relaxed"
-          >
-            <Markdown content={lastAgentMessage.content} />
-          </div>
+      <div className="relative overflow-hidden rounded-[24px] bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
+        <div
+          ref={scrollRef}
+          style={{ maskImage, WebkitMaskImage: maskImage }}
+          className="scroll-hidden px-4 pt-7 pb-7 max-h-[160px] overflow-y-auto text-content text-foreground leading-relaxed"
+        >
+          <Markdown content={lastAgentMessage.content} />
         </div>
-      ) : (
-        <div className="rounded-[24px] bg-white/80 backdrop-blur-md border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.08)] px-4 py-2 text-body text-muted-foreground animate-pulse text-center">
-          {t('companion.thinking')}
-        </div>
-      )}
+      </div>
     </motion.div>
   );
 }

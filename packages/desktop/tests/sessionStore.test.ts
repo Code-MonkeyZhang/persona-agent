@@ -8,6 +8,7 @@ vi.mock('@/lib/api', () => ({
   getSession: vi.fn(),
   deleteSession: vi.fn(),
   updateSession: vi.fn(),
+  resolveTimelineIconUrl: (iconUrl: string | undefined) => iconUrl,
 }));
 
 /** 轮次边界条目，模拟会话接口混入后的客户端视角 */

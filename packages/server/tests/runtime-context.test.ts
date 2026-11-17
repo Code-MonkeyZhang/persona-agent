@@ -3,8 +3,8 @@
  *
  * Mock 策略：MCP 池状态与记忆存储均用测试替身，fakeTriggered 控制
  * 触发条目命中，文件系统不参与。
- * 覆盖：时间与指令行、寿命分流、节流解绑、相关记忆节格式与升序、
- * 环境变化节头、变化行各形态、时长格式。
+ * 覆盖：时间与指令行、首份服务清单、寿命分流、节流解绑、相关记忆节格式
+ * 与升序、环境变化节头、变化行各形态、时长格式。
  */
 
 import { describe, it, expect, mock, beforeAll, afterAll } from 'bun:test';
@@ -17,6 +17,9 @@ import type { MemoryEntry } from '@persona/shared';
 /** MCP 池状态的测试替身：name → status */
 const fakeMcpStatuses: Record<string, string> = {};
 
+/** MCP 握手说明的测试替身：name → instructions */
+const fakeMcpInstructions: Record<string, string> = {};
+
 /** 记忆存储的测试替身：当前会返回的触发条目 */
 let fakeTriggered: MemoryEntry[] = [];
 
@@ -25,6 +28,7 @@ mock.module('../src/mcp/index.js', () => ({
     serverNames.map((name) => ({
       name,
       status: fakeMcpStatuses[name] ?? 'unknown',
+      instructions: fakeMcpInstructions[name],
     })),
 }));
 
@@ -45,7 +49,19 @@ mock.module('../src/agent/memory/memory-store.js', () => ({
 }));
 
 import { buildRuntimeContext } from '../src/server/services/runtime-context.js';
+import { toolRegistry } from '../src/tools/registry.js';
+import type { RegistryEntry } from '../src/tools/registry.js';
 import type { Session } from '../src/session/types.js';
+
+/** 注册表的外部测试条目，观察集合派生要求条目在表，显示名走注册表 */
+const fakeExternalEntry: RegistryEntry = {
+  id: 'ticktick',
+  kind: 'mcp',
+  name: '滴答清单',
+  status: 'connected',
+  functions: [],
+};
+toolRegistry.register(fakeExternalEntry);
 
 /** 构造最小 Session 夹具，overrides 覆盖关注字段 */
 function createSession(overrides: Partial<Session> = {}): Session {
@@ -88,6 +104,7 @@ describe('buildRuntimeContext', () => {
 
   afterAll(() => {
     rmTempDir(tempDir);
+    toolRegistry.unregister('ticktick');
   });
 
   /** 首次注入：时间行与指令行出现在 persisted，无变化行 */
@@ -302,6 +319,151 @@ describe('buildRuntimeContext', () => {
       '/w/a',
       undefined,
       ['b-skill', 'a-skill'],
+      new Date(t0.getTime() + 60_000)
+    );
+    expect(out.persisted).toBe('');
+  });
+
+  /** 快照缺失的轮次发首份服务清单，注册表显示名与说明缩进齐备 */
+  it('emits baseline service listing on snapshot miss', () => {
+    fakeMcpStatuses['ticktick'] = 'connected';
+    fakeMcpInstructions['ticktick'] = 'Use search first.';
+    const now = new Date('2026-08-18T10:00:00');
+    const out = buildRuntimeContext(
+      's-baseline',
+      createSession(),
+      '/w/a',
+      ['ticktick'],
+      undefined,
+      now
+    );
+    expect(out.persisted).toContain('[system] 当前接入的外部服务:');
+    expect(out.persisted).toContain('- MCP 服务 滴答清单，状态 connected');
+    expect(out.persisted).toContain('  Use search first.');
+  });
+
+  /** 同进程次轮不再重复清单，无变化时整段静默 */
+  it('skips baseline listing on second call', () => {
+    fakeMcpStatuses['ticktick'] = 'connected';
+    const now = new Date('2026-08-18T10:00:00');
+    buildRuntimeContext(
+      's-baseline-once',
+      createSession(),
+      '/w/a',
+      ['ticktick'],
+      undefined,
+      now
+    );
+    const out = buildRuntimeContext(
+      's-baseline-once',
+      createSession({ lastContextAt: now.getTime() }),
+      '/w/a',
+      ['ticktick'],
+      undefined,
+      new Date(now.getTime() + 60_000)
+    );
+    expect(out.persisted).toBe('');
+  });
+
+  /** 时间节被节流但快照缺失时，首份清单照发 */
+  it('emits baseline listing even when time line is throttled', () => {
+    fakeMcpStatuses['ticktick'] = 'connected';
+    const now = new Date('2026-08-18T10:00:00');
+    const out = buildRuntimeContext(
+      's-baseline-throttle',
+      createSession({ lastContextAt: now.getTime() - 60_000 }),
+      '/w/a',
+      ['ticktick'],
+      undefined,
+      now
+    );
+    expect(out.persisted).not.toContain('当前时间');
+    expect(out.persisted).toContain('[system] 当前接入的外部服务:');
+  });
+
+  /** 内置工具关闭与开启各出一条通知行，显示名取工具集定义 */
+  it('emits lines for builtin tool toggles', () => {
+    const t0 = new Date('2026-08-18T10:00:00');
+    buildRuntimeContext(
+      's-tool',
+      createSession({ lastContextAt: t0.getTime() - 60_000 }),
+      '/w/a',
+      ['built_in_terminal', 'built_in_web'],
+      undefined,
+      t0
+    );
+    const off = buildRuntimeContext(
+      's-tool',
+      createSession({ lastContextAt: t0.getTime() }),
+      '/w/a',
+      ['built_in_web'],
+      undefined,
+      new Date(t0.getTime() + 60_000)
+    );
+    expect(off.persisted).toContain('- 终端操作工具已由用户关闭');
+    const on = buildRuntimeContext(
+      's-tool',
+      createSession({ lastContextAt: t0.getTime() }),
+      '/w/a',
+      ['built_in_terminal', 'built_in_web'],
+      undefined,
+      new Date(t0.getTime() + 120_000)
+    );
+    expect(on.persisted).toContain('- 终端操作工具已由用户开启');
+  });
+
+  /** 外部分配与取消分配各出一条行，取消不再误报状态变成 unknown */
+  it('emits assign lines for external entries without unknown misreport', () => {
+    fakeMcpStatuses['ticktick'] = 'connected';
+    const t0 = new Date('2026-08-18T10:00:00');
+    buildRuntimeContext(
+      's-assign',
+      createSession({ lastContextAt: t0.getTime() - 60_000 }),
+      '/w/a',
+      [],
+      undefined,
+      t0
+    );
+    const assigned = buildRuntimeContext(
+      's-assign',
+      createSession({ lastContextAt: t0.getTime() }),
+      '/w/a',
+      ['ticktick'],
+      undefined,
+      new Date(t0.getTime() + 60_000)
+    );
+    expect(assigned.persisted).toContain('- MCP 服务 滴答清单 已分配');
+    expect(assigned.persisted).not.toContain('状态变化');
+
+    const removed = buildRuntimeContext(
+      's-assign',
+      createSession({ lastContextAt: t0.getTime() }),
+      '/w/a',
+      [],
+      undefined,
+      new Date(t0.getTime() + 120_000)
+    );
+    expect(removed.persisted).toContain('- MCP 服务 滴答清单 已取消分配');
+    expect(removed.persisted).not.toContain('unknown');
+  });
+
+  /** 工具集合不变仅顺序不同，不产出变化行 */
+  it('skips change lines when tool order differs but set is same', () => {
+    const t0 = new Date('2026-08-18T10:00:00');
+    buildRuntimeContext(
+      's-tool-order',
+      createSession({ lastContextAt: t0.getTime() - 60_000 }),
+      '/w/a',
+      ['built_in_web', 'built_in_terminal'],
+      undefined,
+      t0
+    );
+    const out = buildRuntimeContext(
+      's-tool-order',
+      createSession({ lastContextAt: t0.getTime() }),
+      '/w/a',
+      ['built_in_terminal', 'built_in_web'],
+      undefined,
       new Date(t0.getTime() + 60_000)
     );
     expect(out.persisted).toBe('');

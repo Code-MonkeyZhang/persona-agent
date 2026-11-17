@@ -103,6 +103,20 @@ const api: WindowAPI = {
     ipcRenderer.invoke(IPC.SET_LOGGING_ENABLED, enabled),
 
   /**
+   * 查询关闭驻留开关，设置事实在主进程 electron-store。
+   * @returns 开关当前值，默认开启
+   */
+  getCloseToTray: () =>
+    ipcRenderer.invoke(IPC.GET_CLOSE_TO_TRAY) as Promise<boolean>,
+
+  /**
+   * 更新关闭驻留开关，主进程持久化并同步内存缓存。
+   * @param enabled - 是否在关闭窗口时隐藏到托盘
+   */
+  setCloseToTray: (enabled) =>
+    ipcRenderer.invoke(IPC.SET_CLOSE_TO_TRAY, enabled),
+
+  /**
    * 通过主进程代理发起 HTTP 请求，绕过渲染进程的 CORS 限制
    * @param url - 请求目标 URL
    * @param options - 请求参数
@@ -123,7 +137,10 @@ const api: WindowAPI = {
    * 把上传落定的图片字节种进当前连接设备的图片缓存。
    * 主进程校验字节哈希后落盘，失败静默返回 false 不影响发送。
    */
-  imageSeed: (hash, data) => ipcRenderer.invoke(IPC.IMAGE_SEED, hash, data),
+  attachmentSeed: (hash, data) =>
+    ipcRenderer.invoke(IPC.ATTACHMENT_SEED, hash, data),
+  attachmentOpen: (hash, name) =>
+    ipcRenderer.invoke(IPC.ATTACHMENT_OPEN, hash, name),
 
   /** 窗口控制方法集合，每个方法通过 IPC 转发到主进程执行。 */
   windowControls: {

@@ -1,5 +1,5 @@
 /**
- * @fileoverview 图片缓存核心测试：命中、下载落盘、校验失败、并发合并、种入、废弃清理与嗅探。
+ * @fileoverview 图片缓存核心测试：命中、下载落盘、校验失败、并发合并、种入与嗅探。
  */
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
@@ -7,11 +7,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { createHash } from 'node:crypto';
-import {
-  ImageCache,
-  sniffContentType,
-  pruneLegacyFlatFiles,
-} from '../src/main/image/image-cache';
+import { ImageCache, sniffContentType } from '../src/main/image/image-cache';
 
 /** 临时根目录，每个用例在下面建独立缓存目录 */
 let tempDir: string;
@@ -168,27 +164,6 @@ describe('ImageCache', () => {
     expect(cache.seed(hash, new Uint8Array([9, 9, 9]))).toBe(true);
     const stored = fs.readFileSync(path.join(cacheDir, hash));
     expect(Array.from(stored)).toEqual(Array.from(PNG_BYTES));
-  });
-});
-
-describe('pruneLegacyFlatFiles', () => {
-  it('should remove only flat hash-named files and keep device directories', () => {
-    const hash = sha256(PNG_BYTES);
-    fs.writeFileSync(path.join(cacheDir, hash), PNG_BYTES);
-    fs.writeFileSync(path.join(cacheDir, 'junk.txt'), PNG_BYTES);
-    fs.mkdirSync(path.join(cacheDir, 'local'));
-    fs.writeFileSync(path.join(cacheDir, 'local', hash), PNG_BYTES);
-
-    const removed = pruneLegacyFlatFiles(cacheDir);
-
-    expect(removed).toBe(1);
-    expect(fs.existsSync(path.join(cacheDir, hash))).toBe(false);
-    expect(fs.existsSync(path.join(cacheDir, 'junk.txt'))).toBe(true);
-    expect(fs.existsSync(path.join(cacheDir, 'local', hash))).toBe(true);
-  });
-
-  it('should return zero when the root does not exist', () => {
-    expect(pruneLegacyFlatFiles(path.join(cacheDir, 'missing'))).toBe(0);
   });
 });
 

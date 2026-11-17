@@ -256,7 +256,7 @@ export class BashTool implements Tool<BashInput, BashOutputResult> {
     '  - Quote file paths with spaces: cd "My Documents"\n' +
     '  - Chain dependent commands with &&: git add . && git commit -m "msg"\n' +
     '  - Use absolute paths instead of cd when possible\n' +
-    '  - For background commands, monitor with bash_output and terminate with bash_kill\n\n' +
+    '  - For background commands, monitor with built_in_terminal__bash_output and terminate with built_in_terminal__bash_kill\n\n' +
     'Examples:\n' +
     '  - git status\n' +
     '  - npm test\n' +
@@ -279,7 +279,7 @@ export class BashTool implements Tool<BashInput, BashOutputResult> {
       run_in_background: {
         type: 'boolean',
         description:
-          'Optional: Set to true to run the command in the background. Use this for long-running commands like servers. You can monitor output using bash_output tool.',
+          'Optional: Set to true to run the command in the background. Use this for long-running commands like servers. You can monitor output using built_in_terminal__bash_output tool.',
         default: false,
       },
     },
@@ -349,7 +349,7 @@ export class BashTool implements Tool<BashInput, BashOutputResult> {
       exit_code: 0,
       bash_id: bashId,
       content:
-        `Command started in background. Use bash_output to monitor (bash_id='${bashId}').\n\n` +
+        `Command started in background. Use built_in_terminal__bash_output to monitor (bash_id='${bashId}').\n\n` +
         `Command: ${params.command}\nBash ID: ${bashId}`,
     });
   }

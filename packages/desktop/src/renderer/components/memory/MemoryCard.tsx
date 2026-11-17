@@ -93,7 +93,8 @@ export function MemoryCard({
     entry?.type,
   ]);
 
-  const canSave = !saving && draft.content.trim().length > 0;
+  const canSave =
+    !saving && draft.title.trim().length > 0 && draft.content.trim().length > 0;
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -101,8 +102,7 @@ export function MemoryCard({
     const keys = Array.from(
       new Set(draft.keys.map((k) => k.trim()).filter(Boolean))
     );
-    // 标题留空时截取内容开头，与工具侧口径一致
-    const title = draft.title.trim() || content.slice(0, 12);
+    const title = draft.title.trim();
     setSaving(true);
     try {
       if (isDraft) {
@@ -161,7 +161,7 @@ export function MemoryCard({
         >
           <div className="flex-1 min-w-0">
             <span className="block truncate text-body font-medium text-foreground">
-              {entry.title || t('memory.untitled')}
+              {entry.title}
             </span>
             <span className="mt-0.5 block truncate text-caption text-muted-foreground">
               {entry.type === 'pinned'

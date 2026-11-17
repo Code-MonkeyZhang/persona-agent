@@ -23,7 +23,11 @@ import { randomUUID } from 'node:crypto';
 import { readJsonFile } from '../util/fs-helpers.js';
 import { Logger } from '../util/logger.js';
 import { getDb } from '../db/index.js';
-import { emitSessionChange, insertChangeRow } from '../session/changes.js';
+import {
+  emitSessionChange,
+  emitToolsInvalidated,
+  insertChangeRow,
+} from '../session/changes.js';
 import {
   getAgentsDir,
   getAgentDir,
@@ -41,6 +45,8 @@ import {
   type AgentConfigInput,
   type AgentConfigUpdate,
 } from './types.js';
+// 分配解析走零依赖叶子模块，不经工具桶，避免与 logger 形成装载环
+import { BUILTIN_TOOLSET_IDS } from '../tools/tool-ids.js';
 
 /** Atomic write to prevent data corruption */
 function writeFileAtomic(filePath: string, content: string): void {
@@ -81,10 +87,12 @@ function normalizeWorkspacePath(value?: string): string {
 /**
  * 登记并广播一条 agents_invalidated 事件。
  * Agent 正本是纯文件写没有事务包裹，事件在文件写成功后登记，
- * 客户端收到后整份重拉角色列表，事件体不带增量数据。
+ * 客户端收到后整份重拉角色列表，事件体带 agentId 供消费端按 Agent 圈定刷新范围。
  */
-function emitAgentsInvalidated(): void {
-  const event = insertChangeRow(getDb(), 'agents_invalidated', null, {});
+function emitAgentsInvalidated(agentId: string): void {
+  const event = insertChangeRow(getDb(), 'agents_invalidated', null, {
+    agentId,
+  });
   emitSessionChange(event);
 }
 
@@ -196,7 +204,7 @@ export function createAgentConfig(input: AgentConfigInput): AgentConfig {
   writeJsonAtomic(getAgentConfigPath(id), onDisk);
   writeSystemPrompt(id, systemPrompt);
 
-  emitAgentsInvalidated();
+  emitAgentsInvalidated(id);
   Logger.log('AGENT', `Created agent config: ${id}`);
   return config;
 }
@@ -233,6 +241,13 @@ export function updateAgentConfig(
     updated.defaultWorkspacePath
   );
 
+  // 工具分配直取 toolNames。分配变化广播 tools_invalidated，
+  // 条目投影里的 assigned 标记靠它刷新，带归属供刷新圈定范围。
+  if (input.toolNames !== undefined) {
+    updated.toolNames = input.toolNames;
+    emitToolsInvalidated({ agentId: id });
+  }
+
   // systemPrompt 单独持久化；config.json 不再包含该字段
   const { systemPrompt, ...onDisk } = updated;
   writeJsonAtomic(getAgentConfigPath(id), onDisk);
@@ -240,7 +255,7 @@ export function updateAgentConfig(
     writeSystemPrompt(id, systemPrompt);
   }
 
-  emitAgentsInvalidated();
+  emitAgentsInvalidated(id);
   Logger.log('AGENT', `Updated agent config: ${id}`);
   return updated;
 }
@@ -251,7 +266,64 @@ export function deleteAgentConfig(id: string): void {
   if (fs.existsSync(agentDir)) {
     fs.rmSync(agentDir, { recursive: true });
   }
-  emitAgentsInvalidated();
+  emitAgentsInvalidated(id);
+}
+
+/** 裸内置 id 到 built_in 前缀 id 的翻译表，本地测试期落盘的旧分配用 */
+const LEGACY_BUILTIN_IDS: Record<string, string> = {
+  bash: 'built_in_terminal',
+  file: 'built_in_files',
+  'web-fetch': 'built_in_web',
+  pose: 'built_in_pose',
+  memory: 'built_in_memory',
+};
+
+/**
+ * 存量迁移：把 mcpNames 旧分配折算进 toolNames 并剥掉旧字段。
+ *
+ * - toolNames 缺失且 mcpNames 有值时，按内置全开加旧外部清单算出 toolNames 写回，
+ *   旧清单只装外部服务名不做翻译
+ * - 已有 toolNames 时只翻译裸内置 id，外部条目原样保留
+ * - mcpNames 键只要存在就从 config.json 剥掉，字段随本迁移退役
+ * - 直接改写 config.json，不经 updateAgentConfig，避免无谓刷新 updatedAt
+ * - 调用点须在 Logger.initialize 之后，保证迁移日志能落盘
+ */
+export function migrateLegacyToolNames(): void {
+  const agentsDir = getAgentsDir();
+  if (!fs.existsSync(agentsDir)) return;
+
+  for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const configPath = getAgentConfigPath(entry.name);
+    const raw = readJsonFile<Record<string, unknown> | null>(configPath, null);
+    if (raw === null) continue;
+
+    const legacyNames = Array.isArray(raw['mcpNames'])
+      ? (raw['mcpNames'] as string[])
+      : undefined;
+    const current = Array.isArray(raw['toolNames'])
+      ? (raw['toolNames'] as string[])
+      : undefined;
+
+    let migrated: string[] | undefined;
+    if (!current && legacyNames && legacyNames.length > 0) {
+      migrated = [...BUILTIN_TOOLSET_IDS, ...legacyNames];
+    } else if (current) {
+      const translated = current.map((id) => LEGACY_BUILTIN_IDS[id] ?? id);
+      if (translated.some((id, i) => id !== current[i])) {
+        migrated = translated;
+      }
+    }
+
+    if (migrated === undefined && legacyNames === undefined) continue;
+
+    if (migrated !== undefined) {
+      raw['toolNames'] = migrated;
+    }
+    delete raw['mcpNames'];
+    writeJsonAtomic(configPath, raw);
+    Logger.log('AGENT', `Migrated legacy tool names: ${entry.name}`);
+  }
 }
 
 /**

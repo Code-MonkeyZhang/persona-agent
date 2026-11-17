@@ -1,7 +1,8 @@
 /**
  * @file src/renderer/components/tools/AgentToolsView.tsx
  * @description Agent 工具视图，左右双栏
- * 左栏上下两组为已分配工具与未分配工具，加减号即时分配，右栏为选中工具的详情
+ * 左栏三组为内置工具、已分配工具与未分配工具，数据一份来自注册表条目，
+ * 开关与加减号写分配记录，右栏为选中条目的详情
  * Agent 上下文来自入口的当前 Agent，页面内不出现第二处 Agent 选择
  */
 
@@ -15,34 +16,39 @@ import { EmptyPane } from '../common/SidePanel';
 import { useValidatedSelection } from '../../hooks/useValidatedSelection';
 import { ToolListPanel } from './ToolListPanel';
 import { ToolDetailPanel } from './ToolDetailPanel';
-import {
-  BUILT_IN_TOOLS,
-  isToolSelectionValid,
-  type ToolSelection,
-} from './builtInTools';
+import type { ToolSelection } from './toolRows';
+import { BUILTIN_TOOLSET_IDS } from '@persona/shared';
+
+/** 内置组首条条目 id，选中态失效时的回退目标 */
+const DEFAULT_ENTRY_ID = BUILTIN_TOOLSET_IDS[0];
 
 export const AgentToolsView: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const currentAgent = useAgentStore((s) => s.currentAgent);
-  const servers = useMcpStore((s) => s.servers);
-  const loading = useMcpStore((s) => s.loading);
-  const error = useMcpStore((s) => s.error);
-  const load = useMcpStore((s) => s.load);
+  const entries = useMcpStore((s) => s.entries);
+  const entriesError = useMcpStore((s) => s.entriesError);
+  const loadTools = useMcpStore((s) => s.loadTools);
   const disposeOAuth = useMcpStore((s) => s.disposeOAuth);
 
+  /**
+   * 进入页面与切换 Agent 时拉取条目，界面语言变化也重拉一次，
+   * 服务端按请求携带的 lang 现挑中英文案，客户端不存两份。
+   */
   useEffect(() => {
-    void load();
+    if (currentAgent) {
+      void loadTools(currentAgent.id);
+    }
     return () => disposeOAuth();
-  }, [load, disposeOAuth]);
+  }, [loadTools, disposeOAuth, currentAgent?.id, i18n.language]);
 
   /**
-   * 选中节点失效时自动修正，回退到第一个内置工具。
+   * 选中节点失效时自动修正，回退到内置组首条。
    * 一处逻辑同时覆盖卸载选中服务、切换 Agent、首次进入三种场景。
    */
-  const entries = servers ?? [];
+  const items = entries ?? [];
   const [selection, setSelection] = useValidatedSelection<ToolSelection>(
-    (v) => isToolSelectionValid(v, entries),
-    () => ({ kind: 'builtin', id: BUILT_IN_TOOLS[0].id })
+    (v) => items.some((e) => e.id === v.id),
+    () => ({ id: DEFAULT_ENTRY_ID })
   );
 
   if (!currentAgent) return null;
@@ -52,22 +58,24 @@ export const AgentToolsView: React.FC = () => {
     setSelection(sel);
   };
 
+  const selected = items.find((e) => e.id === selection?.id);
+
   return (
     <ListState
-      isLoading={loading && servers === null}
-      error={error}
-      onRetry={load}
+      isLoading={entries === null && !entriesError}
+      error={entriesError}
+      onRetry={() => void loadTools(currentAgent.id)}
     >
       <div className="flex h-full w-full overflow-hidden">
         <ToolListPanel
           agentId={currentAgent.id}
-          servers={entries}
+          entries={items}
           selection={selection}
           onSelect={handleSelect}
         />
-        {selection ? (
+        {selected ? (
           <div className="min-h-0 min-w-0 flex-1">
-            <ToolDetailPanel selection={selection} />
+            <ToolDetailPanel entry={selected} />
           </div>
         ) : (
           <EmptyPane text={t('tools.noneSelected')} />

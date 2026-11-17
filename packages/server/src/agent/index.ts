@@ -10,6 +10,7 @@ export {
   updateAgentConfig,
   deleteAgentConfig,
   backfillDefaultWorkspacePaths,
+  migrateLegacyToolNames,
 } from './agent-config-store.js';
 export { withAvatarHash, listAgentsWithHashes } from './agent-list.js';
 export {
@@ -29,5 +30,8 @@ export {
   formatAppNotificationForAgent,
   formatPendingInputForAgent,
 } from './inject.js';
-export { createAgentRunConfig } from './run-config-factory.js';
+export {
+  createAgentRunConfig,
+  assembleAgentParts,
+} from './run-config-factory.js';
 export { resolveWorkspaceDir, persistResolvedWorkspace } from './workspace.js';

@@ -53,6 +53,10 @@ let keepaliveTimer: ReturnType<typeof setInterval> | null = null;
 let changeSubscribed = false;
 /** viewed 消息的处理回调，由 http-server 装配时注入以访问 sessionManagers */
 let viewedHandler: ((sessionId: string) => void) | null = null;
+/** 占用快照补态回调，由 http-server 装配时注入以访问 sessionManagers */
+let contextUsageProvider:
+  | ((sessionId: string) => import('@persona/shared').UsageSnapshot | null)
+  | null = null;
 
 /**
  * 注入 viewed 消息的处理回调。
@@ -61,6 +65,19 @@ let viewedHandler: ((sessionId: string) => void) | null = null;
  */
 export function setViewedHandler(handler: (sessionId: string) => void): void {
   viewedHandler = handler;
+}
+
+/**
+ * 注入占用快照补态回调。
+ *
+ * 订阅回执后补推一次当前快照，中途接入端立即拿到数字。
+ */
+export function setContextUsageProvider(
+  provider: (
+    sessionId: string
+  ) => import('@persona/shared').UsageSnapshot | null
+): void {
+  contextUsageProvider = provider;
 }
 
 export function initWebSocket(server: import('http').Server): WebSocketServer {
@@ -174,6 +191,20 @@ function handleClientMessage(
         isGenerating,
         currentActivity: isGenerating ? getActivity(sessionId) : undefined,
       });
+      // 补推当前占用快照，分子经两轨选择，无底数会话同样得估算轨快照，
+      // 只有模型查不到注册表时快照为 null 不推，客户端走图标壳。
+      // 补推不经过统一推送出口，此处的 source 恒标 model
+      const snapshot = contextUsageProvider?.(sessionId) ?? null;
+      if (snapshot) {
+        sendToClient(client, {
+          type: 'context_usage',
+          sessionId,
+          used: snapshot.used,
+          window: snapshot.window,
+          shares: snapshot.shares,
+          source: 'model',
+        });
+      }
       break;
     }
 

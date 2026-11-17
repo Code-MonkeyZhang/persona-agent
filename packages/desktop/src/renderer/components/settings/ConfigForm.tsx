@@ -1,26 +1,27 @@
 /**
  * @file src/renderer/components/settings/ConfigForm.tsx
- * @description 应用通用配置表单，包括日志开关、思考过程入口开关、首启引导重放入口和存储路径展示
+ * @description 应用通用配置表单，包括日志开关、思考过程入口开关、首启引导重放入口、压缩偏好和存储路径展示
  * 使用卡片分组 + Switch 组件 + SettingRow 统一行布局
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import * as Collapsible from '@radix-ui/react-collapsible';
 import { FolderOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useConfigStore } from '../../stores/configStore';
+import type { CompressionPrefs } from '../../stores/configStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useAgentStore } from '../../stores/agentStore';
 import { useViewStore } from '../../stores/viewStore';
 import {
   useConnectionStore,
   useCurrentDevice,
-  currentDeviceKey,
 } from '../../stores/connectionStore';
-import { LOCAL_DEVICE_ID } from '@shared/api';
 import { Switch } from '../ui/Switch';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { SettingRow, HostChip } from '../common/SettingRow';
+import { NumberInput } from '../agent-editor/NumberInput';
 import { EnvironmentCard } from './EnvironmentCard';
 import { VersionUpdateCard } from './VersionUpdateCard';
 import { configFilePath, dataPath, dataRootPath } from '../../lib/platform';
@@ -52,6 +53,83 @@ function PathRow({ label, path }: { label: string; path: string }) {
 }
 
 /**
+ * 压缩偏好卡。自动压缩开关与阈值即时持久化到服务端 config 的 compression 节，
+ * 失败回滚展示值。阈值行随开关联动收展，收起态卸载输入框不占焦点，
+ * 行间距走内容内 padding 与行高一起收拢。
+ */
+function CompressionCard() {
+  const { t } = useTranslation();
+  const config = useConfigStore((s) => s.config);
+  const updateField = useConfigStore((s) => s.updateField);
+  const saveConfig = useConfigStore((s) => s.saveConfig);
+  /** 阈值编辑草稿，null 表示跟随已存值，失焦提交 */
+  const [thresholdDraft, setThresholdDraft] = useState<string | null>(null);
+  if (!config) return null;
+  const autoCompress = config.compression.autoCompress;
+  const thresholdText = thresholdDraft ?? String(config.compression.threshold);
+
+  const persist = async (next: CompressionPrefs) => {
+    const prev = config.compression;
+    updateField('compression', next);
+    try {
+      await saveConfig({ ...config, compression: next });
+    } catch {
+      updateField('compression', prev);
+    }
+  };
+
+  /** 提交阈值草稿，钳制 1 到 100，解析失败或数值未变时丢弃草稿 */
+  const commitThreshold = () => {
+    if (thresholdDraft === null) return;
+    setThresholdDraft(null);
+    const parsed = parseInt(thresholdDraft, 10);
+    if (!Number.isFinite(parsed)) return;
+    const clamped = Math.min(100, Math.max(1, Math.round(parsed)));
+    if (clamped === config.compression.threshold) return;
+    void persist({ ...config.compression, threshold: clamped });
+  };
+
+  return (
+    <Card
+      title={t('config.compression')}
+      titleClassName="text-title-section font-semibold"
+    >
+      <div className="flex flex-col">
+        <SettingRow
+          label={t('config.autoCompress')}
+          desc={t('config.autoCompressDesc')}
+        >
+          <Switch
+            checked={autoCompress}
+            onCheckedChange={(checked) =>
+              void persist({ ...config.compression, autoCompress: checked })
+            }
+          />
+        </SettingRow>
+        <Collapsible.Root open={autoCompress}>
+          <Collapsible.Content className="collapsible-content">
+            <div className="pb-4 pt-4">
+              <SettingRow
+                label={t('config.threshold')}
+                desc={t('config.thresholdDesc')}
+              >
+                <NumberInput
+                  value={thresholdText}
+                  onChange={setThresholdDraft}
+                  onBlur={commitThreshold}
+                  min={1}
+                  max={100}
+                />
+              </SettingRow>
+            </div>
+          </Collapsible.Content>
+        </Collapsible.Root>
+      </div>
+    </Card>
+  );
+}
+
+/**
  * 通用配置表单组件，提供日志启用开关和存储路径展示
  */
 export const ConfigForm: React.FC = () => {
@@ -64,9 +142,14 @@ export const ConfigForm: React.FC = () => {
     (s) => s.setThoughtProcessVisible
   );
   const currentAgent = useAgentStore((s) => s.currentAgent);
+  /** 关闭驻留开关，事实在主进程 electron-store，此处只持展示镜像 */
+  const [closeToTray, setCloseToTray] = useState(true);
+  useEffect(() => {
+    window.api?.getCloseToTray().then(setCloseToTray);
+  }, []);
   /** 重放引导会向所连 server 写凭据，闸门与首启向导同口径，仅本机连接可用 */
   const isLocalConnection = useConnectionStore(
-    (s) => !!s.snapshot && currentDeviceKey(s.snapshot) === LOCAL_DEVICE_ID
+    (s) => !!s.snapshot && s.snapshot.current.hostId === s.snapshot.local.hostId
   );
   /** 卡头归属标记走当前设备解析，快照未就绪视为本机，不亮标记 */
   const { remote } = useCurrentDevice();
@@ -84,6 +167,19 @@ export const ConfigForm: React.FC = () => {
       await window.api?.setLoggingEnabled(value);
     } catch {
       updateField(field, prev);
+    }
+  };
+
+  /**
+   * 切换关闭驻留开关并即时持久化到主进程，失败时回滚展示值
+   */
+  const handleToggleCloseToTray = async (value: boolean) => {
+    const prev = closeToTray;
+    setCloseToTray(value);
+    try {
+      await window.api?.setCloseToTray(value);
+    } catch {
+      setCloseToTray(prev);
     }
   };
 
@@ -142,6 +238,16 @@ export const ConfigForm: React.FC = () => {
               onCheckedChange={setThoughtProcessVisible}
             />
           </SettingRow>
+          {/* 关闭驻留开关：开启时点关闭只是隐藏到托盘，服务端与会话后台继续 */}
+          <SettingRow
+            label={t('config.closeToTray')}
+            desc={t('config.closeToTrayDesc')}
+          >
+            <Switch
+              checked={closeToTray}
+              onCheckedChange={handleToggleCloseToTray}
+            />
+          </SettingRow>
           <SettingRow
             label={t('config.replayLanding')}
             desc={
@@ -166,6 +272,8 @@ export const ConfigForm: React.FC = () => {
           </SettingRow>
         </div>
       </Card>
+
+      <CompressionCard />
 
       <EnvironmentCard />
 
