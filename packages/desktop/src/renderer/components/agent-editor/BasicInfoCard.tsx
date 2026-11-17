@@ -6,6 +6,7 @@
 import React from 'react';
 import { Camera, PenLine } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { IMAGE_INPUT_ACCEPT } from '@persona/shared';
 import { AgentAvatar } from '../common/AgentAvatar';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
@@ -56,7 +57,7 @@ export const BasicInfoCard: React.FC<BasicInfoCardProps> = ({
           <input
             ref={inputRef}
             type="file"
-            accept="image/jpeg,image/png,image/gif"
+            accept={IMAGE_INPUT_ACCEPT}
             onChange={handleChange}
             className="hidden"
           />

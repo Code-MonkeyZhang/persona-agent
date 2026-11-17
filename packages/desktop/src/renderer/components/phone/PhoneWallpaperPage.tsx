@@ -8,6 +8,7 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, Plus, X } from 'lucide-react';
+import { IMAGE_INPUT_ACCEPT } from '@persona/shared';
 import {
   DEFAULT_WALLPAPER_CSS,
   WALLPAPER_PRESETS,
@@ -133,7 +134,7 @@ export function PhoneWallpaperPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/jpeg,image/png"
+              accept={IMAGE_INPUT_ACCEPT}
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];

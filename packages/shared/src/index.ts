@@ -115,3 +115,8 @@ export {
   AgentMarketplaceEntrySchema,
   type AgentMarketplaceEntry,
 } from './marketplace.js';
+export {
+  SUPPORTED_IMAGE_MIME_TYPES,
+  SUPPORTED_IMAGE_EXTENSIONS,
+  IMAGE_INPUT_ACCEPT,
+} from './image-formats.js';

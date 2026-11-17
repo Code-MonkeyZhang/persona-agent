@@ -5,10 +5,9 @@
 
 import express from 'express';
 import cors from 'cors';
-import type { Request, Response, ErrorRequestHandler } from 'express';
+import type { Request, Response } from 'express';
 import { createServer as createHttpServer } from 'http';
 import { Logger } from '../util/logger.js';
-import { AppError } from '../util/errors.js';
 import { createProviderRouter, createAuthRouter } from './routers/auth.js';
 import { createAgentRouter, type SessionManagersMap } from './routers/agent.js';
 import { createSessionRouter } from './routers/session.js';
@@ -31,6 +30,7 @@ import { createDeviceRouter } from './routers/device.js';
 import { createAttachmentRouter } from './routers/attachment.js';
 import { createSyncRouter } from './routers/sync.js';
 import { createLauncherRouter } from './routers/launcher.js';
+import { errorHandler } from './routers/utils.js';
 import { processAppNotification } from './services/app-notification-service.js';
 import {
   sessionContextSnapshot,
@@ -237,24 +237,9 @@ app.use('/api/launcher', createLauncherRouter());
 const httpServer = createHttpServer(app);
 
 /**
- * 全局错误处理中间件 —— 兜底未被 asyncHandler 捕获的异常，如 multer 文件校验、
- * 同步抛出等。asyncHandler 自身已处理大部分路由异常，这里仅作为安全网。
+ * 全局错误处理中间件定义在 routers/utils.ts，与 asyncHandler 同居，
+ * 这里挂到路由之后兜底未被捕获的异常。
  */
-const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
-  if (err instanceof AppError) {
-    res.status(err.statusCode).json({ error: err.message });
-    return;
-  }
-  if (err.name === 'MulterError') {
-    res.status(400).json({ error: err.message });
-    return;
-  }
-  Logger.log('HTTP', `${req.method} ${req.path} → unhandled error`, err);
-  res.status(500).json({
-    error: err instanceof Error ? err.message : 'Internal server error',
-  });
-};
-
 app.use(errorHandler);
 
 // Initialize WebSocket server

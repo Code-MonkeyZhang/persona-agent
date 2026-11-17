@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { Plus } from 'lucide-react';
+import { IMAGE_INPUT_ACCEPT } from '@persona/shared';
 import { useImageFileInput } from '../../hooks/useImageFileInput';
 
 interface ImageAddTileProps {
@@ -39,7 +40,7 @@ export const ImageAddTile: React.FC<ImageAddTileProps> = ({
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/gif"
+        accept={IMAGE_INPUT_ACCEPT}
         onChange={handleChange}
         className="hidden"
       />

@@ -2,17 +2,21 @@
  * @fileoverview Shared utilities for router handlers.
  */
 
-import type { Request, Response, RequestHandler } from 'express';
+import type {
+  Request,
+  Response,
+  RequestHandler,
+  ErrorRequestHandler,
+} from 'express';
 import multer from 'multer';
+import { SUPPORTED_IMAGE_MIME_TYPES } from '@persona/shared';
 import { Logger } from '../../util/logger.js';
 import { errorMessage, AppError } from '../../util/errors.js';
 
-/** 图片上传共用的 MIME 白名单，附件路由与图片上传共用 */
-export const ALLOWED_IMAGE_MIME_TYPES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-]);
+/** 图片上传共用的 MIME 白名单，头像、立绘与背景上传口共用，名单源自 shared 的产品口径常量 */
+export const ALLOWED_IMAGE_MIME_TYPES = new Set<string>(
+  SUPPORTED_IMAGE_MIME_TYPES
+);
 
 /**
  * 图片上传共用的 multer 实例。
@@ -86,6 +90,26 @@ export function requireParam(value: string | undefined, name: string): string {
   if (!value) throw new AppError(400, `${name} is required`);
   return value;
 }
+
+/**
+ * 全局错误处理中间件，兜底未被 asyncHandler 捕获的异常，如 multer 文件校验、
+ * 同步抛出等。asyncHandler 自身已处理大部分路由异常，这里仅作为安全网。
+ * 测试挂载同款中间件，保证错误映射与生产环境一致。
+ */
+export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
+  if (err instanceof AppError) {
+    res.status(err.statusCode).json({ error: err.message });
+    return;
+  }
+  if (err.name === 'MulterError') {
+    res.status(400).json({ error: err.message });
+    return;
+  }
+  Logger.log('HTTP', `${req.method} ${req.path} → unhandled error`, err);
+  res.status(500).json({
+    error: err instanceof Error ? err.message : 'Internal server error',
+  });
+};
 
 /**
  * 按请求地址是否携带内容哈希设置图片响应的缓存头。
