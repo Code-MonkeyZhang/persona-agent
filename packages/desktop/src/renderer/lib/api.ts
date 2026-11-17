@@ -1009,6 +1009,35 @@ export async function sendChatMessage(
 }
 
 /**
+ * 手动触发一次上下文压缩。
+ * 服务端受理即返回，过程与终态经 WS 压缩事件族到达，失败分类见事件原因码。
+ * @param agentId - Agent ID
+ * @param sessionId - 会话 ID
+ */
+export async function triggerCompression(
+  agentId: string,
+  sessionId: string
+): Promise<void> {
+  const baseUrl = await getBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/api/agents/${agentId}/sessions/${sessionId}/compress`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    }
+  );
+
+  if (!response.ok) {
+    const data = (await response.json().catch(() => ({}))) as {
+      error?: string;
+    };
+    throw new Error(
+      data.error || `Failed to trigger compression: ${response.status}`
+    );
+  }
+}
+
+/**
  * 从服务器获取全局 agent 配置。
  * @returns 当前的 agent 配置
  */

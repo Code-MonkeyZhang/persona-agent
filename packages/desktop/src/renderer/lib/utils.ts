@@ -56,6 +56,14 @@ export function getErrorMessage(err: unknown, fallback?: string): string {
 }
 
 /**
+ * token 数格式化为 k 单位一位小数，占用显示与压缩对比共用
+ * @param tokens - token 数量
+ */
+export function formatK(tokens: number): string {
+  return `${(tokens / 1000).toFixed(1)}k`;
+}
+
+/**
  * 将文件读取为 Data URL 字符串
  * @param file - 待读取的文件
  * @returns base64 编码的 Data URL

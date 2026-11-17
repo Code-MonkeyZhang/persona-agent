@@ -534,7 +534,11 @@ function AppContent() {
         chatStore.initSessionState(session.id, []);
       } else if (!chatStore.sessionStates.has(session.id)) {
         const convertedMessages = convertSessionMessages(session.messages);
-        chatStore.initSessionState(session.id, convertedMessages);
+        chatStore.initSessionState(
+          session.id,
+          convertedMessages,
+          session.compressionLog
+        );
       }
       // 进入 session 时订阅事件流，获取 isGenerating 状态并接收后续事件
       chatStore.subscribeSession(session.id);

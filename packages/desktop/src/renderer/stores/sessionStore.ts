@@ -361,6 +361,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     const messageId = (message: Message, index: number): string =>
       message.seq !== undefined ? `msg-${message.seq}` : `session-msg-${index}`;
 
+    /** 消息展示时间，落库时间在场时取真实值，旧数据回退当前时刻 */
+    const messageTime = (message: Message): Date =>
+      new Date(message.createdAt ?? Date.now());
+
     /** 将缓冲区中的 assistant 消息合并为一条 UIMessage 产出 */
     const flushPending = () => {
       if (pendingStartIndex === -1) return;
@@ -370,7 +374,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         id: messageId(start, pendingStartIndex),
         type: 'assistant',
         content: pendingContent,
-        timestamp: new Date(),
+        timestamp: messageTime(start),
         thoughts: finalThoughts.length > 0 ? finalThoughts : undefined,
       });
       pendingThoughts = [];
@@ -448,7 +452,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           id: messageId(msg, i),
           type: msg.role,
           content: parsed.text,
-          timestamp: new Date(),
+          timestamp: messageTime(msg),
           ...(parsed.attachments.length > 0
             ? { attachments: parsed.attachments }
             : {}),

@@ -9,7 +9,13 @@
 import { create } from 'zustand';
 import type { UIMessage, ConnectionStatus, Thought } from '../types/chat';
 import type { SyncState } from '../lib/sync-engine';
-import type { ServerMessage, StepCompleteMessage } from '@persona/shared';
+import type {
+  ServerMessage,
+  StepCompleteMessage,
+  UsageSnapshot,
+  CompressionFailReason,
+  CompressionRecord,
+} from '@persona/shared';
 import {
   buildPreviewText,
   summarizeToolInput,
@@ -233,6 +239,31 @@ interface SessionChatState {
   liveRun: LiveRunState | null;
 }
 
+/** 压缩落定显示数据，顶条已压缩对比的前后分子 */
+interface LandedDisplay {
+  before: number | null;
+  after: number | null;
+}
+
+/** 压缩运行态，压缩行与小壳与顶条共用一源
+ *  phase 四态，running 首跑 retry 重试 failed 终态失败 idle 空闲或已终态
+ *  lastLanded 持最近一次落定的对比数字，failReason 持失败原因码区分真底线，
+ *  两者同受新一轮 run_started 吊销，让位后不复活
+ *  failedAt 持失败回执的时间戳，小壳读它亮三秒红色感叹号，新一轮压缩启动时清空 */
+export interface CompressionRuntimeState {
+  recordId: string;
+  phase: 'running' | 'retry' | 'failed' | 'idle';
+  attempt: number;
+  lastLanded: LandedDisplay | null;
+  failReason: CompressionFailReason | null;
+  failedAt: number | null;
+}
+
+/** 压缩记录按发生时间升序，meta 的清单即权威全量 */
+function sortCompressionRecords(log: CompressionRecord[]): CompressionRecord[] {
+  return [...log].sort((a, b) => a.at - b.at);
+}
+
 interface ChatStore {
   sessionStates: Map<string, SessionChatState>;
   currentSessionId: string | null;
@@ -253,9 +284,19 @@ interface ChatStore {
   runningOwners: Map<string, string>;
   /** 运行中 Agent 的全局集合，头像运行圈据此起转停转 */
   runningAgents: string[];
+  /** 占用快照，context_usage 事件写入，订阅补推与会话切换后自愈校准 */
+  usageSnapshots: Map<string, UsageSnapshot>;
+  /** 压缩运行态，压缩行与小壳与顶条三处同源读它 */
+  compressionStates: Map<string, CompressionRuntimeState>;
+  /** 压缩记录清单，meta 变更流幂等覆盖，时间线压缩行的唯一数据源 */
+  compressionLogs: Map<string, CompressionRecord[]>;
 
   setCurrentSessionId: (id: string | null) => void;
-  initSessionState: (sessionId: string, messages: UIMessage[]) => void;
+  initSessionState: (
+    sessionId: string,
+    messages: UIMessage[],
+    compressionLog?: CompressionRecord[]
+  ) => void;
   sendMessage: (
     content: string,
     attachments: UIAttachment[],
@@ -307,7 +348,13 @@ export const useChatStore = create<ChatStore>((set, get) => {
         if (ss) {
           newStates.set(sessionId, { ...ss, messages: converted });
         }
-        return { sessionStates: newStates };
+        // 压缩记录与消息同源读缓存，meta 的清单幂等覆盖本地
+        const newLogs = new Map(state.compressionLogs);
+        newLogs.set(
+          sessionId,
+          sortCompressionRecords(session.compressionLog ?? [])
+        );
+        return { sessionStates: newStates, compressionLogs: newLogs };
       });
       logger.info('Session messages refreshed from cache', { sessionId });
     } catch (err) {
@@ -328,6 +375,9 @@ export const useChatStore = create<ChatStore>((set, get) => {
     runningSessions: [],
     runningOwners: new Map(),
     runningAgents: [],
+    usageSnapshots: new Map(),
+    compressionStates: new Map(),
+    compressionLogs: new Map(),
 
     setConnectionStatus: (status: ConnectionStatus) => {
       set({ connectionStatus: status });
@@ -343,7 +393,11 @@ export const useChatStore = create<ChatStore>((set, get) => {
 
     refreshSessionMessages,
 
-    initSessionState: (sessionId: string, messages: UIMessage[]) => {
+    initSessionState: (
+      sessionId: string,
+      messages: UIMessage[],
+      compressionLog?: CompressionRecord[]
+    ) => {
       set((state) => {
         const newStates = new Map(state.sessionStates);
         newStates.set(sessionId, {
@@ -351,7 +405,10 @@ export const useChatStore = create<ChatStore>((set, get) => {
           isLoading: false,
           ...emptyPending(),
         });
-        return { sessionStates: newStates };
+        // 压缩记录随会话加载初始化，meta 变更流随后幂等覆盖
+        const newLogs = new Map(state.compressionLogs);
+        newLogs.set(sessionId, sortCompressionRecords(compressionLog ?? []));
+        return { sessionStates: newStates, compressionLogs: newLogs };
       });
     },
 
@@ -550,6 +607,17 @@ export const useChatStore = create<ChatStore>((set, get) => {
                 liveRun: { steps: [] },
               });
             }
+            // 顶条闸门：模型新一轮运行吊销压缩落定显示，成功失败一并清空，让位后不复活
+            const compStates = new Map(state.compressionStates);
+            const comp = compStates.get(sessionId);
+            if (comp?.lastLanded || comp?.phase === 'failed') {
+              compStates.set(sessionId, {
+                ...comp,
+                phase: 'idle',
+                lastLanded: null,
+                failReason: null,
+              });
+            }
             // 幂等登记归属,广播重放或快照竞态不产生重复成员
             const owners = new Map(state.runningOwners);
             owners.set(sessionId, msg.agentId);
@@ -557,6 +625,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
               runningOwners: owners,
               ...deriveRunning(owners),
               sessionStates: newStates,
+              compressionStates: compStates,
             };
           });
           logger.info('[live-strip] Run started, timeline armed', {
@@ -917,6 +986,106 @@ export const useChatStore = create<ChatStore>((set, get) => {
           } else {
             logger.info('Round complete', { sessionId });
           }
+          break;
+        }
+
+        case 'context_usage': {
+          // 压缩事件族不挂 isLoading 守卫，天然发生在回合收尾之后
+          set((state) => {
+            const snapshots = new Map(state.usageSnapshots);
+            snapshots.set(msg.sessionId, {
+              used: msg.used,
+              window: msg.window,
+              shares: msg.shares,
+            });
+            return { usageSnapshots: snapshots };
+          });
+          logger.info('Context usage snapshot', {
+            sessionId: msg.sessionId,
+            used: msg.used,
+            window: msg.window,
+            source: msg.source,
+          });
+          break;
+        }
+
+        case 'compression_started': {
+          set((state) => {
+            const states = new Map(state.compressionStates);
+            // 过程态重置，上一轮落定显示清空，attempt 递增转重试相位
+            states.set(msg.sessionId, {
+              recordId: msg.recordId,
+              phase: msg.attempt > 1 ? 'retry' : 'running',
+              attempt: msg.attempt,
+              lastLanded: null,
+              failReason: null,
+              failedAt: null,
+            });
+            return { compressionStates: states };
+          });
+          logger.info('Compression started', {
+            sessionId: msg.sessionId,
+            recordId: msg.recordId,
+            attempt: msg.attempt,
+            before: msg.before,
+          });
+          break;
+        }
+
+        case 'compression_complete': {
+          set((state) => {
+            const states = new Map(state.compressionStates);
+            const prev = states.get(msg.sessionId);
+            // recordId 对不上说明是陈旧事件，不覆盖新一轮状态
+            if (prev && prev.recordId !== msg.recordId) return {};
+            states.set(msg.sessionId, {
+              recordId: msg.recordId,
+              phase: 'idle',
+              attempt: prev?.attempt ?? 1,
+              lastLanded: { before: msg.before, after: msg.after },
+              failReason: null,
+              failedAt: null,
+            });
+            return { compressionStates: states };
+          });
+          logger.info('Compression complete', {
+            sessionId: msg.sessionId,
+            recordId: msg.recordId,
+            before: msg.before,
+            after: msg.after,
+            trigger: msg.trigger,
+          });
+          break;
+        }
+
+        case 'compression_failed': {
+          set((state) => {
+            const states = new Map(state.compressionStates);
+            const prev = states.get(msg.sessionId);
+            // 陈旧守护只拦压缩进行中的陌生编号，无 started 领路的连发失败带新编号照常受理
+            if (
+              prev &&
+              (prev.phase === 'running' || prev.phase === 'retry') &&
+              prev.recordId !== msg.recordId
+            ) {
+              return {};
+            }
+            // 终态失败落 failed 相位带时间戳与原因码，顶条读它亮红字，小壳读时间戳亮三秒红色感叹号
+            states.set(msg.sessionId, {
+              recordId: msg.recordId,
+              phase: 'failed',
+              attempt: prev?.attempt ?? 1,
+              lastLanded: null,
+              failReason: msg.reason,
+              failedAt: Date.now(),
+            });
+            return { compressionStates: states };
+          });
+          logger.info('Compression failed', {
+            sessionId: msg.sessionId,
+            recordId: msg.recordId,
+            reason: msg.reason,
+          });
           break;
         }
 
