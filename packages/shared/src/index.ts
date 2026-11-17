@@ -33,6 +33,13 @@ export type {
   ContextMessage,
   Message,
 } from './schema.js';
+export type {
+  BreakdownShares,
+  UsageState,
+  UsageSnapshot,
+  CompressionFailReason,
+  CompressionRecord,
+} from './session.js';
 export type { SessionMeta, Session } from './session.js';
 export {
   MemoryEntrySchema,

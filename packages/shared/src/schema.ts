@@ -128,6 +128,8 @@ export interface ContextMessage {
  * 消息联合。
  * 交叉上的可选 seq 是服务端消息行号，详情与快照路径携带，
  * 客户端以它做缓存去重的基准。
+ * 可选 createdAt 是消息行的落库时间毫秒值，缓存读取路径盖章，
+ * 时间线压缩行据此把压缩记录按发生时刻插进消息序列。
  */
 export type Message = (
   | SystemMessage
@@ -136,4 +138,4 @@ export type Message = (
   | ErrorMessage
   | AppNotificationMessage
   | ContextMessage
-) & { seq?: number };
+) & { seq?: number; createdAt?: number };

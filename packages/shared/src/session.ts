@@ -46,6 +46,81 @@ export interface SessionMeta {
    * 仅对常驻聊天会话计算；undefined 表示无消息或非聊天会话。
    */
   lastMessage?: string;
+
+  /**
+   * 会话占用底数。
+   *
+   * 最近一次对账通过的真实报数落在此处，随 meta 变更流同步到各端。
+   * undefined 表示该会话尚未收到过报数。
+   */
+  usageState?: UsageState;
+
+  /**
+   * 压缩记录清单，一次压缩一条，时间线压缩行的唯一数据源。
+   * 条数上限五十，超出丢最老；当前摘要只存最新一条 complete 记录。
+   */
+  compressionLog?: CompressionRecord[];
+}
+
+/** 分段估算，三段 token 数，真实报数定总量，估算定构成 */
+export interface BreakdownShares {
+  messages: number;
+  systemPersona: number;
+  toolsSkills: number;
+}
+
+/**
+ * 会话占用底数，base 为 null 表示该模型不报真实数字。
+ *
+ * - base 是最近一次对账通过的报数，口径为 input 加 cacheRead 加 cacheWrite
+ * - anchorSeq 是报数请求时刻的会话消息数，之后的持久消息按估算计入分子
+ * - netAdjust 是压缩净调整，压缩落地时叠加，新报数落账时清零
+ * - shares 是报数请求的拼装快照，供占用面板分段展示
+ * - assemblyTokens 是随底数一并记录的装配估算量，分子先减报数时装配再加现行装配
+ */
+export interface UsageState {
+  base: number | null;
+  anchorSeq: number;
+  netAdjust: number;
+  shares: BreakdownShares | null;
+  /**
+   * 报数时的装配估算量，即当次 shares 的 systemPersona 加 toolsSkills 合计。
+   * undefined 表示旧底数未记录装配，分子不参与装配修正，下一次报数自动升级。
+   */
+  assemblyTokens?: number;
+}
+
+/** 占用快照，context_usage 事件的载荷，分子分母任缺时不产生 */
+export interface UsageSnapshot {
+  used: number;
+  window: number;
+  shares: BreakdownShares | null;
+}
+
+/**
+ * 压缩记录，随 SessionMeta 持久化，时间线压缩行的唯一数据源。
+ *
+ * - attempt 是最新一次尝试的序号，从一次起算，重试递增
+ * - before 与 after 是分子快照，数字缺失时为 null
+ * - summary 仅最新一条 complete 记录携带，任何压缩行展开看到的都是它
+ */
+/** 压缩失败原因码，no_material 是真底线，interrupted 只来自服务端崩溃恢复的 meta */
+export type CompressionFailReason =
+  | 'no_material'
+  | 'provider'
+  | 'bad_summary'
+  | 'interrupted';
+
+export interface CompressionRecord {
+  id: string;
+  state: 'running' | 'complete' | 'failed' | 'interrupted';
+  trigger: 'auto' | 'manual';
+  attempt: number;
+  before: number | null;
+  after: number | null;
+  reason?: CompressionFailReason;
+  summary?: string;
+  at: number;
 }
 
 /** Full session with messages */
