@@ -10,6 +10,8 @@ interface NumberInputProps {
   onChange: (value: string) => void;
   min?: number;
   max?: number;
+  /** 失焦回调，设置页即时持久化范式借它提交草稿 */
+  onBlur?: () => void;
 }
 
 /** 受控数字输入框，统一样式与回调签名 */
@@ -18,6 +20,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   onChange,
   min,
   max,
+  onBlur,
 }) => (
   <input
     type="number"
@@ -25,6 +28,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
     onChange={(e) => onChange(e.target.value)}
     min={min}
     max={max}
+    onBlur={onBlur}
     className="rounded-lg border border-border h-8 w-24 px-3 text-body focus:outline-none focus:ring-2 focus:ring-blue-500"
   />
 );

@@ -32,7 +32,6 @@ import { logger } from '../../lib/logger';
 import { BasicInfoCard } from './BasicInfoCard';
 import { AppearanceCard } from './AppearanceCard';
 import { ModelConfigCard } from './ModelConfigCard';
-import { ChatConfigCard } from './ChatConfigCard';
 import { VoiceCard } from './VoiceCard';
 import { WorkspaceCard } from './WorkspaceCard';
 import type { PoseImage } from './PoseImageCardList';
@@ -80,7 +79,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
   >();
   const [voiceId, setVoiceId] = useState<string>('');
   const [voiceLanguage, setVoiceLanguage] = useState('default');
-  const [compressionThreshold, setCompressionThreshold] = useState('50');
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -105,7 +103,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
       setPreviewDataUrl(undefined);
       setVoiceId(editingAgent.voiceId || '');
       setVoiceLanguage(editingAgent.voiceLanguage || 'default');
-      setCompressionThreshold(String(editingAgent.compressionThreshold ?? 50));
       loadPoseImages(editingAgent.id);
       setBgDeleted(false);
       setPendingBgFile(null);
@@ -174,7 +171,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     setPendingAvatarFile(null);
     setVoiceId('');
     setVoiceLanguage('default');
-    setCompressionThreshold('50');
     setPoseImages([]);
     setPendingBgFile(null);
     setBgPreviewUrl(undefined);
@@ -298,7 +294,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           defaultModel: { provider, model: modelId },
           systemPrompt,
           maxSteps: parseInt(maxSteps) || 50,
-          compressionThreshold: parseInt(compressionThreshold) || 50,
           defaultWorkspacePath: defaultWorkspacePath || '',
           voiceId: voiceId || undefined,
           voiceLanguage: voiceId ? voiceLanguage : undefined,
@@ -312,7 +307,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
           systemPrompt,
           skillNames: [],
           maxSteps: parseInt(maxSteps) || 50,
-          compressionThreshold: parseInt(compressionThreshold) || 50,
           defaultWorkspacePath: defaultWorkspacePath || '',
           voiceId: voiceId || undefined,
           voiceLanguage: voiceId ? voiceLanguage : undefined,
@@ -398,7 +392,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     maxSteps: parseInt(maxSteps) || 50,
     skillNames: [],
     defaultWorkspacePath,
-    compressionThreshold: parseInt(compressionThreshold) || 50,
     voiceId: voiceId || undefined,
     voiceLanguage: voiceId ? voiceLanguage : undefined,
     createdAt: 0,
@@ -483,10 +476,6 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
                 onMaxStepsChange={setMaxSteps}
                 systemPrompt={systemPrompt}
                 onSystemPromptChange={setSystemPrompt}
-              />
-              <ChatConfigCard
-                compressionThreshold={compressionThreshold}
-                onCompressionThresholdChange={setCompressionThreshold}
               />
               <VoiceCard
                 voices={voices}

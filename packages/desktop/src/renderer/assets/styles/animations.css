@@ -131,6 +131,14 @@
   animation: collapsible-up 200ms ease-out;
 }
 
+/* 系统开启减弱动态时收展改为瞬时，保留状态变化去掉运动 */
+@media (prefers-reduced-motion: reduce) {
+  .collapsible-content[data-state='open'],
+  .collapsible-content[data-state='closed'] {
+    animation-duration: 0.01ms;
+  }
+}
+
 /* ============================================
    Agent 运行圈 — 全圈呼吸
    整圈实线透明度一起一伏，无弧无底轨，
