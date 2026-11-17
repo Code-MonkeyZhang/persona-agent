@@ -1137,6 +1137,45 @@ describe('Session Module Integration Tests', () => {
       });
     });
 
+    /** POST /api/agents/:agentId/sessions/:id/compress 测试 */
+    describe('POST /api/agents/:agentId/sessions/:id/compress', () => {
+      /** 测试普通会话手动压缩受理返回 202，占用与压缩全会话通用 */
+      it('should accept compress for regular session', async () => {
+        const agentId = await createTestAgent();
+
+        const createResponse = await fetch(
+          `${BASE_URL}/api/agents/${agentId}/sessions`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: 'Compress Test' }),
+          }
+        );
+        const { session: created } = (await createResponse.json()) as {
+          session: Session;
+        };
+
+        const response = await fetch(
+          `${BASE_URL}/api/agents/${agentId}/sessions/${created.id}/compress`,
+          { method: 'POST' }
+        );
+        expect(response.status).toBe(202);
+        const data = (await response.json()) as { accepted: boolean };
+        expect(data.accepted).toBe(true);
+      });
+
+      /** 测试不存在的会话压缩 404 */
+      it('should return 404 for non-existent session', async () => {
+        const agentId = await createTestAgent();
+
+        const response = await fetch(
+          `${BASE_URL}/api/agents/${agentId}/sessions/non-existent/compress`,
+          { method: 'POST' }
+        );
+        expect(response.status).toBe(404);
+      });
+    });
+
     /** PUT /api/agents/:agentId/sessions/:id 测试 */
     describe('PUT /api/agents/:agentId/sessions/:id', () => {
       /** 测试更新 session 标题 */

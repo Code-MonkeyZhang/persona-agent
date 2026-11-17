@@ -26,6 +26,8 @@ export interface SessionRow {
   model: string | null;
   summarized_up_to: number | null;
   compression_summaries: string | null;
+  usage_state: string | null;
+  compression_log: string | null;
   current_pose: string | null;
   turn_ends: string | null;
   last_message_preview: string | null;
@@ -63,6 +65,12 @@ export function rowToMeta(row: SessionRow): SessionMeta {
     currentPose: row.current_pose ?? undefined,
     // 未读列存 0/1，读回还原为布尔，0 与 undefined 在消费方等价
     hasUnread: row.has_unread === 1,
+    usageState: row.usage_state
+      ? (JSON.parse(row.usage_state) as SessionMeta['usageState'])
+      : undefined,
+    compressionLog: row.compression_log
+      ? (JSON.parse(row.compression_log) as SessionMeta['compressionLog'])
+      : undefined,
   };
 }
 
@@ -231,7 +239,7 @@ export class SessionStore {
     const event = db.transaction((): SessionChange | null => {
       db.query(
         `UPDATE sessions SET title = ?, workspace_path = ?, model = ?,
-          summarized_up_to = ?, compression_summaries = ?, current_pose = ?, has_unread = ?, updated_at = ?
+          summarized_up_to = ?, compression_summaries = ?, usage_state = ?, compression_log = ?, current_pose = ?, has_unread = ?, updated_at = ?
          WHERE id = ? AND agent_id = ?`
       ).run(
         meta.title,
@@ -241,6 +249,8 @@ export class SessionStore {
         meta.compressionSummaries
           ? JSON.stringify(meta.compressionSummaries)
           : null,
+        meta.usageState ? JSON.stringify(meta.usageState) : null,
+        meta.compressionLog ? JSON.stringify(meta.compressionLog) : null,
         meta.currentPose ?? null,
         meta.hasUnread ? 1 : 0,
         meta.updatedAt,
@@ -356,6 +366,19 @@ export class SessionStore {
       }
       return meta;
     });
+  }
+
+  /**
+   * Count persisted messages of a session.
+   *
+   * 轻量 COUNT 查询，供占用锚点换算等只需要数量不需要内容的场景。
+   * @returns 消息条数，会话不存在返回 0
+   */
+  countMessages(id: string): number {
+    const row = statement<{ n: number }>(
+      'SELECT COUNT(*) AS n FROM messages WHERE session_id = ?'
+    ).get(id);
+    return row?.n ?? 0;
   }
 
   /**

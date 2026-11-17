@@ -52,19 +52,41 @@ let invalidateTimer: ReturnType<typeof setTimeout> | null = null;
 /** 防抖窗，注册与状态迁移的短时密集变化合成一次广播 */
 const INVALIDATE_DEBOUNCE_MS = 300;
 
+/** 防抖窗口内收集的归属 Agent，工具分配落盘时登记 */
+const invalidatedAgentIds = new Set<string>();
+
+/** 窗口内出现过注册表级变化则升级为全局广播 */
+let registryChanged = false;
+
 /**
  * 广播一次 tools_invalidated 事件。
  *
- * 事件体为空，客户端收到后整份重拉工具注册表。
- * 注册表条目变化与工具分配落盘共用这条出口，
- * 定时器不阻塞进程退出。
+ * 工具分配落盘带 agentId 归属，防抖窗口内收集成数组随 data 发出，
+ * 供消费端按 Agent 圈定刷新范围。注册表条目变化分不出归属，不带
+ * 参数并把事件升级为全局，data 留空表示刷全部，归属与全局在同一
+ * 窗口撞车时全局优先，宁多刷不漏刷。客户端不消费 data，整份重拉
+ * 工具注册表的行为不变。定时器不阻塞进程退出。
  */
-export function emitToolsInvalidated(): void {
+export function emitToolsInvalidated(scope?: { agentId: string }): void {
+  if (scope) {
+    invalidatedAgentIds.add(scope.agentId);
+  } else {
+    registryChanged = true;
+  }
   if (invalidateTimer) return;
   invalidateTimer = setTimeout(() => {
     invalidateTimer = null;
+    const agentIds = [...invalidatedAgentIds];
+    invalidatedAgentIds.clear();
+    const global = registryChanged;
+    registryChanged = false;
     try {
-      const event = insertChangeRow(getDb(), 'tools_invalidated', null, {});
+      const event = insertChangeRow(
+        getDb(),
+        'tools_invalidated',
+        null,
+        global ? {} : { agentIds }
+      );
       emitSessionChange(event);
     } catch (error) {
       Logger.log(

@@ -46,6 +46,12 @@ export function getDb(): Database {
     if (currentVersion > 0 && currentVersion < 5) {
       conn.run('ALTER TABLE sessions ADD COLUMN compression_summaries TEXT');
     }
+    // v5 → v6：sessions 补 usage_state 与 compression_log 列，
+    // 占用底数与压缩记录的落点，JSON 大字段随 meta 变更流同步
+    if (currentVersion > 0 && currentVersion < 6) {
+      conn.run('ALTER TABLE sessions ADD COLUMN usage_state TEXT');
+      conn.run('ALTER TABLE sessions ADD COLUMN compression_log TEXT');
+    }
     if (currentVersion < SCHEMA_VERSION) {
       conn.run(`PRAGMA user_version = ${SCHEMA_VERSION}`);
     }

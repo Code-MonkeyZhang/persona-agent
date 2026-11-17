@@ -6,6 +6,7 @@
  * - POST   /api/agents/:agentId/sessions     - Create session
  * - GET    /api/agents/:agentId/sessions/:id - Get session
  * - GET    /api/agents/:agentId/sessions/:id/export - Export session as JSONL
+ * - POST   /api/agents/:agentId/sessions/:id/compress - Manual compression
  * - PUT    /api/agents/:agentId/sessions/:id - Update session
  * - DELETE /api/agents/:agentId/sessions/:id - Delete session
  */
@@ -13,6 +14,8 @@
 import { Router } from 'express';
 import type { Request } from 'express';
 import { SessionManager } from '../../session/index.js';
+import { getAgentConfig } from '../../agent/index.js';
+import { runCompression } from '../services/compress-service.js';
 import { Logger } from '../../util/logger.js';
 import type { SessionManagersMap } from './agent.js';
 import { asyncHandler, getParam, requireParam } from './utils.js';
@@ -110,6 +113,38 @@ export function createSessionRouter(
         `attachment; filename="session-${id}.jsonl"`
       );
       res.send(lines.length > 0 ? `${lines.join('\n')}\n` : '');
+    })
+  );
+
+  /**
+   * POST /api/agents/:agentId/sessions/:id/compress - 手动压缩会话
+   *
+   * 受理即返回 accepted，压缩在后台跑，进度经 WS 压缩事件族到达。
+   * 回合运行中照常受理，inflight 防重入保证同一会话同时最多一个，
+   * 重复请求同样返回 accepted 不报错。
+   */
+  router.post(
+    '/:id/compress',
+    asyncHandler('SESSION', 'Error compressing session', (req, res) => {
+      const manager = getSessionManager(req);
+      const agentId = requireParam(getParam(req.params['agentId']), 'Agent ID');
+      const id = requireParam(getParam(req.params['id']), 'Session ID');
+
+      const session = manager.getSession(id);
+      if (!session) throw new AppError(404, 'Session not found');
+      const agentConfig = getAgentConfig(agentId);
+      if (!agentConfig) throw new AppError(404, `Agent not found: ${agentId}`);
+
+      const modelConfig = session.model ?? agentConfig.defaultModel;
+      runCompression({
+        sessionId: id,
+        sessionManager: manager,
+        trigger: 'manual',
+        provider: modelConfig.provider,
+        modelId: modelConfig.model,
+      }).catch(() => {});
+      Logger.log('SESSION', 'Manual compression accepted', { sessionId: id });
+      res.status(202).json({ accepted: true });
     })
   );
 
