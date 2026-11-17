@@ -38,11 +38,12 @@ export function createConfigRouter(): Router {
    * PUT /api/config
    * Updates the configuration and saves to config.yaml.
    * After saving, immediately updates Logger's enabled state and the narration switch.
+   * compression 节缺省时逐键保留文件现值，threshold 钳制 1 到 100。
    */
   router.put(
     '/',
     asyncHandler('CONFIG', 'Failed to save configuration', (req, res) => {
-      const { enableLogging, enableToolNarration } = req.body;
+      const { enableLogging, enableToolNarration, compression } = req.body;
 
       if (typeof enableLogging !== 'boolean') {
         throw new AppError(400, 'enableLogging must be a boolean');
@@ -53,12 +54,35 @@ export function createConfigRouter(): Router {
       ) {
         throw new AppError(400, 'enableToolNarration must be a boolean');
       }
+      if (compression !== undefined && typeof compression !== 'object') {
+        throw new AppError(400, 'compression must be an object');
+      }
+      if (
+        compression?.autoCompress !== undefined &&
+        typeof compression.autoCompress !== 'boolean'
+      ) {
+        throw new AppError(400, 'compression.autoCompress must be a boolean');
+      }
+      if (
+        compression?.threshold !== undefined &&
+        (typeof compression.threshold !== 'number' ||
+          !Number.isFinite(compression.threshold))
+      ) {
+        throw new AppError(400, 'compression.threshold must be a number');
+      }
 
+      const current = loadConfig(configPath);
       // 叙述开关缺省时保留文件现值，避免旧端 PUT 把它冲掉
       const config: AppConfig = {
         enableLogging,
-        enableToolNarration:
-          enableToolNarration ?? loadConfig(configPath).enableToolNarration,
+        enableToolNarration: enableToolNarration ?? current.enableToolNarration,
+        compression: {
+          autoCompress:
+            compression?.autoCompress ?? current.compression.autoCompress,
+          threshold: clampThreshold(
+            compression?.threshold ?? current.compression.threshold
+          ),
+        },
       };
       saveConfig(configPath, config);
 
@@ -71,4 +95,9 @@ export function createConfigRouter(): Router {
   );
 
   return router;
+}
+
+/** 阈值钳制 1 到 100，非整数先取整 */
+function clampThreshold(value: number): number {
+  return Math.min(100, Math.max(1, Math.round(value)));
 }

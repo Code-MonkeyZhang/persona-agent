@@ -265,7 +265,6 @@ describe('migrateLegacyToolNames 存量迁移', () => {
         defaultModel: { provider: 'openai', model: 'gpt' },
         maxSteps: 5,
         skillNames: [],
-        compressionThreshold: 50,
         createdAt: 1,
         updatedAt: 1,
         ...fields,

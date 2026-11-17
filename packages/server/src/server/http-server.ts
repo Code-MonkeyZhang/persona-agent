@@ -33,9 +33,17 @@ import { createSyncRouter } from './routers/sync.js';
 import { createLauncherRouter } from './routers/launcher.js';
 import { processAppNotification } from './services/app-notification-service.js';
 import {
+  sessionContextSnapshot,
+  refreshUsageSnapshot,
+  forgetUsageSnapshot,
+} from './services/usage-service.js';
+import { sessionChangeEmitter } from '../session/changes.js';
+import type { SessionChange } from '@persona/shared';
+import {
   initWebSocket,
   isWebSocketInitialized,
   setViewedHandler,
+  setContextUsageProvider,
 } from './websocket-server.js';
 
 import { listAgentConfigs } from '../agent/index.js';
@@ -125,6 +133,37 @@ setAppNotificationHandler((params, serverName) => {
 
 void initMcpPool();
 Logger.setSessionManagers(sessionManagers);
+
+/** 按会话 id 找属主 manager，普通会话 id 不编码 agentId，只能逐个问询 */
+function managerForSession(sessionId: string): SessionManager | undefined {
+  for (const manager of sessionManagers.values()) {
+    if (manager.getSession(sessionId)) return manager;
+  }
+  return undefined;
+}
+
+/**
+ * 圈定一次失效信号该刷的 manager 列表。
+ *
+ * agents_invalidated 带 agentId 只取对应 manager，tools_invalidated
+ * 带 agentIds 逐个取，data 为空的注册表全局变化与旧格式事件兜底刷
+ * 全部，宁多刷不漏刷。查不到的 agentId 静默跳过，Agent 删除后
+ * manager 可能已不在表。
+ */
+function usageRefreshManagers(change: SessionChange): SessionManager[] {
+  if (change.kind === 'agents_invalidated') {
+    const agentId = (change.data as { agentId?: string } | null)?.agentId;
+    if (!agentId) return [...sessionManagers.values()];
+    const manager = sessionManagers.get(agentId);
+    return manager ? [manager] : [];
+  }
+  const agentIds = (change.data as { agentIds?: string[] } | null)?.agentIds;
+  if (!agentIds?.length) return [...sessionManagers.values()];
+  return agentIds
+    .map((id) => sessionManagers.get(id))
+    .filter((manager): manager is SessionManager => manager != null);
+}
+
 // 未读清除回调,viewed 上报经此落到对应 Agent 的 manager,
 // 置 false 落库后由变更流广播到全部在线端,任何一端看过即全局看过
 setViewedHandler((sessionId) => {
@@ -132,6 +171,40 @@ setViewedHandler((sessionId) => {
     if (manager.updateHasUnread(sessionId, false)) return;
   }
   Logger.log('SERVER', `Viewed session not found: ${sessionId}`);
+});
+// 占用快照补态回调:经属主查找取会话现算快照
+setContextUsageProvider((sessionId) => {
+  const manager = managerForSession(sessionId);
+  return manager ? sessionContextSnapshot(manager, sessionId) : null;
+});
+
+// 占用刷新订阅：装配输入变化后现算快照经统一出口推送。失效信号带
+// 变更主语，经圈定函数只刷受影响 Agent 的会话，data 为空的注册表
+// 全局变化与旧格式事件兜底刷全部。刷新全程不写库，写库会再发
+// session_updated 形成回环，不写库天然无环。消息追加只发
+// message_appended 不在此列，刷新只认配置与元信息变化。
+sessionChangeEmitter.on('change', (change: SessionChange) => {
+  if (
+    change.kind === 'agents_invalidated' ||
+    change.kind === 'tools_invalidated'
+  ) {
+    for (const manager of usageRefreshManagers(change)) {
+      for (const meta of manager.listSessions()) {
+        refreshUsageSnapshot(meta.id, manager, change.kind);
+      }
+    }
+    return;
+  }
+  if (change.kind === 'session_updated' && change.sessionId) {
+    const manager = managerForSession(change.sessionId);
+    if (manager) {
+      refreshUsageSnapshot(change.sessionId, manager, change.kind);
+    }
+    return;
+  }
+  if (change.kind === 'session_deleted' && change.sessionId) {
+    forgetUsageSnapshot(change.sessionId);
+  }
 });
 
 app.use('/api/providers', createProviderRouter());

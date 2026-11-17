@@ -5,7 +5,8 @@
 
 import type { Message, AgentEvent, ToolCall } from '../schema/index.js';
 import type { ContentBlock } from '@persona/shared';
-import type { AgentRunConfig } from './types.js';
+import type { Usage } from '@earendil-works/pi-ai';
+import type { AgentRunConfig, UsageReport } from './types.js';
 import type { Tool, ToolResult } from '../tools/index.js';
 import {
   convertContext,
@@ -14,6 +15,7 @@ import {
 } from './pi-ai-converter.js';
 import { formatPendingInputForAgent } from './inject.js';
 import { models } from './pi-models.js';
+import { validateUsage } from '../server/services/usage-service.js';
 import { Logger } from '../util/logger.js';
 
 /** 强制收尾轮注入的临时指令，只随请求发出不进消息历史 */
@@ -36,6 +38,8 @@ type StepStreamOutcome = {
   toolCalls: ToolCall[];
   /** signal 在流期间被触发，调用方需走中断收尾路径 */
   aborted: boolean;
+  /** done 事件报回的 usage 经对账通过后携带，未报数或对账作废为 undefined */
+  usage?: UsageReport;
 };
 
 /** 追加给 models.stream 的每步覆盖选项，强制收尾轮携带 toolChoice none */
@@ -156,6 +160,7 @@ export class AgentCore {
       };
 
       const outcome = yield* this.consumeModelStream(signal);
+      if (outcome.usage) this.runConfig.onUsage?.(outcome.usage);
 
       // signal 中断后的半成品整理：有实际内容时给未完成的 tool 补 fake result，
       // push 带 stopReason 的消息；全空则跳过，避免存出空消息
@@ -222,8 +227,9 @@ export class AgentCore {
    *
    * 主循环每步与强制收尾轮共用：拼装临时尾部消息与上下文，
    * 消费 pi-ai 事件流，累计正文、思考与工具调用，期间转产
-   * thinking、content 与 error 事件。中断只标记不处置，
-   * 后续路径由调用方按 outcome 决定。
+   * thinking、content 与 error 事件。done 事件报回的 usage 经
+   * 对账通过后随 outcome 携带，由 runConfig.onUsage 落账。
+   * 中断只标记不处置，后续路径由调用方按 outcome 决定。
    *
    * @param signal - 调用方传入的中断信号
    * @param overrides - 追加的流选项，收尾轮携带 toolChoice none
@@ -249,6 +255,9 @@ export class AgentCore {
       Array.from(this.tools.values())
     );
 
+    // 锚点在请求发起前捕获，报数之后新增的持久消息按估算计入分子
+    const anchorSeq = this.messages.length;
+
     // Accumulate content chunk
     const eventStream = models.stream(this.runConfig.model, context, {
       apiKey: this.runConfig.apiKey,
@@ -258,6 +267,7 @@ export class AgentCore {
       ...overrides,
     });
 
+    let usage: UsageReport | undefined;
     for await (const event of eventStream) {
       if (event.type === 'thinking_delta') {
         yield { type: 'thinking', content: event.delta };
@@ -292,6 +302,11 @@ export class AgentCore {
         break;
       }
       if (event.type === 'done') {
+        const raw = (event as { message?: { usage?: Usage } }).message?.usage;
+        const validated = raw ? validateUsage(raw) : null;
+        if (validated) {
+          usage = { ...validated, anchorSeq };
+        }
         break;
       }
     }
@@ -301,6 +316,7 @@ export class AgentCore {
       thinking,
       toolCalls,
       aborted: signal?.aborted === true,
+      usage,
     };
   }
 
@@ -368,6 +384,7 @@ export class AgentCore {
       const outcome = yield* this.consumeModelStream(signal, {
         toolChoice: 'none',
       });
+      if (outcome.usage) this.runConfig.onUsage?.(outcome.usage);
 
       if (outcome.aborted) {
         this.finalizeAbortedStep(outcome);

@@ -30,5 +30,8 @@ export {
   formatAppNotificationForAgent,
   formatPendingInputForAgent,
 } from './inject.js';
-export { createAgentRunConfig } from './run-config-factory.js';
+export {
+  createAgentRunConfig,
+  assembleAgentParts,
+} from './run-config-factory.js';
 export { resolveWorkspaceDir, persistResolvedWorkspace } from './workspace.js';

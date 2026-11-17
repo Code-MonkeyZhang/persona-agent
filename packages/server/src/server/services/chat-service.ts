@@ -13,15 +13,29 @@ import {
   persistResolvedWorkspace,
 } from '../../agent/index.js';
 import { getMcpDisplayName, getMcpToolLogoUrl } from '../../mcp/index.js';
-import { runCompression } from './compress-service.js';
+import {
+  runCompression,
+  currentSummary,
+  wrapCompressionSummary,
+} from './compress-service.js';
+import {
+  recordReport,
+  recordEstimatedBase,
+  pushUsageSnapshot,
+  currentNumerator,
+} from './usage-service.js';
+import { appendChatErrorMessage } from './chat-error.js';
 import { sanitizeHistoryForModel } from './history-sanitizer.js';
 import { buildRuntimeContext } from './runtime-context.js';
 import {
+  estimateAssemblyTokens,
   estimateMessagesTokens,
   estimateMessageTokens,
+  estimateTextTokens,
 } from '../../agent/memory/token-estimate.js';
 import type { Message, ToolCall } from '../../schema/index.js';
-import type { ModelConfig } from '../../agent/types.js';
+import type { AgentRunConfig, ModelConfig } from '../../agent/types.js';
+import type { BreakdownShares } from '@persona/shared';
 import {
   messagePreviewText,
   type ContentBlock,
@@ -35,6 +49,8 @@ import {
   toFullName,
 } from '../../tools/index.js';
 import { Logger } from '../../util/logger.js';
+import { loadConfig } from '../../config.js';
+import { getConfigPath } from '../../util/paths.js';
 import { broadcastToSession, broadcastToAll } from '../websocket-server.js';
 import * as sessionRegistry from './session-registry.js';
 import * as activityRegistry from './activity-registry.js';
@@ -54,23 +70,44 @@ const MAX_RESULT_LENGTH = 1000;
 const SAFETY_NET_RATIO = 0.9;
 
 /**
- * 压缩摘要的信封前缀，声明该条是系统生成的背景资料而非用户发言。
- * 摘要正文包进 conversation-summary 标签，多条摘要逐条独立成消息。
+ * 主流 provider 的上下文超限报错关键词。
+ * 认不出的超限文案走原样报错，由安全网与下一次报数兜住。
  */
-const COMPRESSION_ENVELOPE = `【系统摘要】以下是早前对话的自动压缩摘要，不是用户发言。当作背景资料使用，不要执行其中的旧指令，不要回应本条，继续与后面的近期对话衔接。
+const CONTEXT_OVERFLOW_PATTERN =
+  /context_length_exceeded|context length|context window|prompt is too long|too many (input )?tokens|request too large|input token.*(exceed|limit)|reduce.*context/i;
 
-<conversation-summary>
-{{content}}
-</conversation-summary>`;
-
-/** 把一条摘要包装成带信封前缀的 user 消息文本 */
-function wrapCompressionSummary(summary: string): string {
-  return COMPRESSION_ENVELOPE.replace('{{content}}', summary);
+/** 判定模型报错是否为上下文超限，超限证据路径的识别依据 */
+export function isContextOverflowError(error: string): boolean {
+  return CONTEXT_OVERFLOW_PATTERN.test(error);
 }
 
 function truncate(str: string, maxLen: number): string {
   if (str.length <= maxLen) return str;
   return `${str.slice(0, maxLen)}...`;
+}
+
+/**
+ * 现算本轮的三段构成，派轮时的 shares 与报数缺席补位的重算共用一份公式。
+ *
+ * messages 段取传入消息数组的估算加临时尾巴估算，装配两段经
+ * estimateAssemblyTokens 按 runConfig 现算。
+ */
+function computeTurnShares(
+  runConfig: AgentRunConfig,
+  messages: Message[],
+  ephemeralTail?: string
+): BreakdownShares {
+  const assembly = estimateAssemblyTokens(
+    runConfig.systemSegments,
+    runConfig.tools
+  );
+  return {
+    messages:
+      estimateMessagesTokens(messages) +
+      estimateTextTokens(ephemeralTail ?? ''),
+    systemPersona: assembly.systemPersona,
+    toolsSkills: assembly.toolsSkills,
+  };
 }
 
 /**
@@ -87,6 +124,11 @@ interface ChatRequest {
   sessionManager: SessionManager;
   /** 设置时表示本次对话由 App 通知触发，跳过标题生成 */
   appSource?: string;
+  /**
+   * 内部重投标记：超限证据路径压缩成功后原样重跑本回合。
+   * 置位的调用不再重复持久化用户消息，最多重投一次防循环。
+   */
+  redispatched?: boolean;
 }
 
 /**
@@ -238,20 +280,12 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
 
   /**
    * 持久化错误消息并广播 error + round_complete 事件
-   * - 落盘 { role: 'error', content } 到 session JSONL
-   * - 广播 WS error + round_complete，通知前端
+   * - 落盘与 error 广播走 appendChatErrorMessage 小助手，压缩失败链共用
+   * - 追加 round_complete 广播并返回失败响应
    */
   const emitError = (errorContent: string): ChatResponse => {
-    sessionManager.appendMessage(sessionId, {
-      role: 'error',
-      content: errorContent,
-    });
+    appendChatErrorMessage(sessionManager, sessionId, errorContent);
     Logger.log('CHAT', 'Error persisted', { sessionId, error: errorContent });
-    broadcastToSession(sessionId, {
-      type: 'error',
-      sessionId,
-      message: errorContent,
-    });
     broadcastToSession(sessionId, { type: 'round_complete', sessionId });
     return { success: false, error: errorContent };
   };
@@ -308,24 +342,52 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
   Logger.log('CHAT', 'Run started broadcast', { sessionId });
 
   try {
-    const runConfig = createAgentRunConfig(
-      agentConfig,
+    // 回合级一次性准备：运行时上下文在首轮构建并持久化，重投轮复用同一份
+    const runtimeContext = buildRuntimeContext(
+      sessionId,
       session,
       workspaceDir,
-      sessionManager
+      effectiveToolNames(agentConfig),
+      agentConfig.skillNames
     );
-    // 忙时插话接线：runStream 每个步骤间隙取空待注入缓冲
-    runConfig.takePendingInputs = () => drainPendingInputs(sessionId);
-    const isChatSession = session.id.startsWith('chat');
 
-    const agent = new AgentCore(runConfig);
+    /**
+     * 回合级报数标记，onUsage 回调内置位。
+     * 回合正常结束仍为假时走估算补位，中断与错误路径提前返回天然不补位，
+     * 超限重投经 continue redispatch 跳出回合正常结束路径不误触发。
+     */
+    let usageReported = false;
 
-    // 把除了 SystemPrompt 以外的消息推入 Agent, 新的SystemPrompt已经在构建AgentCore时注入了。
-    if (isChatSession) {
-      // 聊天 Session：压缩模式。只加载 summarizedUpTo 之后的近期原始消息；
+    /**
+     * 超限证据路径的重投轮：模型报上下文超限时把报错当作阈值已到的
+     * 确凿证据，压缩成功后重建上下文原样重跑本回合，用户消息已在库，
+     * 重载即含不重复持久化。redispatched 标记保证最多重投一次，
+     * 压缩失败或自动压缩关闭时错误原样显示。
+     */
+    redispatch: for (let attempt = 0; ; attempt++) {
+      // 重投轮重读会话：压缩推进了指针，新窗口要按最新 summarizedUpTo 取
+      const currentSession =
+        attempt === 0 ? session : sessionManager.getSession(sessionId);
+      if (!currentSession) {
+        return emitError(`Session lost: ${sessionId}`);
+      }
+
+      const runConfig = createAgentRunConfig(
+        agentConfig,
+        currentSession,
+        workspaceDir,
+        sessionManager
+      );
+      // 忙时插话接线：runStream 每个步骤间隙取空待注入缓冲
+      runConfig.takePendingInputs = () => drainPendingInputs(sessionId);
+
+      const agent = new AgentCore(runConfig);
+
+      // 把除了 SystemPrompt 以外的消息推入 Agent, 新的SystemPrompt已经在构建AgentCore时注入了。
+      // 压缩感知加载对全会话通用：只加载 summarizedUpTo 之后的近期原始消息，
       // 若该切片估算 token 超过上下文窗口的 90%，从头部裁掉最老的完整轮次。
-      const summarizedUpTo = session.summarizedUpTo ?? 0;
-      let messagesToLoad = session.messages.slice(summarizedUpTo);
+      const summarizedUpTo = currentSession.summarizedUpTo ?? 0;
+      let messagesToLoad = currentSession.messages.slice(summarizedUpTo);
       const safetyNetTokens = Math.floor(
         SAFETY_NET_RATIO * runConfig.model.contextWindow
       );
@@ -336,452 +398,515 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
           remaining: messagesToLoad.length,
         });
       }
-      // 压缩摘要逐条以带信封的 user 消息先入上下文，插在未摘要区之前，
-      // 摘要是系统生成的干净文本不经过构建期净化，也不占安全网预算
-      for (const summary of session.compressionSummaries ?? []) {
+      // 当前生效的摘要单份包信封插在未摘要区之前，摘要是系统生成的
+      // 干净文本不经过构建期净化，也不占安全网预算
+      const summary = currentSummary(currentSession);
+      if (summary) {
         agent.addUserMessage(wrapCompressionSummary(summary));
       }
       // 切片偏移等于完整长度减加载长度，同时覆盖压缩起点与头裁两种情况
       loadSanitizedHistory(
         agent,
         messagesToLoad,
-        session.turnEnds ?? [],
-        session.messages.length - messagesToLoad.length,
+        currentSession.turnEnds ?? [],
+        currentSession.messages.length - messagesToLoad.length,
         sessionId
       );
-    } else {
-      // 普通 Session全量加载原始消息。
-      // TODO: 普通Session应该使用滑动窗口等简单机制, 而不是全部加载
-      loadSanitizedHistory(
-        agent,
-        session.messages,
-        session.turnEnds ?? [],
-        0,
-        sessionId
-      );
-    }
 
-    // 遗留缓冲消费：上一回合停止后驻留的插话先于本回合新消息进入历史
-    for (const input of drainPendingInputs(sessionId)) {
-      agent.addUserMessage(formatPendingInputForAgent(input));
-      sessionManager.appendMessage(sessionId, toPersistedMessage(input));
-    }
+      let historyLength = agent.messages.length;
 
-    let historyLength = agent.messages.length;
-    if (appSource) {
-      // App 通知：机器键在入口换成显示名，Agent 前缀、落盘与广播同用一份
-      const sourceName = getMcpDisplayName(appSource);
-      // App 通知恒为纯文本，类型收窄守卫
-      const appContent = typeof content === 'string' ? content : '';
-      // Agent 收到带前缀的 user 消息，session 存储 app_notification 原文
-      agent.addUserMessage(
-        formatAppNotificationForAgent(sourceName, appContent)
-      );
-      sessionManager.appendMessage(sessionId, {
-        role: 'app_notification',
-        source: sourceName,
-        content: appContent,
-      });
-      // 广播回合开始信号，客户端据此创建 AI 占位气泡，之后 step_complete 正常填入
-      broadcastToSession(sessionId, {
-        type: 'app_notification',
-        sessionId,
-        source: sourceName,
-        content: appContent,
-      });
-      Logger.log('CHAT', 'App notification broadcast', {
-        sessionId,
-        source: sourceName,
-      });
-    } else {
-      agent.addUserMessage(content);
-      saveStepMessages(sessionManager, sessionId, agent, historyLength);
-      // 普通用户消息落盘后广播，空闲的订阅端据此追加气泡切入生成态
-      broadcastToSession(sessionId, {
-        type: 'user_message',
-        sessionId,
-        content,
-      });
-      Logger.log('CHAT', 'User message broadcast', {
-        sessionId,
-        ...describeChatContent(content),
-      });
-    }
-    historyLength = agent.messages.length;
-    Logger.log('CHAT', 'Message added', {
-      agentId,
-      sessionId,
-      source: appSource ?? 'user',
-    });
+      if (attempt === 0) {
+        // 遗留缓冲消费：上一回合停止后驻留的插话先于本回合新消息进入历史
+        for (const input of drainPendingInputs(sessionId)) {
+          agent.addUserMessage(formatPendingInputForAgent(input));
+          sessionManager.appendMessage(sessionId, toPersistedMessage(input));
+        }
+        historyLength = agent.messages.length;
 
-    // 运行时上下文注入：按寿命分流。
-    // persisted 是时间与环境变化，纯文本 user 消息进模型上下文，context
-    // 角色副本落盘。双写防重复——落盘后立即推进 historyLength 越过内存中
-    // 的 user 副本，避免 saveStepMessages 按 historyLength 切片时再存一遍。
-    // ephemeral 是相关记忆节，只设临时尾巴，聊天记录里永远没有它。
-    const runtimeContext = buildRuntimeContext(
-      sessionId,
-      session,
-      workspaceDir,
-      effectiveToolNames(agentConfig),
-      agentConfig.skillNames
-    );
-    if (runtimeContext.persisted) {
-      agent.addUserMessage(runtimeContext.persisted);
-      sessionManager.appendMessage(sessionId, {
-        role: 'context',
-        source: 'runtime-context',
-        content: runtimeContext.persisted,
-      });
-      historyLength = agent.messages.length;
-    }
-    if (runtimeContext.ephemeral) {
-      agent.ephemeralTail = runtimeContext.ephemeral;
-    }
-
-    // Fire-and-forget: auto-generate title base on the first user message
-    // 块数组先经预览提取纯文本，文件块贡献文件名，纯附件消息标题来自文件名
-    const isFirstMessage = session.messages.length === 0;
-    const isDefaultTitle = session.title === 'New Session';
-    if (!appSource && isFirstMessage && isDefaultTitle && !isChatSession) {
-      const titleSource = messagePreviewText({ role: 'user', content }) ?? '';
-      if (titleSource.trim()) {
-        Logger.log('TITLE', 'Auto-generating title', { sessionId });
-        const { provider: modelProvider, model: modelId } =
-          session.model ?? agentConfig.defaultModel;
-        generateTitle(titleSource, modelProvider, modelId)
-          .then((title) => {
-            if (!title) {
-              return;
-            }
-            Logger.log('TITLE', 'Title generated', { sessionId, title });
-            sessionManager.updateTitle(sessionId, title);
-            broadcastToSession(sessionId, {
-              type: 'title_updated',
-              sessionId,
-              title,
-            });
-          })
-          .catch((err) => {
-            Logger.log('TITLE', 'Generation error', {
-              sessionId,
-              error: (err as Error).message,
-            });
+        if (appSource) {
+          // App 通知：机器键在入口换成显示名，Agent 前缀、落盘与广播同用一份
+          const sourceName = getMcpDisplayName(appSource);
+          // App 通知恒为纯文本，类型收窄守卫
+          const appContent = typeof content === 'string' ? content : '';
+          // Agent 收到带前缀的 user 消息，session 存储 app_notification 原文
+          agent.addUserMessage(
+            formatAppNotificationForAgent(sourceName, appContent)
+          );
+          sessionManager.appendMessage(sessionId, {
+            role: 'app_notification',
+            source: sourceName,
+            content: appContent,
           });
+          // 广播回合开始信号，客户端据此创建 AI 占位气泡，之后 step_complete 正常填入
+          broadcastToSession(sessionId, {
+            type: 'app_notification',
+            sessionId,
+            source: sourceName,
+            content: appContent,
+          });
+          Logger.log('CHAT', 'App notification broadcast', {
+            sessionId,
+            source: sourceName,
+          });
+        } else {
+          agent.addUserMessage(content);
+          saveStepMessages(sessionManager, sessionId, agent, historyLength);
+          // 普通用户消息落盘后广播，空闲的订阅端据此追加气泡切入生成态
+          broadcastToSession(sessionId, {
+            type: 'user_message',
+            sessionId,
+            content,
+          });
+          Logger.log('CHAT', 'User message broadcast', {
+            sessionId,
+            ...describeChatContent(content),
+          });
+        }
+
+        // 运行时上下文注入：按寿命分流。
+        // persisted 是时间与环境变化，纯文本 user 消息进模型上下文，context
+        // 角色副本落盘。双写防重复——落盘后立即推进 historyLength 越过内存中
+        // 的 user 副本，避免 saveStepMessages 按 historyLength 切片时再存一遍。
+        // ephemeral 是相关记忆节，只设临时尾巴，聊天记录里永远没有它。
+        if (runtimeContext.persisted) {
+          agent.addUserMessage(runtimeContext.persisted);
+          sessionManager.appendMessage(sessionId, {
+            role: 'context',
+            source: 'runtime-context',
+            content: runtimeContext.persisted,
+          });
+        }
+      } else {
+        // 重投轮：用户消息与上下文消息已在库随窗口加载，无需再入位
       }
-    }
-
-    // 创建一个临时容器, 收集当前step的所有内容 方便广播
-    let lastContentText: string | null = null;
-    let currentStep: {
-      stepIndex: number;
-      thinking: string;
-      content: string;
-      /** 本步是否已广播过 content_started，只服务广播不进落盘与 step_complete 载荷 */
-      contentAnnounced: boolean;
-      toolCalls: ToolCall[];
-      toolResults: {
-        toolCallId: string;
-        toolName: string;
-        result: string;
-        success: boolean;
-      }[];
-    } | null = null;
-
-    /** Build a step_complete event payload from the current step accumulator. */
-    const buildStepCompleteEvent = () => ({
-      type: 'step_complete' as const,
-      sessionId,
-      stepIndex: currentStep!.stepIndex,
-      thinking: currentStep!.thinking || undefined,
-      // TODO: 临时去重 — 某些 OpenAI 兼容提供者会在 content 和 reasoning_content 中返回相同文本，
-      // 导致 thinking 与 content 完全一致。应在 agent.ts 层面改用 streamSimple() 正确控制 reasoning 行为。
-      content:
-        currentStep!.thinking && currentStep!.thinking === currentStep!.content
-          ? undefined
-          : currentStep!.content || undefined,
-      toolCalls:
-        currentStep!.toolCalls.length > 0
-          ? currentStep!.toolCalls.map((tc) => ({
-              id: tc.id,
-              name: tc.function.name,
-              arguments: tc.function.arguments,
-              toolTitle: tc.toolTitle,
-              toolIntent: tc.toolIntent,
-              iconUrl: tc.iconUrl,
-            }))
-          : undefined,
-      toolResults:
-        currentStep!.toolResults.length > 0
-          ? currentStep!.toolResults
-          : undefined,
-    });
-
-    /**
-     * Flush the current step: save messages, log, and broadcast step_complete.
-     * Resets currentStep to null after broadcasting.
-     *
-     * After saving, updates historyLength to the current agent.messages.length
-     * so the next flush only saves newly added messages (fixes #56).
-     */
-    const flushCurrentStep = () => {
-      if (!currentStep) return;
-      if (currentStep.content) {
-        lastContentText = currentStep.content;
-      }
-      saveStepMessages(sessionManager, sessionId, agent, historyLength);
       historyLength = agent.messages.length;
-      Logger.log('CHAT', 'Step complete', {
+      if (runtimeContext.ephemeral) {
+        agent.ephemeralTail = runtimeContext.ephemeral;
+      }
+      Logger.log('CHAT', 'Message added', {
+        agentId,
         sessionId,
-        stepIndex: currentStep.stepIndex,
-        thinking: currentStep.thinking,
-        content: currentStep.content,
-        toolCallCount: currentStep.toolCalls.length,
-        toolResultCount: currentStep.toolResults.length,
+        source: appSource ?? 'user',
+        redispatched: attempt > 0,
       });
-      for (const tr of currentStep.toolResults) {
-        const toolCall = currentStep.toolCalls.find(
-          (tc) => tc.id === tr.toolCallId
-        );
-        Logger.log('TOOL', `Tool executed: ${tr.toolName}`, {
-          sessionId,
-          toolName: tr.toolName,
-          arguments: toolCall?.function.arguments,
-          success: tr.success,
-          result: truncate(tr.result, MAX_RESULT_LENGTH),
-        });
 
-        // show_pose 校验通过时，将 pose 持久化到 session 元数据
-        if (
-          tr.toolName === toFullName(POSE_TOOLSET_ID, 'show_pose') &&
-          tr.success &&
-          toolCall
-        ) {
-          const pose = toolCall.function.arguments['pose'] as
-            | string
-            | undefined;
-          if (pose) {
-            sessionManager.updatePose(sessionId, pose);
-            Logger.log('POSE', 'Pose persisted to session', {
-              sessionId,
-              pose,
+      // 占用接线对全会话通用：现场算三段拼装快照，报数落账随 base 一起写进 usage_state。
+      // anchorSeq 在 AgentCore 是消息数组坐标，经 anchorOffset 换算成会话
+      // 坐标——两套数组在消息入位后同增减，偏移量此刻捕获后恒定
+      const shares = computeTurnShares(
+        runConfig,
+        agent.messages.slice(1),
+        agent.ephemeralTail
+      );
+      // 偏移量用实时落库条数捕获，旧会话快照不含本轮新消息，
+      // 直接相减会少算偏移导致分子多估一轮
+      const anchorOffset =
+        sessionManager.getMessageCount(sessionId) - agent.messages.length;
+      runConfig.onUsage = ({ base, anchorSeq }) => {
+        usageReported = true;
+        const snapshot = recordReport({
+          sessionId,
+          sessionManager,
+          base,
+          anchorSeq: anchorSeq + anchorOffset,
+          shares,
+          contextWindow: runConfig.model.contextWindow,
+        });
+        if (snapshot) {
+          pushUsageSnapshot(sessionId, snapshot, 'model');
+        }
+      };
+
+      // Fire-and-forget: auto-generate title base on the first user message
+      // 块数组先经预览提取纯文本，文件块贡献文件名，纯附件消息标题来自文件名
+      const isFirstMessage = session.messages.length === 0;
+      const isDefaultTitle = session.title === 'New Session';
+      if (
+        attempt === 0 &&
+        !appSource &&
+        isFirstMessage &&
+        isDefaultTitle &&
+        // 常驻聊天固定标题，不参与首消息自动命名
+        !session.id.startsWith('chat')
+      ) {
+        const titleSource = messagePreviewText({ role: 'user', content }) ?? '';
+        if (titleSource.trim()) {
+          Logger.log('TITLE', 'Auto-generating title', { sessionId });
+          const { provider: modelProvider, model: modelId } =
+            session.model ?? agentConfig.defaultModel;
+          generateTitle(titleSource, modelProvider, modelId)
+            .then((title) => {
+              if (!title) {
+                return;
+              }
+              Logger.log('TITLE', 'Title generated', { sessionId, title });
+              sessionManager.updateTitle(sessionId, title);
+              broadcastToSession(sessionId, {
+                type: 'title_updated',
+                sessionId,
+                title,
+              });
+            })
+            .catch((err) => {
+              Logger.log('TITLE', 'Generation error', {
+                sessionId,
+                error: (err as Error).message,
+              });
             });
-          }
         }
       }
-      broadcastToSession(sessionId, buildStepCompleteEvent());
-      currentStep = null;
-    };
 
-    /**
-     * Abort 收尾：存盘 AgentCore 已整理的半成品（含 stopReason: 'aborted'），
-     * 广播 aborted 事件，跳过 TTS 和压缩。
-     */
-    const emitAborted = (): ChatResponse => {
-      saveStepMessages(sessionManager, sessionId, agent, historyLength);
-      Logger.log('CHAT', 'Turn aborted by user', {
+      // 创建一个临时容器, 收集当前step的所有内容 方便广播
+      let lastContentText: string | null = null;
+      let currentStep: {
+        stepIndex: number;
+        thinking: string;
+        content: string;
+        /** 本步是否已广播过 content_started，只服务广播不进落盘与 step_complete 载荷 */
+        contentAnnounced: boolean;
+        toolCalls: ToolCall[];
+        toolResults: {
+          toolCallId: string;
+          toolName: string;
+          result: string;
+          success: boolean;
+        }[];
+      } | null = null;
+
+      /** Build a step_complete event payload from the current step accumulator. */
+      const buildStepCompleteEvent = () => ({
+        type: 'step_complete' as const,
         sessionId,
-        stepIndex: currentStep?.stepIndex,
-        partialContentLength: currentStep?.content.length ?? 0,
+        stepIndex: currentStep!.stepIndex,
+        thinking: currentStep!.thinking || undefined,
+        // TODO: 临时去重 — 某些 OpenAI 兼容提供者会在 content 和 reasoning_content 中返回相同文本，
+        // 导致 thinking 与 content 完全一致。应在 agent.ts 层面改用 streamSimple() 正确控制 reasoning 行为。
+        content:
+          currentStep!.thinking &&
+          currentStep!.thinking === currentStep!.content
+            ? undefined
+            : currentStep!.content || undefined,
+        toolCalls:
+          currentStep!.toolCalls.length > 0
+            ? currentStep!.toolCalls.map((tc) => ({
+                id: tc.id,
+                name: tc.function.name,
+                arguments: tc.function.arguments,
+                toolTitle: tc.toolTitle,
+                toolIntent: tc.toolIntent,
+                iconUrl: tc.iconUrl,
+              }))
+            : undefined,
+        toolResults:
+          currentStep!.toolResults.length > 0
+            ? currentStep!.toolResults
+            : undefined,
       });
-      broadcastToSession(sessionId, {
-        type: 'aborted',
-        sessionId,
-        reason: 'user_cancel',
-      });
-      return { success: false, error: 'aborted' };
-    };
 
-    // 开启agent loop循环。内层跑完一轮 runStream 后检查缓冲，
-    // 回合自然结束时缓冲非空则续跑下一轮消费插话，直到缓冲清空才发完成信号
-    for (;;) {
-      for await (const event of agent.runStream(abortController.signal)) {
-        switch (event.type) {
-          case 'step_start':
-            flushCurrentStep();
-            currentStep = {
-              stepIndex: event.step,
-              thinking: '',
-              content: '',
-              contentAnnounced: false,
-              toolCalls: [],
-              toolResults: [],
-            };
-            // 新步骤开始即回到思考态，中途接入端看到思考中
-            activityRegistry.setActivity(sessionId, { kind: 'thinking' });
-            break;
+      /**
+       * Flush the current step: save messages, log, and broadcast step_complete.
+       * Resets currentStep to null after broadcasting.
+       *
+       * After saving, updates historyLength to the current agent.messages.length
+       * so the next flush only saves newly added messages (fixes #56).
+       */
+      const flushCurrentStep = () => {
+        if (!currentStep) return;
+        if (currentStep.content) {
+          lastContentText = currentStep.content;
+        }
+        saveStepMessages(sessionManager, sessionId, agent, historyLength);
+        historyLength = agent.messages.length;
+        Logger.log('CHAT', 'Step complete', {
+          sessionId,
+          stepIndex: currentStep.stepIndex,
+          thinking: currentStep.thinking,
+          content: currentStep.content,
+          toolCallCount: currentStep.toolCalls.length,
+          toolResultCount: currentStep.toolResults.length,
+        });
+        for (const tr of currentStep.toolResults) {
+          const toolCall = currentStep.toolCalls.find(
+            (tc) => tc.id === tr.toolCallId
+          );
+          Logger.log('TOOL', `Tool executed: ${tr.toolName}`, {
+            sessionId,
+            toolName: tr.toolName,
+            arguments: toolCall?.function.arguments,
+            success: tr.success,
+            result: truncate(tr.result, MAX_RESULT_LENGTH),
+          });
 
-          case 'thinking':
-            if (currentStep) {
-              currentStep.thinking += event.content;
-            }
-            break;
-
-          case 'content':
-            if (currentStep) {
-              // 正文首增量到达即广播开始信号并登记回复态，后续增量静默累加，正文仍在步末整段发出
-              if (!currentStep.contentAnnounced) {
-                currentStep.contentAnnounced = true;
-                activityRegistry.setActivity(sessionId, {
-                  kind: 'replying',
-                });
-                broadcastToSession(sessionId, {
-                  type: 'content_started',
-                  sessionId,
-                  stepIndex: currentStep.stepIndex,
-                });
-                Logger.log('CHAT', 'Content started broadcast', {
-                  sessionId,
-                  stepIndex: currentStep.stepIndex,
-                });
-              }
-              currentStep.content += event.content;
-            }
-            break;
-
-          case 'tool_call':
-            if (currentStep) {
-              currentStep.toolCalls.push(...event.tool_calls);
-            }
-            break;
-
-          case 'tool_start': {
-            // 工具开始即广播执行中身份，不进 currentStep 聚合，步骤落盘口径不变
-            if (!currentStep) break;
-            const toolName = event.toolCall.function.name;
-            const args = event.toolCall.function.arguments || {};
-            const paramSummary = summarizeToolInput(toolName, args);
-            // 图址解析一次挂上调用对象，广播、step_complete 与落盘共用同一引用
-            event.toolCall.iconUrl = getMcpToolLogoUrl(toolName);
-            activityRegistry.setActivity(sessionId, {
-              kind: 'tool',
-              stepIndex: currentStep.stepIndex,
-              toolName,
-              paramSummary,
-            });
-            broadcastToSession(sessionId, {
-              type: 'tool_started',
-              sessionId,
-              stepIndex: currentStep.stepIndex,
-              toolName,
-              paramSummary,
-              toolTitle: event.toolCall.toolTitle,
-              toolIntent: event.toolCall.toolIntent,
-              // MCP 工具带所属服务 logo，内置工具 undefined 由客户端回退 Wrench
-              iconUrl: event.toolCall.iconUrl,
-            });
-            Logger.log('CHAT', 'Tool started broadcast', {
-              sessionId,
-              stepIndex: currentStep.stepIndex,
-              toolName,
-              toolTitle: event.toolCall.toolTitle,
-              toolIntent: event.toolCall.toolIntent,
-              iconUrl: event.toolCall.iconUrl,
-            });
-            break;
-          }
-
-          case 'tool_result': {
-            if (currentStep) {
-              const tr: ToolResult = event.result;
-              currentStep.toolResults.push({
-                toolCallId: event.toolCallId,
-                toolName: event.toolName,
-                result: tr.success
-                  ? tr.content
-                  : `Error: ${tr.error ?? 'Unknown error'}`,
-                success: tr.success,
+          // show_pose 校验通过时，将 pose 持久化到 session 元数据
+          if (
+            tr.toolName === toFullName(POSE_TOOLSET_ID, 'show_pose') &&
+            tr.success &&
+            toolCall
+          ) {
+            const pose = toolCall.function.arguments['pose'] as
+              | string
+              | undefined;
+            if (pose) {
+              sessionManager.updatePose(sessionId, pose);
+              Logger.log('POSE', 'Pose persisted to session', {
+                sessionId,
+                pose,
               });
             }
-            break;
           }
+        }
+        broadcastToSession(sessionId, buildStepCompleteEvent());
+        currentStep = null;
+      };
 
-          case 'inputs_injected': {
-            // 注入时机在 step_start 之前，currentStep 仍持有上一步内容，先落盘广播
-            flushCurrentStep();
-            for (const input of event.inputs) {
-              sessionManager.appendMessage(
+      /**
+       * Abort 收尾：存盘 AgentCore 已整理的半成品（含 stopReason: 'aborted'），
+       * 广播 aborted 事件，跳过 TTS 和压缩。
+       */
+      const emitAborted = (): ChatResponse => {
+        saveStepMessages(sessionManager, sessionId, agent, historyLength);
+        Logger.log('CHAT', 'Turn aborted by user', {
+          sessionId,
+          stepIndex: currentStep?.stepIndex,
+          partialContentLength: currentStep?.content.length ?? 0,
+        });
+        broadcastToSession(sessionId, {
+          type: 'aborted',
+          sessionId,
+          reason: 'user_cancel',
+        });
+        return { success: false, error: 'aborted' };
+      };
+
+      // 开启agent loop循环。内层跑完一轮 runStream 后检查缓冲，
+      // 回合自然结束时缓冲非空则续跑下一轮消费插话，直到缓冲清空才发完成信号
+      for (;;) {
+        for await (const event of agent.runStream(abortController.signal)) {
+          switch (event.type) {
+            case 'step_start':
+              flushCurrentStep();
+              currentStep = {
+                stepIndex: event.step,
+                thinking: '',
+                content: '',
+                contentAnnounced: false,
+                toolCalls: [],
+                toolResults: [],
+              };
+              // 新步骤开始即回到思考态，中途接入端看到思考中
+              activityRegistry.setActivity(sessionId, { kind: 'thinking' });
+              break;
+
+            case 'thinking':
+              if (currentStep) {
+                currentStep.thinking += event.content;
+              }
+              break;
+
+            case 'content':
+              if (currentStep) {
+                // 正文首增量到达即广播开始信号并登记回复态，后续增量静默累加，正文仍在步末整段发出
+                if (!currentStep.contentAnnounced) {
+                  currentStep.contentAnnounced = true;
+                  activityRegistry.setActivity(sessionId, {
+                    kind: 'replying',
+                  });
+                  broadcastToSession(sessionId, {
+                    type: 'content_started',
+                    sessionId,
+                    stepIndex: currentStep.stepIndex,
+                  });
+                  Logger.log('CHAT', 'Content started broadcast', {
+                    sessionId,
+                    stepIndex: currentStep.stepIndex,
+                  });
+                }
+                currentStep.content += event.content;
+              }
+              break;
+
+            case 'tool_call':
+              if (currentStep) {
+                currentStep.toolCalls.push(...event.tool_calls);
+              }
+              break;
+
+            case 'tool_start': {
+              // 工具开始即广播执行中身份，不进 currentStep 聚合，步骤落盘口径不变
+              if (!currentStep) break;
+              const toolName = event.toolCall.function.name;
+              const args = event.toolCall.function.arguments || {};
+              const paramSummary = summarizeToolInput(toolName, args);
+              // 图址解析一次挂上调用对象，广播、step_complete 与落盘共用同一引用
+              event.toolCall.iconUrl = getMcpToolLogoUrl(toolName);
+              activityRegistry.setActivity(sessionId, {
+                kind: 'tool',
+                stepIndex: currentStep.stepIndex,
+                toolName,
+                paramSummary,
+              });
+              broadcastToSession(sessionId, {
+                type: 'tool_started',
                 sessionId,
-                toPersistedMessage(input)
-              );
+                stepIndex: currentStep.stepIndex,
+                toolName,
+                paramSummary,
+                toolTitle: event.toolCall.toolTitle,
+                toolIntent: event.toolCall.toolIntent,
+                // MCP 工具带所属服务 logo，内置工具 undefined 由客户端回退 Wrench
+                iconUrl: event.toolCall.iconUrl,
+              });
+              Logger.log('CHAT', 'Tool started broadcast', {
+                sessionId,
+                stepIndex: currentStep.stepIndex,
+                toolName,
+                toolTitle: event.toolCall.toolTitle,
+                toolIntent: event.toolCall.toolIntent,
+                iconUrl: event.toolCall.iconUrl,
+              });
+              break;
             }
-            // 双写防御：事件先于消息 push 产出，按条数预推进切片起点，
-            // 跳过即将 push 进来的上下文副本，避免 saveStepMessages 重复落盘
-            historyLength += event.inputs.length;
-            Logger.log('CHAT', 'Pending inputs injected', {
-              sessionId,
-              count: event.inputs.length,
-            });
-            break;
-          }
 
-          case 'error': {
-            Logger.log('CHAT', 'Stream error, discarding partial step', {
-              sessionId,
-              stepIndex: currentStep?.stepIndex,
-              partialContentLength: currentStep?.content.length ?? 0,
-            });
-            return emitError(event.error);
-          }
+            case 'tool_result': {
+              if (currentStep) {
+                const tr: ToolResult = event.result;
+                currentStep.toolResults.push({
+                  toolCallId: event.toolCallId,
+                  toolName: event.toolName,
+                  result: tr.success
+                    ? tr.content
+                    : `Error: ${tr.error ?? 'Unknown error'}`,
+                  success: tr.success,
+                });
+              }
+              break;
+            }
 
-          case 'aborted': {
-            Logger.log('CHAT', 'Agent reported aborted, finalizing', {
-              sessionId,
-              stepIndex: currentStep?.stepIndex,
-            });
-            return emitAborted();
+            case 'inputs_injected': {
+              // 注入时机在 step_start 之前，currentStep 仍持有上一步内容，先落盘广播
+              flushCurrentStep();
+              for (const input of event.inputs) {
+                sessionManager.appendMessage(
+                  sessionId,
+                  toPersistedMessage(input)
+                );
+              }
+              // 双写防御：事件先于消息 push 产出，按条数预推进切片起点，
+              // 跳过即将 push 进来的上下文副本，避免 saveStepMessages 重复落盘
+              historyLength += event.inputs.length;
+              Logger.log('CHAT', 'Pending inputs injected', {
+                sessionId,
+                count: event.inputs.length,
+              });
+              break;
+            }
+
+            case 'error': {
+              // 超限证据路径：自动开启时把超限报错当作阈值已到的确凿证据，
+              // 压缩成功后重建上下文重跑本回合，同一条消息最多重投一次，
+              // 压缩失败或自动关闭时错误原样显示
+              if (
+                !request.redispatched &&
+                isContextOverflowError(event.error) &&
+                loadConfig(getConfigPath()).compression.autoCompress
+              ) {
+                Logger.log('CHAT', 'Context overflow treated as evidence', {
+                  sessionId,
+                  error: truncate(event.error, 200),
+                });
+                const outcome = await runCompression({
+                  sessionId,
+                  sessionManager,
+                  trigger: 'auto',
+                  provider: runConfig.provider,
+                  modelId: runConfig.modelId,
+                });
+                if (outcome === 'complete') {
+                  request.redispatched = true;
+                  currentStep = null;
+                  continue redispatch;
+                }
+              }
+              Logger.log('CHAT', 'Stream error, discarding partial step', {
+                sessionId,
+                stepIndex: currentStep?.stepIndex,
+                partialContentLength: currentStep?.content.length ?? 0,
+              });
+              return emitError(event.error);
+            }
+
+            case 'aborted': {
+              Logger.log('CHAT', 'Agent reported aborted, finalizing', {
+                sessionId,
+                stepIndex: currentStep?.stepIndex,
+              });
+              return emitAborted();
+            }
           }
+        }
+
+        // 处理最后一个step
+        flushCurrentStep();
+
+        // 轮次结束：先落盘标记行再广播轮次边界信号，客户端此时刷新已能看到标记，
+        // 渲染层据此组装整轮气泡；中止与错误路径提前返回，不写标记
+        sessionManager.appendTurnEnd(sessionId);
+        Logger.log('CHAT', 'Turn end marker persisted', { sessionId });
+        broadcastToSession(sessionId, { type: 'turn_complete', sessionId });
+
+        // 缓冲非空说明最后一步执行期间有新插话到达，续跑下一轮消费
+        if (!hasPendingInputs(sessionId)) break;
+        Logger.log('CHAT', 'Starting next round for pending inputs', {
+          sessionId,
+        });
+      }
+
+      // 报数缺席补位：回合正常结束仍无报数，用本轮 runConfig 现算三段构成
+      // 落一个估算底数推快照，下一轮真实报数整体覆盖回归真实轨
+      if (!usageReported) {
+        Logger.log('USAGE', 'Report missing, estimating base', { sessionId });
+        const fresh = sessionManager.getSession(sessionId);
+        const snapshot = recordEstimatedBase({
+          sessionId,
+          sessionManager,
+          shares: computeTurnShares(
+            runConfig,
+            fresh?.messages ?? [],
+            agent.ephemeralTail
+          ),
+          contextWindow: runConfig.model.contextWindow,
+        });
+        if (snapshot) {
+          pushUsageSnapshot(sessionId, snapshot, 'estimate');
         }
       }
 
-      // 处理最后一个step
-      flushCurrentStep();
+      // 回合完成落盘后无条件置未读,在场抑制由前端处理,清除经变更流广播全端
+      sessionManager.updateHasUnread(sessionId, true);
+      Logger.log('CHAT', 'Has unread set on round complete', { sessionId });
 
-      // 轮次结束：先落盘标记行再广播轮次边界信号，客户端此时刷新已能看到标记，
-      // 渲染层据此组装整轮气泡；中止与错误路径提前返回，不写标记
-      sessionManager.appendTurnEnd(sessionId);
-      Logger.log('CHAT', 'Turn end marker persisted', { sessionId });
-      broadcastToSession(sessionId, { type: 'turn_complete', sessionId });
+      // 回合边界信号，回合工作结束
+      broadcastToSession(sessionId, { type: 'round_complete', sessionId });
 
-      // 缓冲非空说明最后一步执行期间有新插话到达，续跑下一轮消费
-      if (!hasPendingInputs(sessionId)) break;
-      Logger.log('CHAT', 'Starting next round for pending inputs', {
-        sessionId,
-      });
-    }
+      // Fire-and-forget: TTS voice processing
+      // App 通知触发的回合与手动发消息同权，是否播报由客户端开关决定
+      if (voiceEnabled) {
+        handleTtsAsync(
+          sessionId,
+          session.model ?? agentConfig.defaultModel,
+          agentConfig,
+          lastContentText,
+          initiatorDeviceId
+        ).catch(() => {});
+      }
 
-    // 回合完成落盘后无条件置未读,在场抑制由前端处理,清除经变更流广播全端
-    sessionManager.updateHasUnread(sessionId, true);
-    Logger.log('CHAT', 'Has unread set on round complete', { sessionId });
+      // Fire-and-forget: 异步上下文压缩，判据读占用分子与全局偏好
+      triggerAutoCompression(sessionId, sessionManager, runConfig).catch(
+        () => {}
+      );
 
-    // 回合边界信号，回合工作结束
-    broadcastToSession(sessionId, { type: 'round_complete', sessionId });
-
-    // Fire-and-forget: TTS voice processing
-    // App 通知触发的回合与手动发消息同权，是否播报由客户端开关决定
-    if (voiceEnabled) {
-      handleTtsAsync(
-        sessionId,
-        session.model ?? agentConfig.defaultModel,
-        agentConfig,
-        lastContentText,
-        initiatorDeviceId
-      ).catch(() => {});
-    }
-
-    // Fire-and-forget: 异步上下文压缩
-    if (isChatSession) {
-      runCompression({
-        sessionId,
-        sessionManager,
-        threshold: agentConfig.compressionThreshold,
-        contextWindow: runConfig.model.contextWindow,
-        provider: runConfig.provider,
-        modelId: runConfig.modelId,
-      }).catch(() => {});
-    }
-
-    return { success: true };
+      return { success: true };
+    } // redispatch 重投轮结束，成功路径经 return 退出，超限重投经 continue redispatch 回到轮首
   } catch (error) {
     const err = error as Error;
     return emitError(err.message);
@@ -896,6 +1021,50 @@ async function handleTtsAsync(
     apiKey: ttsConfig.apiKey,
     model: ttsConfig.model,
     languageBoost: getLanguageBoost(agentConfig.voiceLanguage),
+  });
+}
+
+/**
+ * 回合末的自动压缩判定。
+ *
+ * 读全局压缩偏好与占用分子：autoCompress 关闭直接跳过，分子经
+ * currentNumerator 两轨选择与面板显示同源，无底数会话走估算轨超阈
+ * 同样触发。分子除以分母未达 threshold 百分比跳过，通过才发起一次自动压缩。
+ */
+async function triggerAutoCompression(
+  sessionId: string,
+  sessionManager: SessionManager,
+  runConfig: AgentRunConfig
+): Promise<void> {
+  const config = loadConfig(getConfigPath());
+  if (!config.compression.autoCompress) return;
+
+  const session = sessionManager.getSession(sessionId);
+  if (!session) return;
+  const assembly = estimateAssemblyTokens(
+    runConfig.systemSegments,
+    runConfig.tools
+  );
+  const numerator = currentNumerator(
+    session,
+    assembly.systemPersona + assembly.toolsSkills
+  );
+  const triggerTokens =
+    (config.compression.threshold / 100) * runConfig.model.contextWindow;
+  if (numerator < triggerTokens) return;
+
+  Logger.log('COMPRESS', 'Auto compression triggered', {
+    sessionId,
+    numerator,
+    threshold: config.compression.threshold,
+    contextWindow: runConfig.model.contextWindow,
+  });
+  await runCompression({
+    sessionId,
+    sessionManager,
+    trigger: 'auto',
+    provider: runConfig.provider,
+    modelId: runConfig.modelId,
   });
 }
 

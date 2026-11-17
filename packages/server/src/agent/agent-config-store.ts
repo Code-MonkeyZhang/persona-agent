@@ -87,10 +87,12 @@ function normalizeWorkspacePath(value?: string): string {
 /**
  * 登记并广播一条 agents_invalidated 事件。
  * Agent 正本是纯文件写没有事务包裹，事件在文件写成功后登记，
- * 客户端收到后整份重拉角色列表，事件体不带增量数据。
+ * 客户端收到后整份重拉角色列表，事件体带 agentId 供消费端按 Agent 圈定刷新范围。
  */
-function emitAgentsInvalidated(): void {
-  const event = insertChangeRow(getDb(), 'agents_invalidated', null, {});
+function emitAgentsInvalidated(agentId: string): void {
+  const event = insertChangeRow(getDb(), 'agents_invalidated', null, {
+    agentId,
+  });
   emitSessionChange(event);
 }
 
@@ -202,7 +204,7 @@ export function createAgentConfig(input: AgentConfigInput): AgentConfig {
   writeJsonAtomic(getAgentConfigPath(id), onDisk);
   writeSystemPrompt(id, systemPrompt);
 
-  emitAgentsInvalidated();
+  emitAgentsInvalidated(id);
   Logger.log('AGENT', `Created agent config: ${id}`);
   return config;
 }
@@ -240,10 +242,10 @@ export function updateAgentConfig(
   );
 
   // 工具分配直取 toolNames。分配变化广播 tools_invalidated，
-  // 条目投影里的 assigned 标记靠它刷新。
+  // 条目投影里的 assigned 标记靠它刷新，带归属供刷新圈定范围。
   if (input.toolNames !== undefined) {
     updated.toolNames = input.toolNames;
-    emitToolsInvalidated();
+    emitToolsInvalidated({ agentId: id });
   }
 
   // systemPrompt 单独持久化；config.json 不再包含该字段
@@ -253,7 +255,7 @@ export function updateAgentConfig(
     writeSystemPrompt(id, systemPrompt);
   }
 
-  emitAgentsInvalidated();
+  emitAgentsInvalidated(id);
   Logger.log('AGENT', `Updated agent config: ${id}`);
   return updated;
 }
@@ -264,7 +266,7 @@ export function deleteAgentConfig(id: string): void {
   if (fs.existsSync(agentDir)) {
     fs.rmSync(agentDir, { recursive: true });
   }
-  emitAgentsInvalidated();
+  emitAgentsInvalidated(id);
 }
 
 /** 裸内置 id 到 built_in 前缀 id 的翻译表，本地测试期落盘的旧分配用 */
