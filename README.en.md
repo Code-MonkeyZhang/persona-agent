@@ -55,9 +55,17 @@ Install agents, MCP tools, and Skills from the Agent Marketplace in one click.
 - **Agent Apps** — Install dedicated mini-apps for your Agent, interact via the app panel and receive app notifications
 - **Mobile Remote Access** — Built-in Cloudflare Tunnel for connecting to your agent from the mobile app anytime
 - **Offline & Multi-Device Sync** — Conversations are mirrored to a local database on both desktop and mobile, so full history stays readable offline; images are cached by content hash and downloaded only once, and new content catches up automatically when back online
+- **Live Progress** — Real-time timeline shows every running step as the model works
+- **Context Management** — History compresses automatically near the context limit with a live usage indicator
+- **Multimodal Input** — Send images and files directly in chat for the Agent to understand
 
 ## 📢 Changelog
 
+- 2026-11-17 **v1.16.0** Live step-by-step progress in the timeline. Automatic context compression with a live usage shell. Agent tool management rebuilt. Closing the window keeps the app in the tray.
+- 2026-11-07 **v1.15.0** Long-term memory for AI characters with triggered and persistent recall. Images and files can be sent directly in chat. Image cache structure rebuilt.
+- 2026-11-01 **v1.14.1** Timeline shows model self-notes and reply phase, agent avatars get a breathing running ring.
+- 2026-10-23 **v1.14.0** Unread badges on agent avatars, running status broadcast across devices, bilingual handbook on the website.
+- 2026-10-17 **v1.13.0** Website landing page and demo animations rebuilt, live device reachability indicators.
 - 2026-10-10 — **v1.12.0**: multi-device connections with device management, offline conversation mirror with automatic catch-up, content-hash caching for images and assets, live connection status, sessions migrated to SQLite.
 - 2026-09-23 — **v1.10.1**: app-wide visual refresh, collapsible session sidebar with animation and width memory, cloned voice renaming, permanently active input box.
 - 2026-09-19 — **v1.10.0**: global Inter font and unified type scale, per-turn assistant message bubbles, redesigned provider config panel, edge-fade scroll indicators.
