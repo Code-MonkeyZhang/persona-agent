@@ -35,6 +35,7 @@ import {
 } from '../../lib/attachments';
 import { ModelSelector } from '../common/ModelSelector';
 import { WorkspaceSelector } from '../common/WorkspaceSelector';
+import { ContextUsageShell } from './ContextUsageShell';
 import { HoverDeleteButton } from '../ui/HoverDeleteButton';
 import type { ProviderStatus } from '../../lib/api';
 import type { UIAttachment } from '../../types/chat';
@@ -408,6 +409,8 @@ export const InputBox = forwardRef<InputBoxRef, InputBoxProps>(
                 showOnlyVerified={true}
                 compact
               />
+              {/* 上下文占用小壳，点按触发手动压缩 */}
+              <ContextUsageShell />
             </div>
 
             {/* 发送与停止并存：生成中发送变为插话排队，停止独立中止当前回合 */}

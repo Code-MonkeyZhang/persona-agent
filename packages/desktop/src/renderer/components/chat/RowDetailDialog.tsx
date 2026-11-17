@@ -1,5 +1,5 @@
 /**
- * @file 时间线行的段式详情浮层，三类行共用一个入口
+ * @file 时间线行的段式详情浮层，多类行共用一个入口
  * 头部是图标徽章加工具名或行类型名，正文按段组织，每段小标题行右侧配段级复制钮
  * 关闭语义是拦掉指针外部关闭，点击落在浮层之外才关闭，遮罩吃掉点击不穿透到行
  */
@@ -13,6 +13,7 @@ import {
   MessageCircle,
   MessageSquare,
   MessageSquareDashed,
+  Minimize2,
   TerminalSquare,
   XCircle,
   type LucideIcon,
@@ -28,7 +29,8 @@ import { CopyButton } from '../ui/CopyButton';
 import { toolIcon } from './LiveStrip';
 
 /** 时间线行的详情载荷，行共用一个浮层
- *  工具行带原始入参与输出，文字类行只带全文，failed 标记失败行浮层头部多一块错误区 */
+ *  工具行带原始入参与输出，文字类行只带全文，failed 标记失败行浮层头部多一块错误区
+ *  summary 是压缩行的当前摘要，正文即摘要全文带复制钮 */
 export type RowDetail =
   | {
       kind: 'tool';
@@ -41,7 +43,8 @@ export type RowDetail =
   | { kind: 'user'; text: string }
   | { kind: 'think'; text: string }
   | { kind: 'note'; text: string }
-  | { kind: 'reply'; text: string };
+  | { kind: 'reply'; text: string }
+  | { kind: 'summary'; text: string };
 
 /** 安全解析 JSON 字符串，失败返回 null 由调用方走原文渲染 */
 function tryParseJson(raw: string): Record<string, unknown> | null {
@@ -121,6 +124,7 @@ const TEXT_BADGES = {
   think: { icon: Lightbulb, labelKey: 'live.thinkingSection' },
   note: { icon: MessageSquareDashed, labelKey: 'live.narration' },
   reply: { icon: MessageSquare, labelKey: 'live.replyMessage' },
+  summary: { icon: Minimize2, labelKey: 'live.currentSummary' },
 } as const;
 
 /**
