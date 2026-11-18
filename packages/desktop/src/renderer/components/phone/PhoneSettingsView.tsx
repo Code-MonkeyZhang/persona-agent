@@ -158,9 +158,6 @@ export function PhoneSettingsView() {
                 onClick={handleResetLayout}
               />
             </div>
-            <p className="mt-3 px-2 text-micro leading-relaxed text-muted-foreground/70">
-              {t('phone.settingsNote')}
-            </p>
           </div>
         </div>
 
