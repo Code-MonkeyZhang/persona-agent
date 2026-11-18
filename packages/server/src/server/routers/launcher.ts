@@ -12,6 +12,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import * as fs from 'node:fs';
+import { SUPPORTED_IMAGE_MIME_TYPES } from '@persona/shared';
 import {
   putOrder,
   putWallpaperCurrent,
@@ -22,8 +23,8 @@ import {
 import { AppError } from '../../util/errors.js';
 import { asyncHandler, getParam } from './utils.js';
 
-/** 壁纸上传白名单，规范只收 JPEG 与 PNG */
-const ALLOWED_WALLPAPER_MIME = new Set(['image/jpeg', 'image/png']);
+/** 壁纸上传白名单，与产品口径常量同源，桌面与手机端上传前已统一转 JPEG */
+const ALLOWED_WALLPAPER_MIME = new Set<string>(SUPPORTED_IMAGE_MIME_TYPES);
 
 /** 上传 multer 实例，传输层粗限 4MB，精确的 2MB 与尺寸校验在 store 层做 */
 const upload = multer({

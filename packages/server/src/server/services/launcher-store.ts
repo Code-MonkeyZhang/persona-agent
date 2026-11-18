@@ -26,6 +26,7 @@ import { getWallpapersDir } from '../../util/paths.js';
 import { Logger } from '../../util/logger.js';
 import { AppError } from '../../util/errors.js';
 import { insertChangeRow, emitSessionChange } from '../../session/changes.js';
+import { decodeImage } from './image-decode.js';
 
 /** 自定义壁纸数量上限 */
 const MAX_CUSTOM_WALLPAPERS = 20;
@@ -140,16 +141,6 @@ export function putWallpaperCurrent(
   return { payload, updatedAt };
 }
 
-/** 解码 buffer 为 jimp 图像，解码失败按 400 拒绝 */
-async function decodeImage(buffer: Buffer, what: string): Promise<JimpImage> {
-  try {
-    return await Jimp.read(buffer);
-  } catch {
-    Logger.log('LAUNCHER', `Rejected ${what}: decode failed`);
-    throw new AppError(400, `Invalid ${what}: not a decodable image`);
-  }
-}
-
 /** 缩到 8x8 网格取平均亮度，低于阈值判定深色 */
 function sampleDark(image: JimpImage): boolean {
   const data = image.clone().resize({ w: SAMPLE_SIZE, h: SAMPLE_SIZE })
@@ -206,7 +197,7 @@ export async function addWallpaperImage(
   if (image.length > WALLPAPER_MAX_BYTES) {
     throw new AppError(400, 'Wallpaper exceeds 2MB limit');
   }
-  const mainImage = await decodeImage(image, 'wallpaper image');
+  const mainImage = await decodeImage(image, 'wallpaper image', 'LAUNCHER');
   const shortSide = Math.min(mainImage.width, mainImage.height);
   if (shortSide < WALLPAPER_MIN_SHORT_SIDE) {
     Logger.log('LAUNCHER', `Rejected wallpaper: short side ${shortSide}`);
@@ -215,7 +206,7 @@ export async function addWallpaperImage(
       `Wallpaper short side must be at least ${WALLPAPER_MIN_SHORT_SIDE}px, portrait images recommended`
     );
   }
-  const thumbImage = await decodeImage(thumb, 'wallpaper thumb');
+  const thumbImage = await decodeImage(thumb, 'wallpaper thumb', 'LAUNCHER');
   const thumbShort = Math.min(thumbImage.width, thumbImage.height);
   if (thumbShort > THUMB_MAX_SHORT_SIDE) {
     throw new AppError(

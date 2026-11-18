@@ -29,16 +29,32 @@ import {
 } from './utils.js';
 import { AppError } from '../../util/errors.js';
 import { getFileHash } from '../../util/asset-hash.js';
+import { SUPPORTED_IMAGE_EXTENSIONS } from '@persona/shared';
 
-const IMAGE_EXTENSIONS = /\.(png|jpg|jpeg|gif|webp)$/i;
+/** 产品口径内的图片扩展名正则，立绘与背景的查找、列表与清理共用 */
+const IMAGE_EXTENSIONS = new RegExp(
+  `\\.(${SUPPORTED_IMAGE_EXTENSIONS.map((ext) => ext.slice(1)).join('|')})$`,
+  'i'
+);
 
 const MIME_MAP: Record<string, string> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
 };
+
+/**
+ * 校验上传文件的扩展名在产品口径内。
+ * @returns 小写扩展名，无扩展名时按 .png 处理
+ */
+function requireSupportedExt(originalname: string): string {
+  const ext = path.extname(originalname).toLowerCase() || '.png';
+  if (!SUPPORTED_IMAGE_EXTENSIONS.includes(ext)) {
+    Logger.log('ASSETS', `Rejected upload: unsupported extension ${ext}`);
+    throw new AppError(400, `Unsupported image extension: ${ext}`);
+  }
+  return ext;
+}
 
 /**
  * 根据 URL 中的 name 在 pose 目录中查找匹配的文件名。
@@ -139,7 +155,8 @@ export function createAssetsRouter(): Router {
   /**
    * POST /pose/:name — 上传立绘图片。
    *
-   * 以 URL 中的 name 作为文件名，保存到 pose 目录。
+   * 以 URL 中的 name 作为文件名，保存到 pose 目录，
+   * 扩展名须在产品口径内，无扩展名按 .png 处理。
    * 同名文件已存在时覆盖。
    *
    * @returns JSON: `{ success: true }`
@@ -158,7 +175,7 @@ export function createAssetsRouter(): Router {
         fs.mkdirSync(poseDir, { recursive: true });
       }
 
-      const ext = path.extname(req.file.originalname) || '.png';
+      const ext = requireSupportedExt(req.file.originalname);
       const filePath = path.join(poseDir, `${poseName}${ext}`);
       fs.writeFileSync(filePath, req.file.buffer);
 
@@ -262,7 +279,8 @@ export function createAssetsRouter(): Router {
   /**
    * POST /background — 上传背景图。
    *
-   * 背景图只保留一张，上传前先清理目录中已有的图片文件。
+   * 背景图只保留一张，上传前先清理目录中已有的图片文件，
+   * 扩展名须在产品口径内，无扩展名按 .png 处理。
    *
    * @returns JSON: `{ success: true }`
    */
@@ -286,7 +304,7 @@ export function createAssetsRouter(): Router {
         }
       }
 
-      const ext = path.extname(req.file.originalname) || '.png';
+      const ext = requireSupportedExt(req.file.originalname);
       const filePath = path.join(bgDir, `background${ext}`);
       fs.writeFileSync(filePath, req.file.buffer);
 

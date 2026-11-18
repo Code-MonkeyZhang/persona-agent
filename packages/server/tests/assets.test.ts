@@ -50,6 +50,8 @@ import { getFileHash } from '../src/util/asset-hash.js';
 import { createAgentRouter } from '../src/server/routers/agent.js';
 import { createAssetsRouter } from '../src/server/routers/assets.js';
 import { createAvatarRouter } from '../src/server/routers/avatar.js';
+import { errorHandler } from '../src/server/routers/utils.js';
+import { Jimp } from 'jimp';
 
 /** 查找可用端口，避免端口冲突 */
 function findAvailablePort(): Promise<number> {
@@ -104,6 +106,8 @@ describe('Assets Hash Integration Tests', () => {
     app.use('/api/agents', createAgentRouter());
     app.use('/api/agents/:agentId/assets', createAssetsRouter());
     app.use('/api/agents/:agentId/avatar', createAvatarRouter());
+    // 挂生产同款错误中间件，multer 白名单拒绝才能按 400 断言
+    app.use(errorHandler);
 
     PORT = await findAvailablePort();
     BASE_URL = `http://localhost:${PORT}`;
@@ -344,6 +348,110 @@ describe('Assets Hash Integration Tests', () => {
       expect(list.poses).toEqual([
         { name: 'happy', hash: sha256('uploaded-pose-bytes') },
       ]);
+    });
+
+    it('should reject gif pose by whitelist', async () => {
+      const agentId = await createTestAgent();
+      const form = new FormData();
+      form.append(
+        'pose',
+        new Blob(['gif-bytes'], { type: 'image/gif' }),
+        'evil.gif'
+      );
+
+      const res = await fetch(
+        `${BASE_URL}/api/agents/${agentId}/assets/pose/sad`,
+        { method: 'POST', body: form }
+      );
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toContain('Unsupported image format');
+    });
+
+    it('should reject spoofed extension outside supported list', async () => {
+      const agentId = await createTestAgent();
+      const form = new FormData();
+      form.append(
+        'pose',
+        new Blob(['png-bytes'], { type: 'image/jpeg' }),
+        'evil.gif'
+      );
+
+      const res = await fetch(
+        `${BASE_URL}/api/agents/${agentId}/assets/pose/sad`,
+        { method: 'POST', body: form }
+      );
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toContain('Unsupported image extension');
+    });
+  });
+
+  /** 头像上传格式门槛测试 */
+  describe('POST /api/agents/:agentId/avatar', () => {
+    /** jimp 合成一张纯色 PNG 测试图 */
+    async function makePng(width: number, height: number): Promise<Buffer> {
+      const image = new Jimp({ width, height, color: 0x3366ccff });
+      return image.getBuffer('image/png');
+    }
+
+    it('should reject gif avatar by whitelist', async () => {
+      const agentId = await createTestAgent();
+      const form = new FormData();
+      form.append(
+        'avatar',
+        new Blob(['gif-bytes'], { type: 'image/gif' }),
+        'a.gif'
+      );
+
+      const res = await fetch(`${BASE_URL}/api/agents/${agentId}/avatar`, {
+        method: 'POST',
+        body: form,
+      });
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toContain('Unsupported image format');
+    });
+
+    it('should reject corrupt image with 400 instead of 500', async () => {
+      const agentId = await createTestAgent();
+      const form = new FormData();
+      form.append(
+        'avatar',
+        new Blob(['not-an-image'], { type: 'image/png' }),
+        'a.png'
+      );
+
+      const res = await fetch(`${BASE_URL}/api/agents/${agentId}/avatar`, {
+        method: 'POST',
+        body: form,
+      });
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toContain('not a decodable image');
+    });
+
+    it('should process png avatar into 256x256 png', async () => {
+      const agentId = await createTestAgent();
+      const form = new FormData();
+      form.append(
+        'avatar',
+        new Blob([await makePng(40, 90)], { type: 'image/png' }),
+        'a.png'
+      );
+
+      const res = await fetch(`${BASE_URL}/api/agents/${agentId}/avatar`, {
+        method: 'POST',
+        body: form,
+      });
+      expect(res.status).toBe(200);
+
+      const stored = fs.readFileSync(
+        path.join(agentsDir, agentId, 'assets', 'avatar.png')
+      );
+      const image = await Jimp.read(stored);
+      expect(image.width).toBe(256);
+      expect(image.height).toBe(256);
     });
   });
 });
