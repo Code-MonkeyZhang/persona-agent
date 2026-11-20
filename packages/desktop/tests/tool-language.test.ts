@@ -8,6 +8,7 @@ import {
   BUILTIN_TOOLSET_IDS,
   maskSensitive,
   stepPhrase,
+  successfulPose,
   summarizeToolInput,
 } from '@persona/shared';
 import { BUILTIN_ICONS } from '@/components/tools/toolRows';
@@ -140,6 +141,50 @@ describe('summarizeToolInput 参数摘要', () => {
     });
     expect(summary.length).toBeLessThanOrEqual(40);
     expect(summary.endsWith('…')).toBe(true);
+  });
+});
+
+describe('successfulPose 表情检测', () => {
+  const results = [
+    { toolCallId: 't1', toolName: 'pose', result: '', success: true },
+  ];
+
+  it('全名广播且结果成功时返回表情名', () => {
+    const calls = [
+      {
+        id: 't1',
+        name: 'built_in_pose__show_pose',
+        arguments: { pose: 'angry' },
+      },
+    ];
+    expect(successfulPose(calls, results)).toBe('angry');
+  });
+
+  it('结果失败或缺 pose 参数时不切换', () => {
+    const calls = [
+      {
+        id: 't1',
+        name: 'built_in_pose__show_pose',
+        arguments: { pose: 'angry' },
+      },
+    ];
+    expect(successfulPose(calls, [{ ...results[0], success: false }])).toBe(
+      undefined
+    );
+    expect(successfulPose([{ ...calls[0], arguments: {} }], results)).toBe(
+      undefined
+    );
+  });
+
+  it('无 pose 工具调用时返回 undefined', () => {
+    const calls = [
+      {
+        id: 't2',
+        name: 'built_in_terminal__bash',
+        arguments: { command: 'ls' },
+      },
+    ];
+    expect(successfulPose(calls, results)).toBe(undefined);
   });
 });
 

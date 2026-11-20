@@ -85,6 +85,30 @@ export function shortToolName(toolName: string): string {
 }
 
 /**
+ * 从 step_complete 的工具调用里提取成功执行的表情名。
+ * 服务端广播的是注册全名，先归一化再比对短名，
+ * 同 id 的执行结果成功且 pose 参数为字符串时返回该值，否则返回 undefined。
+ * @param toolCalls 步骤内的工具调用列表
+ * @param toolResults 同一步骤的工具执行结果列表
+ */
+export function successfulPose(
+  toolCalls:
+    | readonly {
+        id: string;
+        name: string;
+        arguments?: Record<string, unknown>;
+      }[]
+    | undefined,
+  toolResults: readonly { toolCallId: string; success: boolean }[] | undefined
+): string | undefined {
+  const call = toolCalls?.find((tc) => shortToolName(tc.name) === 'show_pose');
+  if (!call) return undefined;
+  const pose = call.arguments?.['pose'];
+  const result = toolResults?.find((tr) => tr.toolCallId === call.id);
+  return typeof pose === 'string' && result?.success ? pose : undefined;
+}
+
+/**
  * 把工具入参对象压成一句参数摘要，供时间线行动向句与事件广播复用
  * 摘要只取关键参数字段，缺参返回空串由调用方走文案回退，掩码先于截断执行
  * @param toolName 工具实名

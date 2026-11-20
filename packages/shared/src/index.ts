@@ -99,6 +99,7 @@ export {
   trunc,
   maskSensitive,
   shortToolName,
+  successfulPose,
   summarizeToolInput,
   stepPhrase,
   BUILTIN_TOOLSET_IDS,

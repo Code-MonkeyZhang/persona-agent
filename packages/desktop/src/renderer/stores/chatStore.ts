@@ -19,6 +19,7 @@ import type {
 import {
   buildPreviewText,
   summarizeToolInput,
+  successfulPose,
   messagePreviewText,
 } from '@persona/shared';
 import type { LiveRunState, LiveStep } from '../components/chat/LiveStrip';
@@ -845,18 +846,11 @@ export const useChatStore = create<ChatStore>((set, get) => {
           const sessionId = msg.sessionId;
           const newThoughts = cycleToThoughts(msg);
 
-          if (msg.toolCalls) {
-            for (const tc of msg.toolCalls) {
-              if (tc.name === 'show_pose' && tc.arguments) {
-                const pose = tc.arguments.pose as string;
-                const result = msg.toolResults?.find(
-                  (tr) => tr.toolCallId === tc.id
-                );
-                if (pose && result?.success) {
-                  useCompanionStore.getState().setPose(pose, true);
-                }
-              }
-            }
+          // 表情切换检测，广播名为注册全名，归一化与成功判定收敛在 successfulPose
+          const pose = successfulPose(msg.toolCalls, msg.toolResults);
+          if (pose) {
+            useCompanionStore.getState().setPose(pose, true);
+            logger.info('Pose change from step', { sessionId, pose });
           }
 
           // 在 set 回调外读取当前 sessionState，避免在回调内调用 get()
