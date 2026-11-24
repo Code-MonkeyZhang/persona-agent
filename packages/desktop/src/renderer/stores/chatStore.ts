@@ -19,7 +19,6 @@ import type {
 import {
   buildPreviewText,
   summarizeToolInput,
-  successfulPose,
   messagePreviewText,
 } from '@persona/shared';
 import type { LiveRunState, LiveStep } from '../components/chat/LiveStrip';
@@ -38,7 +37,7 @@ import { getErrorMessage } from '../lib/utils';
 import i18n from '../i18n';
 import { useAgentStore } from './agentStore';
 import { useSessionStore, stripLastTextThought } from './sessionStore';
-import { useCompanionStore } from './companionStore';
+import { usePerformanceStore } from './performanceStore';
 import { useVoiceStore } from './voiceStore';
 
 /**
@@ -842,16 +841,31 @@ export const useChatStore = create<ChatStore>((set, get) => {
           break;
         }
 
+        case 'pose_changed': {
+          // ws 客户端订阅不退订，后台会话的事件也会到达，非当前会话的演出请求丢弃
+          if (msg.sessionId !== get().currentSessionId) {
+            logger.info('pose_changed ignored: not current session', {
+              sessionId: msg.sessionId,
+            });
+            break;
+          }
+          usePerformanceStore.getState().perform({
+            pose: msg.pose,
+            motion: msg.motion,
+            bubble: msg.bubble,
+          });
+          logger.info('Pose changed', {
+            sessionId: msg.sessionId,
+            pose: msg.pose,
+            motion: msg.motion,
+            bubble: msg.bubble,
+          });
+          break;
+        }
+
         case 'step_complete': {
           const sessionId = msg.sessionId;
           const newThoughts = cycleToThoughts(msg);
-
-          // 表情切换检测，广播名为注册全名，归一化与成功判定收敛在 successfulPose
-          const pose = successfulPose(msg.toolCalls, msg.toolResults);
-          if (pose) {
-            useCompanionStore.getState().setPose(pose, true);
-            logger.info('Pose change from step', { sessionId, pose });
-          }
 
           // 在 set 回调外读取当前 sessionState，避免在回调内调用 get()
           const currentSnap = get();

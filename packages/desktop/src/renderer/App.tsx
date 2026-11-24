@@ -64,6 +64,7 @@ import { useSessionStore } from './stores/sessionStore';
 import { useAgentStore } from './stores/agentStore';
 import { useProviderStore } from './stores/providerStore';
 import { useCompanionStore } from './stores/companionStore';
+import { usePerformanceStore } from './stores/performanceStore';
 import {
   PHONE_PANEL_MAX_PERCENT,
   PHONE_PANEL_MIN_PX,
@@ -524,9 +525,9 @@ function AppContent() {
       chatStore.setCurrentSessionId(session.id);
       setAgentId(session.agentId);
 
-      // 从 session 元数据恢复 pose
+      // 从 session 元数据恢复 pose，瞬切不带淡化
       const pose = session.currentPose ?? 'default';
-      useCompanionStore.getState().setPose(pose);
+      usePerformanceStore.getState().restore(pose);
       logger.info(`[App] session switch, restoring pose: ${pose}`);
 
       if (useSessionStore.getState().isNewlyCreated) {
@@ -545,7 +546,7 @@ function AppContent() {
     } else {
       chatStore.setCurrentSessionId(null);
       setAgentId(currentAgent?.id ?? null);
-      useCompanionStore.getState().setPose('default');
+      usePerformanceStore.getState().restore('default');
     }
   }, [activeSessionId, currentAgent, setAgentId, convertSessionMessages]);
 
@@ -768,9 +769,7 @@ function AppContent() {
                             </div>
                             {/* Pane 2: 陪伴展示 */}
                             <div className="w-1/2 h-full">
-                              <CompanionContent
-                                agentId={currentAgent?.id ?? null}
-                              />
+                              <CompanionContent agent={currentAgent} />
                             </div>
                           </motion.div>
                         </div>
