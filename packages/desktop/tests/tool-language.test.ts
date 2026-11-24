@@ -5,12 +5,20 @@
 import { describe, expect, it } from 'vitest';
 import { phraseForThought, type LiveStep } from '@/components/chat/LiveStrip';
 import {
+  BUBBLE_CN,
+  BUBBLE_NAMES,
   BUILTIN_TOOLSET_IDS,
+  MOTION_CN,
+  MOTION_NAMES,
+  THINKING_BUBBLE,
+  isBubbleName,
+  isMotionName,
   maskSensitive,
   stepPhrase,
-  successfulPose,
+  successfulShowPose,
   summarizeToolInput,
 } from '@persona/shared';
+import { EFFECT_URLS } from '@/assets/effects';
 import { BUILTIN_ICONS } from '@/components/tools/toolRows';
 import type { Thought } from '@/types/chat';
 
@@ -29,7 +37,7 @@ const dict: Record<string, string> = {
   'live.bashKill': '终止后台命令',
   'live.webfetch': '正在抓取网页',
   'live.webfetchFallback': '正在抓取网页',
-  'live.showPose': '切换表情',
+  'live.showPose': '正在演出',
   'live.getPose': '查看当前表情',
   'live.executing': '正在执行',
 };
@@ -79,7 +87,7 @@ describe('stepPhrase 动向句映射', () => {
   });
 
   it('表情与后台命令族是固定句式', () => {
-    expect(stepPhrase(t, step('show_pose', 'happy'))).toBe('切换表情');
+    expect(stepPhrase(t, step('show_pose', 'happy'))).toBe('正在演出');
     expect(stepPhrase(t, step('get_current_pose', ''))).toBe('查看当前表情');
     expect(stepPhrase(t, step('bash_output', 'bash_1'))).toBe('查看后台输出');
     expect(stepPhrase(t, step('bash_kill', 'bash_1'))).toBe('终止后台命令');
@@ -97,7 +105,7 @@ describe('stepPhrase 动向句映射', () => {
       stepPhrase(t, step('built_in_terminal__bash_output', 'bash_1'))
     ).toBe('查看后台输出');
     expect(stepPhrase(t, step('built_in_pose__show_pose', 'happy'))).toBe(
-      '切换表情'
+      '正在演出'
     );
   });
 });
@@ -130,6 +138,18 @@ describe('summarizeToolInput 参数摘要', () => {
     ).toBe('example.com');
   });
 
+  it('show_pose 摘要覆盖三参数，动作与气泡转中文观感', () => {
+    expect(
+      summarizeToolInput('show_pose', {
+        pose: '开心',
+        motion: 'happy-bounce',
+        bubble: 'happy',
+      })
+    ).toBe('开心 开心弹跳 高兴');
+    expect(summarizeToolInput('show_pose', { bubble: 'sigh' })).toBe('叹气');
+    expect(summarizeToolInput('show_pose', {})).toBe('');
+  });
+
   it('缺参与空对象返回空串', () => {
     expect(summarizeToolInput('read_file', {})).toBe('');
     expect(summarizeToolInput('bash')).toBe('');
@@ -144,47 +164,58 @@ describe('summarizeToolInput 参数摘要', () => {
   });
 });
 
-describe('successfulPose 表情检测', () => {
-  const results = [
-    { toolCallId: 't1', toolName: 'pose', result: '', success: true },
-  ];
-
-  it('全名广播且结果成功时返回表情名', () => {
-    const calls = [
-      {
-        id: 't1',
-        name: 'built_in_pose__show_pose',
-        arguments: { pose: 'angry' },
-      },
-    ];
-    expect(successfulPose(calls, results)).toBe('angry');
+describe('演出名单常量', () => {
+  it('动作四个，情绪气泡十五个，思考气泡不在名单里，中文表的键集与名单逐一对应', () => {
+    expect([...MOTION_NAMES]).toEqual([
+      'happy-bounce',
+      'angry-stomp',
+      'heart-beat',
+      'sad-sink',
+    ]);
+    expect(BUBBLE_NAMES).toHaveLength(15);
+    expect(BUBBLE_NAMES).not.toContain(THINKING_BUBBLE);
+    expect(THINKING_BUBBLE).toBe('thinking');
+    expect(Object.keys(MOTION_CN)).toEqual([...MOTION_NAMES]);
+    expect(Object.keys(BUBBLE_CN)).toEqual([...BUBBLE_NAMES]);
   });
 
-  it('结果失败或缺 pose 参数时不切换', () => {
-    const calls = [
-      {
-        id: 't1',
-        name: 'built_in_pose__show_pose',
-        arguments: { pose: 'angry' },
-      },
-    ];
-    expect(successfulPose(calls, [{ ...results[0], success: false }])).toBe(
-      undefined
-    );
-    expect(successfulPose([{ ...calls[0], arguments: {} }], results)).toBe(
-      undefined
-    );
+  it('名单守卫只放行名单内的字符串，思考气泡与未登记的名字一并挡下', () => {
+    expect(isMotionName('heart-beat')).toBe(true);
+    expect(isMotionName('angry-jump')).toBe(false);
+    expect(isBubbleName('flutter')).toBe(true);
+    expect(isBubbleName('star')).toBe(false);
+    expect(isBubbleName('thinking')).toBe(false);
+    expect(isBubbleName(undefined)).toBe(false);
+  });
+});
+
+describe('successfulShowPose 三参数提取', () => {
+  it('收窄出合法的三参数', () => {
+    expect(
+      successfulShowPose({
+        pose: 'angry',
+        motion: 'angry-stomp',
+        bubble: 'angry',
+      })
+    ).toEqual({ pose: 'angry', motion: 'angry-stomp', bubble: 'angry' });
   });
 
-  it('无 pose 工具调用时返回 undefined', () => {
-    const calls = [
-      {
-        id: 't2',
-        name: 'built_in_terminal__bash',
-        arguments: { command: 'ls' },
-      },
-    ];
-    expect(successfulPose(calls, results)).toBe(undefined);
+  it('名单外的动作与气泡按缺省处理，空字符串的立绘不算填', () => {
+    expect(
+      successfulShowPose({ pose: '', motion: 'angry-jump', bubble: 'star' })
+    ).toBeUndefined();
+    expect(
+      successfulShowPose({
+        pose: '开心',
+        motion: 'angry-jump',
+        bubble: 'happy',
+      })
+    ).toEqual({ pose: '开心', bubble: 'happy' });
+  });
+
+  it('缺参数对象或三值全空时返回 undefined', () => {
+    expect(successfulShowPose(undefined)).toBeUndefined();
+    expect(successfulShowPose({})).toBeUndefined();
   });
 });
 
@@ -209,6 +240,17 @@ describe('maskSensitive 凭据掩码', () => {
     expect(
       summarizeToolInput('bash', { command: 'curl -H sk-abcdefgh12345678' })
     ).toBe('curl -H ********');
+  });
+});
+
+describe('气泡资源索引', () => {
+  it('键集是 shared 的气泡名单加思考气泡，加图漏登记当场拦截', () => {
+    expect(Object.keys(EFFECT_URLS).sort()).toEqual(
+      [...BUBBLE_NAMES, THINKING_BUBBLE].sort()
+    );
+    expect(Object.values(EFFECT_URLS).every((url) => url.length > 0)).toBe(
+      true
+    );
   });
 });
 
