@@ -1,9 +1,9 @@
 /**
- * @fileoverview step_complete 表情切换的 chatStore 行为测试：
- * 全名广播命中后立绘立即切换，非表情工具不打扰当前表情
+ * @fileoverview pose_changed 事件的 chatStore 分发测试：
+ * 当前会话的演出请求原样转交 performanceStore，非当前会话的请求丢弃，step_complete 不再触发换脸
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -36,23 +36,57 @@ vi.mock('@/lib/api', () => ({
   resolveTimelineIconUrl: (u?: string) => u,
 }));
 
+const { perform } = vi.hoisted(() => ({ perform: vi.fn() }));
+
+vi.mock('@/stores/performanceStore', () => ({
+  usePerformanceStore: { getState: () => ({ perform }) },
+}));
+
 import { useChatStore } from '@/stores/chatStore';
-import { useCompanionStore } from '@/stores/companionStore';
 
-/** 通过订阅恢复广播把会话切到生成态 */
-function enterLoading(sessionId: string): void {
-  useChatStore.getState().handleWsMessage({
-    type: 'subscribed',
-    sessionId,
-    isGenerating: true,
+describe('pose_changed 演出分发', () => {
+  beforeEach(() => {
+    perform.mockClear();
   });
-}
 
-describe('step_complete 表情切换', () => {
-  it('全名 show_pose 成功执行后立绘立即切换', () => {
+  it('当前会话的 pose_changed 原样转交三参数', () => {
     const sessionId = 'pose-live';
     useChatStore.getState().initSessionState(sessionId, []);
-    enterLoading(sessionId);
+    useChatStore.getState().setCurrentSessionId(sessionId);
+
+    useChatStore.getState().handleWsMessage({
+      type: 'pose_changed',
+      sessionId,
+      pose: 'angry',
+      motion: 'angry-stomp',
+      bubble: 'angry',
+    });
+
+    expect(perform).toHaveBeenCalledTimes(1);
+    expect(perform).toHaveBeenCalledWith({
+      pose: 'angry',
+      motion: 'angry-stomp',
+      bubble: 'angry',
+    });
+  });
+
+  it('非当前会话的 pose_changed 丢弃不上台', () => {
+    useChatStore.getState().setCurrentSessionId('pose-live');
+    useChatStore.getState().initSessionState('pose-background', []);
+
+    useChatStore.getState().handleWsMessage({
+      type: 'pose_changed',
+      sessionId: 'pose-background',
+      pose: 'sad',
+    });
+
+    expect(perform).not.toHaveBeenCalled();
+  });
+
+  it('step_complete 里的 show_pose 不再触发换脸，切脸只走 pose_changed 单轨', () => {
+    const sessionId = 'pose-step';
+    useChatStore.getState().initSessionState(sessionId, []);
+    useChatStore.getState().setCurrentSessionId(sessionId);
 
     useChatStore.getState().handleWsMessage({
       type: 'step_complete',
@@ -70,31 +104,6 @@ describe('step_complete 表情切换', () => {
       ],
     });
 
-    expect(useCompanionStore.getState().currentPose).toBe('angry');
-  });
-
-  it('非表情工具的步骤不打扰当前表情', () => {
-    const sessionId = 'pose-untouched';
-    useChatStore.getState().initSessionState(sessionId, []);
-    enterLoading(sessionId);
-    useCompanionStore.getState().setPose('happy');
-
-    useChatStore.getState().handleWsMessage({
-      type: 'step_complete',
-      sessionId,
-      stepIndex: 0,
-      toolCalls: [
-        {
-          id: 't2',
-          name: 'built_in_terminal__bash',
-          arguments: { command: 'ls' },
-        },
-      ],
-      toolResults: [
-        { toolCallId: 't2', toolName: 'bash', result: '', success: true },
-      ],
-    });
-
-    expect(useCompanionStore.getState().currentPose).toBe('happy');
+    expect(perform).not.toHaveBeenCalled();
   });
 });

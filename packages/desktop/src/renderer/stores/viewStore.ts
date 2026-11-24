@@ -38,7 +38,13 @@ type ViewType = 'chat' | 'settings' | 'marketplace';
 type MainNav = 'chat' | 'agent-settings' | 'memory' | 'tools' | 'skills';
 
 /** 设置页左侧导航 tab */
-export type SettingsTab = 'general' | 'providers' | 'voice' | 'mcp' | 'skills';
+export type SettingsTab =
+  | 'general'
+  | 'chat'
+  | 'providers'
+  | 'voice'
+  | 'mcp'
+  | 'skills';
 
 /** 向导打开状态：agentId 为空表示不弹，mode 区分首启与重放 */
 interface LandingState {

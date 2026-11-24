@@ -229,3 +229,155 @@
   line-height: 11px;
   text-align: center;
 }
+
+/* ============================================
+   陪伴演出四层舞台
+   动作层与呼吸层都只动 transform，换脸层只动 opacity，几层同时工作互不覆盖
+   ============================================ */
+
+.perf-motion,
+.perf-breath {
+  will-change: transform;
+}
+
+/* 呼吸原点取顶部中心，四秒一循环，关闭后立绘完全静止 */
+.perf-breath {
+  transform-origin: 50% 0;
+}
+
+.perf-breath-on {
+  animation: perf-breath 4s ease-in-out infinite;
+}
+
+/* 换脸双图层交叉淡化，会话恢复走 instant 跳过过渡 */
+.perf-pose {
+  opacity: 0;
+  transition: opacity 300ms linear;
+}
+
+.perf-pose-on {
+  opacity: 1;
+}
+
+.perf-pose-instant {
+  transition: none;
+}
+
+.perf-pose img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom;
+}
+
+/* 气泡独立一层锚挂载点左上角，宽取挂载点七成，不挂在动作层里 */
+.perf-bubble {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 70%;
+  opacity: 0;
+  transition: opacity 300ms ease;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.perf-bubble-show {
+  opacity: 1;
+}
+
+.perf-bubble img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+@keyframes perf-breath {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+@keyframes perf-happy-bounce {
+  0% {
+    transform: translateY(0);
+  }
+  38% {
+    transform: translateY(-15px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes perf-angry-stomp {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  20% {
+    transform: translateY(3px) rotate(-1.2deg);
+  }
+  40% {
+    transform: translateY(0) rotate(0deg);
+  }
+  60% {
+    transform: translateY(3px) rotate(1.2deg);
+  }
+  80% {
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+@keyframes perf-heart-beat {
+  0% {
+    transform: scale(1);
+  }
+  28% {
+    transform: scale(1.04);
+  }
+  46% {
+    transform: scale(1);
+  }
+  64% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes perf-sad-sink {
+  0% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(5px) scale(0.99);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+/* 动作 one-shot，both 让播完停在归位帧，归位回调再摘掉类 */
+.perf-run-happy-bounce {
+  animation: perf-happy-bounce 600ms cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.perf-run-angry-stomp {
+  animation: perf-angry-stomp 550ms ease-in-out both;
+}
+
+.perf-run-heart-beat {
+  animation: perf-heart-beat 800ms cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.perf-run-sad-sink {
+  animation: perf-sad-sink 900ms ease-in-out both;
+}

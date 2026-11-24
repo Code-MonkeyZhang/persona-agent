@@ -9,6 +9,7 @@
 export type DeviceType = 'desktop' | 'mobile';
 
 import type { SessionChange } from './changes.js';
+import type { BubbleName, MotionName } from './performance.js';
 import type { ContentBlock } from './schema.js';
 import type { BreakdownShares } from './session.js';
 
@@ -101,6 +102,20 @@ export interface StepCompleteMessage {
   toolResults?: WsToolResult[];
   /** 子代理工具链路的挂载点，当前无写入方，演进预留 */
   parent_tool_use_id?: string;
+}
+
+/**
+ * 立绘演出事件。
+ * show_pose 执行成功时随步骤落定广播，原样携带请求的三个参数，
+ * pose 缺省代表本次不换脸，同名短路由客户端按实际显示的脸判定，
+ * 老客户端不认识该类型自动忽略，正文链路不受影响。
+ */
+interface PoseChangedMessage {
+  type: 'pose_changed';
+  sessionId: string;
+  pose?: string;
+  motion?: MotionName;
+  bubble?: BubbleName;
 }
 
 /**
@@ -346,6 +361,7 @@ export type ServerMessage =
   | StepCompleteMessage
   | ToolStartedMessage
   | ContentStartedMessage
+  | PoseChangedMessage
   | TurnCompleteMessage
   | RoundCompleteMessage
   | ErrorMessage
