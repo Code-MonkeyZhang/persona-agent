@@ -61,7 +61,8 @@ Install agents, MCP tools, and Skills from the Agent Marketplace in one click.
 
 ## 📢 Changelog
 
-- 2026-11-18 **v1.20.0** Milestone release consolidating a month of work. Long-term memory lets agents remember and recall, with a management page. History compresses automatically near the context limit with a live usage shell. Send images and files straight in chat, formats unified to JPEG and PNG. Running status broadcasts across devices, voice filters by device, phone panel aligned with mobile. Tools page rebuilt with live invalidation. Built-in bilingual handbook.
+- 2026-11-25 **v1.20.1** Model selector grouped by provider, context badges on model rows, frequent providers pinned to the top. Performance engine and thinking bubble for the companion, avatar breathing animation, gathered into chat settings. Settings hints moved to tooltips, expression switching fixed.
+- 2026-11-18 **v1.20.0** Milestone release of a month's work. Long-term memory with a management page, automatic context compression with live usage, images and files straight in chat. Status broadcast across devices, tools page rebuilt, built-in bilingual handbook.
 - 2026-11-17 **v1.16.0** Live step-by-step progress in the timeline. Automatic context compression with a live usage shell. Agent tool management rebuilt. Closing the window keeps the app in the tray.
 - 2026-11-07 **v1.15.0** Long-term memory for AI characters with triggered and persistent recall. Images and files can be sent directly in chat. Image cache structure rebuilt.
 - 2026-11-01 **v1.14.1** Timeline shows model self-notes and reply phase, agent avatars get a breathing running ring.
