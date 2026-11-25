@@ -125,21 +125,77 @@ export function getAuth(provider: Provider): Auth | undefined {
   return readAuthStore()[provider];
 }
 
-/** List all providers with their auth status and available models */
+/**
+ * Collator for model names of one provider.
+ * Numeric collation keeps 5.10 after 5.9, and the locale is pinned so every
+ * runtime sorts the same catalog the same way.
+ */
+const modelNameCollator = new Intl.Collator('en', {
+  numeric: true,
+  sensitivity: 'base',
+});
+
+/**
+ * Read the generation a model belongs to.
+ * The catalog carries no release date, so the leading number of the model id
+ * stands in for the generation.
+ * @param modelId - Model id from the catalog
+ * @returns The leading number, 0 when the id has no number
+ */
+function generationOf(modelId: string): number {
+  return Number(modelId.match(/\d+/)?.[0] ?? 0);
+}
+
+/**
+ * Compare two model ids from newest to oldest.
+ * A model of a newer generation sorts first, and models of the same generation
+ * are ordered by name in descending natural order.
+ * @param a - First model id
+ * @param b - Second model id
+ * @returns Negative when a is newer than b
+ */
+function compareModelsNewestFirst(a: string, b: string): number {
+  return generationOf(b) - generationOf(a) || modelNameCollator.compare(b, a);
+}
+
+/**
+ * Order the whitelisted providers for the provider list.
+ * Providers with a stored key come first in the order their entries appear in
+ * the key file, which is the order the user configured them, and the remaining
+ * providers follow in whitelist order.
+ * @param store - Key store read from disk
+ * @returns Provider ids in list order
+ */
+function orderProviderIds(store: AuthStore): KnownProvider[] {
+  const configured = Object.keys(store).filter((id) =>
+    SUPPORTED_PROVIDERS.includes(id as KnownProvider)
+  ) as KnownProvider[];
+  const unconfigured = SUPPORTED_PROVIDERS.filter((p) => !store[p]);
+  return [...configured, ...unconfigured];
+}
+
+/**
+ * List all providers with their auth status and available models.
+ * Providers with a key come first in configuration order, the models of each
+ * provider run from newest to oldest, and every model carries its context window.
+ */
 export function listProvidersWithAuth(): ProviderStatus[] {
   const store = readAuthStore();
-  return SUPPORTED_PROVIDERS.map((p) => {
+  return orderProviderIds(store).map((p) => {
     const providerModels = models.getModels(p);
     const hasAuthFlag = !!store[p];
     return {
       id: p,
       name: PROVIDER_NAMES[p] || p,
-      models: providerModels.map((m) => m.id),
+      models: providerModels.map((m) => m.id).sort(compareModelsNewestFirst),
       hasAuth: hasAuthFlag,
       docUrl: PROVIDER_DOCS[p] ?? '',
       visionModelIds: providerModels
         .filter((m) => m.input.includes('image'))
         .map((m) => m.id),
+      contextWindows: Object.fromEntries(
+        providerModels.map((m) => [m.id, m.contextWindow])
+      ),
     };
   });
 }

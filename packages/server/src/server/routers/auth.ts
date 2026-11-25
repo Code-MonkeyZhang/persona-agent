@@ -36,6 +36,11 @@ export function createProviderRouter(): Router {
     '/',
     asyncHandler('AUTH', 'Error listing providers', (_req, res) => {
       const providers = listProvidersWithAuth();
+      Logger.log(
+        'AUTH',
+        `Listed providers, configured=${providers.filter((p) => p.hasAuth).length}`,
+        providers.map((p) => p.id).join(', ')
+      );
       res.json({ providers });
     })
   );

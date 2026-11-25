@@ -8,4 +8,6 @@ export interface ProviderStatus {
   docUrl: string;
   /** 支持图片输入的模型 id 列表，前端据此提示非视觉模型，恒为数组 */
   visionModelIds?: string[];
+  /** 模型 id 到上下文窗口精确值的映射，前端据此归档成容量徽章，恒为对象 */
+  contextWindows?: Record<string, number>;
 }

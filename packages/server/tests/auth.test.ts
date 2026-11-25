@@ -198,6 +198,16 @@ describe('Auth Module Integration Tests', () => {
 
     /** listProvidersWithAuth 函数测试 */
     describe('listProvidersWithAuth', () => {
+      /** 已配置供应商在清单里的先后 */
+      const configuredOrder = () =>
+        listProvidersWithAuth()
+          .filter((p) => p.hasAuth)
+          .map((p) => p.id);
+
+      /** 模型名开头的那段数字，当作模型所属的代际 */
+      const generationOf = (modelId: string) =>
+        Number(modelId.match(/\d+/)?.[0] ?? 0);
+
       /** 测试返回所有提供商及其认证状态 */
       it('should return all providers with correct status', () => {
         setAuth('anthropic' as Provider, { apiKey: 'key1' });
@@ -223,6 +233,65 @@ describe('Auth Module Integration Tests', () => {
         expect(openai).toBeDefined();
         expect(openai?.models).toBeDefined();
         expect(Array.isArray(openai?.models)).toBe(true);
+      });
+
+      /** 测试已配置的供应商按密钥文件的条目顺序排在未配置的前面 */
+      it('should list configured providers first in configuration order', () => {
+        setAuth('deepseek' as Provider, { apiKey: 'k1' });
+        setAuth('zai' as Provider, { apiKey: 'k2' });
+        setAuth('anthropic' as Provider, { apiKey: 'k3' });
+
+        const list = listProvidersWithAuth();
+
+        expect(configuredOrder()).toEqual(['deepseek', 'zai', 'anthropic']);
+        expect(list.slice(0, 3).every((p) => p.hasAuth)).toBe(true);
+        expect(list.slice(3).every((p) => !p.hasAuth)).toBe(true);
+      });
+
+      /** 测试重新粘贴密钥位置不动，删掉重配排到最后 */
+      it('should keep position on key update and move re-added provider to the end', () => {
+        setAuth('deepseek' as Provider, { apiKey: 'k1' });
+        setAuth('zai' as Provider, { apiKey: 'k2' });
+        setAuth('anthropic' as Provider, { apiKey: 'k3' });
+
+        setAuth('deepseek' as Provider, { apiKey: 'k1-new' });
+        expect(configuredOrder()).toEqual(['deepseek', 'zai', 'anthropic']);
+
+        deleteAuth('zai' as Provider);
+        setAuth('zai' as Provider, { apiKey: 'k2-new' });
+        expect(configuredOrder()).toEqual(['deepseek', 'anthropic', 'zai']);
+      });
+
+      /** 测试每个模型都带上下文窗口容量 */
+      it('should include context window for every model', () => {
+        for (const provider of listProvidersWithAuth()) {
+          expect(Object.keys(provider.contextWindows ?? {})).toEqual(
+            expect.arrayContaining(provider.models)
+          );
+          for (const modelId of provider.models) {
+            expect(provider.contextWindows?.[modelId]).toBeGreaterThan(0);
+          }
+        }
+      });
+
+      /** 测试每家内部的模型从新到旧，代际大的在前，同代际按名字自然序倒排 */
+      it('should list models of each provider newest first', () => {
+        const collator = new Intl.Collator('en', {
+          numeric: true,
+          sensitivity: 'base',
+        });
+        for (const provider of listProvidersWithAuth()) {
+          const generations = provider.models.map(generationOf);
+          for (let i = 1; i < provider.models.length; i++) {
+            if (generations[i - 1] !== generations[i]) {
+              expect(generations[i - 1]).toBeGreaterThan(generations[i]);
+            } else {
+              expect(
+                collator.compare(provider.models[i - 1], provider.models[i])
+              ).toBeGreaterThanOrEqual(0);
+            }
+          }
+        }
       });
     });
   });
