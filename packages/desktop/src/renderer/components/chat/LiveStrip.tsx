@@ -35,6 +35,7 @@ import { logger } from '../../lib/logger';
 import { formatK } from '../../lib/utils';
 import { useChatStore } from '../../stores/chatStore';
 import type { CompressionRuntimeState } from '../../stores/chatStore';
+import type { GeneratingPhase } from '../../stores/performanceEngine';
 import { RowDetailDialog, type RowDetail } from './RowDetailDialog';
 import type { Thought, UIMessage } from '../../types/chat';
 
@@ -107,6 +108,17 @@ export function phraseForThought(
 }
 
 /**
+ * 取最后一个未闭合的工具步，没有则返回 undefined
+ * 未闭合的步只可能是工具步，文字步落行时就带结束时间
+ * @param liveRun 当前回合的实时状态
+ */
+export function activeToolStep(liveRun: LiveRunState): LiveStep | undefined {
+  return [...liveRun.steps]
+    .reverse()
+    .find((s) => s.tool !== '' && s.endedAt === undefined);
+}
+
+/**
  * 状态条当前动作文案推导，三态纯函数，有未闭合工具步则工具执行叙述，
  * 无活动步且正文写作中返回正在回复，其余思考中
  * @param t 文案函数
@@ -116,7 +128,7 @@ export function liveRunLabel(
   t: (key: string) => string,
   liveRun: LiveRunState
 ): string {
-  const active = [...liveRun.steps].reverse().find((s) => !s.endedAt);
+  const active = activeToolStep(liveRun);
   if (active) return stepPhrase(t, active);
   return liveRun.replying ? t('live.replying') : t('live.thinking');
 }
@@ -127,9 +139,20 @@ export function liveRunLabel(
  * @param liveRun 当前回合的实时状态
  */
 export function phaseIcon(liveRun: LiveRunState): LucideIcon {
-  const active = [...liveRun.steps].reverse().find((s) => !s.endedAt);
-  if (active && active.tool !== '') return toolIcon(active.tool);
+  const active = activeToolStep(liveRun);
+  if (active) return toolIcon(active.tool);
   return liveRun.replying ? MessageSquare : Lightbulb;
+}
+
+/**
+ * 从实时状态推出陪伴舞台的生成相位，思考气泡据此出入场，与顶条的文案和图标同出一份推导
+ * 有未闭合的工具步是 tool，带写作标志是 replying，其余 thinking，空闲传 null
+ * @param liveRun 当前回合的实时状态，空闲传 null
+ */
+export function deriveLivePhase(liveRun: LiveRunState | null): GeneratingPhase {
+  if (!liveRun) return 'idle';
+  if (activeToolStep(liveRun)) return 'tool';
+  return liveRun.replying ? 'replying' : 'thinking';
 }
 
 /** 展开区时间线的高度上限，超出内部滚动 */

@@ -29,6 +29,6 @@ export const NumberInput: React.FC<NumberInputProps> = ({
     min={min}
     max={max}
     onBlur={onBlur}
-    className="rounded-lg border border-border h-8 w-24 px-3 text-body focus:outline-none focus:ring-2 focus:ring-blue-500"
+    className="rounded-lg border border-border h-8 w-24 px-3 text-body tabular-nums focus:outline-none focus:ring-2 focus:ring-ring"
   />
 );

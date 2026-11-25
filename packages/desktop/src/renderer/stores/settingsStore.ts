@@ -10,23 +10,53 @@ import { logger } from '../lib/logger';
 interface SettingsStore {
   /** 聊天消息里「查看思考过程」入口是否显示，关掉只是不渲染入口，消息数据不动 */
   thoughtProcessVisible: boolean;
+  /** 陪伴立绘的呼吸动画开关，默认开启，关闭后立绘完全静止，按设备本地存不进服务端 */
+  breathEnabled: boolean;
+  /** 思考气泡开关，默认开启，关闭后生成期间头顶不再冒思考气泡，情绪气泡不受影响，按设备本地存不进服务端 */
+  thinkingBubbleEnabled: boolean;
+  /** 聊天页最后一次点选的模型所在的供应商，模型选择器据此把它排第三段，只在聊天页点选时写入 */
+  lastUsedProviderId: string | undefined;
   setThoughtProcessVisible: (visible: boolean) => void;
+  setBreathEnabled: (enabled: boolean) => void;
+  setThinkingBubbleEnabled: (enabled: boolean) => void;
+  setLastUsedProviderId: (providerId: string) => void;
 }
 
 export const useSettingsStore = create<SettingsStore>()(
   persist(
     (set) => ({
       thoughtProcessVisible: true,
+      breathEnabled: true,
+      thinkingBubbleEnabled: true,
+      lastUsedProviderId: undefined,
 
       setThoughtProcessVisible: (visible) => {
         set({ thoughtProcessVisible: visible });
         logger.info(`[Settings] thought process visibility: ${visible}`);
+      },
+
+      setBreathEnabled: (enabled) => {
+        set({ breathEnabled: enabled });
+        logger.info(`[Settings] breath animation: ${enabled}`);
+      },
+
+      setThinkingBubbleEnabled: (enabled) => {
+        set({ thinkingBubbleEnabled: enabled });
+        logger.info(`[Settings] thinking bubble: ${enabled}`);
+      },
+
+      setLastUsedProviderId: (providerId) => {
+        set({ lastUsedProviderId: providerId });
+        logger.info(`[Settings] last used provider: ${providerId}`);
       },
     }),
     {
       name: 'settings-store',
       partialize: (state) => ({
         thoughtProcessVisible: state.thoughtProcessVisible,
+        breathEnabled: state.breathEnabled,
+        thinkingBubbleEnabled: state.thinkingBubbleEnabled,
+        lastUsedProviderId: state.lastUsedProviderId,
       }),
     }
   )

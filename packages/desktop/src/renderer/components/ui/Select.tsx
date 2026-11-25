@@ -42,21 +42,23 @@ const SELECT_FADE_SIZE = 32;
 /**
  * 选择器下拉视口，滚动条完全隐藏，由上下边缘渐隐提示可滚方向
  * @param position - 定位模式，跟随 SelectContent 的取值
+ * @param fade - 是否保留边缘渐隐，行自带次级信息的密集清单关掉它以免遮住内容
  */
 const SelectViewport: React.FC<{
   children: React.ReactNode;
   position: 'item-aligned' | 'popper';
-}> = ({ children, position }) => {
+  fade: boolean;
+}> = ({ children, position, fade }) => {
   const { scrollRef, maskImage } = useScrollFade(SELECT_FADE_SIZE);
   return (
     <SelectPrimitive.Viewport
-      ref={scrollRef}
+      ref={fade ? scrollRef : undefined}
       className={cn(
         'scroll-hidden p-1',
         position === 'popper' &&
           'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]'
       )}
-      style={{ maskImage, WebkitMaskImage: maskImage }}
+      style={fade ? { maskImage, WebkitMaskImage: maskImage } : undefined}
     >
       {children}
     </SelectPrimitive.Viewport>
@@ -66,27 +68,38 @@ const SelectViewport: React.FC<{
 /**
  * 选择器下拉内容面板，选项列表的滚动方向由边缘渐隐指示
  * @param position - 定位模式，默认 popper
+ * @param fade - 下拉视口是否保留边缘渐隐，默认开启，关闭后不挂滚动监听也不加遮罩
  */
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = 'popper', ...props }, ref) => (
-  <SelectPrimitive.Portal>
-    <SelectPrimitive.Content
-      ref={ref}
-      className={cn(
-        'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
-        position === 'popper' &&
-          'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
-        className
-      )}
-      position={position}
-      {...props}
-    >
-      <SelectViewport position={position}>{children}</SelectViewport>
-    </SelectPrimitive.Content>
-  </SelectPrimitive.Portal>
-));
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content> & {
+    /** 下拉视口是否保留边缘渐隐，默认开启 */
+    fade?: boolean;
+  }
+>(
+  (
+    { className, children, position = 'popper', fade = true, ...props },
+    ref
+  ) => (
+    <SelectPrimitive.Portal>
+      <SelectPrimitive.Content
+        ref={ref}
+        className={cn(
+          'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
+          position === 'popper' &&
+            'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
+          className
+        )}
+        position={position}
+        {...props}
+      >
+        <SelectViewport position={position} fade={fade}>
+          {children}
+        </SelectViewport>
+      </SelectPrimitive.Content>
+    </SelectPrimitive.Portal>
+  )
+);
 SelectContent.displayName = SelectPrimitive.Content.displayName;
 
 /** 选择器分组标签 */
@@ -102,7 +115,11 @@ const SelectLabel = React.forwardRef<
 ));
 SelectLabel.displayName = SelectPrimitive.Label.displayName;
 
-/** 选择器选项，选中态为整行背景高亮，不使用打钩指示器 */
+/**
+ * 选择器选项，选中态为整行背景高亮，不使用打钩指示器
+ * 文本区填满行宽且可收缩，行内才能放右缘对齐的内容，长文本也会截断而不是撑破行
+ * Radix 的 ItemText 不转发 className，文本区的尺寸只能在这里经直接子 span 选择器约束
+ */
 const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
@@ -110,7 +127,7 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      'relative flex w-full cursor-default select-none items-center rounded-sm py-2 pl-3 pr-3 text-content outline-none focus:bg-accent focus:text-accent-foreground data-[state=checked]:bg-secondary data-[state=checked]:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      'relative flex w-full cursor-default select-none items-center rounded-sm py-2 pl-3 pr-3 text-content outline-none focus:bg-accent focus:text-accent-foreground data-[state=checked]:bg-secondary data-[state=checked]:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>span]:min-w-0 [&>span]:flex-1',
       className
     )}
     {...props}

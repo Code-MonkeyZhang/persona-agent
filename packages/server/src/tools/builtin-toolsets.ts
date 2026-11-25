@@ -181,31 +181,37 @@ Fetches a web page and turns its body into readable text, suited to research, re
 
 const POSE_INSTRUCTIONS = `## 能力说明
 
-切换与查询陪伴立绘正在显示的表情，让对话中的情绪变化同步到形象上。
+驱动陪伴角色的演出，换脸、身体动作与情绪气泡可以在一次调用里同时指定，让对话里的情绪变化在形象上看得见。
 
 ## 使用方式
 
-- show_pose 按表情名切换立绘，表情名来自该 Agent 的立绘资产清单
+- show_pose 收三个可选参数，pose 换立绘表情，motion 播身体动作，bubble 冒情绪气泡，至少填一个
+- 情绪有起伏的地方就调用，一轮回复里可以调用多次，每次调用立刻生效
+- 重复调用同一个表情不会重复换脸，但动作和气泡会重新播放，可以用来强调情绪
 - get_current_pose 查询当前正在显示的表情
-- 表情切换是对话的点缀，请优先用文字回复用户，情绪没有变化时不要调用
+- 推荐搭配：开心配弹跳加高兴，喜欢配心跳加心动，难过配下沉加流泪，生气配跺脚加生气
+- 坏例是整段回复只在开头调用一次，情绪一路在变脸却不变
 
 ## 安全边界
 
-- 表情名不存在时切换会被拒绝`;
+- 表情名、动作名、气泡名不存在时调用会被拒绝，报错里附带可用名单`;
 
 const POSE_INSTRUCTIONS_EN = `## What it does
 
-Switches and queries the expression shown on the companion avatar, so mood changes in the conversation reach the character.
+Drives the companion performance. A face change, a body motion, and an emotion bubble can be requested in one call, so mood changes in the conversation become visible on the character.
 
 ## How to use it
 
-- show_pose switches the avatar expression by name, and names come from the agent's pose asset list
+- show_pose takes three optional parameters, pose for the expression, motion for the body motion, and bubble for the emotion bubble, and at least one is required
+- Call it wherever the mood shifts, several times per reply is fine, and every call takes effect at once
+- Repeating the same expression does not replay the face change, but the motion and bubble play again, which works for emphasis
 - get_current_pose queries which expression is showing now
-- Expression changes are a garnish; reply with text first and skip the tool when the mood is unchanged
+- Suggested pairs: happy with bounce and happy, affection with heartbeat and flutter, sad with sink and tears, angry with stomp and angry
+- The bad pattern is calling once at the start of a long reply while the mood keeps changing
 
 ## Safety
 
-- Unknown expression names are rejected`;
+- Unknown expression, motion, or bubble names are rejected, and the error lists the valid names`;
 
 const MEMORY_INSTRUCTIONS = `## 能力说明
 
@@ -324,17 +330,19 @@ export const BUILTIN_TOOLSETS: ToolsetDefinition[] = [
   },
   {
     id: POSE_TOOLSET_ID,
-    name: '立绘表情',
-    nameEn: 'Pose',
-    description: '切换陪伴立绘的表情',
-    descriptionEn: 'Control the companion avatar expression',
+    name: '立绘演出',
+    nameEn: 'Performance',
+    description: '换脸并播放身体动作与情绪气泡',
+    descriptionEn:
+      'Change the expression with body motions and emotion bubbles',
     instructions: POSE_INSTRUCTIONS,
     instructionsEn: POSE_INSTRUCTIONS_EN,
     functions: [
       {
         shortName: 'show_pose',
-        description: '切换陪伴立绘的表情',
-        descriptionEn: 'Switch the avatar expression',
+        description: '换脸并同时播放身体动作与情绪气泡',
+        descriptionEn:
+          'Change the expression with an optional motion and bubble',
       },
       {
         shortName: 'get_current_pose',

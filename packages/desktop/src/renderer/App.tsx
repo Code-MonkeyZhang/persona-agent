@@ -64,6 +64,8 @@ import { useSessionStore } from './stores/sessionStore';
 import { useAgentStore } from './stores/agentStore';
 import { useProviderStore } from './stores/providerStore';
 import { useCompanionStore } from './stores/companionStore';
+import { usePerformanceStore } from './stores/performanceStore';
+import { useSettingsStore } from './stores/settingsStore';
 import {
   PHONE_PANEL_MAX_PERCENT,
   PHONE_PANEL_MIN_PX,
@@ -77,6 +79,7 @@ import { logger } from './lib/logger';
 import { cn } from './lib/utils';
 import { getSeedStatus, markSeedOnboarded } from './lib/api';
 import { shouldAutoShowWizard } from './lib/landing';
+import type { ModelConfig } from '@persona/shared';
 
 /**
  * 面板收合展开过渡的收尾延时，毫秒。
@@ -284,7 +287,6 @@ function AppContent() {
     logger.info(`[App] view layer: ${currentView}, base covered: ${covered}`);
   }, [currentView]);
 
-  const pendingProviderRef = useRef<string | undefined>();
   const messageListRef = useRef<MessageListRef>(null);
   const floatingRef = useRef<HTMLDivElement>(null);
   const inputBoxRef = useRef<InputBoxRef>(null);
@@ -294,10 +296,7 @@ function AppContent() {
    * 草稿暂存：新对话（懒创建、尚无会话）期间用户已选的模型/工作目录。
    * 选择先暂存于此，待首条消息触发会话创建后转正写入并清空。
    */
-  const [pendingModel, setPendingModel] = useState<{
-    provider: string;
-    model: string;
-  } | null>(null);
+  const [pendingModel, setPendingModel] = useState<ModelConfig | null>(null);
   const [pendingWorkspace, setPendingWorkspace] = useState<
     string | undefined
   >();
@@ -306,7 +305,6 @@ function AppContent() {
   const clearPendingDraft = useCallback(() => {
     setPendingModel(null);
     setPendingWorkspace(undefined);
-    pendingProviderRef.current = undefined;
   }, []);
 
   /**
@@ -524,9 +522,9 @@ function AppContent() {
       chatStore.setCurrentSessionId(session.id);
       setAgentId(session.agentId);
 
-      // 从 session 元数据恢复 pose
+      // 从 session 元数据恢复 pose，瞬切不带淡化
       const pose = session.currentPose ?? 'default';
-      useCompanionStore.getState().setPose(pose);
+      usePerformanceStore.getState().restore(pose);
       logger.info(`[App] session switch, restoring pose: ${pose}`);
 
       if (useSessionStore.getState().isNewlyCreated) {
@@ -545,7 +543,7 @@ function AppContent() {
     } else {
       chatStore.setCurrentSessionId(null);
       setAgentId(currentAgent?.id ?? null);
-      useCompanionStore.getState().setPose('default');
+      usePerformanceStore.getState().restore('default');
     }
   }, [activeSessionId, currentAgent, setAgentId, convertSessionMessages]);
 
@@ -578,35 +576,29 @@ function AppContent() {
 
   /**
    * 切换模型：有会话直接写入会话；新对话草稿期暂存，待会话创建后转正。
-   * 供应商 ID 优先取待定 ref，无待定时回落当前显示值。
-   * @param modelId - 新模型的 ID
+   * 供应商与模型成对来自同一次点选，这里顺带把它记为上次使用的供应商。
+   * @param selection - 点选的供应商与模型
    * @returns Promise<void>
    */
-  const handleModelChange = async (modelId: string) => {
+  const handleModelChange = async ({ provider, model }: ModelConfig) => {
     if (!currentAgent) return;
-    const providerId = pendingProviderRef.current || currentProviderId || '';
-    pendingProviderRef.current = undefined;
+    useSettingsStore.getState().setLastUsedProviderId(provider);
     if (currentSession) {
-      await useSessionStore
+      const ok = await useSessionStore
         .getState()
         .updateSessionModel(
           currentAgent.id,
           currentSession.id,
-          providerId,
-          modelId
+          provider,
+          model
         );
+      logger.info(
+        `[App] session model set to ${provider}/${model}: ${ok ? 'ok' : 'failed'}`
+      );
       return;
     }
-    setPendingModel({ provider: providerId, model: modelId });
-    logger.info(`[App] draft model stashed: ${providerId}/${modelId}`);
-  };
-
-  /**
-   * 记录待切换的供应商 ID，等待模型选择后一并提交
-   * @param providerId - 新供应商的 ID
-   */
-  const handleProviderChange = (providerId: string) => {
-    pendingProviderRef.current = providerId;
+    setPendingModel({ provider, model });
+    logger.info(`[App] draft model stashed: ${provider}/${model}`);
   };
 
   /**
@@ -768,9 +760,7 @@ function AppContent() {
                             </div>
                             {/* Pane 2: 陪伴展示 */}
                             <div className="w-1/2 h-full">
-                              <CompanionContent
-                                agentId={currentAgent?.id ?? null}
-                              />
+                              <CompanionContent agent={currentAgent} />
                             </div>
                           </motion.div>
                         </div>
@@ -802,8 +792,10 @@ function AppContent() {
                               providers={providers}
                               currentModelId={currentModelId}
                               currentProviderId={currentProviderId}
+                              agentDefaultProviderId={
+                                currentAgent?.defaultModel?.provider
+                              }
                               onModelChange={handleModelChange}
-                              onProviderChange={handleProviderChange}
                               workspacePath={currentWorkspacePath}
                               onWorkspaceChange={handleWorkspaceChange}
                             />

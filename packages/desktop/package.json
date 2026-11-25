@@ -1,6 +1,6 @@
 {
   "name": "persona-agent-desktop",
-  "version": "1.20.0",
+  "version": "1.20.1",
   "description": "Persona Desktop - Electron GUI for Persona",
   "type": "module",
   "main": "./out/main/index.js",
@@ -38,6 +38,7 @@
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-switch": "^1.2.6",
+    "@radix-ui/react-tooltip": "^1.4.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "electron-log": "^5.0.0",

@@ -41,7 +41,7 @@ import {
   type ContentBlock,
   type PendingInput,
 } from '@persona/shared';
-import { summarizeToolInput } from '@persona/shared';
+import { summarizeToolInput, successfulShowPose } from '@persona/shared';
 import type { ToolResult } from '../../tools/index.js';
 import {
   POSE_TOOLSET_ID,
@@ -637,20 +637,27 @@ export async function processChat(request: ChatRequest): Promise<ChatResponse> {
             result: truncate(tr.result, MAX_RESULT_LENGTH),
           });
 
-          // show_pose 校验通过时，将 pose 持久化到 session 元数据
+          // show_pose 校验通过时持久化 pose 并广播演出事件，客户端据事件即时换脸播演出
           if (
             tr.toolName === toFullName(POSE_TOOLSET_ID, 'show_pose') &&
             tr.success &&
             toolCall
           ) {
-            const pose = toolCall.function.arguments['pose'] as
-              | string
-              | undefined;
-            if (pose) {
-              sessionManager.updatePose(sessionId, pose);
-              Logger.log('POSE', 'Pose persisted to session', {
+            const show = successfulShowPose(toolCall.function.arguments);
+            if (show) {
+              if (show.pose) {
+                sessionManager.updatePose(sessionId, show.pose);
+              }
+              broadcastToSession(sessionId, {
+                type: 'pose_changed',
                 sessionId,
-                pose,
+                pose: show.pose,
+                motion: show.motion,
+                bubble: show.bubble,
+              });
+              Logger.log('POSE', 'Pose changed broadcast', {
+                sessionId,
+                ...show,
               });
             }
           }

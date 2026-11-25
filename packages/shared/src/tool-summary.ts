@@ -2,6 +2,12 @@
  * @file 工具调用参数的摘要与凭据掩码纯函数，desktop 与 server 共用
  * 掩码先于截断执行，Bash 命令可能携带凭据，顺序不能反
  */
+import {
+  BUBBLE_CN,
+  MOTION_CN,
+  isBubbleName,
+  isMotionName,
+} from './performance.js';
 
 /**
  * 内置条目 id，顺序即工具页内置组的展示顺序。
@@ -113,9 +119,18 @@ export function summarizeToolInput(
     case 'web_fetch':
       summary = hostnameFromUrl(str(toolInput['url']));
       break;
-    case 'show_pose':
-      summary = str(toolInput['pose']);
+    case 'show_pose': {
+      const motion = toolInput['motion'];
+      const bubble = toolInput['bubble'];
+      summary = [
+        str(toolInput['pose']),
+        isMotionName(motion) ? MOTION_CN[motion] : str(motion),
+        isBubbleName(bubble) ? BUBBLE_CN[bubble] : str(bubble),
+      ]
+        .filter(Boolean)
+        .join(' ');
       break;
+    }
     case 'get_current_pose':
       summary = '';
       break;

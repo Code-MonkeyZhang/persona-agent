@@ -64,6 +64,20 @@ export {
 } from './session-view.js';
 export type { SessionChange, ChangeKind } from './changes.js';
 export {
+  MOTION_NAMES,
+  MOTION_CN,
+  BUBBLE_NAMES,
+  BUBBLE_CN,
+  THINKING_BUBBLE,
+  isMotionName,
+  isBubbleName,
+  successfulShowPose,
+  type MotionName,
+  type BubbleName,
+  type LayerBubbleName,
+  type ShowPoseParams,
+} from './performance.js';
+export {
   APP_ID_PATTERN,
   SLOT_ID_PATTERN,
   EMPTY_ID_PREFIX,

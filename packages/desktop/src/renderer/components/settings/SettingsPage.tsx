@@ -1,15 +1,23 @@
 /**
  * @file src/renderer/components/settings/SettingsPage.tsx
  * @description 设置中心页面组件，嵌入主窗口右侧内容区域
- * 包含通用设置、模型供应商、MCP 服务、Skills 和语音服务五个标签页
+ * 包含通用设置、聊天设置、模型供应商、MCP 服务、Skills 和语音服务六个标签页
  * 使用浅灰背景 + 白色卡片 + 左侧圆角 Tab 的 Demo 视觉风格
  */
 
 import React, { useEffect } from 'react';
-import { Key, Speech, Wrench, Settings, Sparkles } from 'lucide-react';
+import {
+  Key,
+  MessageCircle,
+  Speech,
+  Wrench,
+  Settings,
+  Sparkles,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ProviderConfigPanel } from './ProviderConfigPanel';
 import { ConfigForm } from './ConfigForm';
+import { ChatSettingsForm } from './ChatSettingsForm';
 import { McpListTab } from './McpListTab';
 import { SkillListTab } from './SkillListTab';
 import { VoiceConfigPanel } from './VoiceConfigPanel';
@@ -30,6 +38,12 @@ const tabs: {
     label: 'settings.tabs.general',
     description: 'settings.tabs.generalDesc',
     icon: <Settings className="w-4 h-4" />,
+  },
+  {
+    key: 'chat',
+    label: 'settings.tabs.chat',
+    description: 'settings.tabs.chatDesc',
+    icon: <MessageCircle className="w-4 h-4" />,
   },
   {
     key: 'providers',
@@ -59,7 +73,7 @@ const tabs: {
 
 /**
  * 设置中心页面组件，嵌入主窗口右侧内容区域
- * 提供通用设置、模型供应商、MCP 服务、Skills 和语音服务五个标签页的切换和内容展示
+ * 提供通用设置、聊天设置、模型供应商、MCP 服务、Skills 和语音服务六个标签页的切换和内容展示
  */
 export const SettingsPage: React.FC = () => {
   const { t } = useTranslation();
@@ -164,6 +178,7 @@ export const SettingsPage: React.FC = () => {
         {activeTab === 'mcp' && <McpListTab />}
         {activeTab === 'skills' && <SkillListTab />}
         {activeTab === 'general' && <ConfigForm />}
+        {activeTab === 'chat' && <ChatSettingsForm />}
         {activeTab === 'voice' && <VoiceConfigPanel />}
       </div>
     </div>

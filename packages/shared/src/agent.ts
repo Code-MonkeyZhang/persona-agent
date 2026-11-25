@@ -30,6 +30,14 @@ export const AgentConfigSchema = z.object({
    * 用于商城卡片"已安装"判定和重复安装拦截。
    */
   marketplaceSource: z.string().optional(),
+  /**
+   * 情绪气泡相对立绘挂载点左上角的偏移，单位是挂载点宽高的百分比，
+   * 给构图特殊的角色兜底，读取时缺省按零。
+   * 不带 default 是刻意的，zod v4 下带默认值的字段经 partial 更新会被回填默认值，
+   * 只改提示词的保存会把调好的偏移冲回零。
+   */
+  bubbleOffsetX: z.number().optional(),
+  bubbleOffsetY: z.number().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });

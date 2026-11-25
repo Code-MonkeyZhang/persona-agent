@@ -38,9 +38,16 @@ vi.mock('@/lib/api', () => ({
 import { useChatStore } from '@/stores/chatStore';
 import { stepPhrase } from '@persona/shared';
 import type { CompressionRecord } from '@persona/shared';
+import { FileText, Lightbulb, MessageSquare } from 'lucide-react';
 import {
+  activeToolStep,
   buildRows,
+  deriveLivePhase,
   idleLabel,
+  liveRunLabel,
+  phaseIcon,
+  type LiveRunState,
+  type LiveStep,
   type Translate,
 } from '@/components/chat/LiveStrip';
 import type { UIMessage, Thought } from '@/types/chat';
@@ -48,6 +55,7 @@ import type { UIMessage, Thought } from '@/types/chat';
 /** 测试用文案表，插值按 i18n 的 {{name}} 形态替换 */
 const dict: Record<string, string> = {
   'live.thinking': '思考中',
+  'live.replying': '正在回复',
   'live.read': '正在读取',
   'live.done': '执行了 {{count}} 个步骤',
   'live.doneFail': '执行了 {{count}} 个步骤 · {{fails}} 步失败',
@@ -752,5 +760,43 @@ describe('idleLabel 感知失败轮', () => {
   it('零输出失败轮回退链上仍优先本轮失败', () => {
     expect(idleLabel(t, [message({ type: 'user', content: '你好' }), message({ type: 'error', content: 'boom' })]))
       .toEqual({ text: '本轮失败', failed: true });
+  });
+});
+
+describe('生成相位推导', () => {
+  /** 一条未闭合的工具步 */
+  const openTool: LiveStep = {
+    tool: 'read_file',
+    detail: '/a/b/app.ts',
+    startedAt: 1,
+  };
+
+  it('空闲是 idle，空时间线是 thinking，带写作标志是 replying', () => {
+    expect(deriveLivePhase(null)).toBe('idle');
+    expect(deriveLivePhase({ steps: [] })).toBe('thinking');
+    expect(deriveLivePhase({ steps: [], replying: true })).toBe('replying');
+  });
+
+  it('有未闭合的工具步是 tool，写作标志与已闭合的工具步都不改相位', () => {
+    const closedTool: LiveStep = { ...openTool, endedAt: 2 };
+    expect(deriveLivePhase({ steps: [openTool] })).toBe('tool');
+    expect(deriveLivePhase({ steps: [openTool], replying: true })).toBe(
+      'tool',
+    );
+    expect(deriveLivePhase({ steps: [closedTool] })).toBe('thinking');
+    expect(activeToolStep({ steps: [closedTool, openTool] })).toBe(openTool);
+    expect(activeToolStep({ steps: [closedTool] })).toBeUndefined();
+  });
+
+  it('顶条的文案与图标和气泡同出一份推导，时间线说在思考时相位一定是思考', () => {
+    const thinking: LiveRunState = { steps: [] };
+    const tooling: LiveRunState = { steps: [openTool] };
+    const replying: LiveRunState = { steps: [], replying: true };
+    expect(liveRunLabel(t, thinking)).toBe('思考中');
+    expect(phaseIcon(thinking)).toBe(Lightbulb);
+    expect(liveRunLabel(t, tooling)).toBe('正在读取 app.ts');
+    expect(phaseIcon(tooling)).toBe(FileText);
+    expect(liveRunLabel(t, replying)).toBe('正在回复');
+    expect(phaseIcon(replying)).toBe(MessageSquare);
   });
 });
