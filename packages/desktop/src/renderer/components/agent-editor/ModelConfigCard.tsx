@@ -11,14 +11,15 @@ import { SettingRow } from '../common/SettingRow';
 import { LabelWithTooltip } from '../common/LabelWithTooltip';
 import { Card } from '../ui/Card';
 import { NumberInput } from './NumberInput';
+import type { ModelConfig } from '@persona/shared';
 import type { ProviderStatus } from '../../lib/api';
 
 interface ModelConfigCardProps {
   providers: ProviderStatus[];
   provider: string;
-  onProviderChange: (provider: string) => void;
   modelId: string;
-  onModelChange: (modelId: string) => void;
+  /** 点选模型后一次回传供应商与模型，两者始终成对来自同一次点选 */
+  onModelChange: (selection: ModelConfig) => void;
   maxSteps: string;
   onMaxStepsChange: (value: string) => void;
   systemPrompt: string;
@@ -29,7 +30,6 @@ interface ModelConfigCardProps {
 export const ModelConfigCard: React.FC<ModelConfigCardProps> = ({
   providers,
   provider,
-  onProviderChange,
   modelId,
   onModelChange,
   maxSteps,
@@ -48,11 +48,9 @@ export const ModelConfigCard: React.FC<ModelConfigCardProps> = ({
         >
           <ModelSelector
             providers={providers}
-            value={modelId}
+            modelId={modelId}
+            providerId={provider}
             onChange={onModelChange}
-            providerValue={provider}
-            onProviderChange={onProviderChange}
-            showOnlyVerified={true}
           />
         </SettingRow>
         <SettingRow

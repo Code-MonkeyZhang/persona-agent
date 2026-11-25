@@ -23,6 +23,7 @@ import {
 } from '../../lib/api';
 import { ScrollArea } from '../ui/ScrollArea';
 import { BackButton } from '../ui/BackButton';
+import type { ModelConfig } from '@persona/shared';
 import type {
   AgentConfigInput,
   AgentConfigUpdate,
@@ -177,13 +178,10 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
     setBgDeleted(false);
   };
 
-  /** 切换 Provider 时同步更新 modelId 为该 Provider 的第一个可用模型 */
-  const handleProviderChange = (newProvider: string) => {
-    setProvider(newProvider);
-    const providerInfo = providers.find((p) => p.id === newProvider);
-    if (providerInfo && providerInfo.models.length > 0) {
-      setModelId(providerInfo.models[0]);
-    }
+  /** 点选模型时一次写入供应商与模型，两者始终成对来自同一次点选 */
+  const handleModelChange = ({ provider, model }: ModelConfig) => {
+    setProvider(provider);
+    setModelId(model);
   };
 
   /** 暂存头像上传的 base64 预览与原始文件，保存时统一提交 */
@@ -469,9 +467,8 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
               <ModelConfigCard
                 providers={providers}
                 provider={provider}
-                onProviderChange={handleProviderChange}
                 modelId={modelId}
-                onModelChange={setModelId}
+                onModelChange={handleModelChange}
                 maxSteps={maxSteps}
                 onMaxStepsChange={setMaxSteps}
                 systemPrompt={systemPrompt}

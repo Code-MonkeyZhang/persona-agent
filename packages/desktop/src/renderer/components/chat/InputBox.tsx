@@ -37,6 +37,7 @@ import { ModelSelector } from '../common/ModelSelector';
 import { WorkspaceSelector } from '../common/WorkspaceSelector';
 import { ContextUsageShell } from './ContextUsageShell';
 import { HoverDeleteButton } from '../ui/HoverDeleteButton';
+import type { ModelConfig } from '@persona/shared';
 import type { ProviderStatus } from '../../lib/api';
 import type { UIAttachment } from '../../types/chat';
 import { useChatStore } from '../../stores/chatStore';
@@ -54,9 +55,11 @@ interface InputBoxProps {
   providers: ProviderStatus[];
   currentModelId: string;
   currentProviderId: string | undefined;
+  /** Agent 默认模型所在的供应商，模型选择器据此把它排在第二段 */
+  agentDefaultProviderId?: string;
   workspacePath: string | undefined;
-  onModelChange: (modelId: string) => void;
-  onProviderChange: (providerId: string) => void;
+  /** 点选模型后一次回传供应商与模型，两者始终成对来自同一次点选 */
+  onModelChange: (selection: ModelConfig) => void;
   onWorkspaceChange: (path: string | undefined) => void;
 }
 
@@ -204,9 +207,9 @@ export const InputBox = forwardRef<InputBoxRef, InputBoxProps>(
       providers,
       currentModelId,
       currentProviderId,
+      agentDefaultProviderId,
       workspacePath,
       onModelChange,
-      onProviderChange,
       onWorkspaceChange,
     },
     ref
@@ -399,14 +402,13 @@ export const InputBox = forwardRef<InputBoxRef, InputBoxProps>(
                 disabled={false}
                 compact
               />
-              {/* 模型和供应商选择器 */}
+              {/* 模型选择器 */}
               <ModelSelector
                 providers={providers}
-                value={currentModelId}
+                modelId={currentModelId}
+                providerId={currentProviderId}
+                agentDefaultProviderId={agentDefaultProviderId}
                 onChange={onModelChange}
-                providerValue={currentProviderId}
-                onProviderChange={onProviderChange}
-                showOnlyVerified={true}
                 compact
               />
               {/* 上下文占用小壳，点按触发手动压缩 */}

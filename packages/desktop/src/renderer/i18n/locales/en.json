@@ -278,6 +278,7 @@
   "marketplace.remove": "Remove",
   "model.noModels": "No models available",
   "model.selectModel": "Select model",
+  "model.vision": "Supports image input",
   "agentEditor.editAgent": "Edit Agent",
   "agentEditor.addAgent": "Add Agent",
   "agentEditor.basicInfo": "Basic Info",

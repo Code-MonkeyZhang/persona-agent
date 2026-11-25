@@ -1,6 +1,6 @@
 /**
  * @file src/renderer/lib/providerOrder.ts
- * @description 供应商排序纯函数，供模型选择器与供应商面板共用
+ * @description 供应商排序纯函数，orderProviders 供供应商面板用，orderForSelector 供模型选择器用
  */
 
 /** 参与排序的供应商需携带的最小字段 */
@@ -30,4 +30,22 @@ export function orderProviders<T extends OrderableProvider>(
     if (aConfigured !== bConfigured) return aConfigured ? -1 : 1;
     return a.name.localeCompare(b.name);
   });
+}
+
+/**
+ * 模型选择器的供应商排位，heads 按优先级从高到低给出要置顶的供应商，同一家只出现一次
+ * @param providers 已配置密钥的供应商，按接口下发的配置顺序传入
+ * @param heads 依次是当前在用的、Agent 默认的、上次使用的供应商 id，缺省的位次跳过
+ * @returns 置顶供应商在前、其余保持传入顺序的新数组
+ */
+export function orderForSelector<T extends OrderableProvider>(
+  providers: T[],
+  ...heads: (string | undefined)[]
+): T[] {
+  const front: T[] = [];
+  for (const id of heads) {
+    const hit = providers.find((p) => p.id === id);
+    if (hit && !front.includes(hit)) front.push(hit);
+  }
+  return [...front, ...providers.filter((p) => !front.includes(p))];
 }

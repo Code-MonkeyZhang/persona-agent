@@ -1,14 +1,18 @@
 /**
  * @file src/renderer/components/common/ModelSelector.tsx
- * @description 模型选择器组件，按供应商分组展示模型列表并切换，选中态为整行背景高亮
+ * @description 模型选择器组件，全部已配置供应商的模型平铺成单列下拉清单供用户切换，选中态为整行背景高亮
  */
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { Check, ScanEye } from 'lucide-react';
+import type { ModelConfig } from '@persona/shared';
 import type { ProviderStatus } from '../../lib/api';
 import { logger } from '../../lib/logger';
-import { orderProviders } from '../../lib/providerOrder';
-import { ProviderMark } from './ProviderMark';
+import { tierOf } from '../../lib/contextTiers';
+import { orderForSelector } from '../../lib/providerOrder';
+import { useSettingsStore } from '../../stores/settingsStore';
+import { ModelMark } from './ProviderMark';
 import {
   Select,
   SelectContent,
@@ -19,92 +23,138 @@ import {
 } from '../ui/Select';
 
 interface ModelSelectorProps {
+  /** 全部供应商，组件内部只留已配置密钥的那些 */
   providers: ProviderStatus[];
-  value: string;
-  onChange: (modelId: string) => void;
-  providerValue?: string;
-  onProviderChange?: (providerId: string) => void;
-  showOnlyVerified?: boolean;
-  className?: string;
-  disabled?: boolean;
+  /** 当前选中的模型 id */
+  modelId: string;
+  /** 当前选中模型所属的供应商 id */
+  providerId?: string;
+  /** 点选回调，一次回传供应商与模型，要不要记上次使用的供应商由调用方决定 */
+  onChange: (selection: ModelConfig) => void;
+  /** Agent 默认模型所在的供应商，聊天页传它排第二段，Agent 编辑页不传，那里的当前值就是 Agent 默认 */
+  agentDefaultProviderId?: string;
+  /** 触发器形态，true 是输入框工具栏的无壳 chip，其余场合是设置行的带边框触发器 */
   compact?: boolean;
 }
 
-interface FlatModelOption {
+/**
+ * 选择器的一行，模型标贴左缘整行垂直居中，名字在上，容量徽章与看图图标在第二行与名字左缘对齐
+ * 选中态由外层 SelectItem 的 data-state 驱动，右缘的对钩圆底只在选中行亮起，其余行留同宽空位
+ */
+function ModelRow({
+  provider,
+  modelId,
+}: {
+  provider: ProviderStatus;
   modelId: string;
-  providerId: string;
-  providerName: string;
+}) {
+  const { t } = useTranslation();
+  const contextWindow = provider.contextWindows?.[modelId];
+  const hasVision = provider.visionModelIds?.includes(modelId) ?? false;
+  return (
+    <span className="flex w-full min-w-0 items-center gap-2.5">
+      <ModelMark
+        modelId={modelId}
+        providerId={provider.id}
+        name={provider.name}
+        size={24}
+      />
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span
+          title={modelId}
+          className="min-w-0 truncate font-mono text-foreground"
+        >
+          {modelId}
+        </span>
+        <span className="flex h-[18px] items-center gap-1.5">
+          {contextWindow !== undefined && (
+            <span className="inline-flex h-[18px] shrink-0 items-center rounded-full border border-zinc-300 bg-white px-[7px] text-micro font-medium tabular-nums text-muted-foreground">
+              {tierOf(contextWindow)}
+            </span>
+          )}
+          {hasVision && (
+            <span
+              role="img"
+              aria-label={t('model.vision')}
+              className="flex shrink-0"
+            >
+              <ScanEye className="h-3.5 w-3.5 text-muted-foreground" />
+            </span>
+          )}
+        </span>
+      </span>
+      <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full group-data-[state=checked]:bg-foreground/[0.08]">
+        <Check
+          className="h-[13px] w-[13px] text-foreground opacity-0 group-data-[state=checked]:opacity-100"
+          strokeWidth={3}
+        />
+      </span>
+    </span>
+  );
 }
 
 /**
- * 模型选择器组件，将多个 Provider 的模型平铺为下拉列表供用户选择
+ * 模型选择器组件，将全部已配置供应商的模型平铺为单列下拉清单供用户选择
+ * 供应商按当前在用、Agent 默认、上次使用依次置顶，其余保持接口下发的配置顺序，模型沿用接口的从新到旧
+ * 组件只管排位与呈现，上次使用的供应商由聊天页的点选回调写入，这里只读
  */
 export const ModelSelector: React.FC<ModelSelectorProps> = ({
   providers,
-  value,
+  modelId,
+  providerId,
   onChange,
-  providerValue,
-  onProviderChange,
-  showOnlyVerified = true,
-  className = '',
-  disabled = false,
+  agentDefaultProviderId,
   compact = false,
 }) => {
   const { t } = useTranslation();
-  const filteredProviders = showOnlyVerified
-    ? providers.filter((p) => p.hasAuth)
-    : providers;
+  const lastUsedProviderId = useSettingsStore((s) => s.lastUsedProviderId);
 
-  const currentProvider = providers.find(
-    (p) => p.models.includes(value) || (providerValue && p.id === providerValue)
-  );
-  const currentModel = currentProvider?.models.find((m) => m === value);
+  const currentProvider =
+    providers.find((p) => p.id === providerId) ??
+    providers.find((p) => p.models.includes(modelId));
+  const currentModel = currentProvider?.models.find((m) => m === modelId);
 
-  const configuredIds = new Set(
-    filteredProviders.filter((p) => p.hasAuth).map((p) => p.id)
+  const configuredProviders = providers.filter((p) => p.hasAuth);
+  const orderedProviders = orderForSelector(
+    configuredProviders,
+    providerId,
+    agentDefaultProviderId,
+    lastUsedProviderId
   );
-  const orderedProviders = orderProviders(
-    filteredProviders,
-    currentProvider?.id,
-    configuredIds
-  );
-
-  const flatOptions: FlatModelOption[] = orderedProviders.flatMap((provider) =>
-    [...provider.models]
-      .sort((a, b) => a.localeCompare(b))
-      .map((model) => ({
-        modelId: model,
-        providerId: provider.id,
-        providerName: provider.name,
-      }))
+  const flatOptions = orderedProviders.flatMap((provider) =>
+    provider.models.map((option) => ({ provider, modelId: option }))
   );
 
   const currentValue =
-    value && (providerValue || currentProvider?.id)
-      ? `${value}::${providerValue || currentProvider?.id}`
-      : '';
+    modelId && currentProvider ? `${modelId}::${currentProvider.id}` : '';
 
   /**
-   * 处理下拉选项变更，将 "模型ID::ProviderID" 组合值拆分后分别回调
+   * 处理下拉选项变更，把 "modelId::providerId" 组合值拆开后一次回传供应商与模型
    * @param combinedValue 格式为 "modelId::providerId" 的组合值
    */
   const handleValueChange = (combinedValue: string) => {
-    const [modelId, providerId] = combinedValue.split('::');
-    logger.info('[ModelSelector]', 'select', {
-      model: modelId,
-      provider: providerId,
-    });
-    if (onProviderChange && providerId !== providerValue) {
-      onProviderChange(providerId);
-    }
-    onChange(modelId);
+    const [model, provider] = combinedValue.split('::');
+    logger.info('[ModelSelector]', 'select', { model, provider });
+    onChange({ provider, model });
   };
 
-  if (filteredProviders.length === 0) {
+  /**
+   * 面板打开时留一条排位日志，三个位次的输入一并记下，排位不对时可据此排查
+   * @param open - 面板是否打开
+   */
+  const handleOpenChange = (open: boolean) => {
+    if (!open) return;
+    logger.info('[ModelSelector]', 'open', {
+      order: orderedProviders.map((p) => p.id),
+      current: providerId,
+      agentDefault: agentDefaultProviderId,
+      lastUsed: lastUsedProviderId,
+    });
+  };
+
+  if (configuredProviders.length === 0) {
     return (
-      <div
-        className={`px-3 py-2 border border-border rounded-md text-body text-gray-400 ${className}`}
-      >
+      <div className="px-3 py-2 border border-border rounded-md text-body text-gray-400">
         {t('model.noModels')}
       </div>
     );
@@ -117,56 +167,47 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
     : 'w-full px-3 py-2 border border-border rounded-md text-body focus:ring-blue-500';
 
   return (
-    <div className={className}>
-      <Select
-        value={currentValue}
-        onValueChange={handleValueChange}
-        disabled={disabled}
-      >
-        <SelectTrigger className={triggerClassName}>
-          <SelectValue placeholder={t('model.selectModel')}>
-            <span className="flex min-w-0 items-center gap-1.5">
-              {currentProvider && (
-                <ProviderMark
-                  providerId={currentProvider.id}
-                  name={currentProvider.name}
-                  size={18}
-                />
-              )}
-              <span
-                className={`truncate ${compact ? '' : 'font-medium'} text-foreground`}
-              >
-                {displayText}
-              </span>
+    <Select
+      value={currentValue}
+      onValueChange={handleValueChange}
+      onOpenChange={handleOpenChange}
+    >
+      <SelectTrigger className={triggerClassName}>
+        <SelectValue placeholder={t('model.selectModel')}>
+          <span className="flex min-w-0 items-center gap-2">
+            {currentProvider && (
+              <ModelMark
+                modelId={modelId}
+                providerId={currentProvider.id}
+                name={currentProvider.name}
+                size={18}
+              />
+            )}
+            <span
+              className={`truncate ${compact ? '' : 'font-medium'} text-foreground`}
+            >
+              {displayText}
             </span>
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {flatOptions.map((opt) => (
-              <SelectItem
-                key={`${opt.modelId}-${opt.providerId}`}
-                value={`${opt.modelId}::${opt.providerId}`}
-                className="text-content"
-              >
-                <span className="flex w-full min-w-0 items-center gap-1.5">
-                  <ProviderMark
-                    providerId={opt.providerId}
-                    name={opt.providerName}
-                    size={18}
-                  />
-                  <span
-                    title={opt.modelId}
-                    className="min-w-0 flex-1 truncate text-foreground"
-                  >
-                    {opt.modelId}
-                  </span>
-                </span>
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-    </div>
+          </span>
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent
+        className="w-[336px] max-w-[calc(100vw-32px)]"
+        collisionPadding={16}
+        fade={false}
+      >
+        <SelectGroup>
+          {flatOptions.map(({ provider, modelId: option }) => (
+            <SelectItem
+              key={`${option}::${provider.id}`}
+              value={`${option}::${provider.id}`}
+              className="group h-[58px] py-0 pr-2.5 data-[state=unchecked]:focus:bg-muted/50"
+            >
+              <ModelRow provider={provider} modelId={option} />
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
   );
 };
