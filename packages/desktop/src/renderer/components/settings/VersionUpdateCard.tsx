@@ -102,10 +102,7 @@ export const VersionUpdateCard: React.FC = () => {
         </SettingRow>
 
         {state.type === 'idle' && (
-          <SettingRow
-            label={t('config.checkUpdate')}
-            desc={t('config.checkUpdateDesc')}
-          >
+          <SettingRow label={t('config.checkUpdate')}>
             <ActionButton
               icon={<RefreshCw className="w-3 h-3" />}
               label={t('config.checkUpdate')}

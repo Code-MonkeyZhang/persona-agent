@@ -22,7 +22,7 @@ interface CardProps {
  * - icon 渲染为标题左侧的小号灰色图标
  * - desc 渲染在标题下方的小号灰色说明行
  * - action 渲染在标题行右侧，与标题同行排布
- * 间距规则：有 desc 时标题行下留 mb-1、desc 下留 mb-4，否则标题行下留 mb-3。
+ * 间距规则：有 desc 时标题行下留 mb-1、desc 下留 mb-4，否则标题行下留 mb-4。
  * @param title - 卡片标题
  * @param icon - 可选的标题图标组件
  * @param desc - 可选的标题下说明文字
@@ -46,7 +46,7 @@ export const Card: React.FC<CardProps> = ({
       className={cn(
         'text-content font-bold text-foreground',
         titleClassName,
-        !action && (desc ? 'mb-1' : 'mb-3')
+        !action && (desc ? 'mb-1' : 'mb-4')
       )}
     >
       {Icon && (
@@ -67,7 +67,7 @@ export const Card: React.FC<CardProps> = ({
         <div
           className={cn(
             'flex items-center justify-between',
-            desc ? 'mb-1' : 'mb-3'
+            desc ? 'mb-1' : 'mb-4'
           )}
         >
           {titleNode}

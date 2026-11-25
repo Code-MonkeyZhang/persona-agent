@@ -1,7 +1,7 @@
 /**
  * @file src/renderer/components/settings/ChatSettingsForm.tsx
- * @description 聊天设置页，收压缩偏好与陪伴演出两组
- * 压缩偏好的配置本体是服务端全局那份，呼吸与思考气泡两个开关按设备本地存，界面归组在同一页
+ * @description 聊天设置页，收压缩偏好、陪伴演出与消息三组
+ * 压缩偏好的配置本体是服务端全局那份，呼吸、思考气泡与思考过程入口三个开关按设备本地存，界面归组在同一页
  */
 
 import React, { useState } from 'react';
@@ -60,7 +60,7 @@ function CompressionCard() {
       <div className="flex flex-col">
         <SettingRow
           label={t('config.autoCompress')}
-          desc={t('config.autoCompressDesc')}
+          tooltip={t('config.autoCompressDesc')}
         >
           <Switch
             checked={autoCompress}
@@ -71,18 +71,22 @@ function CompressionCard() {
         </SettingRow>
         <Collapsible.Root open={autoCompress}>
           <Collapsible.Content className="collapsible-content">
-            <div className="pb-4 pt-4">
+            <div className="pt-4">
               <SettingRow
                 label={t('config.threshold')}
-                desc={t('config.thresholdDesc')}
+                tooltip={t('config.thresholdDesc')}
               >
-                <NumberInput
-                  value={thresholdText}
-                  onChange={setThresholdDraft}
-                  onBlur={commitThreshold}
-                  min={1}
-                  max={100}
-                />
+                {/* 阈值是占用百分比，输入框右侧带单位 */}
+                <div className="flex items-center gap-1.5">
+                  <NumberInput
+                    value={thresholdText}
+                    onChange={setThresholdDraft}
+                    onBlur={commitThreshold}
+                    min={1}
+                    max={100}
+                  />
+                  <span className="text-caption text-muted-foreground">%</span>
+                </div>
               </SettingRow>
             </div>
           </Collapsible.Content>
@@ -93,11 +97,17 @@ function CompressionCard() {
 }
 
 /**
- * 聊天设置表单组件，压缩偏好卡与演出卡
- * 呼吸与思考气泡两个开关绑定 settingsStore，按设备本地持久化，不进服务端
+ * 聊天设置表单组件，压缩偏好卡、演出卡与消息卡
+ * 呼吸、思考气泡与思考过程入口三个开关绑定 settingsStore，按设备本地持久化，不进服务端
  */
 export const ChatSettingsForm: React.FC = () => {
   const { t } = useTranslation();
+  const thoughtProcessVisible = useSettingsStore(
+    (s) => s.thoughtProcessVisible
+  );
+  const setThoughtProcessVisible = useSettingsStore(
+    (s) => s.setThoughtProcessVisible
+  );
   const breathEnabled = useSettingsStore((s) => s.breathEnabled);
   const setBreathEnabled = useSettingsStore((s) => s.setBreathEnabled);
   const thinkingBubbleEnabled = useSettingsStore(
@@ -115,23 +125,46 @@ export const ChatSettingsForm: React.FC = () => {
         title={t('config.performance')}
         titleClassName="text-title-section font-semibold"
       >
-        {/* 呼吸动画开关：关掉后陪伴立绘完全静止，不按角色分 */}
-        <SettingRow
-          label={t('config.breathAnimation')}
-          desc={t('config.breathAnimationDesc')}
-        >
-          <Switch checked={breathEnabled} onCheckedChange={setBreathEnabled} />
-        </SettingRow>
-        {/* 思考气泡开关：关掉后生成期间头顶不再冒思考气泡，情绪气泡照出，运行中拨动立即生效 */}
-        <SettingRow
-          label={t('config.thinkingBubble')}
-          desc={t('config.thinkingBubbleDesc')}
-        >
-          <Switch
-            checked={thinkingBubbleEnabled}
-            onCheckedChange={setThinkingBubbleEnabled}
-          />
-        </SettingRow>
+        <div className="flex flex-col gap-4">
+          {/* 呼吸动画开关：关掉后陪伴立绘完全静止，不按角色分 */}
+          <SettingRow
+            label={t('config.breathAnimation')}
+            tooltip={t('config.breathAnimationDesc')}
+          >
+            <Switch
+              checked={breathEnabled}
+              onCheckedChange={setBreathEnabled}
+            />
+          </SettingRow>
+          {/* 思考气泡开关：关掉后生成期间头顶不再冒思考气泡，情绪气泡照出，运行中拨动立即生效 */}
+          <SettingRow
+            label={t('config.thinkingBubble')}
+            tooltip={t('config.thinkingBubbleDesc')}
+          >
+            <Switch
+              checked={thinkingBubbleEnabled}
+              onCheckedChange={setThinkingBubbleEnabled}
+            />
+          </SettingRow>
+        </div>
+      </Card>
+
+      {/* 消息卡：思考过程入口开关，关掉只是不渲染入口，消息数据不动 */}
+      <Card
+        title={t('config.messages')}
+        titleClassName="text-title-section font-semibold"
+      >
+        <div className="flex flex-col gap-4">
+          <SettingRow
+            label={t('config.thoughtProcess')}
+            tooltip={t('config.thoughtProcessDesc')}
+          >
+            <Switch
+              checked={thoughtProcessVisible}
+              onCheckedChange={setThoughtProcessVisible}
+            />
+          </SettingRow>
+        </div>
       </Card>
     </div>
   );

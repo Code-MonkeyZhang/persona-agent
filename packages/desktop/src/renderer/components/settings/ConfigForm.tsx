@@ -1,7 +1,7 @@
 /**
  * @file src/renderer/components/settings/ConfigForm.tsx
- * @description 应用通用配置表单，包括日志开关、思考过程入口开关、首启引导重放入口和存储路径展示
- * 压缩偏好已迁入同级的 ChatSettingsForm
+ * @description 应用通用配置表单，包括语言切换、日志开关、关闭驻留、首启引导重放入口和存储路径展示
+ * 压缩偏好与思考过程入口开关已迁入同级的 ChatSettingsForm
  * 使用卡片分组 + Switch 组件 + SettingRow 统一行布局
  */
 
@@ -9,7 +9,6 @@ import React, { useEffect, useState } from 'react';
 import { FolderOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useConfigStore } from '../../stores/configStore';
-import { useSettingsStore } from '../../stores/settingsStore';
 import { useAgentStore } from '../../stores/agentStore';
 import { useViewStore } from '../../stores/viewStore';
 import {
@@ -56,19 +55,16 @@ function PathRow({ label, path }: { label: string; path: string }) {
 export const ConfigForm: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { config, updateField, saveConfig } = useConfigStore();
-  const thoughtProcessVisible = useSettingsStore(
-    (s) => s.thoughtProcessVisible
-  );
-  const setThoughtProcessVisible = useSettingsStore(
-    (s) => s.setThoughtProcessVisible
-  );
   const currentAgent = useAgentStore((s) => s.currentAgent);
   /** 关闭驻留开关，事实在主进程 electron-store，此处只持展示镜像 */
   const [closeToTray, setCloseToTray] = useState(true);
   useEffect(() => {
     window.api?.getCloseToTray().then(setCloseToTray);
   }, []);
-  /** 重放引导会向所连 server 写凭据，闸门与首启向导同口径，仅本机连接可用 */
+  /**
+   * 重放引导会向所连 server 写凭据，闸门与首启向导同口径，仅本机连接可用
+   * 连远程时该行整行不渲染
+   */
   const isLocalConnection = useConnectionStore(
     (s) => !!s.snapshot && s.snapshot.current.hostId === s.snapshot.local.hostId
   );
@@ -111,10 +107,7 @@ export const ConfigForm: React.FC = () => {
         titleClassName="text-title-section font-semibold"
       >
         <div className="flex flex-col gap-4">
-          <SettingRow
-            label={t('config.language')}
-            desc={t('config.languageDesc')}
-          >
+          <SettingRow label={t('config.language')}>
             <div className="flex rounded-lg border border-border overflow-hidden">
               <button
                 onClick={() => i18n.changeLanguage('zh-CN')}
@@ -140,7 +133,7 @@ export const ConfigForm: React.FC = () => {
           </SettingRow>
           <SettingRow
             label={t('config.enableLogging')}
-            desc={t('config.enableLoggingDesc')}
+            tooltip={t('config.enableLoggingDesc')}
           >
             <Switch
               checked={config.enableLogging}
@@ -149,48 +142,37 @@ export const ConfigForm: React.FC = () => {
               }
             />
           </SettingRow>
-          {/* 思考过程入口开关：关掉只是不渲染入口，消息数据不动 */}
-          <SettingRow
-            label={t('config.thoughtProcess')}
-            desc={t('config.thoughtProcessDesc')}
-          >
-            <Switch
-              checked={thoughtProcessVisible}
-              onCheckedChange={setThoughtProcessVisible}
-            />
-          </SettingRow>
           {/* 关闭驻留开关：开启时点关闭只是隐藏到托盘，服务端与会话后台继续 */}
           <SettingRow
             label={t('config.closeToTray')}
-            desc={t('config.closeToTrayDesc')}
+            tooltip={t('config.closeToTrayDesc')}
           >
             <Switch
               checked={closeToTray}
               onCheckedChange={handleToggleCloseToTray}
             />
           </SettingRow>
-          <SettingRow
-            label={t('config.replayLanding')}
-            desc={
-              !isLocalConnection
-                ? t('config.replayLandingRemoteDesc')
-                : currentAgent
-                  ? t('config.replayLandingDesc')
-                  : t('config.replayLandingEmptyDesc')
-            }
-          >
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={!currentAgent || !isLocalConnection}
-              onClick={() =>
-                currentAgent &&
-                useViewStore.getState().openLanding(currentAgent.id, 'replay')
+          {/* 重看首启引导：远程主机上的引导要在那台主机本机重看，连远程时整行不渲染，说明只在本地且没有 Agent 时出现 */}
+          {isLocalConnection && (
+            <SettingRow
+              label={t('config.replayLanding')}
+              desc={
+                currentAgent ? undefined : t('config.replayLandingEmptyDesc')
               }
             >
-              {t('config.replayLandingOpen')}
-            </Button>
-          </SettingRow>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={!currentAgent}
+                onClick={() =>
+                  currentAgent &&
+                  useViewStore.getState().openLanding(currentAgent.id, 'replay')
+                }
+              >
+                {t('config.replayLandingOpen')}
+              </Button>
+            </SettingRow>
+          )}
         </div>
       </Card>
 
