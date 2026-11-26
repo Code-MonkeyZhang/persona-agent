@@ -123,11 +123,13 @@ export {
 export {
   VOICE_LANGUAGES,
   getLanguageBoost,
+  groupVoices,
   type TtsModel,
   type ClonedVoice,
   type VoiceOption,
   type TtsConfig,
   type VoiceLanguageValue,
+  type VoiceGroup,
 } from './tts.js';
 export {
   MarketplaceEntrySchema,

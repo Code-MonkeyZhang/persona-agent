@@ -55,3 +55,49 @@ export type VoiceLanguageValue = (typeof VOICE_LANGUAGES)[number]['value'];
 export function getLanguageBoost(voiceLanguage?: string): string | undefined {
   return VOICE_LANGUAGES.find((l) => l.value === voiceLanguage)?.boost;
 }
+
+/**
+ * One group of the voice picker. key names the group in logs, labelKey is the
+ * desktop i18n key of the group title, items are the voices under the title.
+ */
+export interface VoiceGroup {
+  key: 'cloned' | 'female' | 'male' | 'other';
+  labelKey: string;
+  items: VoiceOption[];
+}
+
+/**
+ * Split voices into picker groups in display order. Cloned voices come first,
+ * then the preset voices split into female, male and other. The server stores
+ * every cloned voice with gender neutral, so the source decides the cloned
+ * group before gender sorts the presets, and only preset neutral voices land
+ * in the other group. Empty groups are left out.
+ * @param voices - Voices returned by GET /api/voices
+ * @returns The groups in display order, each holding at least one voice
+ */
+export function groupVoices(voices: VoiceOption[]): VoiceGroup[] {
+  const presets = voices.filter((v) => v.group === 'preset');
+  const groups: VoiceGroup[] = [
+    {
+      key: 'cloned',
+      labelKey: 'agentEditor.clonedVoices',
+      items: voices.filter((v) => v.group === 'cloned'),
+    },
+    {
+      key: 'female',
+      labelKey: 'agentEditor.femaleVoices',
+      items: presets.filter((v) => v.gender === 'female'),
+    },
+    {
+      key: 'male',
+      labelKey: 'agentEditor.maleVoices',
+      items: presets.filter((v) => v.gender === 'male'),
+    },
+    {
+      key: 'other',
+      labelKey: 'agentEditor.otherVoices',
+      items: presets.filter((v) => v.gender === 'neutral'),
+    },
+  ];
+  return groups.filter((g) => g.items.length > 0);
+}

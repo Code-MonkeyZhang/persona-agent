@@ -1,12 +1,14 @@
 /**
  * @file src/renderer/components/common/VoiceSelector.tsx
- * @description 音色选择器组件，下拉挑选音色，旁边的按钮试听选中音色，Agent 编辑页与首启向导共用
+ * @description 音色选择器组件，下拉按克隆、女声、男声、其他分组挑选音色，旁边的按钮试听选中音色，Agent 编辑页与首启向导共用
  */
 
 import React from 'react';
 import { Loader2, Volume2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { groupVoices, type VoiceGroup } from '@persona/shared';
 import { cn } from '../../lib/utils';
+import { logger } from '../../lib/logger';
 import {
   Select,
   SelectContent,
@@ -24,7 +26,7 @@ import type { VoiceOption } from '../../lib/api';
 const NONE_VALUE = '__none__';
 
 interface VoiceSelectorProps {
-  /** 全部可选音色，预设与克隆混合 */
+  /** 全部可选音色，预设与克隆混合，分组在组件内完成 */
   voices: VoiceOption[];
   /** 当前选中的音色 id，空串表示未启用语音 */
   voiceId: string;
@@ -39,8 +41,8 @@ interface VoiceSelectorProps {
 }
 
 /**
- * 音色选择器：下拉挑选音色，旁边的按钮按当前朗读语言试听选中音色
- * 试听状态由 useVoicePreview 自持，两处面板共用这一份下拉与按钮
+ * 音色选择器：下拉按克隆、女声、男声、其他分组挑选音色，旁边的按钮按当前朗读语言试听选中音色
+ * 分组规则由公共包的 groupVoices 给出，试听状态由 useVoicePreview 自持，两处面板共用这一份下拉与按钮
  */
 export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
   voices,
@@ -53,13 +55,47 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
   const { t } = useTranslation();
   const { playingId: previewingVoiceId, preview: previewVoice } =
     useVoicePreview();
-  const clonedVoices = voices.filter((v) => v.group === 'cloned');
+  const groups = groupVoices(voices);
+  const clonedGroup = groups.find((g) => g.key === 'cloned');
+  /** 「不启用语音」项与克隆组是用户自己的区段，它与预设音色之间画一条分隔线 */
+  const hasOwnSection = allowNone || clonedGroup !== undefined;
+
+  /** 输出一个分组，预设音色显示翻译后的名字，克隆音色显示用户起的名字 */
+  const renderGroup = (group: VoiceGroup) => (
+    <SelectGroup key={group.key}>
+      <SelectLabel className="text-micro text-muted-foreground font-medium uppercase tracking-wide">
+        {t(group.labelKey)}
+      </SelectLabel>
+      {group.items.map((v) => (
+        <SelectItem key={v.id} value={v.id}>
+          {v.group === 'preset' ? t(`voicePreset.${v.id}`) : v.name}
+        </SelectItem>
+      ))}
+    </SelectGroup>
+  );
+
+  /** 面板打开时留一条分组日志，各组数量一并记下，分组不对时可据此排查 */
+  const handleOpenChange = (open: boolean) => {
+    if (!open) return;
+    logger.info('[VoiceSelector]', 'open', {
+      groups: Object.fromEntries(groups.map((g) => [g.key, g.items.length])),
+      current: voiceId,
+    });
+  };
+
+  /** 点选后回传音色 id 并留一条日志，「不启用语音」还原为空串 */
+  const handleValueChange = (value: string) => {
+    const next = value === NONE_VALUE ? '' : value;
+    logger.info('[VoiceSelector]', 'select', { voiceId: next });
+    onChange(next);
+  };
 
   return (
     <div className="flex items-center gap-2">
       <Select
         value={voiceId || NONE_VALUE}
-        onValueChange={(value) => onChange(value === NONE_VALUE ? '' : value)}
+        onValueChange={handleValueChange}
+        onOpenChange={handleOpenChange}
       >
         <SelectTrigger className={cn('h-8 w-48 text-body', triggerClassName)}>
           <SelectValue />
@@ -70,36 +106,9 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
               {t('agentEditor.noVoice')}
             </SelectItem>
           )}
-          {clonedVoices.length > 0 && (
-            <SelectGroup>
-              <SelectLabel className="text-micro text-muted-foreground font-medium uppercase tracking-wide">
-                {t('agentEditor.clonedVoices')}
-              </SelectLabel>
-              {clonedVoices.map((v) => (
-                <SelectItem key={v.id} value={v.id}>
-                  {v.name}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          )}
-          <SelectSeparator />
-          <SelectGroup>
-            <SelectLabel className="text-micro text-muted-foreground font-medium uppercase tracking-wide">
-              {t('agentEditor.presetVoices')}
-            </SelectLabel>
-            {voices
-              .filter((v) => v.group === 'preset')
-              .map((v) => (
-                <SelectItem key={v.id} value={v.id}>
-                  {t(`voicePreset.${v.id}`)} ·{' '}
-                  {v.gender === 'male'
-                    ? t('agentEditor.male')
-                    : v.gender === 'female'
-                      ? t('agentEditor.female')
-                      : ''}
-                </SelectItem>
-              ))}
-          </SelectGroup>
+          {clonedGroup && renderGroup(clonedGroup)}
+          {hasOwnSection && <SelectSeparator />}
+          {groups.filter((group) => group !== clonedGroup).map(renderGroup)}
         </SelectContent>
       </Select>
       <button
