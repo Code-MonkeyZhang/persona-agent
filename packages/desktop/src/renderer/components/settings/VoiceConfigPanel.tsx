@@ -45,7 +45,7 @@ import {
   SelectValue,
 } from '../ui/Select';
 import { useVoicePreview } from '../../hooks/useVoicePreview';
-import { getRandomPreviewText, getErrorMessage } from '../../lib/utils';
+import { getErrorMessage } from '../../lib/utils';
 import { toast } from '../../stores/toastStore';
 import { logger } from '../../lib/logger';
 
@@ -538,7 +538,7 @@ export const VoiceConfigPanel: React.FC = () => {
                   <div className="shrink-0 flex items-center gap-1">
                     <button
                       onClick={() =>
-                        previewVoice(v.id, getRandomPreviewText(t), {
+                        previewVoice(v.id, {
                           noKey: t('voice.configureApiKeyFirst'),
                           failed: t('voice.previewFailed'),
                         })

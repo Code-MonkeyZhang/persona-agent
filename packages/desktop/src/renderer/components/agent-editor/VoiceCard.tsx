@@ -1,6 +1,6 @@
 /**
  * @file src/renderer/components/agent-editor/VoiceCard.tsx
- * @description 音色卡片，音色选择、试听与 TTS 语言设置
+ * @description 音色卡片，音色选择、试听与 TTS 语言设置，试听样本与语言参数随朗读语言
  */
 
 import React from 'react';
@@ -20,7 +20,6 @@ import {
 import { SettingRow } from '../common/SettingRow';
 import { Card } from '../ui/Card';
 import { useVoicePreview } from '../../hooks/useVoicePreview';
-import { getRandomPreviewText } from '../../lib/utils';
 import type { VoiceOption } from '../../lib/api';
 
 interface VoiceCardProps {
@@ -33,7 +32,7 @@ interface VoiceCardProps {
 
 /**
  * 音色卡片：音色选择、随机文案试听与 TTS 语言设置。
- * 试听状态由 useVoicePreview 自持。
+ * 试听样本与语言参数随当前朗读语言，试听状态由 useVoicePreview 自持。
  */
 export const VoiceCard: React.FC<VoiceCardProps> = ({
   voices,
@@ -97,13 +96,16 @@ export const VoiceCard: React.FC<VoiceCardProps> = ({
               </SelectContent>
             </Select>
             <button
-              onClick={() => {
-                const text = getRandomPreviewText(t);
-                previewVoice(voiceId, text, {
-                  noKey: t('common.configureApiKeyInSettings'),
-                  failed: t('common.previewFailed'),
-                });
-              }}
+              onClick={() =>
+                previewVoice(
+                  voiceId,
+                  {
+                    noKey: t('common.configureApiKeyInSettings'),
+                    failed: t('common.previewFailed'),
+                  },
+                  voiceLanguage
+                )
+              }
               disabled={!voiceId || !!previewingVoiceId}
               className="rounded-lg border border-border w-8 h-8 shrink-0 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >

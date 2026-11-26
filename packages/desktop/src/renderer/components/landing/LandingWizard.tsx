@@ -54,7 +54,7 @@ import {
   getAgentAvatarUrl,
   type VoiceOption,
 } from '../../lib/api';
-import { getRandomPreviewText, getErrorMessage } from '../../lib/utils';
+import { getErrorMessage } from '../../lib/utils';
 import { verifyTtsApiKey, MINIMAX_DOCS_URL } from '../../lib/tts';
 import { toast } from '../../stores/toastStore';
 import { useProviderStore } from '../../stores/providerStore';
@@ -761,13 +761,16 @@ export function LandingWizard({
                         </SelectContent>
                       </Select>
                       <button
-                        onClick={() => {
-                          const text = getRandomPreviewText(t);
-                          previewVoice(voiceId, text, {
-                            noKey: t('common.configureApiKeyInSettings'),
-                            failed: t('common.previewFailed'),
-                          });
-                        }}
+                        onClick={() =>
+                          previewVoice(
+                            voiceId,
+                            {
+                              noKey: t('common.configureApiKeyInSettings'),
+                              failed: t('common.previewFailed'),
+                            },
+                            voiceLanguage
+                          )
+                        }
                         disabled={!voiceId || !!previewingVoiceId}
                         className="rounded-lg border border-border w-8 h-8 shrink-0 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
