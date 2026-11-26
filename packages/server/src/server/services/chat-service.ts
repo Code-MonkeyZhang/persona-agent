@@ -41,7 +41,11 @@ import {
   type ContentBlock,
   type PendingInput,
 } from '@persona/shared';
-import { summarizeToolInput, successfulShowPose } from '@persona/shared';
+import {
+  getLanguageBoost,
+  summarizeToolInput,
+  successfulShowPose,
+} from '@persona/shared';
 import type { ToolResult } from '../../tools/index.js';
 import {
   POSE_TOOLSET_ID,
@@ -62,7 +66,6 @@ import {
 import { generateTitle } from '../../session/title-generator.js';
 import { loadTtsConfig } from '../../tts/store.js';
 import { getAllVoices } from '../../tts/voices.js';
-import { getLanguageBoost } from '../../tts/types.js';
 import { processTextForTTS } from '../../tts/text-processor.js';
 
 const MAX_RESULT_LENGTH = 1000;

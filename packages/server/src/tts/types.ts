@@ -18,25 +18,10 @@ export interface TtsConfig {
   summaryThreshold: number;
 }
 
-/** Voice language option for language_boost parameter */
-interface VoiceLanguage {
-  value: string;
-  label: string;
-  boost?: string;
-}
-
 /** TTS models supported by MiniMax (Speech 2.8 only — Token Plan compatible) */
 export const TTS_MODELS: TtsModel[] = [
   { id: 'speech-2.8-hd', name: 'Speech 2.8 HD' },
   { id: 'speech-2.8-turbo', name: 'Speech 2.8 Turbo' },
-];
-
-/** Voice language options. boost maps to MiniMax language_boost parameter. */
-const VOICE_LANGUAGES: VoiceLanguage[] = [
-  { value: 'default', label: 'Default' },
-  { value: 'zh', label: '中文', boost: 'Chinese' },
-  { value: 'en', label: '英语', boost: 'English' },
-  { value: 'ja', label: '日语', boost: 'Japanese' },
 ];
 
 /**
@@ -313,10 +298,3 @@ export const PRESET_VOICES: VoiceOption[] = [
     group: 'preset',
   },
 ];
-
-/** Map voiceLanguage value to MiniMax language_boost parameter. Returns undefined for default. */
-export function getLanguageBoost(voiceLanguage?: string): string | undefined {
-  if (!voiceLanguage || voiceLanguage === 'default') return undefined;
-  const lang = VOICE_LANGUAGES.find((l) => l.value === voiceLanguage);
-  return lang?.boost;
-}

@@ -34,6 +34,7 @@ import type {
   ModelConfig,
   ProviderStatus,
 } from '@persona/shared';
+import { VOICE_LANGUAGES } from '@persona/shared';
 import { cn } from '../../lib/utils';
 import { logger } from '../../lib/logger';
 import {
@@ -75,13 +76,6 @@ import { LabelWithTooltip } from '../common/LabelWithTooltip';
 import { ProviderMark, ModelMark } from '../common/ProviderMark';
 
 const PAGE_COUNT = 4;
-
-const VOICE_LANGUAGES = [
-  { value: 'default', key: 'landing.langDefault' },
-  { value: 'zh', key: 'landing.langZh' },
-  { value: 'en', key: 'landing.langEn' },
-  { value: 'ja', key: 'landing.langJa' },
-];
 
 /** P4 概念块图标映射：Agent App 用与商城 tab 一致的 LayoutGrid */
 const CONCEPT_ICONS = { wrench: Wrench, sparkles: Sparkles, app: LayoutGrid };
@@ -800,7 +794,7 @@ export function LandingWizard({
                           <SelectContent>
                             {VOICE_LANGUAGES.map((l) => (
                               <SelectItem key={l.value} value={l.value}>
-                                {t(l.key)}
+                                {t(l.labelKey)}
                               </SelectItem>
                             ))}
                           </SelectContent>

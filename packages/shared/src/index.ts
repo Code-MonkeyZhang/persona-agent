@@ -120,7 +120,15 @@ export {
   type NarrationTranslate,
   type NarrationStep,
 } from './tool-summary.js';
-export type { TtsModel, ClonedVoice, VoiceOption, TtsConfig } from './tts.js';
+export {
+  VOICE_LANGUAGES,
+  getLanguageBoost,
+  type TtsModel,
+  type ClonedVoice,
+  type VoiceOption,
+  type TtsConfig,
+  type VoiceLanguageValue,
+} from './tts.js';
 export {
   MarketplaceEntrySchema,
   type MarketplaceEntry,

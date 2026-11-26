@@ -6,6 +6,7 @@
 import React from 'react';
 import { Loader2, Speech, Volume2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { VOICE_LANGUAGES } from '@persona/shared';
 import {
   Select,
   SelectGroup,
@@ -21,13 +22,6 @@ import { Card } from '../ui/Card';
 import { useVoicePreview } from '../../hooks/useVoicePreview';
 import { getRandomPreviewText } from '../../lib/utils';
 import type { VoiceOption } from '../../lib/api';
-
-const VOICE_LANGUAGES = [
-  { value: 'default', labelKey: 'agentEditor.langDefault' },
-  { value: 'zh', labelKey: 'agentEditor.langZh' },
-  { value: 'en', labelKey: 'agentEditor.langEn' },
-  { value: 'ja', labelKey: 'agentEditor.langJa' },
-] as const;
 
 interface VoiceCardProps {
   voices: VoiceOption[];
