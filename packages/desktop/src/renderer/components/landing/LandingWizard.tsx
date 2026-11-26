@@ -354,6 +354,18 @@ export function LandingWizard({
           </button>
         )}
 
+        {/* P1 表单态的返回画廊入口：固定在向导框左上角，不随表单内容滚动离开视野 */}
+        {step === 0 && provider && (
+          <button
+            type="button"
+            className="header-no-drag absolute top-4 left-4 flex h-8 items-center gap-1.5 rounded-lg border border-border bg-white px-3 text-caption font-semibold text-foreground hover:border-primary/60 transition-colors"
+            onClick={() => setSelectedProvider(null)}
+          >
+            <ArrowLeft className="w-4 h-4 text-muted-foreground" />
+            {t('landing.backToGallery')}
+          </button>
+        )}
+
         {/* ---- P1 密钥与模型：header 持久，画廊 ⇄ 表单同框切换 ---- */}
         {step === 0 && (
           <section className="flex-1 min-h-0 flex flex-col">
@@ -399,14 +411,6 @@ export function LandingWizard({
             ) : (
               /* 单个供应商的 key 表单：同一个框内切换，模型为该供应商自己的列表 */
               <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-                <button
-                  className="text-caption leading-none text-muted-foreground hover:text-foreground mb-3 flex items-center gap-1"
-                  onClick={() => setSelectedProvider(null)}
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  {t('landing.backToGallery')}
-                </button>
-
                 <div className="flex items-center gap-2.5 mb-1">
                   <ProviderMark
                     providerId={provider.id}
