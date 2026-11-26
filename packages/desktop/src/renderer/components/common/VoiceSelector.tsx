@@ -60,11 +60,14 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
   /** 「不启用语音」项与克隆组是用户自己的区段，它与预设音色之间画一条分隔线 */
   const hasOwnSection = allowNone || clonedGroup !== undefined;
 
-  /** 输出一个分组，预设音色显示翻译后的名字，克隆音色显示用户起的名字 */
+  /** 输出一个分组，组头是整行底色条并在右侧标出该组数量，预设音色显示翻译后的名字，克隆音色显示用户起的名字 */
   const renderGroup = (group: VoiceGroup) => (
-    <SelectGroup key={group.key}>
-      <SelectLabel className="text-micro text-muted-foreground font-medium uppercase tracking-wide">
-        {t(group.labelKey)}
+    <SelectGroup key={group.key} className="mt-1 first:mt-0">
+      <SelectLabel className="-mx-1 flex items-center justify-between bg-secondary pl-4 pr-4 text-caption uppercase tracking-wide">
+        <span>{t(group.labelKey)}</span>
+        <span className="text-micro font-medium text-muted-foreground">
+          {group.items.length}
+        </span>
       </SelectLabel>
       {group.items.map((v) => (
         <SelectItem key={v.id} value={v.id}>
@@ -107,7 +110,7 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
             </SelectItem>
           )}
           {clonedGroup && renderGroup(clonedGroup)}
-          {hasOwnSection && <SelectSeparator />}
+          {hasOwnSection && <SelectSeparator className="mb-0 bg-border" />}
           {groups.filter((group) => group !== clonedGroup).map(renderGroup)}
         </SelectContent>
       </Select>
