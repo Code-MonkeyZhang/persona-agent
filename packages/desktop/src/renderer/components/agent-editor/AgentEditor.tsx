@@ -265,7 +265,7 @@ export const AgentEditor: React.FC<AgentEditorProps> = ({
 
   /** 切换音色，清空音色时同步重置语音语言 */
   const handleVoiceChange = (v: string) => {
-    if (v === '__none__') {
+    if (v === '') {
       setVoiceId('');
       setVoiceLanguage('default');
     } else {

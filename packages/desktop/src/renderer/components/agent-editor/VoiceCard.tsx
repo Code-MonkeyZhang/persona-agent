@@ -4,22 +4,19 @@
  */
 
 import React from 'react';
-import { Loader2, Speech, Volume2 } from 'lucide-react';
+import { Speech } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { VOICE_LANGUAGES } from '@persona/shared';
 import {
   Select,
-  SelectGroup,
   SelectValue,
   SelectTrigger,
   SelectContent,
   SelectItem,
-  SelectLabel,
-  SelectSeparator,
 } from '../ui/Select';
 import { SettingRow } from '../common/SettingRow';
 import { Card } from '../ui/Card';
-import { useVoicePreview } from '../../hooks/useVoicePreview';
+import { VoiceSelector } from '../common/VoiceSelector';
 import type { VoiceOption } from '../../lib/api';
 
 interface VoiceCardProps {
@@ -31,8 +28,8 @@ interface VoiceCardProps {
 }
 
 /**
- * 音色卡片：音色选择、随机文案试听与 TTS 语言设置。
- * 试听样本与语言参数随当前朗读语言，试听状态由 useVoicePreview 自持。
+ * 音色卡片：音色选择、试听与 TTS 语言设置。
+ * 音色下拉与试听按钮交给公共的 VoiceSelector，试听样本与语言参数随当前朗读语言。
  */
 export const VoiceCard: React.FC<VoiceCardProps> = ({
   voices,
@@ -42,8 +39,6 @@ export const VoiceCard: React.FC<VoiceCardProps> = ({
   onVoiceLanguageChange,
 }) => {
   const { t } = useTranslation();
-  const { playingId: previewingVoiceId, preview: previewVoice } =
-    useVoicePreview();
 
   return (
     <Card title={t('agentEditor.voice')} icon={Speech}>
@@ -52,70 +47,14 @@ export const VoiceCard: React.FC<VoiceCardProps> = ({
           label={t('agentEditor.selectVoice')}
           tooltip={t('agentEditor.selectVoiceDesc')}
         >
-          <div className="flex items-center gap-2">
-            <Select value={voiceId || '__none__'} onValueChange={onVoiceChange}>
-              <SelectTrigger className="rounded-lg border-border h-8 w-48 text-body">
-                <SelectValue placeholder={t('agentEditor.noVoice')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">
-                  {t('agentEditor.noVoice')}
-                </SelectItem>
-                {voices.filter((v) => v.group === 'cloned').length > 0 && (
-                  <SelectGroup>
-                    <SelectLabel className="text-micro text-muted-foreground font-medium uppercase tracking-wide">
-                      {t('agentEditor.clonedVoices')}
-                    </SelectLabel>
-                    {voices
-                      .filter((v) => v.group === 'cloned')
-                      .map((v) => (
-                        <SelectItem key={v.id} value={v.id}>
-                          {v.name}
-                        </SelectItem>
-                      ))}
-                  </SelectGroup>
-                )}
-                <SelectSeparator />
-                <SelectGroup>
-                  <SelectLabel className="text-micro text-muted-foreground font-medium uppercase tracking-wide">
-                    {t('agentEditor.presetVoices')}
-                  </SelectLabel>
-                  {voices
-                    .filter((v) => v.group === 'preset')
-                    .map((v) => (
-                      <SelectItem key={v.id} value={v.id}>
-                        {t('voicePreset.' + v.id)} ·{' '}
-                        {v.gender === 'male'
-                          ? t('agentEditor.male')
-                          : v.gender === 'female'
-                            ? t('agentEditor.female')
-                            : ''}
-                      </SelectItem>
-                    ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <button
-              onClick={() =>
-                previewVoice(
-                  voiceId,
-                  {
-                    noKey: t('common.configureApiKeyInSettings'),
-                    failed: t('common.previewFailed'),
-                  },
-                  voiceLanguage
-                )
-              }
-              disabled={!voiceId || !!previewingVoiceId}
-              className="rounded-lg border border-border w-8 h-8 shrink-0 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {previewingVoiceId ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Volume2 className="w-3.5 h-3.5" />
-              )}
-            </button>
-          </div>
+          <VoiceSelector
+            voices={voices}
+            voiceId={voiceId}
+            onChange={onVoiceChange}
+            voiceLanguage={voiceLanguage}
+            allowNone
+            triggerClassName="rounded-lg border-border"
+          />
         </SettingRow>
         {voiceId && (
           <SettingRow

@@ -58,22 +58,20 @@ import { getErrorMessage } from '../../lib/utils';
 import { verifyTtsApiKey, MINIMAX_DOCS_URL } from '../../lib/tts';
 import { toast } from '../../stores/toastStore';
 import { useProviderStore } from '../../stores/providerStore';
-import { useVoicePreview } from '../../hooks/useVoicePreview';
 import { Button } from '../ui/Button';
 import { Textarea } from '../ui/Textarea';
 import { PasswordInput } from '../ui/PasswordInput';
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '../ui/Select';
 import { SettingRow } from '../common/SettingRow';
 import { LabelWithTooltip } from '../common/LabelWithTooltip';
 import { ProviderMark, ModelMark } from '../common/ProviderMark';
+import { VoiceSelector } from '../common/VoiceSelector';
 
 const PAGE_COUNT = 4;
 
@@ -169,8 +167,6 @@ export function LandingWizard({
   const [voiceId, setVoiceId] = useState('Chinese (Mandarin)_Gentle_Senior');
   const [voiceLanguage, setVoiceLanguage] = useState('default');
   const [voices, setVoices] = useState<VoiceOption[]>([]);
-  const { playingId: previewingVoiceId, preview: previewVoice } =
-    useVoicePreview();
 
   /** 挂载即取播种 Agent 现值、音色列表与 TTS 配置状态（任一失败不阻塞向导） */
   useEffect(() => {
@@ -720,67 +716,12 @@ export function LandingWizard({
 
                 <div className="mt-4">
                   <SettingRow label={t('landing.voiceLabel')}>
-                    <div className="flex items-center gap-2">
-                      <Select value={voiceId} onValueChange={setVoiceId}>
-                        <SelectTrigger className="w-48 h-8 text-body">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {voices.filter((v) => v.group === 'cloned').length >
-                            0 && (
-                            <SelectGroup>
-                              <SelectLabel className="text-micro text-muted-foreground uppercase">
-                                {t('agentEditor.clonedVoices')}
-                              </SelectLabel>
-                              {voices
-                                .filter((v) => v.group === 'cloned')
-                                .map((v) => (
-                                  <SelectItem key={v.id} value={v.id}>
-                                    {v.name}
-                                  </SelectItem>
-                                ))}
-                            </SelectGroup>
-                          )}
-                          <SelectGroup>
-                            <SelectLabel className="text-micro text-muted-foreground uppercase">
-                              {t('agentEditor.presetVoices')}
-                            </SelectLabel>
-                            {voices
-                              .filter((v) => v.group === 'preset')
-                              .map((v) => (
-                                <SelectItem key={v.id} value={v.id}>
-                                  {t(`voicePreset.${v.id}`)} ·{' '}
-                                  {v.gender === 'male'
-                                    ? t('agentEditor.male')
-                                    : v.gender === 'female'
-                                      ? t('agentEditor.female')
-                                      : ''}
-                                </SelectItem>
-                              ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                      <button
-                        onClick={() =>
-                          previewVoice(
-                            voiceId,
-                            {
-                              noKey: t('common.configureApiKeyInSettings'),
-                              failed: t('common.previewFailed'),
-                            },
-                            voiceLanguage
-                          )
-                        }
-                        disabled={!voiceId || !!previewingVoiceId}
-                        className="rounded-lg border border-border w-8 h-8 shrink-0 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {previewingVoiceId ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Volume2 className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                    </div>
+                    <VoiceSelector
+                      voices={voices}
+                      voiceId={voiceId}
+                      onChange={setVoiceId}
+                      voiceLanguage={voiceLanguage}
+                    />
                   </SettingRow>
                   {/* 无分隔线，用上边距保持行间距 */}
                   <div className="mt-2.5">
