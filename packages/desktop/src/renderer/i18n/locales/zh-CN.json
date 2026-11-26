@@ -325,7 +325,6 @@
   "landing.verified": "已保存",
   "landing.verifyFailed": "验证失败，请检查密钥",
   "landing.keySaved": "{{name}} 密钥已保存",
-  "landing.keyHelp": "在 {{url}} 获取密钥",
   "landing.modelLabel": "默认模型",
   "landing.skipSetup": "跳过配置",
   "landing.skipConsequence": "没有模型暂时无法对话 —",

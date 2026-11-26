@@ -325,7 +325,6 @@
   "landing.verified": "Saved",
   "landing.verifyFailed": "Verification failed, please check the key",
   "landing.keySaved": "{{name}} key saved",
-  "landing.keyHelp": "Get a key at {{url}}",
   "landing.modelLabel": "Default model",
   "landing.skipSetup": "Skip setup",
   "landing.skipConsequence": "Nothing works without a model —",

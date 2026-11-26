@@ -95,27 +95,6 @@ const CONCEPT_ROWS = [
   { id: 'app', icon: 'app' },
 ] as const;
 
-/**
- * key 获取地址提示行（ProviderStatus 不携带，静态维护与设置页供应商白名单对齐）。
- */
-const KEY_URLS: Record<string, string> = {
-  anthropic: 'console.anthropic.com/settings/keys',
-  google: 'aistudio.google.com/apikey',
-  openai: 'platform.openai.com/api-keys',
-  groq: 'console.groq.com/keys',
-  openrouter: 'openrouter.ai/keys',
-  zai: 'open.bigmodel.cn/usercenter/apikeys',
-  minimax: 'platform.minimaxi.com/user-center/basic-information/interface-key',
-  'minimax-cn':
-    'platform.minimaxi.com/user-center/basic-information/interface-key',
-  'kimi-coding': 'platform.moonshot.cn/console/api-keys',
-  deepseek: 'platform.deepseek.com/api_keys',
-  huggingface: 'huggingface.co/settings/tokens',
-  'openai-codex': 'platform.openai.com/api-keys',
-  moonshotai: 'platform.moonshot.ai/console/api-keys',
-  'moonshotai-cn': 'platform.moonshot.cn/console/api-keys',
-};
-
 interface LandingWizardProps {
   /** 向导目标 Agent ID（PUT 对象），首启为播种 Agent，重放为当前 Agent */
   agentId: string;
@@ -420,6 +399,24 @@ export function LandingWizard({
                   <span className="text-content font-semibold text-foreground">
                     {provider.name}
                   </span>
+                  {/* 供应商官网外链：与设置页和语音步同款规格，密钥页小字行由它替代 */}
+                  {provider.docUrl && (
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="ml-auto shrink-0 h-8 w-8 rounded-lg p-0 text-muted-foreground hover:text-foreground"
+                    >
+                      <a
+                        href={provider.docUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={t('provider.officialDocs')}
+                        aria-label={t('provider.officialDocs')}
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    </Button>
+                  )}
                 </div>
 
                 <label className="block text-caption text-muted-foreground mt-4 mb-1.5">
@@ -459,13 +456,6 @@ export function LandingWizard({
                 {keyVerified && (
                   <p className="text-caption text-emerald-600 mt-1.5">
                     ✓ {t('landing.keySaved', { name: provider.name })}
-                  </p>
-                )}
-                {KEY_URLS[provider.id] && (
-                  <p className="text-micro text-muted-foreground/70 mt-2">
-                    {t('landing.keyHelp', {
-                      url: KEY_URLS[provider.id],
-                    })}
                   </p>
                 )}
 
