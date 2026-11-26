@@ -88,7 +88,7 @@ export function CompanionContent({ agent }: CompanionContentProps) {
   if (assets?.hasPoses === false) {
     return (
       <div
-        className="relative h-full w-full overflow-hidden bg-muted"
+        className="relative h-full w-full overflow-hidden bg-muted select-none"
         style={NO_DRAG}
       >
         <div className="flex h-full items-center justify-center px-8">
@@ -108,7 +108,10 @@ export function CompanionContent({ agent }: CompanionContentProps) {
   const showStage = !failed && layers.a !== '';
 
   return (
-    <div className="relative h-full w-full overflow-hidden" style={NO_DRAG}>
+    <div
+      className="relative h-full w-full overflow-hidden select-none"
+      style={NO_DRAG}
+    >
       {assets === null || bgError || !assets.bgUrl ? (
         <div className="absolute inset-0 bg-muted" />
       ) : (

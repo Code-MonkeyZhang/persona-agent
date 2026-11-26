@@ -9,6 +9,12 @@
     overflow: hidden;
   }
 
+  /* 图片是界面资产而非文档内容，全应用关闭浏览器原生拖拽与选中 */
+  img {
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+
   .header-drag {
     -webkit-app-region: drag;
   }

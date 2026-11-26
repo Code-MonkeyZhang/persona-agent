@@ -64,7 +64,6 @@ function MessageImages({ images }: { images: UIAttachment[] }) {
               ref={ref}
               src={img.url}
               alt={img.name}
-              draggable={false}
               onClick={open}
               className="max-h-60 max-w-xs w-auto h-auto rounded-xl object-cover cursor-zoom-in"
             />
@@ -83,7 +82,6 @@ function MessageImages({ images }: { images: UIAttachment[] }) {
                 ref={ref}
                 src={img.url}
                 alt={img.name}
-                draggable={false}
                 onClick={open}
                 className="w-[132px] h-[132px] rounded-xl object-cover cursor-zoom-in"
               />

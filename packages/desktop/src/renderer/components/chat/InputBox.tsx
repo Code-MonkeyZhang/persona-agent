@@ -96,7 +96,6 @@ function AttachThumb({
             src={image.url}
             alt={image.name}
             className="w-full h-full object-cover"
-            draggable={false}
           />
           {image.status === 'uploading' && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
