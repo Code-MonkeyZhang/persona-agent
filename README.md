@@ -13,7 +13,7 @@
 [![Release](https://img.shields.io/github/v/release/Code-MonkeyZhang/persona-agent?include_prereleases)](https://github.com/Code-MonkeyZhang/persona-agent/releases)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-**一个完全可自定义的开源个人 AI 陪伴助手**
+**结合AI角色扮演的开源个人 AI 助手**
 
 [🌐 官网](https://code-monkeyzhang.github.io/persona-agent/) · [📥 桌面端下载](https://github.com/Code-MonkeyZhang/persona-agent/releases) · [📱 手机端下载](#-移动端) · [🛒 Agent 商城](https://github.com/Code-MonkeyZhang/persona-agent-marketplace) · [🐛 报告 Bug](https://github.com/Code-MonkeyZhang/persona-agent/issues)
 
