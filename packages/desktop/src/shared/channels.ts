@@ -29,6 +29,7 @@ export const IPC = {
   UPDATER_CHECK_FOR_UPDATES: 'updater:check-for-updates',
   UPDATER_DOWNLOAD_UPDATE: 'updater:download-update',
   UPDATER_INSTALL_UPDATE: 'updater:install-update',
+  UPDATER_GET_STATE: 'updater:get-state',
   UPDATER_STATUS_CHANGED: 'updater:status-changed',
   UPDATER_DOWNLOAD_PROGRESS: 'updater:download-progress',
   CACHE_CHANGED: 'cache:changed',

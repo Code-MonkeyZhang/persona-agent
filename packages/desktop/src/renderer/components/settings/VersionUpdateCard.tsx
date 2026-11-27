@@ -33,32 +33,41 @@ export const VersionUpdateCard: React.FC = () => {
   const [state, setState] = useState<CardState>({ type: 'idle' });
 
   useEffect(() => {
+    /** 把主进程的 UpdateStatus 映射为卡片状态 */
+    const applyStatus = (status: UpdateStatus): void => {
+      switch (status.type) {
+        case 'checking':
+          setState({ type: 'checking' });
+          break;
+        case 'update-available':
+          setState({ type: 'available', version: status.version });
+          break;
+        case 'update-not-available':
+          setState({ type: 'upToDate' });
+          break;
+        case 'downloading':
+          setState({ type: 'downloading', percent: status.percent });
+          break;
+        case 'downloaded':
+          setState({ type: 'downloaded' });
+          break;
+        case 'error':
+          setState({ type: 'error' });
+          break;
+      }
+    };
+
     window.api?.updater.getVersion().then(setVersion);
 
-    const unsubStatus = window.api?.updater.onStatusChange(
-      (status: UpdateStatus) => {
-        switch (status.type) {
-          case 'checking':
-            setState({ type: 'checking' });
-            break;
-          case 'update-available':
-            setState({ type: 'available', version: status.version });
-            break;
-          case 'update-not-available':
-            setState({ type: 'upToDate' });
-            break;
-          case 'downloaded':
-            setState({ type: 'downloaded' });
-            break;
-          case 'error':
-            setState({ type: 'error' });
-            break;
-        }
-      }
-    );
+    const unsubStatus = window.api?.updater.onStatusChange(applyStatus);
 
     const unsubProgress = window.api?.updater.onDownloadProgress((progress) => {
       setState({ type: 'downloading', percent: progress.percent });
+    });
+
+    // 挂载时拉取主进程保存的当前状态，恢复离开设置页期间错过的更新事件
+    window.api?.updater.getState().then((status) => {
+      if (status) applyStatus(status);
     });
 
     return () => {
