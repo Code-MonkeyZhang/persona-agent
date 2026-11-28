@@ -355,6 +355,70 @@ interface CompressionFailedEvent {
   reason: 'no_material' | 'provider' | 'bad_summary' | 'interrupted';
 }
 
+// ── 运行时环境 ──
+
+/**
+ * uv 的检测结果。
+ * ok 表示这个 uv 在不联网的情况下找得到 Python 3.12，只装了 uv 没装 Python 时不算可用。
+ */
+export interface UvStatus {
+  ok: boolean;
+  /** app 是应用自己下载的 uv，system 是电脑上原本就有的，两者都没有时为 null */
+  source: 'app' | 'system' | null;
+  path: string | null;
+  version?: string;
+}
+
+/** 环境安装的三个步骤，前两步是下载，第三步是 uv 在本机安装 Python */
+export type RuntimeInstallStep = 'uv' | 'python' | 'setup';
+
+/** 环境安装失败的六个类别，界面上每个类别对应一句话 */
+export type RuntimeInstallError =
+  | 'network'
+  | 'slow'
+  | 'server'
+  | 'corrupted'
+  | 'unsupported'
+  | 'local';
+
+/**
+ * 进行中或者刚失败的那一次安装。
+ * 进行中带步骤和字节数，失败时另外带着失败类别，两种形态由 status 区分。
+ */
+export type RuntimeInstallState =
+  | {
+      status: 'running';
+      step: RuntimeInstallStep;
+      /** 已经收到的字节数 */
+      received: number;
+      /** 文件的总字节数，响应头还没到时为 null */
+      total: number | null;
+    }
+  | {
+      status: 'failed';
+      /** 失败时停在的那一步 */
+      step: RuntimeInstallStep;
+      received: number;
+      total: number | null;
+      error: RuntimeInstallError;
+    };
+
+/** 查询运行时接口拿回的结果，检测结果加上安装状态 */
+export interface RuntimeStatus {
+  uv: UvStatus;
+  /** null 表示既没有进行中的安装，也没有失败的记录 */
+  install: RuntimeInstallState | null;
+}
+
+/**
+ * 环境安装事件。
+ * 服务端在安装开始、进度推进和结束时广播，install 是 null 表示安装成功并且状态已经清空。
+ */
+interface RuntimeInstallMessage {
+  type: 'runtime_install';
+  install: RuntimeInstallState | null;
+}
+
 export type ServerMessage =
   | ConnectedMessage
   | SubscribedMessage
@@ -385,7 +449,8 @@ export type ServerMessage =
   | CompressionStartedEvent
   | CompressionCompleteEvent
   | CompressionFailedEvent
-  | ChangeMessage;
+  | ChangeMessage
+  | RuntimeInstallMessage;
 
 // ── Client → Server 消息 ──
 
