@@ -42,8 +42,6 @@ const FAST_RULES = {
   maxAttempts: 2,
   retryDelayMs: 20,
 };
-/** 一个足够宽松的截止时刻，不测预算的用例都用它 */
-const FAR_DEADLINE = () => Date.now() + 10_000;
 
 const BODY = Buffer.alloc(3000, 7);
 /** 把正文分成三块发，块与块之间隔一会儿，进度才有好几帧 */
@@ -86,16 +84,10 @@ function collect(): {
 /** 跑一次下载，返回它抛出的错误，没抛出时返回 null */
 async function failureOf(
   url: string,
-  target: string = dest,
-  deadline: number = FAR_DEADLINE()
+  target: string = dest
 ): Promise<DownloadError | null> {
   try {
-    await new FileDownloader(FAST_RULES).download(
-      url,
-      target,
-      () => {},
-      deadline
-    );
+    await new FileDownloader(FAST_RULES).download(url, target, () => {});
     return null;
   } catch (err) {
     return err as DownloadError;
@@ -138,8 +130,7 @@ describe('FileDownloader', () => {
     await new FileDownloader(FAST_RULES).download(
       route('/ok', sendInChunks),
       dest,
-      onProgress,
-      FAR_DEADLINE()
+      onProgress
     );
 
     expect(fs.readFileSync(dest).equals(BODY)).toBe(true);
@@ -162,12 +153,7 @@ describe('FileDownloader', () => {
       setTimeout(() => res.end(BODY.subarray(100)), 10);
     });
 
-    await new FileDownloader(FAST_RULES).download(
-      url,
-      dest,
-      onProgress,
-      FAR_DEADLINE()
-    );
+    await new FileDownloader(FAST_RULES).download(url, dest, onProgress);
 
     expect(fs.readFileSync(dest).equals(BODY)).toBe(true);
     expect(progress.every((frame) => frame.total === null)).toBe(true);
@@ -206,12 +192,7 @@ describe('FileDownloader', () => {
       }
     });
 
-    await new FileDownloader(FAST_RULES).download(
-      url,
-      dest,
-      () => {},
-      FAR_DEADLINE()
-    );
+    await new FileDownloader(FAST_RULES).download(url, dest, () => {});
 
     expect(hitsOf('/flaky')).toBe(2);
     expect(fs.readFileSync(dest).equals(BODY)).toBe(true);
@@ -227,12 +208,7 @@ describe('FileDownloader', () => {
       }
     });
 
-    await new FileDownloader(FAST_RULES).download(
-      url,
-      dest,
-      () => {},
-      FAR_DEADLINE()
-    );
+    await new FileDownloader(FAST_RULES).download(url, dest, () => {});
 
     expect(hitsOf('/limited')).toBe(2);
   });
@@ -245,7 +221,7 @@ describe('FileDownloader', () => {
 
     const startedAt = Date.now();
     const error = await failureOf(url);
-    // 两次卡死加一次重试等待，远小于截止时刻，证明计时取的是较短的那个
+    // 两次卡死加一次重试等待，远小于默认规则的 30 秒，证明计时用的是传进来的短时长
     expect(Date.now() - startedAt).toBeLessThan(1_000);
 
     expect(error?.kind).toBe('slow');
@@ -267,6 +243,24 @@ describe('FileDownloader', () => {
     expect(fs.existsSync(dest)).toBe(false);
   });
 
+  it('keeps receiving a slow stream as long as data keeps arriving', async () => {
+    const url = route('/trickle', (_req, res) => {
+      res.writeHead(200, { 'content-length': String(BODY.length) });
+      // 每块之间隔 80 毫秒，比卡死时限短，整份正文要 800 毫秒才发完，是卡死时限的五倍多
+      for (let i = 0; i < BODY.length; i += 300) {
+        setTimeout(() => res.write(BODY.subarray(i, i + 300)), (i / 300) * 80);
+      }
+      setTimeout(() => res.end(), 800);
+    });
+
+    const { progress, onProgress } = collect();
+    await new FileDownloader(FAST_RULES).download(url, dest, onProgress);
+
+    expect(fs.readFileSync(dest).equals(BODY)).toBe(true);
+    expect(hitsOf('/trickle')).toBe(1);
+    expect(progress.at(-1)?.received).toBe(BODY.length);
+  });
+
   it('retries when the connection drops mid-body', async () => {
     const url = route('/drop', (_req, res) => {
       if (hitsOf('/drop') === 1) {
@@ -278,12 +272,7 @@ describe('FileDownloader', () => {
       }
     });
 
-    await new FileDownloader(FAST_RULES).download(
-      url,
-      dest,
-      () => {},
-      FAR_DEADLINE()
-    );
+    await new FileDownloader(FAST_RULES).download(url, dest, () => {});
 
     expect(hitsOf('/drop')).toBe(2);
     expect(fs.readFileSync(dest).equals(BODY)).toBe(true);
@@ -299,27 +288,10 @@ describe('FileDownloader', () => {
       }
     });
 
-    await new FileDownloader(FAST_RULES).download(
-      url,
-      dest,
-      () => {},
-      FAR_DEADLINE()
-    );
+    await new FileDownloader(FAST_RULES).download(url, dest, () => {});
 
     expect(hitsOf('/short')).toBe(2);
     expect(fs.readFileSync(dest).equals(BODY)).toBe(true);
-  });
-
-  it('fails as slow without retrying once the deadline has passed', async () => {
-    const url = route('/late', sendInChunks);
-
-    const error = await failureOf(url, dest, Date.now() - 1);
-
-    expect(error?.kind).toBe('slow');
-    expect(error?.retryable).toBe(false);
-    // 请求可能在发出去之前就被中止，服务端计到零次或一次都对
-    expect(hitsOf('/late')).toBeLessThanOrEqual(1);
-    expect(fs.existsSync(dest)).toBe(false);
   });
 
   it('fails as local without retrying when the file cannot be written', async () => {

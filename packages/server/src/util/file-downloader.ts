@@ -3,6 +3,7 @@
  *
  * FileDownloader 只认地址、目标路径和一组下载规则，不认得下载的是什么，也不负责校验内容和解压。
  * 边收边写盘，每收到一块数据回报一次进度，失败时抛出带类别的 DownloadError。
+ * 只在连不上和卡死时停下来，数据一直在来就一直收，不设总时长。
  * 环境安装是第一个使用者，商城以后下载工具文件也接这里，等待和重试的规则只维护一份。
  */
 
@@ -76,7 +77,7 @@ export class FileDownloader {
    * 把 url 指向的文件下载到 dest。
    *
    * - 边收边写，每收到一块数据调用一次 onProgress
-   * - deadline 是整件事的截止时刻，它先到就按下载太慢失败并且不再试
+   * - 只在连不上和卡死时停下来，数据一直在来就一直收。慢的连接多等一会儿能下完，按总时长停掉只会让它下不完，所以不设总时长
    * - 失败时删掉写了一半的文件，调用方不会拿到半个文件
    *
    * @throws DownloadError 每次尝试都失败时抛出
@@ -84,8 +85,7 @@ export class FileDownloader {
   async download(
     url: string,
     dest: string,
-    onProgress: (progress: DownloadProgress) => void,
-    deadline: number
+    onProgress: (progress: DownloadProgress) => void
   ): Promise<void> {
     const { maxAttempts, retryDelayMs } = this.rules;
     let received = 0;
@@ -103,7 +103,7 @@ export class FileDownloader {
         url,
       });
       try {
-        await this.tryOnce(url, dest, track, deadline);
+        await this.tryOnce(url, dest, track);
         Logger.log('DOWNLOAD', 'Download finished', {
           url,
           attempt,
@@ -129,13 +129,12 @@ export class FileDownloader {
 
   /**
    * 完整地试一次，返回收到的字节数。
-   * 连接阶段的超时按网络不通处理，接收阶段的卡死按下载太慢处理，两段计时都受截止时刻约束。
+   * 连接阶段的超时按网络不通处理，接收阶段的卡死按下载太慢处理，两种失败再试一次都有希望成功。
    */
   private async tryOnce(
     url: string,
     dest: string,
-    onProgress: (progress: DownloadProgress) => void,
-    deadline: number
+    onProgress: (progress: DownloadProgress) => void
   ): Promise<number> {
     const { connectTimeoutMs, stallTimeoutMs } = this.rules;
     const controller = new AbortController();
@@ -147,24 +146,17 @@ export class FileDownloader {
 
     /**
      * 起一个计时器，到点中止请求并记下失败类别。
-     * 计时时长取自身超时和剩余时间的较小值，截止时刻先到就按下载太慢处理并且不再试。
+     * 超时只有连不上和卡死两种，等一会儿再试有希望成功，所以一律可以重试。
      */
     const arm = (
       timeoutMs: number,
       kind: DownloadErrorKind,
       reason: string
     ) => {
-      const budgetMs = deadline - Date.now();
-      const outOfBudget = budgetMs < timeoutMs;
-      timer = setTimeout(
-        () => {
-          failure = outOfBudget
-            ? new DownloadError('Time budget ran out', 'slow', false)
-            : new DownloadError(reason, kind, true);
-          controller.abort();
-        },
-        Math.max(0, Math.min(timeoutMs, budgetMs))
-      );
+      timer = setTimeout(() => {
+        failure = new DownloadError(reason, kind, true);
+        controller.abort();
+      }, timeoutMs);
     };
     const disarm = (): void => {
       if (timer) clearTimeout(timer);

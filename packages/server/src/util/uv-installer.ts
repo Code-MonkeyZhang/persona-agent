@@ -84,8 +84,6 @@ export const UV_RELEASES: ReadonlyMap<string, UvRelease> = new Map([
   ],
 ]);
 
-/** 整次安装的时间预算，两个下载共用，单位毫秒 */
-const INSTALL_BUDGET_MS = 180_000;
 /** 解压最多等多久，单位毫秒 */
 const EXTRACT_TIMEOUT_MS = 60_000;
 /** 一条 uv 命令最多等多久，单位毫秒 */
@@ -200,7 +198,6 @@ export class UvInstaller {
    * @throws InstallError 任何一步失败时抛出
    */
   async run(): Promise<void> {
-    const deadline = Date.now() + INSTALL_BUDGET_MS;
     Logger.log('RUNTIME', `Install started, uv ${UV_VERSION}`, {
       platform: process.platform,
       arch: process.arch,
@@ -208,8 +205,8 @@ export class UvInstaller {
     try {
       fs.rmSync(this.stagingDir, { recursive: true, force: true });
       fs.mkdirSync(this.stagingDir, { recursive: true });
-      const stagedUv = await this.downloadUv(deadline);
-      await this.installPython(stagedUv, deadline);
+      const stagedUv = await this.downloadUv();
+      await this.installPython(stagedUv);
     } catch (err) {
       throw toInstallError(err);
     } finally {
@@ -222,7 +219,7 @@ export class UvInstaller {
    * 第一步，把 uv 压缩包下到暂存文件夹，核对校验值后解压，返回解压出来的 uv 的路径。
    * 平台没有对应的发布物时不下载，直接按系统不支持失败。
    */
-  private async downloadUv(deadline: number): Promise<string> {
+  private async downloadUv(): Promise<string> {
     const release = findUvRelease(process.platform, process.arch);
     if (!release) {
       throw new InstallError(
@@ -235,11 +232,8 @@ export class UvInstaller {
     const url = `https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/${release.file}`;
     const archivePath = path.join(this.stagingDir, release.file);
     Logger.log('RUNTIME', `Downloading uv, ${url}`);
-    await new FileDownloader().download(
-      url,
-      archivePath,
-      (progress) => this.onProgress('uv', progress.received, progress.total),
-      deadline
+    await new FileDownloader().download(url, archivePath, (progress) =>
+      this.onProgress('uv', progress.received, progress.total)
     );
 
     Logger.log('RUNTIME', 'Verifying uv archive', {
@@ -308,10 +302,7 @@ export class UvInstaller {
    * 第二步和第三步，下载 Python 压缩包，再让 uv 从暂存文件夹读文件把它装好。
    * 这一段 uv 不发任何网络请求，装完把 uv 挪进正式位置并验证一遍。
    */
-  private async installPython(
-    stagedUv: string,
-    deadline: number
-  ): Promise<void> {
+  private async installPython(stagedUv: string): Promise<void> {
     const entry = await this.resolvePythonDownload(stagedUv);
 
     this.onProgress('python', 0, null);
@@ -321,12 +312,8 @@ export class UvInstaller {
     Logger.log('RUNTIME', `Downloading Python ${RUNTIME_PYTHON_VERSION}`, {
       url: entry.url,
     });
-    await new FileDownloader().download(
-      entry.url,
-      archivePath,
-      (progress) =>
-        this.onProgress('python', progress.received, progress.total),
-      deadline
+    await new FileDownloader().download(entry.url, archivePath, (progress) =>
+      this.onProgress('python', progress.received, progress.total)
     );
 
     this.onProgress('setup', 0, null);
