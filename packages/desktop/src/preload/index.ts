@@ -171,6 +171,7 @@ const api: WindowAPI = {
     checkForUpdates: () => ipcRenderer.invoke(IPC.UPDATER_CHECK_FOR_UPDATES),
     downloadUpdate: () => ipcRenderer.invoke(IPC.UPDATER_DOWNLOAD_UPDATE),
     installUpdate: () => ipcRenderer.invoke(IPC.UPDATER_INSTALL_UPDATE),
+    getState: () => ipcRenderer.invoke(IPC.UPDATER_GET_STATE),
 
     /**
      * 监听更新状态变化

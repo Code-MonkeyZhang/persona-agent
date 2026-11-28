@@ -38,6 +38,7 @@ export type UpdateStatus =
   | { type: 'checking' }
   | { type: 'update-available'; version: string }
   | { type: 'update-not-available' }
+  | { type: 'downloading'; percent: number }
   | { type: 'downloaded' }
   | { type: 'error'; message: string };
 
@@ -139,6 +140,8 @@ export interface WindowAPI {
     checkForUpdates: () => Promise<void>;
     downloadUpdate: () => Promise<void>;
     installUpdate: () => Promise<void>;
+    /** 拉取主进程保存的当前更新状态，无状态时返回 null */
+    getState: () => Promise<UpdateStatus | null>;
     onStatusChange: (callback: (status: UpdateStatus) => void) => () => void;
     onDownloadProgress: (
       callback: (progress: UpdateProgress) => void
