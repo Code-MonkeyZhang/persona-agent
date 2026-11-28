@@ -4,9 +4,16 @@
 
 <div align="center">
 
+<img src="assets/logo-rounded.png" width="150" height="150" alt="Persona Agent" />
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-informational)
+[![Release](https://img.shields.io/github/v/release/Code-MonkeyZhang/persona-agent?include_prereleases)](https://github.com/Code-MonkeyZhang/persona-agent/releases)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+
 ---
 
-**Persona Agent** is an AI chat app that blends AI role-play with a personal agent, shipping native clients for macOS, Windows, iOS, and Android. Pair your phone with the desktop by scanning a QR code and keep chatting wherever you go. Customize your own OC portraits and voices, and switch freely between the companion view and the classic chat view. Independent personas and long-term memory keep every character consistent, and the built-in marketplace installs skills and tools in one click, so your character can play music, look things up, or take care of daily work for you.
+**Persona Agent** is an AI chat app that blends AI role-play with a personal agent, shipping native clients for macOS, Windows, iOS, and Android.
 
 </div>
 
