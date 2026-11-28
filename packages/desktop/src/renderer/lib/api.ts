@@ -42,6 +42,7 @@ import type {
   MemoryEntry,
   MemoryWriteInput,
   MemoryUpdateInput,
+  RuntimeStatus,
 } from '@persona/shared';
 import { logger } from './logger';
 import { getErrorMessage } from './utils';
@@ -1097,30 +1098,18 @@ export async function getBashStatus(): Promise<BashStatus> {
   return bash ?? { ok: false, path: null };
 }
 
-export interface UvStatus {
-  ok: boolean;
-  source: 'app' | 'system' | null;
-  path: string | null;
-  version?: string;
-}
-
-/** 查询 uv 运行时状态。 */
-export async function getUvStatus(): Promise<UvStatus> {
+/** 查询运行时状态，拿回 uv 的检测结果和进行中或刚失败的那一次安装。 */
+export async function getRuntimeStatus(): Promise<RuntimeStatus> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(`${baseUrl}/api/runtimes`);
-  if (!response.ok) return { ok: false, source: null, path: null };
-  const data = await response.json();
-  return (
-    (data as { uv?: UvStatus }).uv ?? {
-      ok: false,
-      source: null,
-      path: null,
-    }
-  );
+  if (!response.ok) {
+    throw new Error(`Failed to get runtime status: ${response.status}`);
+  }
+  return (await response.json()) as RuntimeStatus;
 }
 
-/** 一键安装 uv 运行时，下载二进制 + Python 解释器。 */
-export async function installUv(): Promise<UvStatus> {
+/** 发起环境安装。服务端收到就返回 202，不等装完，进度和结果靠 WebSocket 推送。 */
+export async function startRuntimeInstall(): Promise<RuntimeStatus> {
   const baseUrl = await getBaseUrl();
   const response = await fetch(`${baseUrl}/api/runtimes/uv/install`, {
     method: 'POST',
@@ -1129,11 +1118,10 @@ export async function installUv(): Promise<UvStatus> {
     const data = await response.json().catch(() => ({}));
     throw new Error(
       (data as { error?: string }).error ||
-        `Failed to install uv: ${response.status}`
+        `Failed to install runtime: ${response.status}`
     );
   }
-  const data = await response.json();
-  return (data as { uv: UvStatus }).uv;
+  return (await response.json()) as RuntimeStatus;
 }
 
 /**

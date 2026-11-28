@@ -16,7 +16,7 @@ import {
   useCurrentDevice,
 } from '../../stores/connectionStore';
 import { Switch } from '../ui/Switch';
-import { Button } from '../ui/Button';
+import { ActionButton } from '../ui/ActionButton';
 import { Card } from '../ui/Card';
 import { SettingRow, HostChip } from '../common/SettingRow';
 import { EnvironmentCard } from './EnvironmentCard';
@@ -160,9 +160,8 @@ export const ConfigForm: React.FC = () => {
                 currentAgent ? undefined : t('config.replayLandingEmptyDesc')
               }
             >
-              <Button
+              <ActionButton
                 variant="secondary"
-                size="sm"
                 disabled={!currentAgent}
                 onClick={() =>
                   currentAgent &&
@@ -170,7 +169,7 @@ export const ConfigForm: React.FC = () => {
                 }
               >
                 {t('config.replayLandingOpen')}
-              </Button>
+              </ActionButton>
             </SettingRow>
           )}
         </div>

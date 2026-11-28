@@ -103,11 +103,9 @@ export const VersionUpdateCard: React.FC = () => {
 
         {state.type === 'idle' && (
           <SettingRow label={t('config.checkUpdate')}>
-            <ActionButton
-              icon={<RefreshCw className="w-3 h-3" />}
-              label={t('config.checkUpdate')}
-              onClick={handleCheck}
-            />
+            <ActionButton variant="outline" onClick={handleCheck}>
+              {t('config.checkUpdate')}
+            </ActionButton>
           </SettingRow>
         )}
 
@@ -116,20 +114,22 @@ export const VersionUpdateCard: React.FC = () => {
             label={t('config.checkingUpdate')}
             desc={t('config.checkingDesc')}
           >
-            <div className="flex items-center gap-1.5 text-blue-500">
-              <RefreshCw className="w-4 h-4 animate-spin" />
-              <span className="text-body">{t('config.checkingUpdate')}</span>
-            </div>
+            <ActionButton
+              variant="outline"
+              disabled
+              className="disabled:opacity-100"
+            >
+              <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              {t('config.checkingUpdate')}
+            </ActionButton>
           </SettingRow>
         )}
 
         {state.type === 'upToDate' && (
           <SettingRow label={t('config.upToDate')}>
-            <ActionButton
-              icon={<RefreshCw className="w-3 h-3" />}
-              label={t('config.checkUpdate')}
-              onClick={handleCheck}
-            />
+            <ActionButton variant="outline" onClick={handleCheck}>
+              {t('config.checkUpdate')}
+            </ActionButton>
           </SettingRow>
         )}
 
@@ -138,11 +138,10 @@ export const VersionUpdateCard: React.FC = () => {
             label={t('config.updateAvailable')}
             desc={`v${state.version}`}
           >
-            <ActionButton
-              icon={<Download className="w-3 h-3" />}
-              label={t('config.downloadUpdate')}
-              onClick={handleDownload}
-            />
+            <ActionButton variant="default" onClick={handleDownload}>
+              <Download className="w-3.5 h-3.5 mr-1.5" />
+              {t('config.downloadUpdate')}
+            </ActionButton>
           </SettingRow>
         )}
 
@@ -167,11 +166,10 @@ export const VersionUpdateCard: React.FC = () => {
 
         {state.type === 'downloaded' && (
           <SettingRow label={t('config.downloadComplete')} desc={`v${version}`}>
-            <ActionButton
-              icon={<RotateCcw className="w-3 h-3" />}
-              label={t('config.restartAndInstall')}
-              onClick={handleInstall}
-            />
+            <ActionButton variant="default" onClick={handleInstall}>
+              <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+              {t('config.restartAndInstall')}
+            </ActionButton>
           </SettingRow>
         )}
 
@@ -180,11 +178,9 @@ export const VersionUpdateCard: React.FC = () => {
             label={t('config.updateError')}
             desc={t('config.updateErrorDesc')}
           >
-            <ActionButton
-              icon={<RefreshCw className="w-3 h-3" />}
-              label={t('config.retry')}
-              onClick={handleCheck}
-            />
+            <ActionButton variant="outline" onClick={handleCheck}>
+              {t('config.retry')}
+            </ActionButton>
           </SettingRow>
         )}
       </div>

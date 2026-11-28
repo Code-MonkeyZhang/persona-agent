@@ -18,6 +18,7 @@ import { useMcpStore } from '../stores/mcpStore';
 import { useTunnelStore } from '../stores/tunnelStore';
 import { useConnectionStore } from '../stores/connectionStore';
 import { useLauncherPrefsStore } from '../stores/launcherPrefsStore';
+import { useRuntimeStore } from '../stores/runtimeStore';
 import { toast } from '../stores/toastStore';
 import i18n from '../i18n';
 import { logger } from '../lib/logger';
@@ -52,6 +53,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     let connectionUnsubscribe: (() => void) | undefined;
     let syncUnsubscribe: (() => void) | undefined;
     let hostChangeUnsubscribe: (() => void) | undefined;
+    let runtimeUnsubscribe: (() => void) | undefined;
     let cacheUnsubscribe: (() => void) | undefined;
     let cacheRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -90,6 +92,11 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 
     unsubscribe = client.onMessage(handleWsMessage);
 
+    // 环境安装的进度和结果只认 runtime_install 一种消息，交给挂在应用根部的状态仓库
+    runtimeUnsubscribe = client.onMessage(
+      useRuntimeStore.getState().handleWsMessage
+    );
+
     syncUnsubscribe = client.onMessage((msg) => {
       if (msg.type !== 'change') return;
       engine.onChange(msg.change);
@@ -120,6 +127,8 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         sourceHostId =
           useConnectionStore.getState().snapshot?.current.hostId ?? '';
         engine.sync();
+        // 断开期间环境可能装完或者装失败，补查一次追平
+        void useRuntimeStore.getState().refresh();
       }
     });
 
@@ -141,6 +150,8 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       void invalidateBaseUrl().then(() => {
         client.connect();
         void useAgentStore.getState().loadAgents();
+        // 新主机连不上时这一次查询会落回未安装，上一台主机的环境状态不会留在这一行上
+        void useRuntimeStore.getState().refresh();
       });
     });
 
@@ -171,6 +182,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       syncUnsubscribe?.();
       connectionUnsubscribe?.();
       hostChangeUnsubscribe?.();
+      runtimeUnsubscribe?.();
       cacheUnsubscribe?.();
       window.removeEventListener('focus', handleWindowFocus);
       if (cacheRefreshTimer) clearTimeout(cacheRefreshTimer);
