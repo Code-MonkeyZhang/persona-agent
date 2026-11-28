@@ -45,7 +45,7 @@ Tools that need an account pop an authorization flow on first connection. Follow
 
 ### Runtime Dependencies
 
-Community-built tools are mostly written in Python and need the uv runtime. The environment card in settings detects its state and offers one-click download when missing. On Windows, command tools additionally need Git Bash, also with detection and guidance, see [Environment Issues](/docs/troubleshooting).
+Community-built tools are mostly written in Python and need the tool runtime. The environment card in settings detects its state and offers one-click download when missing. On Windows, command tools additionally need Git Bash, also with detection and guidance, see [Environment Issues](/docs/troubleshooting).
 
 ### Uninstalling
 
