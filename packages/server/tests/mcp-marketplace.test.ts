@@ -120,7 +120,6 @@ mock.module('../src/util/uv-runtime.js', () => ({
   }),
   syncDeps: async () => {},
   invalidateUvCache: () => {},
-  getUvAssetName: () => 'uv-aarch64-apple-darwin.tar.gz',
 }));
 
 // ─── 导入被测模块 ───────────────────────────────────────────

@@ -74,7 +74,7 @@ export async function installMcp(entry: McpMarketplaceEntry): Promise<void> {
         'MARKETPLACE',
         `Blocked install of '${name}': uv runtime missing`
       );
-      throw new AppError(400, '未检测到 Python 环境');
+      throw new AppError(400, '未检测到工具运行环境');
     }
   }
 

@@ -296,7 +296,7 @@ export class MCPServerConnection {
         );
       }
       const errorText = isENOENT
-        ? '未检测到 Python 环境'
+        ? '未检测到工具运行环境'
         : `Connection failed: ${message}`;
       return { success: false, error: errorText };
     }

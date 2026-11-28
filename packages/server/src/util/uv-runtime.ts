@@ -1,56 +1,30 @@
 /**
- * @fileoverview uv 运行时管理：检测、一键下载、依赖预装。
+ * @fileoverview uv 运行时管理：检测、依赖预装。
  *
- * detectUv 检测 uv 是否可用，查应用内安装或系统 PATH。
- * installUv 下载 uv 二进制 + sha256 校验 + 解压 + uv python install。
+ * detectUv 检测 uv 是否可用，查应用内安装或系统 PATH，并且要求它找得到 Python。
+ * 一键安装在 uv-installer 里，装完调用 invalidateUvCache 让下一次检测重新查。
  * syncDeps 在 MCP 目录跑 uv sync 预装依赖，避免首次连接超时。
  */
 
-import { spawn, execSync, type ChildProcess } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { createHash } from 'node:crypto';
-import { getRuntimesDir, getUvBinPath } from './paths.js';
+import type { UvStatus } from '@persona/shared';
+import { getUvBinPath } from './paths.js';
 import { Logger } from './logger.js';
 
-const UV_RELEASE_URL =
-  'https://github.com/astral-sh/uv/releases/latest/download/';
-
-/** uv 安装 + Python 拉取的超时，单位毫秒 */
-const INSTALL_TIMEOUT_MS = 180_000;
 /** uv sync 依赖预装的超时，单位毫秒 */
 const SYNC_TIMEOUT_MS = 300_000;
+/** 检测用的 uv 命令最多等多久，单位毫秒 */
+const PROBE_TIMEOUT_MS = 5_000;
 /**
- * uv 型 MCP 默认固定的 Python 版本。
+ * 运行环境固定的 Python 版本，环境安装装的是它，就绪判定找的是它，uv sync 缺省也用它。
  *
  * 不固定版本时 uv 会拉最新稳定版，刚发布的解释器上大量 C 扩展包
  * 还没有预编译 wheel，会回退到源码编译，Windows 用户机器没有 MSVC
  * 直接失败。选发布满两年的版本保证 wheel 覆盖完整。
  */
-const MCP_PYTHON_DEFAULT = '3.12';
-
-interface UvStatus {
-  ok: boolean;
-  source: 'app' | 'system' | null;
-  path: string | null;
-  version?: string;
-}
-
-/** 当前平台对应的 uv 发布物文件名。 */
-export function getUvAssetName(): string {
-  const { platform, arch } = process;
-  if (platform === 'darwin' && arch === 'arm64')
-    return 'uv-aarch64-apple-darwin.tar.gz';
-  if (platform === 'darwin' && arch === 'x64')
-    return 'uv-x86_64-apple-darwin.tar.gz';
-  if (platform === 'win32' && arch === 'x64')
-    return 'uv-x86_64-pc-windows-msvc.zip';
-  if (platform === 'linux' && arch === 'x64')
-    return 'uv-x86_64-unknown-linux-gnu.tar.gz';
-  if (platform === 'linux' && arch === 'arm64')
-    return 'uv-aarch64-unknown-linux-gnu.tar.gz';
-  throw new Error(`Unsupported platform: ${platform}-${arch}`);
-}
+export const RUNTIME_PYTHON_VERSION = '3.12';
 
 // ---------------------------------------------------------------------------
 // detectUv — 模块级缓存，照 git-bash-detector 模式
@@ -58,7 +32,7 @@ export function getUvAssetName(): string {
 
 let cached: Promise<UvStatus> | undefined;
 
-/** 清除检测缓存，installUv 成功后调用。 */
+/** 清除检测缓存，环境安装成功后调用。 */
 export function invalidateUvCache(): void {
   cached = undefined;
 }
@@ -67,6 +41,7 @@ export function invalidateUvCache(): void {
  * 检测 uv 是否可用。结果在进程生命周期内缓存。
  *
  * 优先查应用内 runtimes/uv，其次系统 PATH。
+ * 可用指 uv 在，并且它在不联网的情况下找得到 Python。
  *
  * @returns uv 状态：是否可用、来源、版本
  */
@@ -78,22 +53,57 @@ export async function detectUv(): Promise<UvStatus> {
 
 async function detect(): Promise<UvStatus> {
   const appPath = getUvBinPath();
-  if (fs.existsSync(appPath)) {
-    const version = await tryGetVersion(appPath);
-    if (version) {
-      Logger.log('UV', `Detected uv (app) at ${appPath}, version ${version}`);
-      return { ok: true, source: 'app', path: appPath, version };
+  const candidates: Array<{ source: 'app' | 'system'; bin: string }> = [
+    { source: 'app', bin: appPath },
+    { source: 'system', bin: 'uv' },
+  ];
+
+  for (const { source, bin } of candidates) {
+    const version = await tryGetVersion(bin);
+    if (!version) continue;
+    Logger.log('UV', `Detected uv (${source}), version ${version}`, { bin });
+    if (await canFindPython(bin)) {
+      return {
+        ok: true,
+        source,
+        path: source === 'app' ? appPath : null,
+        version,
+      };
     }
+    Logger.log(
+      'UV',
+      `uv (${source}) cannot find Python ${RUNTIME_PYTHON_VERSION}`,
+      {
+        bin,
+      }
+    );
   }
 
-  const systemVersion = await tryGetVersion('uv');
-  if (systemVersion) {
-    Logger.log('UV', `Detected uv (system), version ${systemVersion}`);
-    return { ok: true, source: 'system', path: null, version: systemVersion };
-  }
-
-  Logger.log('UV', 'uv not found');
+  Logger.log('UV', 'No usable uv found');
   return { ok: false, source: null, path: null };
+}
+
+/**
+ * 让指定的 uv 在不联网的情况下找一下 Python，找得到返回 true。
+ * 就绪判定和安装器最后的验证都用它，两处对环境是否可用的判断才是同一把尺子。
+ */
+export async function canFindPython(bin: string): Promise<boolean> {
+  try {
+    const result = await spawnAndCollect(
+      bin,
+      [
+        '--no-python-downloads',
+        'python',
+        'find',
+        RUNTIME_PYTHON_VERSION,
+        '--no-project',
+      ],
+      { timeoutMs: PROBE_TIMEOUT_MS }
+    );
+    return result.code === 0;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -105,175 +115,12 @@ async function detect(): Promise<UvStatus> {
 async function tryGetVersion(bin: string): Promise<string | null> {
   try {
     const result = await spawnAndCollect(bin, ['--version'], {
-      timeoutMs: 5000,
+      timeoutMs: PROBE_TIMEOUT_MS,
     });
     return result.code === 0 ? result.stdout.trim() || null : null;
   } catch {
     return null;
   }
-}
-
-/**
- * 一键安装 uv 运行时。
- *
- * 下载 uv 二进制 + sha256 校验 + 解压 + uv python install。
- * 完成后调用方可直接用 detectUv() 确认。
- *
- * @throws 下载失败、校验不匹配、解压失败、python install 失败时抛出
- */
-export async function installUv(): Promise<void> {
-  Logger.log('UV', 'Starting uv installation');
-
-  const runtimesDir = getRuntimesDir();
-  fs.mkdirSync(runtimesDir, { recursive: true });
-
-  try {
-    const assetName = getUvAssetName();
-    const isZip = assetName.endsWith('.zip');
-
-    // 下载压缩包
-    const archivePath = path.join(runtimesDir, assetName);
-    Logger.log('UV', `Downloading ${assetName}`);
-    await downloadFile(UV_RELEASE_URL + assetName, archivePath);
-
-    // sha256 校验
-    Logger.log('UV', 'Verifying sha256');
-    const expectedHash = await fetchSha256(
-      UV_RELEASE_URL + assetName + '.sha256'
-    );
-    const actualHash = hashFile(archivePath);
-    if (actualHash !== expectedHash) {
-      fs.rmSync(archivePath, { force: true });
-      throw new Error(
-        `uv sha256 mismatch: expected ${expectedHash}, got ${actualHash}`
-      );
-    }
-
-    // 解压
-    Logger.log('UV', `Extracting ${isZip ? 'zip' : 'tar.gz'}`);
-    extractArchive(archivePath, runtimesDir, isZip);
-    fs.rmSync(archivePath, { force: true });
-
-    // 从子目录移出 uv 二进制，解压后会带 uv-<platform>/ 子目录
-    moveUvOutOfSubdir(runtimesDir);
-
-    // 设置可执行权限
-    const uvPath = getUvBinPath();
-    if (process.platform !== 'win32') {
-      fs.chmodSync(uvPath, 0o755);
-    }
-
-    // macOS 去 quarantine
-    if (process.platform === 'darwin') {
-      try {
-        execSync(`xattr -d com.apple.quarantine "${uvPath}"`, {
-          stdio: 'pipe',
-          timeout: 5000,
-        });
-      } catch {
-        // 没有 quarantine 属性时 xattr 会报错，忽略
-      }
-    }
-
-    // 拉取 Python 解释器，固定版本避免 uv 默认拉到生态未跟上的最新版
-    Logger.log('UV', `Installing Python interpreter ${MCP_PYTHON_DEFAULT}`);
-    await runUvCommand(
-      uvPath,
-      ['python', 'install', MCP_PYTHON_DEFAULT],
-      INSTALL_TIMEOUT_MS
-    );
-    Logger.log('UV', 'Python interpreter installed');
-  } catch (err) {
-    Logger.log(
-      'UV',
-      `Installation failed: ${err instanceof Error ? err.message : err}`
-    );
-    throw err;
-  }
-
-  invalidateUvCache();
-  Logger.log('UV', 'uv installation complete');
-}
-
-async function downloadFile(url: string, dest: string): Promise<void> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to download ${url}: ${response.status}`);
-  }
-  const buffer = Buffer.from(await response.arrayBuffer());
-  fs.writeFileSync(dest, buffer);
-}
-
-async function fetchSha256(url: string): Promise<string> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to download sha256: ${response.status}`);
-  }
-  const text = await response.text();
-  // 格式: "<hash>  <filename>"
-  return text.trim().split(/\s+/)[0];
-}
-
-function hashFile(filePath: string): string {
-  const content = fs.readFileSync(filePath);
-  return createHash('sha256').update(content).digest('hex');
-}
-
-/**
- * 解压压缩包到目标目录。
- *
- * tar.gz 用系统 tar；Windows zip 优先 bsdtar，失败回退 Expand-Archive。
- */
-function extractArchive(
-  archivePath: string,
-  destDir: string,
-  isZip: boolean
-): void {
-  if (!isZip) {
-    execSync(`tar xzf "${archivePath}" -C "${destDir}"`, {
-      stdio: 'pipe',
-      timeout: 60_000,
-    });
-    return;
-  }
-
-  try {
-    execSync(`tar -xf "${archivePath}" -C "${destDir}"`, {
-      stdio: 'pipe',
-      timeout: 60_000,
-      windowsHide: true,
-    });
-  } catch {
-    Logger.log('UV', 'bsdtar failed, falling back to Expand-Archive');
-    execSync(
-      `powershell -NoProfile -Command "Expand-Archive -Path '${archivePath}' -DestinationPath '${destDir}' -Force"`,
-      { stdio: 'pipe', timeout: 60_000, windowsHide: true }
-    );
-  }
-}
-
-/**
- * uv 压缩包解压后会产生 uv-<platform>/ 子目录，把里面的 uv 二进制移到 runtimes 顶层。
- */
-function moveUvOutOfSubdir(runtimesDir: string): void {
-  const binName = process.platform === 'win32' ? 'uv.exe' : 'uv';
-  const finalPath = path.join(runtimesDir, binName);
-
-  if (fs.existsSync(finalPath)) return;
-
-  for (const entry of fs.readdirSync(runtimesDir)) {
-    const subdir = path.join(runtimesDir, entry);
-    const stat = fs.statSync(subdir);
-    if (!stat.isDirectory()) continue;
-    const inner = path.join(subdir, binName);
-    if (fs.existsSync(inner)) {
-      fs.renameSync(inner, finalPath);
-      fs.rmSync(subdir, { recursive: true });
-      return;
-    }
-  }
-
-  throw new Error(`uv binary not found after extraction in ${runtimesDir}`);
 }
 
 /**
@@ -290,13 +137,13 @@ export function buildSyncArgs(mcpDir: string): string[] {
   if (fs.existsSync(path.join(mcpDir, '.python-version'))) {
     return ['sync'];
   }
-  return ['sync', '--python', MCP_PYTHON_DEFAULT];
+  return ['sync', '--python', RUNTIME_PYTHON_VERSION];
 }
 
 /**
  * 在指定 MCP 目录运行 uv sync 预装依赖。
  *
- * Python 解释器在 installUv 时已拉好，这里只建 venv + 装项目依赖。
+ * Python 解释器在环境安装时已经装好，这里只建 venv + 装项目依赖。
  * 失败不删目录，uv 有缓存方便重试。
  *
  * @param mcpDir MCP 项目目录，含 pyproject.toml / uv.lock
@@ -332,7 +179,7 @@ export async function syncDeps(mcpDir: string): Promise<void> {
  * @returns 退出码、stdout、stderr
  * @throws spawn 失败或超时时抛出
  */
-function spawnAndCollect(
+export function spawnAndCollect(
   bin: string,
   args: string[],
   opts: { timeoutMs: number; cwd?: string }
