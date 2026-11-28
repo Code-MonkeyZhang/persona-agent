@@ -42,13 +42,15 @@ if (!app.requestSingleInstanceLock()) {
  */
 function bootstrapApp(): void {
   // 日志配置。dev 与正式版统一写入用户数据目录 logs/desktop.log，与 server
-  // 的 agent-server.log 同目录，每次启动清空，路径规则与 server 侧 util/paths.ts 一致
+  // 的 agent-server.log 同目录，写到体积上限由 electron-log 自动滚动，路径规则与 server 侧 util/paths.ts 一致
   if (!xdgData) {
     throw new Error('Unable to determine XDG data directory');
   }
   const DATA_DIR = join(xdgData, 'persona-agent');
   const LOGS_DIR = join(DATA_DIR, 'logs');
   const LOG_FILE = join(LOGS_DIR, 'desktop.log');
+  /** 单个日志文件的体积上限，与服务端的 agent-server.log 一致 */
+  const LOG_MAX_BYTES = 5 * 1024 * 1024;
 
   /** 本机服务端的提供方式，HostManager 通过它拿到本机那条连接 */
   const localProvider = new LocalHostProvider();
@@ -77,6 +79,7 @@ function bootstrapApp(): void {
   /**
    * 从 server 的 config.yaml 读取日志开关
    * 文件由 server 侧 yaml.stringify 写出，行格式固定，按行匹配即可
+   * 读不到开关时按开处理，与服务端 config.ts 的默认值一致
    */
   function readEnableLogging(): boolean {
     try {
@@ -84,10 +87,9 @@ function bootstrapApp(): void {
         join(DATA_DIR, 'config', 'config.yaml'),
         'utf-8'
       );
-      const match = content.match(/^enableLogging:\s*(true|false)\s*$/m);
-      return match?.[1] === 'true';
+      return !/^enableLogging:\s*false\s*$/m.test(content);
     } catch {
-      return false;
+      return true;
     }
   }
 
@@ -102,10 +104,8 @@ function bootstrapApp(): void {
     log.transports.file.level = enabled ? 'info' : false;
   }
 
-  if (fs.existsSync(LOG_FILE)) {
-    fs.unlinkSync(LOG_FILE);
-  }
   log.transports.file.resolvePath = () => LOG_FILE;
+  log.transports.file.maxSize = LOG_MAX_BYTES;
   setFileLogging(readEnableLogging());
   if (is.dev) {
     log.transports.console.level = false;

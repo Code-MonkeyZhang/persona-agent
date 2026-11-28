@@ -29,6 +29,7 @@ mock.module('../src/util/paths.js', () => ({
 mock.module('../src/util/logger.js', () => ({
   Logger: {
     log: () => {},
+    critical: () => {},
     initialize: () => '',
     setEnabled: () => {},
     setSessionManagers: () => {},

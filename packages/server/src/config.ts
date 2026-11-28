@@ -23,7 +23,7 @@ export interface AppConfig {
 }
 
 const DEFAULT_CONFIG: AppConfig = {
-  enableLogging: false,
+  enableLogging: true,
   enableToolNarration: true,
   compression: { autoCompress: true, threshold: 100 },
 };

@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getSkillsDir, getMcpServersDir } from '../util/paths.js';
+import { Logger } from '../util/logger.js';
 import { cdnUrl } from './config.js';
 import { listPackageFiles } from './repo-tree.js';
 import { folderNameOf } from './util.js';
@@ -81,6 +82,11 @@ export async function downloadPackage(
     } catch {
       /* 忽略 */
     }
+    Logger.critical(
+      'MARKETPLACE',
+      `Package download failed, ${remotePath}`,
+      errors[0]
+    );
     throw errors[0];
   }
 
